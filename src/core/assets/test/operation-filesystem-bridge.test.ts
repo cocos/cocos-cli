@@ -204,6 +204,8 @@ describe('asset operation filesystem bridge', () => {
     });
 
     afterEach(() => {
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+        delete (assetQuery as any).queryAssets;
         jest.restoreAllMocks();
     });
 
@@ -279,8 +281,39 @@ describe('asset operation filesystem bridge', () => {
 
         expect(mockReimport).toHaveBeenCalledTimes(1);
         expect(mockReimport).toHaveBeenCalledWith(requestPath);
-        expect(mockQueryAsset).not.toHaveBeenCalled();
+        // The Animation Graph dirty-write guard performs one preflight lookup. A
+        // second lookup would indicate that reimport entered its busy retry path.
+        expect(mockQueryAsset).toHaveBeenCalledTimes(1);
+        expect(mockQueryAsset).toHaveBeenCalledWith(requestPath);
         expect(result).toEqual({ source: asset.source });
+    });
+
+    it('scopes Animation Graph preflight queries to the requested database root', () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const assetQuery = require('../manager/query').default as typeof import('../manager/query').default;
+        const assetsGraph = {
+            uuid: 'assets-graph',
+            source: 'D:/project/assets/graph.animgraph',
+            url: 'db://assets/graph.animgraph',
+            meta: { importer: 'animation-graph' },
+        };
+        const internalGraph = {
+            uuid: 'internal-graph',
+            source: 'D:/project/internal/graph.animgraph',
+            url: 'db://internal/graph.animgraph',
+            meta: { importer: 'animation-graph' },
+        };
+        mockQueryAsset.mockReturnValue({
+            uuid: 'db://assets',
+            source: 'db://assets',
+            meta: { importer: 'database', name: 'assets' },
+        });
+        (assetQuery as any).queryAssets = jest.fn(() => [assetsGraph, internalGraph]);
+
+        const result = (assetOperation as any)._queryAnimationGraphAssetsAt('db://assets');
+
+        expect(result).toEqual([assetsGraph]);
+        expect((assetQuery as any).queryAssets).toHaveBeenCalledTimes(1);
     });
 
     it('reimportAsset serializes the asset tree metadata contract', async () => {

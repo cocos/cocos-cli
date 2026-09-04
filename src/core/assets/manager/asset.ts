@@ -8,6 +8,7 @@ import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
 import assetOperation from './operation';
 import assetHandlerManager from './asset-handler';
 import animationGraphVariant from '../animation-graph-variant';
+import animationGraph from '../animation-graph-service';
 import * as serializedData from '../serialized-data';
 import * as materialService from '../material-service';
 import {
@@ -62,6 +63,19 @@ class AssetManager extends EventEmitter {
     queryMaterialEffect = materialService.queryEffect;
     queryMaterialAllEffects = materialService.queryAllEffects;
     saveMaterial = materialService.saveMaterial;
+
+    // ---------- animation graph ----------
+    queryAnimationGraph = animationGraph.query.bind(animationGraph);
+    queryAnimationGraphInspector = animationGraph.queryInspector.bind(animationGraph);
+    queryAnimationGraphPoseGraphAssetDragHandlers = animationGraph.queryPoseGraphAssetDragHandlers.bind(animationGraph);
+    queryAnimationGraphStateMachineComponentTypes = animationGraph.queryStateMachineComponentTypes.bind(animationGraph);
+    setAnimationGraphInspectorProperty = animationGraph.setInspectorProperty.bind(animationGraph);
+    resetAnimationGraphInspectorProperty = animationGraph.resetInspectorProperty.bind(animationGraph);
+    createAnimationGraphInspectorProperty = animationGraph.createInspectorProperty.bind(animationGraph);
+    executeAnimationGraphCommand = animationGraph.execute.bind(animationGraph);
+    saveAnimationGraph = animationGraph.save.bind(animationGraph);
+    reloadAnimationGraph = animationGraph.reload.bind(animationGraph);
+    onAnimationGraphChanged = animationGraph.onChanged.bind(animationGraph);
 
     // ---------- animation graph variant ---------
     queryAnimationGraphVariant = animationGraphVariant.query.bind(animationGraphVariant);
@@ -394,6 +408,18 @@ export interface TypedAssetManager extends EventEmitter {
     queryMaterialEffect: typeof materialService.queryEffect;
     queryMaterialAllEffects: typeof materialService.queryAllEffects;
     saveMaterial: typeof materialService.saveMaterial;
+
+    queryAnimationGraph: typeof animationGraph.query;
+    queryAnimationGraphInspector: typeof animationGraph.queryInspector;
+    queryAnimationGraphPoseGraphAssetDragHandlers: typeof animationGraph.queryPoseGraphAssetDragHandlers;
+    queryAnimationGraphStateMachineComponentTypes: typeof animationGraph.queryStateMachineComponentTypes;
+    setAnimationGraphInspectorProperty: typeof animationGraph.setInspectorProperty;
+    resetAnimationGraphInspectorProperty: typeof animationGraph.resetInspectorProperty;
+    createAnimationGraphInspectorProperty: typeof animationGraph.createInspectorProperty;
+    executeAnimationGraphCommand: typeof animationGraph.execute;
+    saveAnimationGraph: typeof animationGraph.save;
+    reloadAnimationGraph: typeof animationGraph.reload;
+    onAnimationGraphChanged: typeof animationGraph.onChanged;
 
     queryAnimationGraphVariant: typeof animationGraphVariant.query;
     changeAnimationGraphVariant: typeof animationGraphVariant.change;

@@ -38,6 +38,338 @@ export interface SerializedAssetQueryResult {
     dump: SerializedAssetDump;
 }
 
+export interface AnimationGraphExpectedVersion {
+    documentId: string;
+    revision: number;
+}
+
+export interface AnimationGraphVersion extends AnimationGraphExpectedVersion {
+    persistedRevision: number;
+    dirty: boolean;
+    externallyModified: boolean;
+}
+
+export type AnimationGraphStateMachineContext =
+    | { kind: 'layer-state-machine'; layerIndex: number; stateMachinePath: number[] }
+    | { kind: 'pose-node-state-machine'; poseGraph: AnimationGraphPoseGraphContext; nodeId: number }
+    | { kind: 'sub-state-machine'; stateMachine: AnimationGraphStateMachineContext; stateIndex: number };
+
+export type AnimationGraphPoseGraphContext =
+    | { kind: 'state-pose-graph'; stateMachine: AnimationGraphStateMachineContext; stateIndex: number }
+    | { kind: 'layer-stash'; layerIndex: number; stashName: string };
+
+export type AnimationGraphStateMachineAddress =
+    | { layerIndex: number; stateMachinePath: number[] }
+    | { stateMachine: AnimationGraphStateMachineContext };
+
+export type AnimationGraphStateAddress = AnimationGraphStateMachineAddress & { stateIndex: number };
+
+export type AnimationGraphPoseGraphAddress =
+    | { layerIndex: number; stateMachinePath: number[]; stateIndex: number }
+    | { poseGraph: AnimationGraphPoseGraphContext };
+
+export type AnimationGraphPoseNodeAddress = AnimationGraphPoseGraphAddress & { nodeId: number };
+
+export type AnimationGraphMotionAddress =
+    | (AnimationGraphStateAddress & { level: number[] })
+    | ({ poseGraph: AnimationGraphPoseGraphContext; nodeId: number; level: number[] });
+
+export type AnimationGraphTarget =
+    | { kind: 'layer'; layerIndex: number }
+    | ({ kind: 'state' } & AnimationGraphStateAddress)
+    | ({ kind: 'transition'; transitionIndex: number } & AnimationGraphStateMachineAddress)
+    | ({ kind: 'motion' } & AnimationGraphMotionAddress)
+    | ({ kind: 'pose-node' } & AnimationGraphPoseNodeAddress)
+    | ({ kind: 'pose-input'; inputId: string } & AnimationGraphPoseNodeAddress)
+    | ({ kind: 'state-component'; componentIndex: number } & AnimationGraphStateAddress);
+
+export interface AnimationGraphComponentView {
+    index: number;
+    type: string;
+}
+
+export interface AnimationGraphMotionView {
+    level: number[];
+    target: Extract<AnimationGraphTarget, { kind: 'motion' }>;
+    type: 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct' | 'unknown';
+    name: string;
+    clipUuid?: string | null;
+    variable?: string;
+    value?: number;
+    variableX?: string;
+    valueX?: number;
+    variableY?: string;
+    valueY?: number;
+    threshold?: number | { x: number; y: number };
+    weight?: { value: number; variable: string };
+    children?: AnimationGraphMotionView[];
+    editorData?: Record<string, unknown>;
+}
+
+export interface AnimationGraphPoseInputView {
+    id: string;
+    displayName: string;
+    type: number;
+    deletable: boolean;
+    insertPoint: boolean;
+    connected: boolean;
+    producerNodeId?: number;
+    producerOutputId?: number;
+    value?: IProperty;
+}
+
+export interface AnimationGraphPoseNodeEnterInfo {
+    type: 'state-machine' | 'animation-blend' | 'stash';
+    stashName?: string;
+}
+
+export interface AnimationGraphPoseNodeView {
+    id: number;
+    type: string;
+    title: string;
+    outputTypes: number[];
+    inputs: AnimationGraphPoseInputView[];
+    inputInsertInfos: Record<string, { displayName: string }>;
+    stateMachine?: AnimationGraphStateMachineView;
+    motion?: AnimationGraphMotionView | null;
+    enterInfo?: AnimationGraphPoseNodeEnterInfo;
+    editorData?: Record<string, unknown>;
+}
+
+export interface AnimationGraphPoseGraphAddNodeInfo {
+    typeId: string;
+    args: unknown;
+    menu: string;
+}
+
+export interface AnimationGraphPoseGraphAssetDragHandlerView {
+    displayName: string;
+}
+
+export interface AnimationGraphPoseGraphAssetDragHandlersView {
+    handlers: Record<string, AnimationGraphPoseGraphAssetDragHandlerView>;
+}
+
+export interface AnimationGraphPoseView {
+    context: AnimationGraphPoseGraphContext;
+    rootOutputNodeId: number;
+    nodes: AnimationGraphPoseNodeView[];
+    addNodeInfos: AnimationGraphPoseGraphAddNodeInfo[];
+    assetDragHandlersMap: Record<string, AnimationGraphPoseGraphAssetDragHandlersView>;
+}
+
+export interface AnimationGraphPoseGraphAssetDragHandlerInfo {
+    id: string;
+    displayName: string;
+}
+
+export interface AnimationGraphPoseGraphAssetDragHandlersEntry {
+    assetType: string;
+    handlers: AnimationGraphPoseGraphAssetDragHandlerInfo[];
+}
+
+export interface AnimationGraphStateView {
+    index: number;
+    type: 'entry' | 'exit' | 'any' | 'motion' | 'empty' | 'sub-state-machine' | 'procedural-pose' | 'unknown';
+    name: string;
+    incomingTransitionIndices: number[];
+    outgoingTransitionIndices: number[];
+    components: AnimationGraphComponentView[];
+    speed?: number;
+    speedMultiplier?: string;
+    speedMultiplierEnabled?: boolean;
+    motion?: AnimationGraphMotionView | null;
+    stateMachine?: AnimationGraphStateMachineView;
+    poseGraph?: AnimationGraphPoseView;
+    editorData?: Record<string, unknown>;
+}
+
+export interface AnimationGraphTransitionView {
+    index: number;
+    type: 'animation' | 'empty-state' | 'procedural-pose' | 'transition';
+    fromStateIndex: number;
+    toStateIndex: number;
+    priority: number;
+    conditions: AnimationGraphTransitionConditionView[];
+    duration?: number;
+    relativeDuration?: boolean;
+    exitConditionEnabled?: boolean;
+    exitCondition?: number;
+    destinationStart?: number;
+    relativeDestinationStart?: boolean;
+    startEvent?: string;
+    endEvent?: string;
+    editorData?: Record<string, unknown>;
+}
+
+export type AnimationGraphTransitionConditionView =
+    | {
+        index: number;
+        type: 'BinaryCondition';
+        operator: number;
+        lhs: number;
+        lhsBinding: Record<string, unknown>;
+        bindingClass: string;
+        rhs: number;
+        isRhsInteger: boolean;
+    }
+    | {
+        index: number;
+        type: 'UnaryCondition';
+        operator: number;
+        operand: string;
+    }
+    | {
+        index: number;
+        type: 'TriggerCondition';
+        trigger: string;
+    }
+    | {
+        index: number;
+        type: 'Unknown';
+        className: string;
+    };
+
+export interface AnimationGraphStateMachineView {
+    context: AnimationGraphStateMachineContext;
+    path: number[];
+    allowEmptyStates: boolean;
+    states: AnimationGraphStateView[];
+    transitions: AnimationGraphTransitionView[];
+    editorData?: Record<string, unknown>;
+}
+
+export interface AnimationGraphLayerView {
+    index: number;
+    name: string;
+    weight: number;
+    additive: boolean;
+    maskUuid: string | null;
+    stashes: string[];
+    stashPoseGraphs: Array<{ name: string; poseGraph: AnimationGraphPoseView; referenceCount?: number }>;
+    stateMachine: AnimationGraphStateMachineView;
+}
+
+export interface AnimationGraphVariableView {
+    name: string;
+    type: number;
+    value: IProperty;
+    resetMode?: number;
+}
+
+export interface AnimationGraphViewDump {
+    layers: AnimationGraphLayerView[];
+    variables: AnimationGraphVariableView[];
+}
+
+export interface AnimationGraphSnapshot extends AnimationGraphVersion {
+    uuid: string;
+    url: string;
+    graph: AnimationGraphViewDump;
+}
+
+export interface AnimationGraphInspectorPropertyCapabilities {
+    set: boolean;
+    reset: boolean;
+    create: boolean;
+}
+
+export interface AnimationGraphInspectorSnapshot extends AnimationGraphVersion {
+    uuid: string;
+    target: AnimationGraphTarget;
+    dump: IProperty;
+    propertyCapabilities?: Record<string, AnimationGraphInspectorPropertyCapabilities>;
+}
+
+export interface AnimationGraphInspectorPropertyOperationRequest {
+    target: AnimationGraphTarget;
+    path: string;
+    expected: AnimationGraphExpectedVersion;
+    sourceId?: string;
+}
+
+export interface SetAnimationGraphInspectorPropertyRequest extends AnimationGraphInspectorPropertyOperationRequest {
+    patch: IProperty | unknown;
+}
+
+export type AnimationGraphStateType = 'motion' | 'empty' | 'sub-state-machine' | 'procedural-pose';
+export type AnimationGraphMotionType = 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct';
+export type AnimationGraphTransitionConditionType = 'binary' | 'unary' | 'trigger';
+
+export type AnimationGraphCommand =
+    | { type: 'add-layer'; name?: string }
+    | { type: 'remove-layer'; layerIndex: number }
+    | { type: 'move-layer'; layerIndex: number; newIndex: number }
+    | ({ type: 'add-state'; stateType: AnimationGraphStateType; name?: string; motionType?: AnimationGraphMotionType; clipUuid?: string; editorData?: Record<string, unknown> } & AnimationGraphStateMachineAddress)
+    | ({ type: 'remove-state' } & AnimationGraphStateAddress)
+    | ({ type: 'duplicate-state'; includeTransitions?: boolean; editorData?: Record<string, unknown> } & AnimationGraphStateAddress)
+    | ({ type: 'set-state-editor-data'; editorData: Record<string, unknown> } & AnimationGraphStateAddress)
+    | ({ type: 'add-transition'; fromStateIndex: number; toStateIndex: number } & AnimationGraphStateMachineAddress)
+    | ({ type: 'remove-transition'; transitionIndex: number; allBetween?: boolean } & AnimationGraphStateMachineAddress)
+    | ({ type: 'move-transition'; transitionIndex: number; offset: number } & AnimationGraphStateMachineAddress)
+    | { type: 'add-transition-condition'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionType: AnimationGraphTransitionConditionType }
+    | { type: 'remove-transition-condition'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number }
+    | { type: 'set-transition-condition-property'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number; path: string; value: unknown }
+    | { type: 'set-transition-condition-binding-class'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number; bindingClass: string }
+    | ({ type: 'set-transition-event-binding'; transitionIndex: number; which: 'start' | 'end'; methodName: string } & AnimationGraphStateMachineAddress)
+    | ({ type: 'set-motion'; motionType: AnimationGraphMotionType | 'none'; clipUuid?: string } & (AnimationGraphStateAddress | { poseGraph: AnimationGraphPoseGraphContext; nodeId: number }))
+    | { type: 'add-motion-child'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; motionType: AnimationGraphMotionType; clipUuid?: string }
+    | { type: 'remove-motion'; target: Extract<AnimationGraphTarget, { kind: 'motion' }> }
+    | { type: 'set-motion-editor-data'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; editorData: Record<string, unknown> }
+    | { type: 'set-motion-threshold'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; childIndex: number; threshold: number | { x: number; y: number } }
+    | { type: 'set-direct-blend-weight'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; childIndex: number; value?: number; variable?: string }
+    | ({ type: 'add-state-component'; componentType: string } & AnimationGraphStateAddress)
+    | ({ type: 'remove-state-component'; componentIndex: number } & AnimationGraphStateAddress)
+    | ({ type: 'add-pose-node'; nodeType: string; createArg?: unknown; editorData?: Record<string, unknown> } & AnimationGraphPoseGraphAddress)
+    | ({ type: 'create-pose-node-on-asset-drag'; assetUuid: string; handlerId: string; editorData?: Record<string, unknown> } & AnimationGraphPoseGraphAddress)
+    | { type: 'remove-pose-node'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }> }
+    | ({ type: 'duplicate-pose-nodes'; nodeIds: number[] } & AnimationGraphPoseGraphAddress)
+    | { type: 'set-pose-node-editor-data'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }>; editorData: Record<string, unknown> }
+    | ({ type: 'connect-pose-nodes'; producerNodeId: number; producerOutputId: number; consumerNodeId: number; consumerInputId: string } & AnimationGraphPoseGraphAddress)
+    | { type: 'disconnect-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-input' }> }
+    | { type: 'insert-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }>; insertId: string }
+    | { type: 'delete-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-input' }> }
+    | { type: 'add-variable'; name: string; variableType: number; initialValue?: unknown }
+    | { type: 'set-variable-value'; name: string; patch: IProperty | unknown }
+    | { type: 'set-trigger-reset-mode'; name: string; resetMode: number }
+    | { type: 'remove-variable'; name: string }
+    | { type: 'rename-variable'; name: string; newName: string }
+    | { type: 'add-stash'; layerIndex: number; name: string }
+    | { type: 'remove-stash'; layerIndex: number; name: string }
+    | { type: 'rename-stash'; layerIndex: number; name: string; newName: string }
+    | { type: 'stash-pose-graph'; poseGraph: AnimationGraphPoseGraphContext; layerIndex: number; stashName?: string; editorData?: Record<string, unknown> };
+
+export interface ExecuteAnimationGraphCommandRequest {
+    command: AnimationGraphCommand;
+    expected: AnimationGraphExpectedVersion;
+    sourceId?: string;
+}
+
+export interface ReloadAnimationGraphOptions {
+    expected?: AnimationGraphExpectedVersion;
+    discardDirty?: boolean;
+}
+
+export interface AnimationGraphChangedEvent {
+    uuid: string;
+    reason: 'inspector' | 'structure' | 'save' | 'reload' | 'external';
+    version: AnimationGraphVersion;
+    sourceId?: string;
+    changedPaths?: string[];
+}
+
+export type AnimationGraphEditErrorCode =
+    | 'VERSION_CONFLICT'
+    | 'DOCUMENT_RELOADED'
+    | 'SOURCE_CHANGED'
+    | 'TARGET_NOT_FOUND'
+    | 'UNSUPPORTED_TARGET'
+    | 'UNSUPPORTED_PROPERTY_OPERATION'
+    | 'INVALID_PROPERTY_PATCH'
+    | 'READONLY_PROPERTY'
+    | 'NAME_CONFLICT'
+    | 'DIRTY_DOCUMENT';
+
 export interface MaterialEffectInfo {
     uuid: string;
     name: string;

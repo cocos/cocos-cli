@@ -17,6 +17,14 @@ import i18n from '../base/i18n';
 export type SerializedAssetDump = Record<string, IProperty> | IProperty;
 export type SerializedAssetPatch = SerializedAssetDump | Partial<Record<string, IProperty | unknown>>;
 
+export type EncodedPropertyOperation = 'reset' | 'create';
+
+export interface EncodedPropertyOperationCapabilities {
+    set: boolean;
+    reset: boolean;
+    create: boolean;
+}
+
 export interface SerializedAssetQueryResult {
     uuid: string;
     url: string;
@@ -161,7 +169,7 @@ function encodeComponentAsset(
             if (!(key in instance)) {
                 return;
             }
-            const attrs = cc.Class.attr(ctor, key);
+            const attrs = cc.Class.attr(instance, key);
             const dumpData = encodeSerializedObject(instance[key], attrs, instance, key);
             if (dumpData.type !== 'Unknown') {
                 value[key] = dumpData;
@@ -174,6 +182,298 @@ function encodeComponentAsset(
         }
     });
     return value;
+}
+
+/**
+ * Encodes an engine instance and its decorated properties into an Inspector-ready root dump.
+ *
+ * This is intentionally kept in the asset/property layer so non-scene editors can reuse the
+ * same dynamic attribute, getter/setter and asset-reference behavior without depending on the
+ * scene service.
+ */
+export function encodePropertyObject(instance: any, name?: string): IProperty {
+    if (!instance || typeof instance !== 'object') {
+        throw new Error('Property dump target must be an object.');
+    }
+
+    const ctor = instance.constructor;
+    const dump: IProperty = {
+        name: name || getTypeName(ctor),
+        type: getTypeName(ctor),
+        value: encodeComponentAsset(instance, modifyPropName),
+        visible: true,
+        readonly: false,
+        path: '',
+    };
+    assignPropertyPaths(dump);
+    return dump;
+}
+
+/**
+ * Applies one value patch to an engine instance using a path returned by
+ * {@link encodePropertyObject}. Schema metadata from the caller is ignored.
+ */
+export async function applyPropertyObjectPatch(
+    instance: any,
+    path: string,
+    patch: IProperty | unknown,
+): Promise<void> {
+    const currentRoot = encodePropertyObject(instance);
+    const current = findPropertyDump(currentRoot, path);
+    if (!current) {
+        throw new Error(`Unknown property dump path: ${path}`);
+    }
+
+    const next: IProperty = {
+        ...cloneDeep(current),
+        value: cloneDeep(isPropertyLike(patch) ? patch.value : patch),
+    };
+    validateEditablePropertyPatch(path, current, next);
+
+    const { owner, key } = resolvePropertyOwner(instance, path);
+    await setValue(owner, { [key]: next }, key);
+}
+
+/**
+ * Applies a patch when the caller already owns the current property dump. This is used for
+ * virtual properties such as Pose Graph input constants.
+ */
+export async function applyEncodedPropertyPatch(
+    owner: any,
+    key: string,
+    current: IProperty,
+    patch: IProperty | unknown,
+): Promise<void> {
+    const next: IProperty = {
+        ...cloneDeep(current),
+        value: cloneDeep(isPropertyLike(patch) ? patch.value : patch),
+    };
+    validateEditablePropertyPatch(current.path || key, current, next);
+    await setValue(owner, { [key]: next }, key);
+}
+
+/**
+ * Applies Creator-compatible reset/create semantics to a decorated object property.
+ * The operation is resolved from the current engine instance instead of caller-provided dump
+ * metadata so default factories, cloneable values and constructors remain authoritative.
+ */
+export function applyPropertyObjectOperation(
+    instance: any,
+    path: string,
+    operation: EncodedPropertyOperation,
+): void {
+    const currentRoot = encodePropertyObject(instance);
+    const current = findPropertyDump(currentRoot, path);
+    if (!current) {
+        throw new Error(`Unknown property dump path: ${path}`);
+    }
+
+    const { owner, key } = resolvePropertyOwner(instance, path);
+    const attributes = getPropertyAttributes(owner, key);
+    applyEncodedPropertyOperation(owner, key, current, attributes, operation);
+}
+
+/**
+ * Applies reset/create to a property whose dump and attributes are already known. This is used
+ * by virtual properties such as Pose Graph input constants and explicit Graph adapters.
+ */
+export function applyEncodedPropertyOperation(
+    owner: any,
+    key: string,
+    current: IProperty,
+    attributes: any,
+    operation: EncodedPropertyOperation,
+): void {
+    assertEditablePropertyOperation(current.path || key, current);
+    const supported = operation === 'create'
+        ? canCreatePropertyValue(attributes)
+        : canResetPropertyValue(attributes);
+    if (!supported) {
+        throw new Error(`Property ${current.path || key} does not support ${operation}.`);
+    }
+
+    const value = operation === 'create'
+        ? getPropertyCreateValue(attributes)
+        : getPropertyResetValue(attributes);
+    owner[key] = value;
+}
+
+/**
+ * Returns per-path operation support for one decorated instance. Graph Inspector snapshots use
+ * this to avoid presenting reset/create actions that the engine attributes can not fulfill.
+ */
+export function queryPropertyObjectOperationCapabilities(
+    instance: any,
+    rootDump: IProperty = encodePropertyObject(instance),
+): Record<string, EncodedPropertyOperationCapabilities> {
+    const capabilities: Record<string, EncodedPropertyOperationCapabilities> = {};
+    visitPropertyDumps(rootDump, (path, current) => {
+        if (!path) {
+            return;
+        }
+        try {
+            const { owner, key } = resolvePropertyOwner(instance, path);
+            capabilities[path] = getEncodedPropertyOperationCapabilities(
+                current,
+                getPropertyAttributes(owner, key),
+            );
+        } catch {
+            capabilities[path] = getEncodedPropertyOperationCapabilities(current, undefined);
+        }
+    });
+    return capabilities;
+}
+
+export function getEncodedPropertyOperationCapabilities(
+    current: IProperty,
+    attributes: any,
+): EncodedPropertyOperationCapabilities {
+    const editable = current.visible !== false && current.readonly !== true;
+    return {
+        set: editable,
+        reset: editable && canResetPropertyValue(attributes),
+        create: editable && canCreatePropertyValue(attributes),
+    };
+}
+
+function assignPropertyPaths(property: IProperty, path = ''): void {
+    property.path = path;
+    if (Array.isArray(property.value)) {
+        property.value.forEach((child, index) => {
+            if (isPropertyLike(child)) {
+                assignPropertyPaths(child, path ? `${path}.${index}` : `${index}`);
+            }
+        });
+        return;
+    }
+    if (!isRecord(property.value)) {
+        return;
+    }
+    for (const [key, child] of Object.entries(property.value)) {
+        if (isPropertyLike(child)) {
+            assignPropertyPaths(child, path ? `${path}.${key}` : key);
+        }
+    }
+}
+
+function findPropertyDump(root: IProperty, path: string): IProperty | undefined {
+    if (!path) {
+        return root;
+    }
+    let current: IProperty | undefined = root;
+    for (const segment of path.split('.')) {
+        const value: unknown = current?.value;
+        if (Array.isArray(value)) {
+            const index = Number(segment);
+            current = Number.isInteger(index) ? value[index] as IProperty | undefined : undefined;
+        } else if (isRecord(value)) {
+            current = value[segment] as IProperty | undefined;
+        } else {
+            current = undefined;
+        }
+        if (!isPropertyLike(current)) {
+            return undefined;
+        }
+    }
+    return current;
+}
+
+function visitPropertyDumps(
+    root: IProperty,
+    visitor: (path: string, property: IProperty) => void,
+): void {
+    visitor(root.path || '', root);
+    if (Array.isArray(root.value)) {
+        root.value.forEach((child) => {
+            if (isPropertyLike(child)) {
+                visitPropertyDumps(child, visitor);
+            }
+        });
+        return;
+    }
+    if (!isRecord(root.value)) {
+        return;
+    }
+    Object.values(root.value).forEach((child) => {
+        if (isPropertyLike(child)) {
+            visitPropertyDumps(child, visitor);
+        }
+    });
+}
+
+function resolvePropertyOwner(instance: any, path: string): { owner: any; key: string } {
+    const segments = path.split('.').filter(Boolean);
+    if (!segments.length) {
+        throw new Error('The root property dump can not be assigned directly.');
+    }
+    const key = segments.pop()!;
+    let owner = instance;
+    for (const segment of segments) {
+        if (owner === null || owner === undefined || !(segment in Object(owner))) {
+            throw new Error(`Unknown property object path: ${path}`);
+        }
+        owner = owner[segment];
+    }
+    return { owner, key };
+}
+
+function getPropertyAttributes(owner: any, key: string): any {
+    if (owner === null || owner === undefined) {
+        return undefined;
+    }
+    return cc.Class.attr(owner, key);
+}
+
+function assertEditablePropertyOperation(path: string, current: IProperty): void {
+    if (current.visible === false || current.readonly === true) {
+        throw new Error(`Property ${path} is readonly or hidden and can not be modified.`);
+    }
+}
+
+function validateEditablePropertyPatch(path: string, current: IProperty, next: IProperty): void {
+    validatePropertyPatch(path, current, next);
+    if (isEqual(current.value, next.value)) {
+        return;
+    }
+
+    const value = next.value;
+    switch (current.type) {
+        case 'Boolean':
+            if (typeof value !== 'boolean') {
+                throw new Error(`Property ${path} expects a boolean value.`);
+            }
+            break;
+        case 'Number':
+        case 'Integer':
+        case 'Float':
+        case 'Enum':
+            if (typeof value !== 'number' || !Number.isFinite(value)) {
+                throw new Error(`Property ${path} expects a finite number.`);
+            }
+            if (current.min !== undefined && value < current.min) {
+                throw new Error(`Property ${path} must be greater than or equal to ${current.min}.`);
+            }
+            if (current.max !== undefined && value > current.max) {
+                throw new Error(`Property ${path} must be less than or equal to ${current.max}.`);
+            }
+            if (current.type === 'Integer' && !Number.isInteger(value)) {
+                throw new Error(`Property ${path} expects an integer value.`);
+            }
+            if (current.type === 'Enum' && current.enumList?.length) {
+                const values = current.enumList.map((item) => item && typeof item === 'object' ? item.value : item);
+                if (!values.includes(value)) {
+                    throw new Error(`Property ${path} is not a valid enum value.`);
+                }
+            }
+            break;
+        case 'String':
+            if (typeof value !== 'string') {
+                throw new Error(`Property ${path} expects a string value.`);
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 export function encodeSerializedObject(
@@ -308,6 +608,46 @@ export function encodeSerializedObject(
 
 function getPropertyDefault(attribute: any) {
     return typeof attribute.default === 'function' ? attribute.default() : attribute.default;
+}
+
+function getPropertyResetValue(attribute: any): any {
+    let value = getPropertyDefault(attribute);
+    if (value && typeof value === 'object') {
+        if (typeof value.clone === 'function') {
+            value = value.clone();
+        } else if (Array.isArray(value)) {
+            value = [];
+        }
+    }
+    return value;
+}
+
+function getPropertyCreateValue(attribute: any): any {
+    const value = getPropertyResetValue(attribute);
+    if ((value === null || value === undefined) && typeof attribute.ctor === 'function') {
+        return new attribute.ctor();
+    }
+    return value;
+}
+
+function canResetPropertyValue(attribute: any): boolean {
+    return !!attribute
+        && typeof attribute === 'object'
+        && Object.prototype.hasOwnProperty.call(attribute, 'default');
+}
+
+function canCreatePropertyValue(attribute: any): boolean {
+    if (!attribute || typeof attribute !== 'object') {
+        return false;
+    }
+    if (typeof attribute.ctor === 'function') {
+        return true;
+    }
+    if (!canResetPropertyValue(attribute)) {
+        return false;
+    }
+    return typeof attribute.default === 'function'
+        || (attribute.default !== null && attribute.default !== undefined);
 }
 
 function getPropertyConstructor(object: any, attribute: any) {
@@ -675,7 +1015,7 @@ function validatePropertyPatch(path: string, current: IProperty, next: IProperty
 
     for (const [key, value] of Object.entries(next.value)) {
         const currentChild = current.value[key];
-        if (!currentChild) {
+        if (!Object.prototype.hasOwnProperty.call(current.value, key)) {
             throw new Error(`Unknown serialized field: ${path}.${key}`);
         }
         if (isPropertyLike(currentChild) && isPropertyLike(value)) {
@@ -709,34 +1049,21 @@ async function applyFieldDumpPatch(
 }
 
 async function setValue(prop: any, dump: Record<string, any> | any, key: string) {
-    if (!dump) {
+    if (dump === null || dump === undefined) {
         return;
     }
 
-    if (typeof dump !== 'object') {
+    const propertyDump = dump[key];
+    if (!isPropertyLike(propertyDump)) {
         if (key === 'uuid' && '_uuid' in prop) {
-            prop._uuid = dump;
+            prop._uuid = propertyDump;
             return;
         }
-        prop[key] = dump;
+        prop[key] = cloneDeep(propertyDump);
         return;
     }
 
-    if (!dump[key].isArray) {
-        if (dump[key].value === null || typeof dump[key].value !== 'object') {
-            prop[key] = dump[key].value;
-        } else {
-            const names = Object.keys(dump[key].value);
-            for (const name of names) {
-                if (name === 'uuid') {
-                    const uuid = extractUuidValue(dump[key].value[name]);
-                    prop[key] = uuid ? createAssetReference(uuid, dump[key].type) : null;
-                } else {
-                    await setValue(prop[key], dump[key].value, name);
-                }
-            }
-        }
-    } else {
+    if (propertyDump.isArray) {
         const propKeyAttr = cc.Class.attr(prop.constructor, key);
 
         if (!Array.isArray(prop[key])) {
@@ -747,11 +1074,11 @@ async function setValue(prop: any, dump: Record<string, any> | any, key: string)
             delete prop[key];
         } else {
             const oldLength = prop[key].length;
-            const newLength = Array.isArray(dump[key].value) ? dump[key].value.length : 0;
+            const newLength = Array.isArray(propertyDump.value) ? propertyDump.value.length : 0;
             if (newLength > oldLength) {
                 for (let i = oldLength; i < newLength; i++) {
-                    prop[key][i] = createValueForDumpItem(dump[key].value[i]);
-                    await setValue(prop[key], dump[key].value, i.toString());
+                    prop[key][i] = createValueForDumpItem(propertyDump.value[i]);
+                    await setValue(prop[key], propertyDump.value, i.toString());
                 }
             } else if (newLength < oldLength) {
                 while (prop[key].length > newLength) {
@@ -761,15 +1088,16 @@ async function setValue(prop: any, dump: Record<string, any> | any, key: string)
                 const arrayClone = prop[key].slice();
                 prop[key] = [];
                 for (let i = 0; i < oldLength; i++) {
-                    if (dump[key].value[i] === undefined) {
+                    if (propertyDump.value[i] === undefined) {
                         continue;
                     }
-                    prop[key][i] = arrayClone[dump[key].value[i].name];
+                    const originalIndex = Number(propertyDump.value[i].name);
+                    prop[key][i] = arrayClone[Number.isInteger(originalIndex) ? originalIndex : i];
                 }
             }
 
             for (let i = 0; i < prop[key].length; i++) {
-                const itemDump = dump[key].value[i];
+                const itemDump = propertyDump.value[i];
                 if (itemDump?.type && (!prop[key][i] || itemDump.type !== prop[key][i].constructor.name)) {
                     const typeClass = cc.js.getClassByName(itemDump.type);
                     if (typeClass) {
@@ -777,10 +1105,83 @@ async function setValue(prop: any, dump: Record<string, any> | any, key: string)
                     }
                 }
 
-                await setValue(prop[key], dump[key].value, i.toString());
+                await setValue(prop[key], propertyDump.value, i.toString());
             }
         }
+        return;
     }
+
+    const value = propertyDump.value;
+    if (isAssetPropertyDump(propertyDump)) {
+        const uuid = isRecord(value) ? extractUuidValue(value.uuid) : '';
+        prop[key] = uuid ? createAssetReference(uuid, propertyDump.type) : null;
+        return;
+    }
+
+    if (isValueTypePropertyDump(propertyDump)) {
+        prop[key] = createValueTypeValue(propertyDump, prop[key]);
+        return;
+    }
+
+    if (value === null || typeof value !== 'object') {
+        prop[key] = value;
+        return;
+    }
+
+    if (ArrayBuffer.isView(value)) {
+        const ctor = cc.js.getClassByName(propertyDump.type) || value.constructor;
+        prop[key] = new ctor(value);
+        return;
+    }
+
+    const entries = Object.entries(value);
+    if (!entries.some(([, child]) => isPropertyLike(child))) {
+        prop[key] = cloneDeep(value);
+        return;
+    }
+
+    if (prop[key] === null || typeof prop[key] !== 'object') {
+        const ctor = cc.js.getClassByName(propertyDump.type);
+        prop[key] = ctor ? new ctor() : {};
+    }
+    for (const [name] of entries) {
+        await setValue(prop[key], value, name);
+    }
+}
+
+function isAssetPropertyDump(dump: IProperty): boolean {
+    const ctor = dump.type ? cc.js.getClassByName(dump.type) : undefined;
+    return dump.type === 'cc.Asset'
+        || dump.extends?.includes('cc.Asset')
+        || isChildClassOf(ctor, cc.Asset);
+}
+
+function isValueTypePropertyDump(dump: IProperty): boolean {
+    const ctor = dump.type ? cc.js.getClassByName(dump.type) : undefined;
+    return dump.type === 'cc.ValueType'
+        || dump.extends?.includes('cc.ValueType')
+        || isChildClassOf(ctor, cc.ValueType);
+}
+
+function createValueTypeValue(dump: IProperty, current: any): any {
+    const ctor = dump.type ? cc.js.getClassByName(dump.type) : undefined;
+    if (!ctor) {
+        return cloneDeep(dump.value);
+    }
+    const value = new ctor();
+    const source = isRecord(dump.value) ? dump.value : {};
+    const currentSource = current && typeof current === 'object' ? current : {};
+    const keys = Array.isArray(ctor.__props__)
+        ? ctor.__props__
+        : Array.from(new Set([...Object.keys(currentSource), ...Object.keys(source)]));
+    for (const name of keys) {
+        if (Object.prototype.hasOwnProperty.call(source, name)) {
+            value[name] = cloneDeep(source[name]);
+        } else if (Object.prototype.hasOwnProperty.call(currentSource, name)) {
+            value[name] = currentSource[name];
+        }
+    }
+    return value;
 }
 
 function createValueForDumpItem(itemDump: IProperty) {

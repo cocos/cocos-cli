@@ -9,6 +9,15 @@ const mockAssetManager = {
     queryMaterialEffect: jest.fn(),
     queryMaterial: jest.fn(),
     saveMaterial: jest.fn(),
+    queryAnimationGraph: jest.fn(),
+    queryAnimationGraphInspector: jest.fn(),
+    setAnimationGraphInspectorProperty: jest.fn(),
+    resetAnimationGraphInspectorProperty: jest.fn(),
+    createAnimationGraphInspectorProperty: jest.fn(),
+    executeAnimationGraphCommand: jest.fn(),
+    saveAnimationGraph: jest.fn(),
+    reloadAnimationGraph: jest.fn(),
+    onAnimationGraphChanged: jest.fn(),
 };
 
 jest.mock('../../src/core/assets', () => ({
@@ -143,6 +152,60 @@ describe('lib assets api', () => {
         expect(mockAssetManager.queryMaterialEffect).toHaveBeenCalledWith('effect-uuid');
         expect(mockAssetManager.queryMaterial).toHaveBeenCalledWith('material-uuid');
         expect(mockAssetManager.saveMaterial).toHaveBeenCalledWith('material-uuid', materialDump);
+    });
+
+    it('exposes animationGraph namespace and delegates document operations to assetManager', async () => {
+        const snapshot = {
+            uuid: 'graph-uuid',
+            url: 'db://assets/test.animgraph',
+            documentId: 'document-id',
+            revision: 0,
+            persistedRevision: 0,
+            dirty: false,
+            externallyModified: false,
+            graph: { layers: [], variables: [] },
+        };
+        const target = { kind: 'layer' as const, layerIndex: 0 };
+        const inspector = { ...snapshot, target, dump: { path: '', value: {} } };
+        const request = {
+            target,
+            path: 'weight',
+            patch: { value: 0.5 },
+            expected: { documentId: snapshot.documentId, revision: snapshot.revision },
+        };
+        const commandRequest = {
+            command: { type: 'add-layer' as const, name: 'Base' },
+            expected: request.expected,
+        };
+        const removeListener = jest.fn();
+        mockAssetManager.queryAnimationGraph.mockResolvedValue(snapshot);
+        mockAssetManager.queryAnimationGraphInspector.mockResolvedValue(inspector);
+        mockAssetManager.setAnimationGraphInspectorProperty.mockResolvedValue(inspector);
+        mockAssetManager.resetAnimationGraphInspectorProperty.mockResolvedValue(inspector);
+        mockAssetManager.createAnimationGraphInspectorProperty.mockResolvedValue(inspector);
+        mockAssetManager.executeAnimationGraphCommand.mockResolvedValue(snapshot);
+        mockAssetManager.saveAnimationGraph.mockResolvedValue(snapshot);
+        mockAssetManager.reloadAnimationGraph.mockResolvedValue(snapshot);
+        mockAssetManager.onAnimationGraphChanged.mockReturnValue(removeListener);
+
+        await expect(Assets.animationGraph.query('graph-uuid')).resolves.toBe(snapshot);
+        await expect(Assets.animationGraph.queryInspector('graph-uuid', target)).resolves.toBe(inspector);
+        await expect(Assets.animationGraph.setInspectorProperty('graph-uuid', request)).resolves.toBe(inspector);
+        await expect(Assets.animationGraph.resetInspectorProperty('graph-uuid', request)).resolves.toBe(inspector);
+        await expect(Assets.animationGraph.createInspectorProperty('graph-uuid', request)).resolves.toBe(inspector);
+        await expect(Assets.animationGraph.execute('graph-uuid', commandRequest)).resolves.toBe(snapshot);
+        await expect(Assets.animationGraph.save('graph-uuid', request.expected, 'inspector')).resolves.toBe(snapshot);
+        await expect(Assets.animationGraph.reload('graph-uuid', { expected: request.expected }, 'inspector')).resolves.toBe(snapshot);
+        expect(Assets.animationGraph.onChanged(jest.fn())).toBe(removeListener);
+
+        expect(mockAssetManager.queryAnimationGraph).toHaveBeenCalledWith('graph-uuid');
+        expect(mockAssetManager.queryAnimationGraphInspector).toHaveBeenCalledWith('graph-uuid', target);
+        expect(mockAssetManager.setAnimationGraphInspectorProperty).toHaveBeenCalledWith('graph-uuid', request);
+        expect(mockAssetManager.resetAnimationGraphInspectorProperty).toHaveBeenCalledWith('graph-uuid', request);
+        expect(mockAssetManager.createAnimationGraphInspectorProperty).toHaveBeenCalledWith('graph-uuid', request);
+        expect(mockAssetManager.executeAnimationGraphCommand).toHaveBeenCalledWith('graph-uuid', commandRequest);
+        expect(mockAssetManager.saveAnimationGraph).toHaveBeenCalledWith('graph-uuid', request.expected, 'inspector');
+        expect(mockAssetManager.reloadAnimationGraph).toHaveBeenCalledWith('graph-uuid', { expected: request.expected }, 'inspector');
     });
 
     it('exposes queryPropertySchema and delegates to assetManager', async () => {

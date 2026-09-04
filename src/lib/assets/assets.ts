@@ -1,4 +1,4 @@
-import type { AnimationMaskChange, AnimationMaskDump, AssetOperationOption, AssetPropertySchemaMap, CreateAssetByTypeOptions, DeleteAssetOptions, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, MaterialDump, MaterialEffectInfo, MaterialTechniqueDump, QueryAssetsOption, SerializedAssetPatch, SerializedAssetQueryResult } from '../../core/assets/@types/public';
+import type { AnimationGraphChangedEvent, AnimationGraphExpectedVersion, AnimationGraphInspectorPropertyOperationRequest, AnimationGraphInspectorSnapshot, AnimationGraphPoseGraphAssetDragHandlersEntry, AnimationGraphSnapshot, AnimationGraphTarget, AssetOperationOption, AssetPropertySchemaMap, CreateAssetByTypeOptions, DeleteAssetOptions, ExecuteAnimationGraphCommandRequest, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, MaterialDump, MaterialEffectInfo, MaterialTechniqueDump, QueryAssetsOption, ReloadAnimationGraphOptions, SerializedAssetPatch, SerializedAssetQueryResult, SetAnimationGraphInspectorPropertyRequest, AnimationMaskChange, AnimationMaskDump } from '../../core/assets/@types/public';
 import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType, ThumbnailInfo, ThumbnailSize } from '../../core/assets/@types/protected';
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
@@ -207,6 +207,75 @@ export const animationGraphVariant = {
 
     save(uuid: string): Promise<void> {
         return assetManager.saveAnimationGraphVariant(uuid);
+    },
+};
+
+export const animationGraph = {
+    query(uuidOrUrlOrPath: string): Promise<AnimationGraphSnapshot> {
+        return assetManager.queryAnimationGraph(uuidOrUrlOrPath);
+    },
+
+    queryInspector(
+        uuidOrUrlOrPath: string,
+        target: AnimationGraphTarget,
+    ): Promise<AnimationGraphInspectorSnapshot> {
+        return assetManager.queryAnimationGraphInspector(uuidOrUrlOrPath, target);
+    },
+
+    queryPoseGraphAssetDragHandlers(): Promise<AnimationGraphPoseGraphAssetDragHandlersEntry[]> {
+        return assetManager.queryAnimationGraphPoseGraphAssetDragHandlers();
+    },
+
+    queryStateMachineComponentTypes(): Promise<string[]> {
+        return assetManager.queryAnimationGraphStateMachineComponentTypes();
+    },
+
+    setInspectorProperty(
+        uuidOrUrlOrPath: string,
+        request: SetAnimationGraphInspectorPropertyRequest,
+    ): Promise<AnimationGraphInspectorSnapshot> {
+        return assetManager.setAnimationGraphInspectorProperty(uuidOrUrlOrPath, request);
+    },
+
+    resetInspectorProperty(
+        uuidOrUrlOrPath: string,
+        request: AnimationGraphInspectorPropertyOperationRequest,
+    ): Promise<AnimationGraphInspectorSnapshot> {
+        return assetManager.resetAnimationGraphInspectorProperty(uuidOrUrlOrPath, request);
+    },
+
+    createInspectorProperty(
+        uuidOrUrlOrPath: string,
+        request: AnimationGraphInspectorPropertyOperationRequest,
+    ): Promise<AnimationGraphInspectorSnapshot> {
+        return assetManager.createAnimationGraphInspectorProperty(uuidOrUrlOrPath, request);
+    },
+
+    execute(
+        uuidOrUrlOrPath: string,
+        request: ExecuteAnimationGraphCommandRequest,
+    ): Promise<AnimationGraphSnapshot> {
+        return assetManager.executeAnimationGraphCommand(uuidOrUrlOrPath, request);
+    },
+
+    save(
+        uuidOrUrlOrPath: string,
+        expected: AnimationGraphExpectedVersion,
+        sourceId?: string,
+    ): Promise<AnimationGraphSnapshot> {
+        return assetManager.saveAnimationGraph(uuidOrUrlOrPath, expected, sourceId);
+    },
+
+    reload(
+        uuidOrUrlOrPath: string,
+        options?: ReloadAnimationGraphOptions,
+        sourceId?: string,
+    ): Promise<AnimationGraphSnapshot> {
+        return assetManager.reloadAnimationGraph(uuidOrUrlOrPath, options, sourceId);
+    },
+
+    onChanged(listener: (event: AnimationGraphChangedEvent) => void): () => void {
+        return assetManager.onAnimationGraphChanged(listener);
     },
 };
 
