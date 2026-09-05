@@ -6917,12 +6917,16 @@ export declare interface ITerrainBlockData {
         x: number;
         y: number;
     };
-    layers: Array<string | null>;
+    layers: Array<ITerrainBlockLayerSlot | null>;
     weight: {
         width: number;
         height: number;
-        data: number[];
+        data: Uint8Array;
     } | null;
+}
+export declare interface ITerrainBlockLayerSlot {
+    layerIndex: number;
+    detailMapUuid: string | null;
 }
 export declare interface ITerrainBlockSnapshot {
     target: ITerrainTarget;

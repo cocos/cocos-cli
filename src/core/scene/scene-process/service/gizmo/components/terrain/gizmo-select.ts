@@ -147,11 +147,11 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         const weight = select.getCurrentWeightData();
         return {
             index: { x: index[0], y: index[1] },
-            layers: select.getCurrentLayerList().map((layer) => layer?._uuid ?? null),
+            layers: select.getCurrentBlockLayerSlots(),
             weight: weight ? {
                 width: weight.width,
                 height: weight.height,
-                data: Array.from(weight.data),
+                data: new Uint8Array(weight.data),
             } : null,
         };
     }

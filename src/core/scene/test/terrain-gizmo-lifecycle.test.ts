@@ -30,6 +30,10 @@ jest.mock('../scene-process/service/core/decorator', () => ({
     },
 }));
 
+jest.mock('../scene-process/service/core/global-events', () => ({
+    ServiceEvents: { emit: jest.fn() },
+}));
+
 jest.mock('../scene-process/service/node/node-create', () => ({
     loadAny: jest.fn(),
 }));
@@ -59,6 +63,7 @@ jest.mock('../scene-process/service/gizmo/components/terrain/terrain-brush', () 
 
 import { Terrain } from 'cc';
 import TerrainGizmo from '../scene-process/service/gizmo/components/terrain/gizmo-select';
+import { TerrainEditorSelect } from '../scene-process/service/gizmo/components/terrain/terrain-editor-select';
 
 describe('TerrainGizmo lifecycle', () => {
     it('rebinds its editor after target clear and pooled-gizmo reuse', () => {
@@ -82,5 +87,56 @@ describe('TerrainGizmo lifecycle', () => {
 
         expect(gizmo.editor.getEditTerrain()).toBe(terrain);
         expect((gizmo as any)._isEditorInit).toBe(true);
+    });
+
+    it('returns a defensive binary snapshot for the selected block weight map', () => {
+        const source = new Uint8Array([255, 0, 0, 0, 128, 127, 0, 0]);
+        const gizmo = new TerrainGizmo(null);
+        (gizmo as any)._editor = {
+            getMode: () => ({
+                getCurrentBlockIndex: () => [1, 2],
+                getCurrentWeightData: () => ({ width: 2, height: 1, data: source }),
+                getCurrentBlockLayerSlots: () => [
+                    { layerIndex: 3, detailMapUuid: 'detail-a' },
+                    null,
+                    { layerIndex: 7, detailMapUuid: null },
+                    null,
+                ],
+            }),
+        };
+
+        const block = gizmo.readTerrainBlock();
+
+        expect(block).toEqual({
+            index: { x: 1, y: 2 },
+            layers: [
+                { layerIndex: 3, detailMapUuid: 'detail-a' },
+                null,
+                { layerIndex: 7, detailMapUuid: null },
+                null,
+            ],
+            weight: { width: 2, height: 1, data: new Uint8Array(source) },
+        });
+        expect(block?.weight?.data).not.toBe(source);
+
+        block?.weight?.data.fill(0);
+        expect(source).toEqual(new Uint8Array([255, 0, 0, 0, 128, 127, 0, 0]));
+    });
+
+    it('reads Block layer detail maps from the current Terrain state instead of the selection cache', () => {
+        const terrain = {
+            getLayer: jest.fn(() => ({ detailMap: { _uuid: 'detail-current' } })),
+        };
+        const select = Object.create(TerrainEditorSelect.prototype) as TerrainEditorSelect;
+        (select as any)._selectBlock = {
+            layers: [2],
+            getTerrain: () => terrain,
+        };
+        (select as any)._layerList = [{ _uuid: 'detail-stale' }];
+
+        expect(select.getCurrentBlockLayerSlots()).toEqual([
+            { layerIndex: 2, detailMapUuid: 'detail-current' },
+        ]);
+        expect(terrain.getLayer).toHaveBeenCalledWith(2);
     });
 });

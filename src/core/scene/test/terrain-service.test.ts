@@ -75,6 +75,7 @@ jest.mock('../scene-process/scene-asset-binary-client', () => ({
 import { Terrain, Texture2D } from 'cc';
 import type {
     IPublicTerrainService,
+    ITerrainBlockData,
     ITerrainEditorState,
     ITerrainTarget,
     TerrainBlockReadResult,
@@ -84,6 +85,18 @@ import { TerrainService } from '../scene-process/service/terrain';
 
 function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value));
+}
+
+function cloneBlock(block: ITerrainBlockData): ITerrainBlockData {
+    return {
+        ...block,
+        index: { ...block.index },
+        layers: block.layers.map((layer) => layer && { ...layer }),
+        weight: block.weight && {
+            ...block.weight,
+            data: new Uint8Array(block.weight.data),
+        },
+    };
 }
 
 function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
@@ -115,8 +128,13 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
 
     const block = {
         index: { x: 1, y: 2 },
-        layers: ['detail-a', null, 'detail-c', null],
-        weight: { width: 2, height: 1, data: [255, 0, 0, 0, 128, 127, 0, 0] },
+        layers: [
+            { layerIndex: 0, detailMapUuid: 'detail-a' },
+            null,
+            { layerIndex: 2, detailMapUuid: 'detail-c' },
+            null,
+        ],
+        weight: { width: 2, height: 1, data: new Uint8Array([255, 0, 0, 0, 128, 127, 0, 0]) },
     };
 
     Object.assign(terrain as any, {
@@ -196,7 +214,7 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
         updateTerrainPaintSession: jest.fn((patch: any) => {
             if (patch.brush) Object.assign(state.paint.brush, patch.brush);
         }),
-        readTerrainBlock: jest.fn(() => clone(block)),
+        readTerrainBlock: jest.fn(() => cloneBlock(block)),
     };
 
     return {
@@ -419,8 +437,13 @@ describe('TerrainService target-safe public capability', () => {
             valid: true,
             block: {
                 index: { x: 1, y: 2 },
-                layers: ['detail-a', null, 'detail-c', null],
-                weight: { width: 2, height: 1, data: [255, 0, 0, 0, 128, 127, 0, 0] },
+                layers: [
+                    { layerIndex: 0, detailMapUuid: 'detail-a' },
+                    null,
+                    { layerIndex: 2, detailMapUuid: 'detail-c' },
+                    null,
+                ],
+                weight: { width: 2, height: 1, data: new Uint8Array([255, 0, 0, 0, 128, 127, 0, 0]) },
             },
         });
         expect(fixture.gizmo.readTerrainBlock).toHaveBeenCalledTimes(1);
