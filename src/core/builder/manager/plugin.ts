@@ -563,6 +563,10 @@ export class PluginManager extends EventEmitter {
             console.debug(`Can not find bundle config with platform ${options.platform}`);
         }
 
+        const result = await this.checkPluginOptions(options as IBuildTaskOption);
+        if (!result) {
+            return;
+        }
         // (校验处已经做了错误数据使用默认值的处理)检验数据通过后做一次数据融合
         const defaultOptions = await this.getOptionsByPlatform(options.platform);
         // lodash 的 defaultsDeep 会对数组也进行深度合并，不符合我们的使用预期，需要自己编写该函数
@@ -601,10 +605,6 @@ export class PluginManager extends EventEmitter {
                 }
             }
             rightOptions[key] = fixedValue;
-        }
-        const result = await this.checkPluginOptions(rightOptions);
-        if (!result) {
-            checkRes = false;
         }
         if (checkRes) {
             return rightOptions;
@@ -887,6 +887,7 @@ export class PluginManager extends EventEmitter {
                     checkRes = false;
                     continue;
                 } else {
+                    if (verifyLevel === 'error') checkRes = false;
                     const consoleType = (verifyLevel !== 'error' && newConsole[verifyLevel]) ? verifyLevel : 'warn';
                     // 有报错信息，但有默认值，报错后填充默认值
                     newConsole[consoleType](i18n.t('builder.warn.check_failed_with_new_value', {
