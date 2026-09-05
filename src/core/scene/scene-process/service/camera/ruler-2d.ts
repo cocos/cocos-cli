@@ -15,6 +15,82 @@ export interface IRulerView {
     yMax: number;
 }
 
+/** 渲染相机（renderer.scene.Camera）的最小结构类型，便于解耦与单测 */
+export interface IRulerRenderCamera {
+    width?: number;
+    height?: number;
+    worldToScreen?: (out: { x: number; y: number; z: number }, p: { x: number; y: number; z: number }) => { x: number; y: number; z: number };
+    update?: (forceUpdate?: boolean) => void;
+}
+
+// buildRulerView 复用临时点，避免高频路径分配
+const _bvO = { x: 0, y: 0, z: 0 };
+const _bvA = { x: 0, y: 0, z: 0 };
+const _bvB = { x: 0, y: 0, z: 0 };
+const _bvP = { x: 0, y: 0, z: 0 };
+
+/**
+ * 构建刻度尺屏幕映射（纯函数，便于单测）。
+ * 正交投影下映射是仿射的：投影世界点 (0,0)/(1,0)/(0,1) 拟合线性系数。
+ *
+ * 视口尺寸优先取渲染相机自身的 width/height（PR #914 第二轮 P2）：
+ * 跨不同 DPR/分辨率屏幕时宿主直接更新 canvas 与渲染相机、不走 onResize，
+ * 控制器缓存的 size 会陈旧；worldToScreen 的 y 位于渲染目标高度空间，
+ * Y 翻转必须用同一高度，否则纵向刻度整体错位。
+ */
+export function buildRulerView(
+    rc: IRulerRenderCamera | undefined,
+    size: { width: number; height: number },
+    ortho: { orthoHeight: number; x: number; y: number },
+): IRulerView {
+    const W = size.width;
+    const H = size.height;
+    let ox: number;
+    let oy: number;
+    let sx: number;
+    let sy: number;
+    let viewW = W;
+    let viewH = H;
+    if (rc && typeof rc.worldToScreen === 'function') {
+        // 矩阵在渲染帧才重算，这里同步 flush，保证缩放当帧刻度即用新相机
+        if (typeof rc.update === 'function') {
+            rc.update();
+        }
+        if (rc.width && rc.width > 0) {
+            viewW = rc.width;
+        }
+        if (rc.height && rc.height > 0) {
+            viewH = rc.height;
+        }
+        rc.worldToScreen(_bvO, { x: 0, y: 0, z: 0 });
+        rc.worldToScreen(_bvA, { x: 1, y: 0, z: 0 });
+        rc.worldToScreen(_bvB, { x: 0, y: 1, z: 0 });
+        ox = _bvO.x;
+        oy = _bvO.y; // 引擎屏幕坐标 y 向上
+        sx = (_bvA.x - ox) || 1;
+        sy = (_bvB.y - oy) || 1;
+    } else {
+        const s = H / (2 * ortho.orthoHeight);
+        ox = W / 2 - ortho.x * s;
+        oy = H / 2 + ortho.y * s;
+        sx = s;
+        sy = s;
+    }
+    const x0 = (0 - ox) / sx;
+    const x1 = (viewW - ox) / sx;
+    const y0 = (0 - oy) / sy;
+    const y1 = (viewH - oy) / sy;
+    return {
+        pxPerUnit: Math.abs(sx),
+        xMin: Math.min(x0, x1),
+        xMax: Math.max(x0, x1),
+        yMin: Math.min(y0, y1),
+        yMax: Math.max(y0, y1),
+        toX: (v: number) => ox + v * sx,
+        toY: (v: number) => viewH - (oy + v * sy),
+    };
+}
+
 /**
  * 2D 场景刻度尺：横向（底部）+ 纵向（左侧），参考 Creator 场景 web ruler 移植。
  * 两个透明 canvas 由本类自建并 fixed 覆盖在宿主页上（Pink 内嵌宿主 / scene-editor.ejs

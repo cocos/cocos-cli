@@ -3,7 +3,7 @@ import CameraControllerBase, { EditorCameraInfo } from './camera-controller-base
 import { CameraMoveMode, CameraUtils } from './utils';
 import FiniteStateMachine from '../utils/state-machine/finite-state-machine';
 import Grid from './grid';
-import { Ruler2D, type IRulerView } from './ruler-2d';
+import { Ruler2D, buildRulerView, type IRulerRenderCamera, type IRulerView } from './ruler-2d';
 import { ModeBase2D } from './modes/mode-base-2d';
 import { IdleMode2D } from './modes/idle-mode-2d';
 import { PanMode2D } from './modes/pan-mode-2d';
@@ -21,14 +21,6 @@ function getCanvasSize(): ISizeLike {
 
 const _defaultMarginPercentage = 30;
 const _maxTicks = 100;
-
-// ruler 映射用临时向量
-const _rulerO = new Vec3();
-const _rulerX = new Vec3();
-const _rulerY = new Vec3();
-const _rulerP0 = new Vec3();
-const _rulerP1 = new Vec3();
-const _rulerP2 = new Vec3();
 
 function clamp(val: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, val));
@@ -411,46 +403,9 @@ export class CameraController2D extends CameraControllerBase {
      * 正交投影下映射是仿射的，取 3 个世界点拟合出线性系数即可。
      */
     private _rulerView(): IRulerView {
-        const W = this._size.width;
-        const H = this._size.height;
-        const rc = (this._camera as any).camera as { worldToScreen?: (out: Vec3, p: Vec3) => Vec3; update?: (forceUpdate?: boolean) => void } | undefined;
-        let ox: number;
-        let oy: number;
-        let sx: number;
-        let sy: number;
-        if (rc && typeof rc.worldToScreen === 'function') {
-            // 矩阵在渲染帧才重算，这里同步 flush，保证缩放当帧刻度即用新相机
-            if (typeof rc.update === 'function') {
-                rc.update();
-            }
-            rc.worldToScreen(_rulerO, _rulerP0.set(0, 0, 0));
-            rc.worldToScreen(_rulerX, _rulerP1.set(1, 0, 0));
-            rc.worldToScreen(_rulerY, _rulerP2.set(0, 1, 0));
-            ox = _rulerO.x;
-            oy = _rulerO.y; // 引擎屏幕坐标 y 向上
-            sx = (_rulerX.x - ox) || 1;
-            sy = (_rulerY.y - oy) || 1;
-        } else {
-            const s = H / (2 * this._camera.orthoHeight);
-            const p = this._camera.node.worldPosition;
-            ox = W / 2 - p.x * s;
-            oy = H / 2 + p.y * s;
-            sx = s;
-            sy = s;
-        }
-        const x0 = (0 - ox) / sx;
-        const x1 = (W - ox) / sx;
-        const y0 = (0 - oy) / sy;
-        const y1 = (H - oy) / sy;
-        return {
-            pxPerUnit: Math.abs(sx),
-            xMin: Math.min(x0, x1),
-            xMax: Math.max(x0, x1),
-            yMin: Math.min(y0, y1),
-            yMax: Math.max(y0, y1),
-            toX: (v: number) => ox + v * sx,
-            toY: (v: number) => H - (oy + v * sy),
-        };
+        const rc = (this._camera as any).camera as IRulerRenderCamera | undefined;
+        const p = this._camera.node.worldPosition;
+        return buildRulerView(rc, this._size, { orthoHeight: this._camera.orthoHeight, x: p.x, y: p.y });
     }
 
     // ---------- 原点轴 ----------
