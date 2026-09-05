@@ -25,7 +25,7 @@ export const InstantiationAssetHandler: AssetHandlerBase = {
         async import(asset: Asset) {
             const temp = join(asset._assetDB.options.temp, asset.uuid);
 
-            const uzipTool = process.platform === 'darwin' ? 'unzip' : join(GlobalPaths.staticDir, 'tools/unzip.exe');
+            const uzipTool = (process.platform === 'darwin' || process.platform === 'linux') ? 'unzip' : join(GlobalPaths.staticDir, 'tools/unzip.exe');
 
             await utils.Process.quickSpawn(uzipTool, [asset.source, '-d', temp]);
 
