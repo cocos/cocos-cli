@@ -100,6 +100,7 @@ export class CameraController2D extends CameraControllerBase {
         this._gridMeshComp.node.active = false;
         this._initGrid();
         this._ruler = new Ruler2D();
+        this._ruler.onNeedRedraw = () => this._refreshRuler();
         this._ruler.init();
         this._initMode();
         this.initOriginAxis();

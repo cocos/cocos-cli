@@ -5,7 +5,7 @@ import type Grid from './grid';
  * 不依赖 Grid 的像素模型，保证刻度与渲染出的网格线/原点轴始终贴合。
  */
 export interface IRulerView {
-    /** 世界单位 → 屏幕像素（画布后备像素） */
+    /** 世界单位 → 屏幕像素（引擎渲染后备像素） */
     toX(value: number): number;
     toY(value: number): number;
     pxPerUnit: number;
@@ -20,8 +20,15 @@ export interface IRulerView {
  * 两个透明 canvas 由本类自建并 fixed 覆盖在宿主页上（Pink 内嵌宿主 / scene-editor.ejs
  * 等所有宿主通用，不依赖宿主页 DOM），仅绘制刻度文字。
  *
- * 刻度级别按「屏幕上 >= 50px 间隔」从 Grid 的 tick 序列里选取，缩放时自动换档；
- * 位置由相机实时状态换算，拖动/缩放后随 updateGrid 重绘。
+ * 环境边界（review P1）：headless 场景进程提供 mock document，其元素没有 getContext，
+ * 本类在此整体 no-op，不影响场景服务启动与保存/关闭流程。
+ *
+ * 像素基准（review P2）：worldToScreen 坐标位于引擎渲染后备像素空间（引擎 DPR 封顶），
+ * 故刻度后备/字号统一使用「有效渲染 DPR」（引擎 canvas 后备/CSS 比），与引擎同基准。
+ *
+ * 视口变化（review P2）：Pink 宿主摘除引擎 window-resize 自适应、面板 resize 不走
+ * 引擎 canvas-resize 事件链，故本类自行观察 overlay 尺寸（ResizeObserver + window
+ * resize，rAF 去抖），变化后重设后备并经 onNeedRedraw 回调控制器重画。
  */
 export class Ruler2D {
     private hCanvas: HTMLCanvasElement | null = null;
@@ -29,6 +36,11 @@ export class Ruler2D {
     private hCtx: CanvasRenderingContext2D | null = null;
     private vCtx: CanvasRenderingContext2D | null = null;
     private isShow = false;
+    private ro: ResizeObserver | null = null;
+    private resizePending = false;
+
+    /** 控制器注入的重画入口；视口变化重设后备后触发 */
+    public onNeedRedraw: (() => void) | null = null;
 
     public init(): void {
         if (typeof document === 'undefined' || !document.body) {
@@ -38,24 +50,85 @@ export class Ruler2D {
         this.vCanvas = this.ensureCanvas('scene-v-ruler', { left: '0', top: '0', width: '35px', height: '100%' });
         this.hCtx = this.hCanvas ? this.hCanvas.getContext('2d') : null;
         this.vCtx = this.vCanvas ? this.vCanvas.getContext('2d') : null;
+        this.observeHost();
         this.resize();
     }
 
-    /** 复用或创建透明刻度 canvas（fixed 覆盖、不拦截鼠标） */
+    /** 复用或创建透明刻度 canvas；headless mock 元素无 getContext 时返回 null（整体 no-op） */
     private ensureCanvas(id: string, css: Record<string, string>): HTMLCanvasElement | null {
         let el = document.getElementById(id) as HTMLCanvasElement | null;
+        let created = false;
         if (!el) {
-            el = document.createElement('canvas');
+            created = true;
+            el = document.createElement('canvas') as HTMLCanvasElement;
             el.id = id;
-            el.style.position = 'fixed';
-            el.style.pointerEvents = 'none';
-            el.style.zIndex = '6';
-            for (const key of Object.keys(css)) {
-                (el.style as unknown as Record<string, string>)[key] = css[key];
+            const st = (el as unknown as { style?: Record<string, string> }).style;
+            if (st) {
+                st.position = 'fixed';
+                st.pointerEvents = 'none';
+                st.zIndex = '6';
+                for (const key of Object.keys(css)) {
+                    st[key] = css[key];
+                }
             }
+        }
+        if (typeof (el as unknown as { getContext?: unknown }).getContext !== 'function') {
+            return null;
+        }
+        if (created) {
             document.body.appendChild(el);
         }
         return el;
+    }
+
+    /** 独立观察宿主视口：overlay 尺寸或 window 变化时重设后备并重画 */
+    private observeHost(): void {
+        if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') {
+            return;
+        }
+        window.addEventListener('resize', this.onHostResize);
+        if (typeof ResizeObserver === 'function') {
+            this.ro = new ResizeObserver(this.onHostResize);
+            if (this.hCanvas) {
+                this.ro.observe(this.hCanvas);
+            }
+            if (this.vCanvas) {
+                this.ro.observe(this.vCanvas);
+            }
+        }
+    }
+
+    private readonly onHostResize = (): void => {
+        if (this.resizePending) {
+            return;
+        }
+        this.resizePending = true;
+        const raf = (globalThis as unknown as { requestAnimationFrame?: (cb: () => void) => void }).requestAnimationFrame;
+        const run = (): void => {
+            this.resizePending = false;
+            this.resize();
+            if (this.onNeedRedraw) {
+                this.onNeedRedraw();
+            }
+        };
+        if (typeof raf === 'function') {
+            raf(run);
+        } else {
+            run();
+        }
+    };
+
+    /** 有效渲染 DPR：引擎 canvas 后备/CSS 比（与引擎同封顶），回退 window.devicePixelRatio */
+    private renderDpr(): number {
+        let dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+        const engineCanvas = (globalThis as unknown as { cc?: { game?: { canvas?: HTMLCanvasElement } } }).cc?.game?.canvas;
+        if (engineCanvas && typeof engineCanvas.getBoundingClientRect === 'function') {
+            const rect = engineCanvas.getBoundingClientRect();
+            if (rect.width > 0 && engineCanvas.width > 0) {
+                dpr = engineCanvas.width / rect.width;
+            }
+        }
+        return dpr > 0 ? dpr : 1;
     }
 
     public show(isShow: boolean): void {
@@ -72,26 +145,44 @@ export class Ruler2D {
     }
 
     public resize(): void {
-        const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+        const dpr = this.renderDpr();
         if (this.hCanvas) {
-            const rect = this.hCanvas.getBoundingClientRect();
-            const cssW = rect.width > 0 ? rect.width : (typeof window !== 'undefined' ? window.innerWidth : 0);
+            const cssW = this.cssWidthOf(this.hCanvas);
             this.hCanvas.width = Math.max(1, Math.round(cssW * dpr));
             this.hCanvas.height = Math.max(1, Math.round(22 * dpr));
         }
         if (this.vCanvas) {
-            const rect = this.vCanvas.getBoundingClientRect();
-            const cssH = rect.height > 0 ? rect.height : (typeof window !== 'undefined' ? window.innerHeight : 0);
+            const cssH = this.cssHeightOf(this.vCanvas);
             this.vCanvas.width = Math.max(1, Math.round(35 * dpr));
             this.vCanvas.height = Math.max(1, Math.round(cssH * dpr));
         }
+    }
+
+    private cssWidthOf(el: HTMLCanvasElement): number {
+        if (typeof el.getBoundingClientRect === 'function') {
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 0) {
+                return rect.width;
+            }
+        }
+        return typeof window !== 'undefined' ? window.innerWidth : 0;
+    }
+
+    private cssHeightOf(el: HTMLCanvasElement): number {
+        if (typeof el.getBoundingClientRect === 'function') {
+            const rect = el.getBoundingClientRect();
+            if (rect.height > 0) {
+                return rect.height;
+            }
+        }
+        return typeof window !== 'undefined' ? window.innerHeight : 0;
     }
 
     public updateTicks(grid: Grid, view: IRulerView): void {
         if (!this.hCtx || !this.vCtx || !this.hCanvas || !this.vCanvas) {
             return;
         }
-        const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1;
+        const dpr = this.renderDpr();
 
         this.hCtx.clearRect(0, 0, this.hCanvas.width, this.hCanvas.height);
         this.vCtx.clearRect(0, 0, this.vCanvas.width, this.vCanvas.height);
@@ -102,7 +193,7 @@ export class Ruler2D {
 
         const font = `${Math.round(11 * dpr)}px Arial`;
         const color = 'gray';
-        // 刻度文字最小像素间隔，避免标签挤在一起（与 Creator 一致取 50，按 dpr 缩放）
+        // 刻度文字最小像素间隔，避免标签挤在一起（与 Creator 一致取 50，按有效 DPR 缩放）
         const minStep = 50 * dpr;
 
         // 横向刻度
