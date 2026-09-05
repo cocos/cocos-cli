@@ -48,7 +48,7 @@ describe('builder clearCache', () => {
         await outputFile(builderCacheFile, '{}');
         await outputFile(logFile, 'log');
 
-        const result = await clearCache('project');
+        const result = await clearCache({ scope: 'project' });
 
         expect(result.scope).toBe('project');
         expect(await pathExists(assetBuildCacheFile)).toBe(false);
@@ -64,7 +64,7 @@ describe('builder clearCache', () => {
         await outputFile(legacyAssetBuildCacheFile, '{}');
         await outputFile(legacyAssetOtherFile, 'image');
 
-        const result = await clearCache('project');
+        const result = await clearCache({ scope: 'project' });
 
         expect(result.scope).toBe('project');
         expect(await pathExists(legacyAssetBuildCacheFile)).toBe(false);
@@ -82,7 +82,7 @@ describe('builder clearCache', () => {
         await outputFile(devCliCacheFile, 'cc');
         await outputFile(engineLogFile, 'log');
 
-        const result = await clearCache('global');
+        const result = await clearCache({ scope: 'global' });
 
         expect(result.scope).toBe('global');
         await expect(readdir(join(mockGlobalPaths.enginePath, 'bin', 'temp'))).resolves.toEqual([]);
@@ -98,7 +98,7 @@ describe('builder clearCache', () => {
         await outputFile(projectCacheFile, '{}');
         await outputFile(globalCacheFile, 'engine');
 
-        const result = await clearCache('all');
+        const result = await clearCache({ scope: 'all' });
 
         expect(result.scope).toBe('all');
         expect(await pathExists(projectCacheFile)).toBe(false);

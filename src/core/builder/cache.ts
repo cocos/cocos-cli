@@ -5,6 +5,10 @@ import { GlobalPaths } from '../../global';
 
 export type BuildCacheScope = 'project' | 'global' | 'all';
 
+export interface ClearCacheOptions {
+    scope: BuildCacheScope;
+}
+
 export interface ClearCacheResult {
     scope: BuildCacheScope;
     cleared: string[];
@@ -135,7 +139,8 @@ async function clearGlobalCache(): Promise<string[]> {
     return cleared;
 }
 
-export async function clearCache(scope: BuildCacheScope): Promise<ClearCacheResult> {
+export async function clearCache(options: ClearCacheOptions): Promise<ClearCacheResult> {
+    const scope = options?.scope;
     if (scope !== 'project' && scope !== 'global' && scope !== 'all') {
         throw new Error(`Invalid builder cache scope: ${scope}`);
     }

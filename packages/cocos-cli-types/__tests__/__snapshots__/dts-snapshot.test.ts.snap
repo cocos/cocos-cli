@@ -1599,7 +1599,10 @@ export declare interface ChokidarOptions {
     	useFsEvents?: boolean;
     	usePolling?: boolean;
 }
-export declare function clearCache(scope: BuildCacheScope): Promise<ClearCacheResult>;
+export declare function clearCache(options: ClearCacheOptions): Promise<ClearCacheResult>;
+export declare interface ClearCacheOptions {
+    scope: BuildCacheScope;
+}
 export declare interface ClearCacheResult {
     scope: BuildCacheScope;
     cleared: string[];
