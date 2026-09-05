@@ -104,19 +104,30 @@ export interface ITerrainPaintSessionPatch {
     brush?: ITerrainBrushPatch;
 }
 
+/** One Terrain layer assigned to an RGBA channel in a selected Terrain block. */
+export interface ITerrainBlockLayerSlot {
+    /** The authoritative index into the selected Terrain component's layer list. */
+    layerIndex: number;
+    /** The assigned layer's detail map, when the layer has one. */
+    detailMapUuid: string | null;
+}
+
 /**
- * JSON-safe data for the currently inspected Terrain block.
+ * Direct Scene-webview binary data for the currently inspected Terrain block.
  *
- * `layers` maps the block's RGBA channel slots to Terrain layer UUIDs. When present,
- * `weight.data` is row-major RGBA bytes: four 0–255 values for every texel.
+ * `layers` maps the block's RGBA channel slots to Terrain layers. A null slot has no
+ * assigned Terrain layer; a non-null slot retains its layer index even without a detail map.
+ * When present, `weight.data` is a defensive, row-major RGBA8 snapshot: four bytes for every texel.
+ * It is intentionally not JSON-serializable; a future transport must encode it at
+ * that transport's seam rather than changing this direct webview interface.
  */
 export interface ITerrainBlockData {
     index: { x: number; y: number };
-    layers: Array<string | null>;
+    layers: Array<ITerrainBlockLayerSlot | null>;
     weight: {
         width: number;
         height: number;
-        data: number[];
+        data: Uint8Array;
     } | null;
 }
 

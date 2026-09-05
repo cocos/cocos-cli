@@ -202,7 +202,7 @@ function statesEqual(left: unknown, right: unknown): boolean {
  *
  * The public Terrain capability never exposes gizmos. This service validates the
  * requested node/component pair, adapts the matching internal gizmo, and returns
- * JSON-safe canonical snapshots for the Scene webview.
+ * canonical snapshots for direct Scene-webview access.
  */
 @register('Terrain')
 export class TerrainService extends BaseService<ITerrainEvents> implements ITerrainService {

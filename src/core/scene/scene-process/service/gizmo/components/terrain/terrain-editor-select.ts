@@ -2,6 +2,7 @@ import {
     Camera, Material, Rect, Terrain, TerrainBlock, TERRAIN_BLOCK_TILE_COMPLEXITY, Texture2D, Vec2, Vec3, clamp,
 } from 'cc';
 import { ServiceEvents } from '../../../core/global-events';
+import type { ITerrainBlockLayerSlot } from '../../../../../common';
 import { TerrainBrush } from './terrain-brush';
 import { TerrainEditorMode } from './terrain-editor-mode';
 
@@ -56,6 +57,19 @@ export class TerrainEditorSelect extends TerrainEditorMode {
     public getCurrentWeightMap() { return this._weightMap; }
     public getCurrentWeightData() { return this._weightData; }
     public getCurrentLayerList() { return this._layerList; }
+    /** Returns the Terrain-layer identity behind each RGBA slot without changing the legacy texture list. */
+    public getCurrentBlockLayerSlots(): Array<ITerrainBlockLayerSlot | null> {
+        const block = this._selectBlock;
+        if (!block) return [];
+        const terrain = block.getTerrain();
+        return block.layers.map((layerIndex) => {
+            if (layerIndex < 0) return null;
+            return {
+                layerIndex,
+                detailMapUuid: terrain.getLayer(layerIndex)?.detailMap?.uuid ?? null,
+            };
+        });
+    }
     public onDeactivate() { this.setSelectBlock(null); }
     public forceUpdate() {
         if (!this._selectBlock) return;
