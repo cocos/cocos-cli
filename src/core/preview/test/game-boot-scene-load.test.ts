@@ -67,6 +67,17 @@ describe('game-boot 场景加载失败路径（防 boot 挂死）', () => {
         expect(showErrors.length).toBeGreaterThanOrEqual(3);
     });
 
+    it('冷启动暂停意图必须在 cc.game.resume() 后立即生效（首帧前暂停，PR #914 review P2）', () => {
+        const resumeIndex = section.indexOf('cc.game.resume();');
+        expect(resumeIndex).toBeGreaterThan(-1);
+        const afterResume = section.slice(resumeIndex, section.indexOf('resolveSceneRun();', resumeIndex));
+        expect(afterResume).toContain('window.__pinkStartPaused');
+        // 意图生效必须同时暂停 director 与 game，且被 try/catch 收敛（引擎状态异常不阻断启动）
+        expect(afterResume).toContain('cc.director.pause();');
+        expect(afterResume).toContain('cc.game.pause();');
+        expect(afterResume).toContain('catch');
+    });
+
     it('sceneRunDone 的 reject 必须能传播到 gameBoot 外层 catch 并 rethrow（IDE 预览的失败感知契约）', () => {
         // await sceneRunDone 必须位于外层 try 内（其后存在统一 catch + rethrow）
         const awaitDone = source.indexOf('await sceneRunDone');

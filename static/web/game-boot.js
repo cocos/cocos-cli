@@ -277,6 +277,11 @@ export default async function gameBoot() {
                             scene._name = sceneAsset._name;
                             cc.director.runSceneImmediate(scene, () => {
                                 cc.game.resume();
+                                // PinK 预览冷启动暂停意图：resume 后立即 pause，在游戏循环首帧前生效，
+                                // 配合 IDE 侧随后的一次显式 step（避免 ready 后才暂停导致已推进多帧）。
+                                if (window.__pinkStartPaused) {
+                                    try { cc.director.pause(); cc.game.pause(); } catch (e) { /* 忽略引擎状态异常 */ }
+                                }
                                 resolveSceneRun();
                             });
                         } catch (e) {
