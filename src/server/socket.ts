@@ -3,6 +3,8 @@ import type { Server as HTTPSServer } from 'https';
 import { middlewareService } from './middleware';
 import { Server } from 'socket.io';
 
+export const SCENE_RENDERER_ROOM = 'scene-renderer';
+
 export class SocketService {
     public io: Server | undefined;
 
@@ -19,6 +21,24 @@ export class SocketService {
         });
         this.io.on('connection', (socket: any) => {
             console.log(`socket ${socket.id} connected`);
+            socket.on('scene-renderer:register', (data?: { sceneUrl?: string; visible?: boolean }) => {
+                socket.join(SCENE_RENDERER_ROOM);
+                socket.data.sceneRenderer = true;
+                socket.data.sceneUrl = data?.sceneUrl || '';
+                if (typeof data?.visible === 'boolean') {
+                    socket.data.sceneRendererVisible = data.visible;
+                }
+            });
+            socket.on('scene-renderer:scene', (data?: { sceneUrl?: string }) => {
+                if (socket.data.sceneRenderer) {
+                    socket.data.sceneUrl = data?.sceneUrl || '';
+                }
+            });
+            socket.on('scene-renderer:visibility', (data?: { visible?: boolean }) => {
+                if (socket.data.sceneRenderer && typeof data?.visible === 'boolean') {
+                    socket.data.sceneRendererVisible = data.visible;
+                }
+            });
             middlewareService.middlewareSocket.forEach((middleware) => {
                 middleware.connection(socket);
             });

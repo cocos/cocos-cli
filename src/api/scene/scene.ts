@@ -24,6 +24,7 @@ import { ComponentApi } from './component';
 import { NodeApi } from './node';
 import { PrefabApi } from './prefab';
 import { ReferenceImageApi } from './reference-image';
+import { LightFXBakeApi } from './lightfx-bake';
 import { options } from '../../core/builder/platforms/android/i18n/en';
 
 export class SceneApi {
@@ -31,12 +32,14 @@ export class SceneApi {
     public node: NodeApi;
     public prefab: PrefabApi;
     public referenceImage: ReferenceImageApi;
+    public lightFXBake: LightFXBakeApi;
 
     constructor() {
         this.component = new ComponentApi();
         this.node = new NodeApi();
         this.prefab = new PrefabApi();
         this.referenceImage = new ReferenceImageApi();
+        this.lightFXBake = new LightFXBakeApi();
     }
 
     @tool('scene-query-current')

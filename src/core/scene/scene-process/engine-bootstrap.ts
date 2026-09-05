@@ -2,6 +2,7 @@ import * as EditorExtends from '../../engine/editor-extends';
 import { Rpc } from './rpc';
 import { serviceManager } from './service/service-manager';
 import { Service as DecoratorService } from './service/core/decorator';
+import { ServiceEvents } from './service/core';
 import { ReferenceImageService } from './service/reference-image';
 import { messageManager } from './service/message';
 import { initLocalI18n } from './i18n';
@@ -231,6 +232,31 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             return;
         }
         const socket = io(serverURL);
+        let rendererVisible: boolean | undefined;
+        const updateRendererVisibility = (visible: boolean) => {
+            rendererVisible = visible;
+            socket.emit('scene-renderer:visibility', { visible });
+        };
+        // Pink retains a hidden, empty Scene Webview for preloading. Track the
+        // host-reported visibility so Node-side tools select the displayed scene.
+        window.addEventListener('message', (event: MessageEvent) => {
+            const message = event.data;
+            if (message?.kind === 'event'
+                && message.event === 'editor:visibility-changed'
+                && typeof message.data?.visible === 'boolean') {
+                updateRendererVisibility(message.data.visible);
+            }
+        });
+        ServiceEvents.on('scene-view:visibility-changed', updateRendererVisibility);
+        const querySceneUrl = async (): Promise<string> => {
+            const current = await DecoratorService.Editor.queryCurrent();
+            return (current as any)?.__identifier__?.assetUrl ?? (current as any)?.assetUrl ?? '';
+        };
+        let rendererSceneUrl = '';
+        const updateRendererScene = (sceneUrl: string) => {
+            rendererSceneUrl = sceneUrl;
+            socket.emit('scene-renderer:scene', { sceneUrl });
+        };
         const invoke = (module: string, method: string, args?: any[]) => {
             try {
                 const svc = (DecoratorService as any)[module];
@@ -246,12 +272,58 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 invoke(msg.module, msg.method, msg.args);
             }
         });
+        socket.on('scene:invoke-lightfx', async (
+            msg: {
+                sceneUrl?: string;
+                module?: 'LightProbeBake' | 'LightmapBake';
+                method?: 'bake' | 'clearBake' | 'cancel';
+                args?: unknown[];
+            },
+            reply: (response: { result?: unknown; sceneUrl?: string; error?: string }) => void,
+        ) => {
+            try {
+                const methods = msg?.module === 'LightProbeBake'
+                    ? new Set(['bake', 'clearBake', 'cancel'])
+                    : msg?.module === 'LightmapBake'
+                        ? new Set(['bake', 'clearBake', 'cancel'])
+                        : null;
+                if (!methods?.has(msg.method || '')) {
+                    throw new Error('Invalid LightFX scene request.');
+                }
+
+                const currentSceneUrl = await querySceneUrl();
+                if (msg.method !== 'cancel' && (!currentSceneUrl || currentSceneUrl !== msg.sceneUrl)) {
+                    throw new Error(
+                        `The selected scene renderer is not displaying the requested scene: ${msg.sceneUrl || 'unknown'}.`,
+                    );
+                }
+
+                const service = (DecoratorService as any)[msg.module!];
+                const result = await service[msg.method!](...(msg.args || []));
+                const finalSceneUrl = await querySceneUrl().catch(() => '');
+                if (finalSceneUrl) updateRendererScene(finalSceneUrl);
+                reply({ result, sceneUrl: finalSceneUrl });
+            } catch (error) {
+                reply({ error: error instanceof Error ? error.message : String(error) });
+            }
+        });
         // Reconcile feature-local runtime state after first connection or reconnect.
         // Reference images need this because their Sprite objects are not persisted with configuration.
         socket.on('connect', () => {
             invoke('Engine', 'syncDesignResolution', []);
             invoke('ReferenceImage', 'syncFromAuthority', []);
+            socket.emit('scene-renderer:register', {
+                sceneUrl: rendererSceneUrl,
+                visible: rendererVisible,
+            });
+            void querySceneUrl().then(updateRendererScene).catch(() => undefined);
         });
+        const reportRendererScene = () => {
+            void querySceneUrl().then(updateRendererScene).catch(() => updateRendererScene(''));
+        };
+        ServiceEvents.on('editor:open', reportRendererScene);
+        ServiceEvents.on('editor:reload', reportRendererScene);
+        ServiceEvents.on('editor:close', () => updateRendererScene(''));
     } catch (e) {
         console.warn('[engine-bootstrap] setup browser-invoke channel failed:', e);
     }
