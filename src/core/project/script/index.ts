@@ -147,7 +147,7 @@ export class Project implements IProject {
     public static async create(projectPath: string, type: ProjectType = '3d'): Promise<boolean> {
         try {
             const packageJSONPath = Project.getPackageJsonPath(projectPath);
-            if (existsSync(projectPath) || existsSync(packageJSONPath)) {
+            if (existsSync(packageJSONPath)) {
                 throw new Error('Failed to create project, project exist');
             }
             await mkdir(projectPath, { recursive: true });
