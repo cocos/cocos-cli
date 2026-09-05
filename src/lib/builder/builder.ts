@@ -1,11 +1,11 @@
 import type { BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';
 import type { BuildCheckResult, PlatformBuildSchema, PlatformConfigItem } from '../../core/builder/@types/protected';
-import type { BuildCacheScope, ClearCacheResult } from '../../core/builder/cache';
+import type { BuildCacheScope, ClearCacheOptions, ClearCacheResult } from '../../core/builder/cache';
 
 export type * from '../../core/builder/@types/private';
 export type * from '../../core/builder/@types/config-export';
-export type { BuildCacheScope, ClearCacheResult };
+export type { BuildCacheScope, ClearCacheOptions, ClearCacheResult };
 export async function init(platform?: string[]): Promise<void> {
     const builder = await import('../../core/builder');
     return builder.init(platform);
@@ -108,9 +108,9 @@ export async function createBuildTemplate(nameOrPlatform: string): Promise<void>
     return builder.createBuildTemplate(nameOrPlatform);
 }
 
-export async function clearCache(scope: BuildCacheScope): Promise<ClearCacheResult> {
+export async function clearCache(options: ClearCacheOptions): Promise<ClearCacheResult> {
     const builder = await import('../../core/builder');
-    return builder.clearCache(scope);
+    return builder.clearCache(options);
 }
 
 export async function checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption): Promise<BuildCheckResult> {
