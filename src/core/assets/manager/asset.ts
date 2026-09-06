@@ -47,6 +47,7 @@ class AssetManager extends EventEmitter {
     saveAsset = assetOperation.saveAsset.bind(assetOperation);
     createAsset = assetOperation.createAsset.bind(assetOperation);
     refreshAsset = assetOperation.refreshAsset.bind(assetOperation);
+    refreshAssetOnly = assetOperation.refreshAssetOnly.bind(assetOperation);
     reimportAsset = assetOperation.reimportAsset.bind(assetOperation);
     renameAsset = assetOperation.renameAsset.bind(assetOperation);
     removeAsset = assetOperation.removeAsset.bind(assetOperation);
@@ -379,6 +380,7 @@ export interface TypedAssetManager extends EventEmitter {
     saveAsset: typeof assetOperation.saveAsset;
     createAsset: typeof assetOperation.createAsset;
     refreshAsset: typeof assetOperation.refreshAsset;
+    refreshAssetOnly: typeof assetOperation.refreshAssetOnly;
     reimportAsset: typeof assetOperation.reimportAsset;
     renameAsset: typeof assetOperation.renameAsset;
     removeAsset: typeof assetOperation.removeAsset;

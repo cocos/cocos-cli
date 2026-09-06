@@ -5,6 +5,7 @@ import { ProcessRPC } from '../process-rpc';
 import { sceneConfigInstance } from '../scene-configs';
 import { referenceImageFiles } from './reference-image-files';
 import { referenceImageStore } from './reference-image-store';
+import { reflectionProbeRenderer } from './reflection-probe-renderer';
 
 export interface SceneHostModules {
     assetManager: typeof assetManager;
@@ -13,6 +14,7 @@ export interface SceneHostModules {
     i18n: typeof i18n;
     referenceImageFiles: typeof referenceImageFiles;
     referenceImageStore: typeof referenceImageStore;
+    reflectionProbeRenderer: typeof reflectionProbeRenderer;
 }
 
 const defaultSceneHostModules: SceneHostModules = {
@@ -23,6 +25,7 @@ const defaultSceneHostModules: SceneHostModules = {
     // Feature-owned Node modules: external file reads and serialized local configuration writes.
     referenceImageFiles,
     referenceImageStore,
+    reflectionProbeRenderer,
 };
 
 /** Registers the default host modules with the specified Scene RPC transport. */

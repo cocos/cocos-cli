@@ -42,7 +42,7 @@ async function buildSceneBundle() {
                         'fs', 'node:fs', 'fs-extra', 'graceful-fs', 'lodash', 'package.json', '@cocos/asset-db',
                         'constants', 'stream', 'assert', 'crypto', 'child_process', 'vm', 'buffer',
                         'tty', 'zlib', 'http', 'https', 'net', 'tls', 'dns', 'readline', 'punycode',
-                        'cc/mods-mgr', 'inherits', 'sys', 'url', 'process', 'proper-lockfile'
+                        'cc/mods-mgr', 'inherits', 'sys', 'url', 'process', 'proper-lockfile', 'sharp'
                     ];
                     if (stubs.includes(id)) {
                         return '\0smart-' + id;

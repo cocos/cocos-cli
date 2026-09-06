@@ -20,6 +20,7 @@ const mockAssetQueryUrl = jest.fn();
 const mockRefresh = jest.fn(async (_pathOrUrlOrUUID: string) => 0);
 const mockReimport = jest.fn();
 const mockAddTask = jest.fn(async (func: Function, args: any[]) => await func(...args));
+const mockAutoRefreshAssetLazy = jest.fn();
 const mockGetCreateMenuByName = jest.fn();
 const mockCreateAssetByHandler = jest.fn();
 const mockSaveAssetByHandler = jest.fn();
@@ -99,7 +100,7 @@ jest.mock('../manager/asset-db', () => ({
     __esModule: true,
     default: {
         addTask: (func: Function, args: any[]) => mockAddTask(func, args),
-        autoRefreshAssetLazy: jest.fn(),
+        autoRefreshAssetLazy: (...args: any[]) => mockAutoRefreshAssetLazy(...args),
         assetDBInfo: {},
         assetDBMap: {},
     },
@@ -593,6 +594,16 @@ describe('asset operation filesystem bridge', () => {
         await assetOperation.refreshAsset('assets/resources/Image');
 
         expect(mockRefresh).toHaveBeenCalledWith('db://assets/resources/Image');
+    });
+
+    it('refreshAssetOnly skips the follow-up directory refresh for generated assets', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        setAssetDBInfo();
+
+        await assetOperation.refreshAssetOnly('db://assets/resources/Image/generated.png');
+
+        expect(mockRefresh).toHaveBeenCalledWith('db://assets/resources/Image/generated.png');
+        expect(mockAutoRefreshAssetLazy).not.toHaveBeenCalled();
     });
 
     it('importAsset should refresh an existing file in the asset DB when source and target are the same path', async () => {
