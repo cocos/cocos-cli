@@ -7021,6 +7021,7 @@ export declare interface ITerrainService {
 }
 export declare interface ITerrainSnapshot extends ITerrainEditorState {
     target: ITerrainTarget;
+    assetUuid: string | null;
     valid: true;
 }
 export declare interface ITerrainTarget {

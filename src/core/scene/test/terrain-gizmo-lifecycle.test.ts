@@ -125,7 +125,7 @@ describe('TerrainGizmo lifecycle', () => {
 
     it('reads Block layer detail maps from the current Terrain state instead of the selection cache', () => {
         const terrain = {
-            getLayer: jest.fn(() => ({ detailMap: { _uuid: 'detail-current' } })),
+            getLayer: jest.fn(() => ({ detailMap: { uuid: 'detail-current' } })),
         };
         const select = Object.create(TerrainEditorSelect.prototype) as TerrainEditorSelect;
         (select as any)._selectBlock = {

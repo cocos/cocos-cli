@@ -73,6 +73,8 @@ export interface ITerrainEditorState {
 /** A usable authoritative snapshot. Read its hydration state only after narrowing `valid` to `true`. */
 export interface ITerrainSnapshot extends ITerrainEditorState {
     target: ITerrainTarget;
+    /** The persisted .terrain asset UUID, or null when this Terrain is not saveable yet. */
+    assetUuid: string | null;
     valid: true;
 }
 

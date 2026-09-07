@@ -248,8 +248,19 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         return { target: copyTarget(target), valid: false };
     }
 
+    /** Returns only the public UUID of the persisted Terrain asset, never the engine asset object. */
+    private getTerrainAssetUuid(component: Terrain | null): string | null {
+        const uuid = component?._asset?.uuid;
+        return typeof uuid === 'string' && uuid.length > 0 ? uuid : null;
+    }
+
     private readResolved(target: ITerrainTarget, gizmo: ITerrainSessionGizmo): TerrainReadResult {
-        return { target: copyTarget(target), valid: true, ...gizmo.readTerrainState() };
+        return {
+            target: copyTarget(target),
+            valid: true,
+            assetUuid: this.getTerrainAssetUuid(gizmo.target),
+            ...gizmo.readTerrainState(),
+        };
     }
 
     /** Returns a canonical snapshot or `valid: false`; it never falls back to another Terrain. */

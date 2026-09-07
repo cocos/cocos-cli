@@ -72,7 +72,7 @@ jest.mock('../scene-process/scene-asset-binary-client', () => ({
     },
 }));
 
-import { Terrain, Texture2D } from 'cc';
+import { Terrain, TerrainAsset, Texture2D } from 'cc';
 import type {
     IPublicTerrainService,
     ITerrainBlockData,
@@ -138,7 +138,7 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
     };
 
     Object.assign(terrain as any, {
-        _asset: {},
+        _asset: { uuid: 'terrain-asset' },
         rebuild: jest.fn((info: any) => {
             state.manage = {
                 tileSize: info.tileSize,
@@ -277,6 +277,7 @@ describe('TerrainService target-safe public capability', () => {
         expect(service.read(fixture.target)).toEqual({
             target: fixture.target,
             valid: true,
+            assetUuid: 'terrain-asset',
             ...fixture.state,
         });
         expect(service.read(other.target)).toEqual({ target: other.target, valid: false });
@@ -285,6 +286,20 @@ describe('TerrainService target-safe public capability', () => {
             valid: false,
         });
         expect(gizmoService.getComponentGizmo).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports whether a valid target has a persisted Terrain asset in every read result', () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockReturnValue({ getComponentGizmo: () => fixture.gizmo });
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+
+        expect(service.read(fixture.target)).toMatchObject({ valid: true, assetUuid: 'terrain-asset' });
+        expect(service.setMode(fixture.target, 'sculpt')).toMatchObject({ valid: true, assetUuid: 'terrain-asset' });
+
+        (fixture.terrain as any)._asset = new TerrainAsset();
+        expect(service.read(fixture.target)).toMatchObject({ valid: true, assetUuid: null });
+        expect(service.setCurrentLayer(fixture.target, 0)).toMatchObject({ valid: true, assetUuid: null });
     });
 
     it('updates only the explicit target editor session, returns its canonical state, and emits invalidation', () => {
@@ -389,6 +404,7 @@ describe('TerrainService target-safe public capability', () => {
         await expect(service.setSculptBrushAsset(fixture.target, 'missing-brush')).resolves.toEqual({
             target: fixture.target,
             valid: true,
+            assetUuid: 'terrain-asset',
             ...before,
         });
         expect(mockConsoleWarn).toHaveBeenCalledWith('[Terrain] load sculpt brush texture failed: missing-brush', error);
@@ -399,6 +415,7 @@ describe('TerrainService target-safe public capability', () => {
         await expect(service.setSculptBrushAsset(fixture.target, 'not-a-texture')).resolves.toEqual({
             target: fixture.target,
             valid: true,
+            assetUuid: 'terrain-asset',
             ...before,
         });
         expect(fixture.gizmo.setSculptBrushTexture).not.toHaveBeenCalled();
@@ -519,11 +536,12 @@ describe('TerrainService target-safe public capability', () => {
         await expect(service.saveManage(fixture.target, { ...fixture.state.manage, tileSize: 3 })).resolves.toEqual({
             target: fixture.target,
             valid: true,
+            assetUuid: 'terrain-asset',
             ...before,
         });
-        await expect(service.addLayer(fixture.target, layer)).resolves.toEqual({ target: fixture.target, valid: true, ...before });
-        await expect(service.removeLayer(fixture.target, 0)).resolves.toEqual({ target: fixture.target, valid: true, ...before });
-        await expect(service.updateLayer(fixture.target, 0, { roughness: 0.5 })).resolves.toEqual({ target: fixture.target, valid: true, ...before });
+        await expect(service.addLayer(fixture.target, layer)).resolves.toEqual({ target: fixture.target, valid: true, assetUuid: 'terrain-asset', ...before });
+        await expect(service.removeLayer(fixture.target, 0)).resolves.toEqual({ target: fixture.target, valid: true, assetUuid: 'terrain-asset', ...before });
+        await expect(service.updateLayer(fixture.target, 0, { roughness: 0.5 })).resolves.toEqual({ target: fixture.target, valid: true, assetUuid: 'terrain-asset', ...before });
 
         expect(fixture.state).toEqual(before);
         expect(mockLoadAny).not.toHaveBeenCalled();
@@ -544,7 +562,7 @@ describe('TerrainService target-safe public capability', () => {
         const before = clone(fixture.state);
         await expect(service.addLayer(fixture.target, {
             detailMapUuid: 'detail-load-error', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
-        })).resolves.toEqual({ target: fixture.target, valid: true, ...before });
+        })).resolves.toEqual({ target: fixture.target, valid: true, assetUuid: 'terrain-asset', ...before });
 
         expect(mockConsoleWarn).toHaveBeenCalledWith('[Terrain] load layer texture failed: detail-load-error', error);
         expect(fixture.state).toEqual(before);
@@ -676,7 +694,7 @@ describe('TerrainService target-safe public capability', () => {
         mockLoadAny.mockResolvedValueOnce({ _uuid: 'not-a-texture' });
         expect(await service.addLayer(fixture.target, {
             detailMapUuid: 'not-a-texture', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
-        })).toEqual({ target: fixture.target, valid: true, ...beforeRejectedDrop });
+        })).toEqual({ target: fixture.target, valid: true, assetUuid: 'terrain-asset', ...beforeRejectedDrop });
         expect(mockUndo.push).toHaveBeenCalledTimes(4);
 
         expect(await service.updateLayer(other.target, 0, { roughness: 0.5 })).toEqual({ target: other.target, valid: false });
