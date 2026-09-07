@@ -60,7 +60,7 @@ export declare interface AnimGraphVariantDump {
     clips: Record<string, string>;
     invalids?: Record<string, string>;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare interface AssetDBOptions {
     name: string;
     target: string;
@@ -88,7 +88,9 @@ export declare interface AssetDBOptions_2 {
     };
     importConcurrency?: number;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetInfo extends IAssetInfo {
     name: string;
     displayName: string;
@@ -1058,7 +1060,7 @@ export declare class Asset extends VirtualAsset {
     save(): Promise<boolean>;
     isDirectory(): boolean;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare enum AssetActionEnum {
     'add' = 0,
     'change' = 1,
@@ -1149,7 +1151,9 @@ export declare interface AssetDBStartOptions {
 export declare namespace AssetHandlers {
     export type compressTextures = (tasks: ICompressConfig[]) => Promise<void>;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare type AssetInfoArr = Array<string | number>;
 export declare interface AssetSerializeOptions {
     'cc.EffectAsset': {
@@ -5412,6 +5416,7 @@ exports[`DTS API compatibility cli.d.ts should match snapshot 1`] = `
 "import type { Component } from 'cc';
 import type { Node as Node_2 } from 'cc';
 import type { Scene } from 'cc';
+import type { Terrain } from 'cc';
 import type { Vec3 as Vec3_2 } from 'cc';
 export declare interface AnimationClipAssetUserData {
     name: string;
@@ -5444,8 +5449,10 @@ export declare interface AnimationImportSetting {
 export declare type AnimationMode = 'general' | 'prefab' | 'animation' | 'preview' | 'unknown';
 export declare type AnimationPlayOperation = 'play' | 'pause' | 'resume' | 'stop';
 export declare type AnimationPlayState_2 = 'stop' | 'playing' | 'pause';
-export declare const ASSET_HANDLER_TYPES: string[];
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetUserDataMap {
     'animation-clip': AnimationClipAssetUserData;
     'auto-atlas': AutoAtlasAssetUserData;
@@ -6367,6 +6374,7 @@ export declare interface IGizmoService {
     removeAllGizmoOfNode(node: any, recursive?: boolean): void;
     clearAllGizmos(): void;
     callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
+    getComponentGizmo(component: any): any;
     onUpdate(deltaTime: number): void;
     queryToolsVisibility3d(): boolean;
     setToolsVisibility3d(value: boolean): void;
@@ -6867,6 +6875,7 @@ export declare interface IServiceManager {
     Preview: IPreviewService;
     UI: IUIService;
     ReferenceImage: IReferenceImageService;
+    Terrain: ITerrainService;
 }
 export declare interface ISetParentParams {
     paths: string[];
@@ -6902,6 +6911,122 @@ export declare interface ITargetOverrideInfo {
     propertyPath: string[];
     target: string;
     targetInfo?: string[];
+}
+export declare interface ITerrainBlockData {
+    index: {
+        x: number;
+        y: number;
+    };
+    layers: Array<ITerrainBlockLayerSlot | null>;
+    weight: {
+        width: number;
+        height: number;
+        data: Uint8Array;
+    } | null;
+}
+export declare interface ITerrainBlockLayerSlot {
+    layerIndex: number;
+    detailMapUuid: string | null;
+}
+export declare interface ITerrainBlockSnapshot {
+    target: ITerrainTarget;
+    valid: true;
+    block: ITerrainBlockData | null;
+}
+export declare interface ITerrainBrushPatch {
+    radius?: number;
+    strength?: number;
+    rotation?: number;
+    setHeight?: number;
+}
+export declare interface ITerrainBrushState {
+    kind: TerrainBrushKind;
+    imageUuid: string | null;
+    radius: number;
+    strength: number;
+    rotation: number;
+    setHeight: number;
+}
+export declare interface ITerrainEditorState {
+    manage: ITerrainManageState;
+    layers: Array<ITerrainLayerState | null>;
+    mode: TerrainEditorMode;
+    currentLayer: number;
+    sculpt: ITerrainSculptState;
+    paint: ITerrainPaintState;
+}
+export declare interface ITerrainInvalidSnapshot {
+    target: ITerrainTarget;
+    valid: false;
+}
+export declare interface ITerrainLayerPatch {
+    detailMapUuid?: string | null;
+    normalMapUuid?: string | null;
+    metallic?: number;
+    roughness?: number;
+    tileSize?: number;
+}
+export declare interface ITerrainLayerState {
+    detailMapUuid: string | null;
+    normalMapUuid: string | null;
+    metallic: number;
+    roughness: number;
+    tileSize: number;
+}
+export declare interface ITerrainManageState {
+    tileSize: number;
+    weightMapSize: number;
+    lightMapSize: number;
+    blockCount: [number, number];
+}
+export declare interface ITerrainPaintSessionPatch {
+    brush?: ITerrainBrushPatch;
+}
+export declare interface ITerrainPaintState {
+    brush: ITerrainBrushState;
+}
+export declare interface ITerrainSculptSessionPatch {
+    tool?: TerrainSculptTool;
+    brush?: ITerrainBrushPatch;
+}
+export declare interface ITerrainSculptState {
+    tool: TerrainSculptTool;
+    brush: ITerrainBrushState;
+}
+export declare interface ITerrainService {
+    readonly name: 'cc.Terrain';
+    readonly editedComponents: Terrain[];
+    readonly selectedComponents: Terrain[];
+    isTerrainChange: boolean;
+    select(nodeUuid: string): void;
+    unselect(nodeUuid: string): void;
+    close(): Promise<0 | 1 | 2>;
+    saveAsset(isClose?: boolean, component?: Terrain): Promise<0 | 1 | 2>;
+    saveAssetDialog(file?: string, isClose?: boolean): Promise<0 | 1 | 2>;
+    addAssetToComp(assetUuid: string): Promise<void>;
+    serialize(component: Terrain): Uint8Array;
+    onSculpt(node: any): void;
+    read(target: ITerrainTarget): TerrainReadResult;
+    setMode(target: ITerrainTarget, mode: TerrainEditorMode): TerrainReadResult;
+    setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
+    setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
+    setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
+    setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
+    setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
+    saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
+    addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
+    removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult>;
+    updateLayer(target: ITerrainTarget, index: number, patch: ITerrainLayerPatch): Promise<TerrainReadResult>;
+    readBlock(target: ITerrainTarget): TerrainBlockReadResult;
+}
+export declare interface ITerrainSnapshot extends ITerrainEditorState {
+    target: ITerrainTarget;
+    assetUuid: string | null;
+    valid: true;
+}
+export declare interface ITerrainTarget {
+    nodeUuid: string;
+    componentUuid: string;
 }
 export declare interface IUIService {
     alignSelection(type: UIAlignType): Promise<void>;
@@ -7296,6 +7421,11 @@ export declare enum TangentImportSetting {
 }
 export declare type TEditorEntity = IScene | INode;
 export declare type TEditorInstance = Scene | Node_2;
+export declare type TerrainBlockReadResult = ITerrainBlockSnapshot | ITerrainInvalidSnapshot;
+export declare type TerrainBrushKind = 'circle' | 'image';
+export declare type TerrainEditorMode = 'manage' | 'sculpt' | 'paint' | 'block';
+export declare type TerrainReadResult = ITerrainSnapshot | ITerrainInvalidSnapshot;
+export declare type TerrainSculptTool = 'bulge' | 'sunken' | 'smooth' | 'flatten' | 'set-height';
 export declare interface Texture2DAssetUserData extends TextureBaseAssetUserData {
     isUuid?: boolean;
     imageUuidOrDatabaseUri?: string;
@@ -7746,7 +7876,7 @@ export declare interface AnimGraphVariantDump {
     clips: Record<string, string>;
     invalids?: Record<string, string>;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare enum AssetActionEnum {
     'add' = 0,
     'change' = 1,
@@ -7788,7 +7918,9 @@ export declare interface AssetDBOptions_2 {
     visible: boolean;
     ignoreGlob?: string;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetInfo extends IAssetInfo {
     name: string;
     displayName: string;

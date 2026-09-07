@@ -124,4 +124,14 @@ describe('asset handler filesystem bridge', () => {
         expect(mockWritePath.mock.calls[2][1]).toBe('world');
         expect(mockOutputJSON).not.toHaveBeenCalled();
     });
+
+    it('createAsset should preserve binary content for the filesystem bridge', async () => {
+        const assetHandlerManager = require('../manager/asset-handler').default as typeof import('../manager/asset-handler').default;
+        const target = 'D:/project/assets/new.terrain';
+        const content = Buffer.from([0, 1, 127, 255]);
+
+        await assetHandlerManager.createAsset({ target, content });
+
+        expect(mockWritePath).toHaveBeenCalledWith(target, content);
+    });
 });

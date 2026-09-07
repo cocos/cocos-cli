@@ -47,6 +47,7 @@ const MESSAGE_ONLY_EVENTS = [
     'scene:dimension-changed',
     'camera:mode-change', 'camera:projection-changed', 'camera:fov-changed',
     'scene-view:visibility-changed', 'scene-view:light-changed',
+    'terrain:changed', 'terrain:sculpt', 'terrain:block-update', 'terrain:session-changed',
 ];
 
 const ALL_FORWARDED_EVENTS = [...SERVICE_MAP_EVENTS, ...MESSAGE_ONLY_EVENTS];

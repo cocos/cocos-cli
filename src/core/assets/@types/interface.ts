@@ -58,7 +58,7 @@ export const ASSET_HANDLER_TYPES = [
     'video-clip',
     '*',
     'database',
-];
+] as const;
 
 /** 支持创建的资源类型常量数组（用于 Zod enum 和 TypeScript type） */
 export const SUPPORT_CREATE_TYPES = [
