@@ -46,6 +46,54 @@ MCP 工具在 Node 主进程执行，并经 Node IPC 进入 scene-process。由�
 
 捕获结果会携带场景 URL、组件 UUID 和 renderer ID。资源导入完成后，CLI 只会向原捕获窗口发送热应用请求；如果窗口断开、切换了场景或探针组件已经变化，本次烘焙会失败并回滚输出，不会把结果绑定到其他窗口或同名节点。MCP 只有在热应用、场景重绘以及可选保存全部得到回执后才返回成功。
 
+### 批量烘焙
+
+工具名：`scene-bake-reflection-probes`
+
+省略 `nodePaths` 或传入空数组时，烘焙当前场景中全部启用的 Cube Reflection Probe：
+
+```json
+{
+  "options": {
+    "nodePaths": [],
+    "saveScene": true,
+    "timeoutMs": 600000
+  }
+}
+```
+
+传入 `nodePaths` 可以只烘焙指定节点路径。批量任务在开始时固定当前可见场景和 renderer ID，然后逐个执行捕获、转换、导入与绑定，避免切换场景时把结果应用到其他窗口。同路径节点通过 ReflectionProbe 组件 UUID 区分。
+
+每个探针拥有独立的资源事务：失败项恢复自身原有输出，其余探针继续执行。所有成功项应用后只保存一次场景。返回结果中的 `results` 和 `failures` 分别列出成功与失败项，`bakedCount + failedCount` 等于 `totalCount`。批量 `timeoutMs` 默认 600 秒，最大 3600 秒；它约束完整批量流程。
+
+成功返回示例：
+
+```json
+{
+  "result": {
+    "code": 200,
+    "data": {
+      "sceneUrl": "db://assets/ReflectionProbeTest.scene",
+      "totalCount": 2,
+      "bakedCount": 2,
+      "failedCount": 0,
+      "results": [
+        {
+          "nodePath": "Reflection Probe",
+          "componentUuid": "Comp.1055",
+          "probeId": 0,
+          "cubemapUuid": "cubemap-uuid",
+          "cubemapUrl": "db://assets/ReflectionProbeTest/reflectionProbe_0.png/textureCube",
+          "fastBake": false
+        }
+      ],
+      "failures": [],
+      "durationMs": 4200
+    }
+  }
+}
+```
+
 ## 处理链路
 
 ```text
@@ -97,3 +145,4 @@ npm.cmd test -- --runInBand tests/reflection-probe-bake-api.test.ts tests/reflec
 5. 烘焙期间切换场景、修改探针或关闭原场景窗口会失败，且不会覆盖已有有效烘焙资源。若仅热应用 ACK 超时，最终状态无法确定，CLI 会保留已经导入的资源，避免窗口稍后完成保存时产生丢失依赖。
 6. 分别验证 `fastBake=true` 与 `fastBake=false`；非 fast 模式应在六面子资源全部导入后才返回成功并刷新场景，`assets` 下不应残留 `.reflection-probe-*.png`。
 7. 同时打开两个包含同路径探针的场景，只切换 Pink 场景标签、不点击视口后执行烘焙；结果必须只应用到当前活动场景。活动场景无法唯一识别时必须失败，不能回退到其他场景。
+8. 在包含多个探针（包括同名节点）的场景中执行 `scene-bake-reflection-probes`，确认全部结果绑定到原窗口、每个 probe ID 对应独立资源，并且场景只在批量结束后保存。

@@ -16,5 +16,32 @@ export const SchemaReflectionProbeBakeResult = z.object({
     fastBake: z.boolean(),
 }).describe('Reflection probe bake result');
 
+export const SchemaReflectionProbeBakeAllOptions = z.object({
+    nodePaths: z.array(z.string().trim().min(1)).optional()
+        .describe('Optional reflection-probe node paths; omit or pass an empty array to bake all'),
+    saveScene: z.boolean().optional().default(true)
+        .describe('Save the active scene once after all successful probes are hot-applied'),
+    timeoutMs: z.number().int().positive().max(3_600_000).optional().default(600_000)
+        .describe('Timeout for the complete batch operation'),
+}).describe('Bake-all reflection probe options');
+
+export const SchemaReflectionProbeBakeFailure = z.object({
+    nodePath: z.string(),
+    componentUuid: z.string().optional(),
+    reason: z.string(),
+});
+
+export const SchemaReflectionProbeBakeAllResult = z.object({
+    sceneUrl: z.string(),
+    totalCount: z.number().int().nonnegative(),
+    bakedCount: z.number().int().nonnegative(),
+    failedCount: z.number().int().nonnegative(),
+    results: z.array(SchemaReflectionProbeBakeResult),
+    failures: z.array(SchemaReflectionProbeBakeFailure),
+    durationMs: z.number().nonnegative(),
+}).describe('Bake-all reflection probe result');
+
 export type TReflectionProbeBakeOptions = z.infer<typeof SchemaReflectionProbeBakeOptions>;
 export type TReflectionProbeBakeResult = z.infer<typeof SchemaReflectionProbeBakeResult>;
+export type TReflectionProbeBakeAllOptions = z.infer<typeof SchemaReflectionProbeBakeAllOptions>;
+export type TReflectionProbeBakeAllResult = z.infer<typeof SchemaReflectionProbeBakeAllResult>;

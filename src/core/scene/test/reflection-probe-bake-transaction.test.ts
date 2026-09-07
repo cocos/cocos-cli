@@ -13,6 +13,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 
 const mockRpcRequest = jest.fn();
+const mockGetScene = jest.fn();
 
 jest.mock('cc', () => ({
     assert: (condition: unknown, message: string) => {
@@ -27,7 +28,7 @@ jest.mock('cc', () => ({
         },
         loadAny: jest.fn(),
     },
-    director: {},
+    director: { getScene: mockGetScene },
     Director: { EVENT_END_FRAME: 'director-end-frame' },
     gfx: {
         API: { UNKNOWN: 0 },
@@ -142,6 +143,7 @@ describe('ReflectionProbeService bake output transaction', () => {
     let transaction: ITransactionSpies | undefined;
 
     beforeEach(async () => {
+        mockGetScene.mockReset().mockReturnValue(null);
         tempRoot = await mkdtemp(join(tmpdir(), 'cocos-cli-reflection-probe-bake-'));
         assetRoot = join(tempRoot, 'assets');
         sceneDir = join(assetRoot, SCENE_NAME);
@@ -287,5 +289,100 @@ describe('ReflectionProbeService bake output transaction', () => {
         await expect(pathExists(workDir)).resolves.toBe(false);
         await expect(readdir(backupRoot)).resolves.toEqual([]);
         expect(refreshCalls()).toHaveLength(1);
+    });
+
+    it('bakes a probe batch serially on one renderer and saves successful results once', async () => {
+        const probes = [
+            { nodePath: 'Probe', componentUuid: 'Comp.1' },
+            { nodePath: 'Probe', componentUuid: 'Comp.2' },
+        ];
+        mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
+            if (serviceName === 'reflectionProbeRenderer' && method === 'listActive') {
+                return {
+                    rendererId: 'renderer-1',
+                    sceneUrl: `db://assets/${SCENE_NAME}.scene`,
+                    probes,
+                };
+            }
+            if (serviceName === 'reflectionProbeRenderer' && method === 'save') {
+                return undefined;
+            }
+            throw new Error(`Unexpected RPC request: ${serviceName}.${method}`);
+        });
+        const successfulResult = {
+            nodePath: 'Probe',
+            componentUuid: 'Comp.1',
+            probeId: 0,
+            cubemapUuid: 'cube-1',
+            cubemapUrl: `db://assets/${SCENE_NAME}/reflectionProbe_0.png/textureCube`,
+            fastBake: true,
+        };
+        service._bakeOne = jest.fn()
+            .mockResolvedValueOnce(successfulResult)
+            .mockRejectedValueOnce(new Error('cmft failed'));
+
+        await expect(service.bakeAll({ saveScene: true, timeoutMs: 600_000 })).resolves.toEqual({
+            sceneUrl: `db://assets/${SCENE_NAME}.scene`,
+            totalCount: 2,
+            bakedCount: 1,
+            failedCount: 1,
+            results: [successfulResult],
+            failures: [{ nodePath: 'Probe', componentUuid: 'Comp.2', reason: 'cmft failed' }],
+            durationMs: expect.any(Number),
+        });
+        expect(service._bakeOne).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            nodePath: 'Probe',
+            saveScene: false,
+        }), expect.objectContaining({ rendererId: 'renderer-1', componentUuid: 'Comp.1' }));
+        expect(service._bakeOne).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            nodePath: 'Probe',
+            saveScene: false,
+        }), expect.objectContaining({ rendererId: 'renderer-1', componentUuid: 'Comp.2' }));
+        expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeRenderer', 'save', [
+            'renderer-1',
+            `db://assets/${SCENE_NAME}.scene`,
+            expect.any(Number),
+        ]);
+    });
+
+    it('stops a probe batch when its selected renderer is no longer available', async () => {
+        mockRpcRequest.mockResolvedValue({
+            rendererId: 'renderer-1',
+            sceneUrl: `db://assets/${SCENE_NAME}.scene`,
+            probes: [
+                { nodePath: 'Probe A', componentUuid: 'Comp.1' },
+                { nodePath: 'Probe B', componentUuid: 'Comp.2' },
+            ],
+        });
+        service._bakeOne = jest.fn().mockRejectedValue(
+            new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.'),
+        );
+
+        await expect(service.bakeAll({ timeoutMs: 600_000 })).rejects.toThrow(
+            'selected for the reflection-probe batch is no longer available',
+        );
+        expect(service._bakeOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('lists active cube probes with component UUIDs even when node paths are duplicated', () => {
+        const makeNode = (componentUuid: string) => {
+            const component = { uuid: componentUuid, enabled: true, probeType: 0 };
+            return {
+                name: 'Probe',
+                activeInHierarchy: true,
+                children: [],
+                getComponent: jest.fn(() => component),
+            };
+        };
+        mockGetScene.mockReturnValue({
+            activeInHierarchy: true,
+            children: [makeNode('Comp.1'), makeNode('Comp.2')],
+            getComponent: jest.fn(() => null),
+        });
+
+        expect(service.listBakeableProbes()).toEqual([
+            { nodePath: 'Probe', componentUuid: 'Comp.1' },
+            { nodePath: 'Probe', componentUuid: 'Comp.2' },
+        ]);
     });
 });

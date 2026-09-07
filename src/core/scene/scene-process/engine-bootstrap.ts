@@ -273,7 +273,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             }
         });
         socket.on('scene:capture-reflection-probe', async (
-            msg: { sceneUrl?: string; nodePath?: string; timeoutMs?: number },
+            msg: { sceneUrl?: string; nodePath?: string; componentUuid?: string; timeoutMs?: number },
             reply: (response: { result?: unknown; error?: string }) => void,
         ) => {
             try {
@@ -291,9 +291,27 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 const result = await (DecoratorService.ReflectionProbe as any).capturePixels(
                     msg.nodePath,
                     msg.timeoutMs,
+                    msg.componentUuid,
                 );
                 updateRendererScene(result.sceneUrl);
                 reply({ result });
+            } catch (error) {
+                reply({ error: error instanceof Error ? error.message : String(error) });
+            }
+        });
+        socket.on('scene:list-reflection-probes', async (
+            msg: { sceneUrl?: string },
+            reply: (response: { result?: unknown; error?: string }) => void,
+        ) => {
+            try {
+                const currentSceneUrl = await querySceneUrl().catch(() => '');
+                if (!msg?.sceneUrl || currentSceneUrl !== msg.sceneUrl) {
+                    throw new Error(
+                        `The WebGL scene renderer is not displaying the requested scene: ${msg?.sceneUrl || 'unknown'}.`,
+                    );
+                }
+                const probes = (DecoratorService.ReflectionProbe as any).listBakeableProbes();
+                reply({ result: { sceneUrl: currentSceneUrl, probes } });
             } catch (error) {
                 reply({ error: error instanceof Error ? error.message : String(error) });
             }
@@ -326,6 +344,25 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 });
                 updateRendererScene(msg.sceneUrl);
                 reply({ result });
+            } catch (error) {
+                reply({ error: error instanceof Error ? error.message : String(error) });
+            }
+        });
+        socket.on('scene:save-reflection-probes', async (
+            msg: { sceneUrl?: string },
+            reply: (response: { result?: unknown; error?: string }) => void,
+        ) => {
+            try {
+                const currentSceneUrl = await querySceneUrl().catch(() => '');
+                if (!msg?.sceneUrl || currentSceneUrl !== msg.sceneUrl) {
+                    throw new Error(
+                        `The WebGL scene renderer is not displaying the requested scene: ${msg?.sceneUrl || 'unknown'}.`,
+                    );
+                }
+                await DecoratorService.Editor.save({});
+                DecoratorService.Undo.markSaved();
+                updateRendererScene(currentSceneUrl);
+                reply({ result: { saved: true, sceneUrl: currentSceneUrl } });
             } catch (error) {
                 reply({ error: error instanceof Error ? error.message : String(error) });
             }

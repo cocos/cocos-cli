@@ -6711,6 +6711,25 @@ export declare interface IReferenceImageState {
 export declare interface IReferenceImageVisibilityOptions {
     desiredVisible: boolean;
 }
+export declare interface IReflectionProbeBakeAllOptions {
+    nodePaths?: string[];
+    saveScene?: boolean;
+    timeoutMs?: number;
+}
+export declare interface IReflectionProbeBakeAllResult {
+    sceneUrl: string;
+    totalCount: number;
+    bakedCount: number;
+    failedCount: number;
+    results: IReflectionProbeBakeResult[];
+    failures: IReflectionProbeBakeFailure[];
+    durationMs: number;
+}
+export declare interface IReflectionProbeBakeFailure {
+    nodePath: string;
+    componentUuid?: string;
+    reason: string;
+}
 export declare interface IReflectionProbeBakeOptions {
     nodePath: string;
     saveScene?: boolean;
@@ -6726,6 +6745,7 @@ export declare interface IReflectionProbeBakeResult {
 }
 export declare interface IReflectionProbeService extends IServiceEvents {
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
+    bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
 }
 export declare interface IRegeneratePolygon2DPointsOptions {
     path: string;

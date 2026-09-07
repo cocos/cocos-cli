@@ -1,11 +1,14 @@
 import 'reflect-metadata';
 import { COMMON_STATUS } from '../src/api/base/schema-base';
 import {
+    SchemaReflectionProbeBakeAllOptions,
+    SchemaReflectionProbeBakeAllResult,
     SchemaReflectionProbeBakeOptions,
     SchemaReflectionProbeBakeResult,
 } from '../src/api/scene/reflection-probe-schema';
 
 const mockBake = jest.fn();
+const mockBakeAll = jest.fn();
 
 jest.mock('../src/api/decorator/decorator.js', () => ({
     description: () => jest.fn(),
@@ -19,6 +22,7 @@ jest.mock('../src/core/scene', () => ({
     Scene: {
         ReflectionProbe: {
             bake: (...args: unknown[]) => mockBake(...args),
+            bakeAll: (...args: unknown[]) => mockBakeAll(...args),
         },
     },
 }));
@@ -26,7 +30,10 @@ jest.mock('../src/core/scene', () => ({
 import { ReflectionProbeApi } from '../src/api/scene/reflection-probe';
 
 describe('reflection probe bake API', () => {
-    beforeEach(() => mockBake.mockReset());
+    beforeEach(() => {
+        mockBake.mockReset();
+        mockBakeAll.mockReset();
+    });
 
     it('applies safe defaults and rejects invalid input', () => {
         expect(SchemaReflectionProbeBakeOptions.parse({ nodePath: 'Probe' })).toEqual({
@@ -53,6 +60,33 @@ describe('reflection probe bake API', () => {
             cubemapUrl: 'db://assets/Main/reflectionProbe_3.png/textureCube',
             fastBake: true,
         }).probeId).toBe(3);
+    });
+
+    it('applies bake-all defaults and accepts success and failure details', () => {
+        expect(SchemaReflectionProbeBakeAllOptions.parse({})).toEqual({
+            saveScene: true,
+            timeoutMs: 600_000,
+        });
+        expect(SchemaReflectionProbeBakeAllOptions.parse({ nodePaths: [] }).nodePaths).toEqual([]);
+        expect(() => SchemaReflectionProbeBakeAllOptions.parse({ nodePaths: [' '] })).toThrow();
+        expect(() => SchemaReflectionProbeBakeAllOptions.parse({ timeoutMs: 3_600_001 })).toThrow();
+
+        expect(SchemaReflectionProbeBakeAllResult.parse({
+            sceneUrl: 'db://assets/Main.scene',
+            totalCount: 2,
+            bakedCount: 1,
+            failedCount: 1,
+            results: [{
+                nodePath: 'Probe A',
+                componentUuid: 'component-a',
+                probeId: 1,
+                cubemapUuid: 'cube-a',
+                cubemapUrl: 'db://assets/Main/reflectionProbe_1.png/textureCube',
+                fastBake: true,
+            }],
+            failures: [{ nodePath: 'Probe B', componentUuid: 'component-b', reason: 'cmft failed' }],
+            durationMs: 100,
+        }).failedCount).toBe(1);
     });
 
     it('forwards options and wraps success', async () => {
@@ -92,5 +126,29 @@ describe('reflection probe bake API', () => {
 
         expect(result).toEqual({ code: COMMON_STATUS.FAIL, reason: 'cmft failed' });
         errorSpy.mockRestore();
+    });
+
+    it('forwards bake-all options and wraps success', async () => {
+        const data = {
+            sceneUrl: 'db://assets/Main.scene',
+            totalCount: 0,
+            bakedCount: 0,
+            failedCount: 0,
+            results: [],
+            failures: [],
+            durationMs: 1,
+        };
+        mockBakeAll.mockResolvedValue(data);
+
+        await expect(new ReflectionProbeApi().bakeAll({
+            nodePaths: [],
+            saveScene: true,
+            timeoutMs: 600_000,
+        })).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data });
+        expect(mockBakeAll).toHaveBeenCalledWith({
+            nodePaths: [],
+            saveScene: true,
+            timeoutMs: 600_000,
+        });
     });
 });

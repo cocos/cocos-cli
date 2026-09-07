@@ -25,6 +25,9 @@ import {
 } from 'fs-extra';
 import { basename, dirname, join } from 'path';
 import type {
+    IReflectionProbeBakeAllOptions,
+    IReflectionProbeBakeAllResult,
+    IReflectionProbeBakeFailure,
     IReflectionProbeBakeOptions,
     IReflectionProbeBakeResult,
     IReflectionProbeEvents,
@@ -76,15 +79,37 @@ interface IOutputTransaction {
     rollback(): Promise<void>;
 }
 
+interface IReflectionProbeDescriptor {
+    nodePath: string;
+    componentUuid: string;
+}
+
+interface IRemoteRendererSelection {
+    rendererId: string;
+    sceneUrl: string;
+}
+
+interface IActiveRendererProbeList extends IRemoteRendererSelection {
+    probes: IReflectionProbeDescriptor[];
+}
+
 @register('ReflectionProbe')
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
     private _baking = false;
     private _cmftProcess: ChildProcess | null = null;
 
-    public async bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult> {
-        if (this._baking) {
-            throw new Error('A reflection probe bake is already in progress.');
-        }
+    public bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult> {
+        return this._runExclusive(() => this._bakeOne(options));
+    }
+
+    public bakeAll(options: IReflectionProbeBakeAllOptions = {}): Promise<IReflectionProbeBakeAllResult> {
+        return this._runExclusive(() => this._bakeAll(options));
+    }
+
+    private async _bakeOne(
+        options: IReflectionProbeBakeOptions,
+        selection?: IRemoteRendererSelection & { componentUuid: string },
+    ): Promise<IReflectionProbeBakeResult> {
         if (!options?.nodePath?.trim()) {
             throw new Error('Reflection probe nodePath is required.');
         }
@@ -96,17 +121,20 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
         const deadline = Date.now() + timeoutMs;
         const nodePath = options.nodePath.trim();
-        this._baking = true;
         this.broadcast('reflection-probe:bake-start', nodePath);
 
         try {
             const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+            const captureTimeoutMs = Math.max(1, deadline - Date.now());
             const captured = this._validateCapturedFaces(remoteRenderer
-                ? await Rpc.getInstance().request('reflectionProbeRenderer', 'captureActive', [
-                    nodePath,
-                    Math.max(1, deadline - Date.now()),
-                ])
-                : await this.capturePixels(nodePath, Math.max(1, deadline - Date.now())), remoteRenderer);
+                ? await Rpc.getInstance().request(
+                    'reflectionProbeRenderer',
+                    selection ? 'captureSelected' : 'captureActive',
+                    selection
+                        ? [selection.rendererId, selection.sceneUrl, nodePath, selection.componentUuid, captureTimeoutMs]
+                        : [nodePath, captureTimeoutMs],
+                )
+                : await this.capturePixels(nodePath, captureTimeoutMs, selection?.componentUuid), remoteRenderer);
             const {
                 sceneUrl,
                 sceneName,
@@ -205,7 +233,125 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 this._cmftProcess.kill();
                 this._cmftProcess = null;
             }
-            this._baking = false;
+        }
+    }
+
+    private async _bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult> {
+        const started = Date.now();
+        const timeoutMs = options.timeoutMs ?? 600_000;
+        if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+            throw new Error('Reflection probe batch timeoutMs must be greater than zero.');
+        }
+        const deadline = started + timeoutMs;
+        const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+        const active = remoteRenderer
+            ? await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [
+                Math.max(1, deadline - Date.now()),
+            ]) as IActiveRendererProbeList
+            : {
+                rendererId: '',
+                sceneUrl: await this._queryCurrentSceneUrl(),
+                probes: this.listBakeableProbes(),
+            };
+        const requestedPaths = [...new Set((options.nodePaths ?? []).map((path) => path.trim()).filter(Boolean))];
+        const requestedSet = new Set(requestedPaths);
+        const probes = requestedPaths.length
+            ? active.probes.filter((probe) => requestedSet.has(probe.nodePath))
+            : active.probes;
+        const failures: IReflectionProbeBakeFailure[] = requestedPaths
+            .filter((path) => !active.probes.some((probe) => probe.nodePath === path))
+            .map((nodePath) => ({ nodePath, reason: 'Reflection probe node was not found in the active scene.' }));
+        const totalCount = probes.length + failures.length;
+        if (!totalCount) {
+            throw new Error('No active cube reflection probes were found in the current scene.');
+        }
+
+        const results: IReflectionProbeBakeResult[] = [];
+        this.broadcast('reflection-probe:bake-all-start', totalCount);
+        try {
+            let completedCount = 0;
+            for (const failure of failures) {
+                completedCount += 1;
+                this.broadcast(
+                    'reflection-probe:bake-all-progress',
+                    completedCount,
+                    totalCount,
+                    failure.nodePath,
+                    failure.reason,
+                );
+            }
+            for (const probe of probes) {
+                let errorMessage: string | undefined;
+                const remaining = deadline - Date.now();
+                if (remaining <= 0) {
+                    errorMessage = 'Reflection probe batch timed out.';
+                } else {
+                    try {
+                        results.push(await this._bakeOne({
+                            nodePath: probe.nodePath,
+                            saveScene: false,
+                            timeoutMs: remaining,
+                        }, {
+                            rendererId: active.rendererId,
+                            sceneUrl: active.sceneUrl,
+                            componentUuid: probe.componentUuid,
+                        }));
+                    } catch (error) {
+                        if (this._isBatchFatalError(error)) {
+                            throw error;
+                        }
+                        errorMessage = this._errorMessage(error);
+                    }
+                }
+                if (errorMessage) {
+                    failures.push({
+                        nodePath: probe.nodePath,
+                        componentUuid: probe.componentUuid,
+                        reason: errorMessage,
+                    });
+                }
+                completedCount += 1;
+                this.broadcast(
+                    'reflection-probe:bake-all-progress',
+                    completedCount,
+                    totalCount,
+                    probe.nodePath,
+                    errorMessage,
+                );
+            }
+
+            if (results.length && options.saveScene !== false) {
+                this._assertBeforeDeadline(deadline, 'batch scene save');
+                if (remoteRenderer) {
+                    await Rpc.getInstance().request('reflectionProbeRenderer', 'save', [
+                        active.rendererId,
+                        active.sceneUrl,
+                        Math.max(1, deadline - Date.now()),
+                    ]);
+                } else {
+                    await Service.Editor.save({});
+                    Service.Undo.markSaved();
+                }
+            }
+
+            this.broadcast('reflection-probe:bake-all-end', results.length, failures.length);
+            return {
+                sceneUrl: active.sceneUrl,
+                totalCount,
+                bakedCount: results.length,
+                failedCount: failures.length,
+                results,
+                failures,
+                durationMs: Date.now() - started,
+            };
+        } catch (error) {
+            this.broadcast(
+                'reflection-probe:bake-all-end',
+                results.length,
+                failures.length,
+                this._errorMessage(error),
+            );
+            throw error;
         }
     }
 
@@ -213,17 +359,45 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
      * Runs inside the browser scene client when the Node scene process uses EmptyDevice.
      * Faces are base64 encoded so they can cross socket.io and process IPC unchanged.
      */
-    public async capturePixels(nodePath: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<ICapturedFaces> {
+    public listBakeableProbes(): IReflectionProbeDescriptor[] {
+        const scene = director.getScene();
+        if (!scene) {
+            throw new Error('No scene is currently open in the WebGL scene renderer.');
+        }
+        const probes: IReflectionProbeDescriptor[] = [];
+        const visit = (node: any, nodePath: string): void => {
+            const component = node.getComponent?.(ReflectionProbe) as ReflectionProbe | null;
+            if (component?.enabled && node.activeInHierarchy
+                && component.probeType === renderer.scene.ProbeType.CUBE) {
+                probes.push({ nodePath, componentUuid: component.uuid });
+            }
+            for (const child of node.children ?? []) {
+                visit(child, nodePath === '/' ? child.name : `${nodePath}/${child.name}`);
+            }
+        };
+        visit(scene, '/');
+        return probes;
+    }
+
+    public async capturePixels(
+        nodePath: string,
+        timeoutMs = DEFAULT_TIMEOUT_MS,
+        componentUuid?: string,
+    ): Promise<ICapturedFaces> {
         if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
             throw new Error('Reflection-probe pixels cannot be captured with the headless EmptyDevice.');
         }
-        const node = this._getNodeByExactPath(nodePath);
+        const located = componentUuid ? this._findProbeByUuid(componentUuid) : null;
+        const node = located?.node ?? this._getNodeByExactPath(nodePath);
         if (!node) {
             throw new Error(`Reflection probe node was not found in the WebGL scene renderer: ${nodePath}`);
         }
-        const component = node.getComponent(ReflectionProbe);
+        const component = located?.component ?? node.getComponent(ReflectionProbe);
         if (!component) {
             throw new Error(`Node does not contain cc.ReflectionProbe in the WebGL scene renderer: ${nodePath}`);
+        }
+        if (componentUuid && component.uuid !== componentUuid) {
+            throw new Error(`Reflection probe component was not found in the WebGL scene renderer: ${componentUuid}`);
         }
         if (!component.enabled || !node.activeInHierarchy) {
             throw new Error(`Reflection probe is disabled or inactive: ${nodePath}`);
@@ -285,9 +459,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const textureCube = await this._loadTextureCube(options.cubemapUuid, deadline, true);
         await this._assertCurrentScene(options.sceneUrl);
 
-        const node = this._getNodeByExactPath(options.nodePath);
-        const component = node?.getComponent(ReflectionProbe) as ReflectionProbe | null;
-        if (!node || !component || component.uuid !== options.componentUuid
+        const located = this._findProbeByUuid(options.componentUuid);
+        const node = located?.node;
+        const component = located?.component;
+        if (!node || !component
             || this._createCaptureToken(node, component) !== options.captureToken) {
             throw new Error(`Reflection probe changed before the baked cubemap could be applied: ${options.nodePath}`);
         }
@@ -422,6 +597,35 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         return message.includes('final WebGL apply state is unknown');
     }
 
+    private _isBatchFatalError(error: unknown): boolean {
+        const message = this._errorMessage(error);
+        return this._isUnknownRemoteApplyState(error)
+            || message.includes('selected for the reflection-probe batch is no longer available')
+            || message.includes('that captured the reflection probe is no longer connected')
+            || message.includes('WebGL scene changed during reflection-probe bake')
+            || message.includes('is not displaying the requested scene');
+    }
+
+    private async _runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+        if (this._baking) {
+            throw new Error('A reflection probe bake is already in progress.');
+        }
+        this._baking = true;
+        try {
+            return await operation();
+        } finally {
+            if (this._cmftProcess) {
+                this._cmftProcess.kill();
+                this._cmftProcess = null;
+            }
+            this._baking = false;
+        }
+    }
+
+    private _errorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : String(error);
+    }
+
     private async _waitForCapture(probe: any, deadline: number): Promise<void> {
         do {
             this._assertBeforeDeadline(deadline, 'cubemap capture');
@@ -451,6 +655,27 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
         }
         return current;
+    }
+
+    private _findProbeByUuid(componentUuid: string): { node: any; component: ReflectionProbe } | null {
+        const scene = director.getScene();
+        if (!scene) {
+            return null;
+        }
+        const visit = (node: any): { node: any; component: ReflectionProbe } | null => {
+            const component = node.getComponent?.(ReflectionProbe) as ReflectionProbe | null;
+            if (component?.uuid === componentUuid) {
+                return { node, component };
+            }
+            for (const child of node.children ?? []) {
+                const found = visit(child);
+                if (found) {
+                    return found;
+                }
+            }
+            return null;
+        };
+        return visit(scene);
     }
 
     private _waitForEndFrame(deadline: number): Promise<void> {

@@ -17,6 +17,17 @@ export interface IActiveReflectionProbeCaptureResult extends IReflectionProbeCap
     rendererId: string;
 }
 
+export interface IReflectionProbeDescriptor {
+    nodePath: string;
+    componentUuid: string;
+}
+
+export interface IActiveReflectionProbeListResult {
+    rendererId: string;
+    sceneUrl: string;
+    probes: IReflectionProbeDescriptor[];
+}
+
 export interface IReflectionProbeApplyRequest {
     sceneUrl: string;
     nodePath: string;
@@ -43,7 +54,21 @@ interface IApplyResponse {
 interface ICaptureRequest {
     sceneUrl?: string;
     nodePath: string;
+    componentUuid?: string;
     timeoutMs: number;
+}
+
+interface IListResponse {
+    result?: {
+        sceneUrl: string;
+        probes: IReflectionProbeDescriptor[];
+    };
+    error?: string;
+}
+
+interface ISaveResponse {
+    result?: { saved?: boolean; sceneUrl?: string };
+    error?: string;
 }
 
 interface IRendererSocketData {
@@ -149,6 +174,46 @@ function requestApply(
     });
 }
 
+function requestProbeList(socket: Socket, sceneUrl: string, timeoutMs: number): Promise<IReflectionProbeDescriptor[]> {
+    return new Promise((resolve, reject) => {
+        socket.timeout(timeoutMs).emit(
+            'scene:list-reflection-probes',
+            { sceneUrl },
+            (error: Error | null, response?: IListResponse) => {
+                if (error) {
+                    reject(error);
+                } else if (response?.error) {
+                    reject(new Error(response.error));
+                } else if (response?.result?.sceneUrl !== sceneUrl || !Array.isArray(response.result.probes)) {
+                    reject(new Error('WebGL scene renderer returned an invalid reflection-probe list.'));
+                } else {
+                    resolve(response.result.probes);
+                }
+            },
+        );
+    });
+}
+
+function requestSave(socket: Socket, sceneUrl: string, timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+        socket.timeout(timeoutMs).emit(
+            'scene:save-reflection-probes',
+            { sceneUrl },
+            (error: Error | null, response?: ISaveResponse) => {
+                if (error) {
+                    reject(new Error(`The reflection-probe batch save timed out. (${error.message})`));
+                } else if (response?.error) {
+                    reject(new Error(response.error));
+                } else if (response?.result?.saved !== true || response.result.sceneUrl !== sceneUrl) {
+                    reject(new Error('WebGL scene renderer returned an invalid reflection-probe save acknowledgement.'));
+                } else {
+                    resolve();
+                }
+            },
+        );
+    });
+}
+
 function captureError(error: unknown): Error {
     const detail = error instanceof Error ? error.message : String(error);
     return new Error(
@@ -194,6 +259,49 @@ export const reflectionProbeRenderer = {
         }
     },
 
+    async captureSelected(
+        rendererId: string,
+        sceneUrl: string,
+        nodePath: string,
+        componentUuid: string,
+        timeoutMs: number,
+    ): Promise<IActiveReflectionProbeCaptureResult> {
+        const sockets = await requireRendererSockets();
+        const socket = sockets.find((candidate) => candidate.id === rendererId);
+        if (!socket || socket.data.sceneUrl !== sceneUrl) {
+            throw new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.');
+        }
+        try {
+            const result = await requestCapture(socket, { sceneUrl, nodePath, componentUuid, timeoutMs });
+            if (result.componentUuid !== componentUuid) {
+                throw new Error(`The WebGL renderer returned the wrong reflection probe: ${nodePath}.`);
+            }
+            return { ...result, rendererId };
+        } catch (error) {
+            throw captureError(error);
+        }
+    },
+
+    async listActive(timeoutMs = 30_000): Promise<IActiveReflectionProbeListResult> {
+        const sockets = await requireRendererSockets();
+        requireAvailableRenderer(sockets);
+        const selection = selectActiveRenderer(sockets);
+        const probes = await requestProbeList(selection.socket, selection.sceneUrl, timeoutMs);
+        if (probes.some((probe) => !probe || typeof probe.nodePath !== 'string'
+            || typeof probe.componentUuid !== 'string' || !probe.componentUuid)) {
+            throw new Error('WebGL scene renderer returned invalid reflection-probe descriptors.');
+        }
+        const componentUuids = new Set(probes.map((probe) => probe.componentUuid));
+        if (componentUuids.size !== probes.length) {
+            throw new Error('WebGL scene renderer returned duplicate reflection-probe descriptors.');
+        }
+        return {
+            rendererId: selection.socket.id,
+            sceneUrl: selection.sceneUrl,
+            probes,
+        };
+    },
+
     async apply(
         rendererId: string,
         request: IReflectionProbeApplyRequest,
@@ -217,5 +325,14 @@ export const reflectionProbeRenderer = {
                 + `Keep the scene editor open and retry the bake. (${detail})`,
             );
         }
+    },
+
+    async save(rendererId: string, sceneUrl: string, timeoutMs: number): Promise<void> {
+        const sockets = await requireRendererSockets();
+        const socket = sockets.find((candidate) => candidate.id === rendererId);
+        if (!socket || socket.data.sceneUrl !== sceneUrl) {
+            throw new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.');
+        }
+        await requestSave(socket, sceneUrl, timeoutMs);
     },
 };

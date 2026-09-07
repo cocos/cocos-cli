@@ -48,6 +48,18 @@ function rendererSocket(options: IMockRendererOptions = {}) {
                 reply(null, options.applyError
                     ? { error: options.applyError }
                     : { result: { applied: true, saved: request.saveScene } });
+            } else if (event === 'scene:list-reflection-probes') {
+                reply(null, {
+                    result: {
+                        sceneUrl,
+                        probes: [
+                            { nodePath: 'Probe', componentUuid: 'Comp.1' },
+                            { nodePath: 'Probe', componentUuid: 'Comp.2' },
+                        ],
+                    },
+                });
+            } else if (event === 'scene:save-reflection-probes') {
+                reply(null, { result: { saved: true, sceneUrl } });
             }
         }),
     };
@@ -144,6 +156,66 @@ describe('reflection probe WebGL renderer bridge', () => {
 
         await expect(reflectionProbeRenderer.captureActive('Probe', 1000))
             .rejects.toThrow('No loaded WebGL scene renderer is currently visible');
+    });
+
+    it('lists probes, captures by component UUID, and saves through the same renderer', async () => {
+        const active = rendererSocket({ id: 'active', visible: true });
+        mockFetchSockets.mockResolvedValue([active]);
+
+        await expect(reflectionProbeRenderer.listActive(1000)).resolves.toEqual({
+            rendererId: 'active',
+            sceneUrl: 'db://assets/Target.scene',
+            probes: [
+                { nodePath: 'Probe', componentUuid: 'Comp.1' },
+                { nodePath: 'Probe', componentUuid: 'Comp.2' },
+            ],
+        });
+        await expect(reflectionProbeRenderer.captureSelected(
+            'active',
+            'db://assets/Target.scene',
+            'Probe',
+            'Comp.1',
+            1000,
+        )).resolves.toMatchObject({ rendererId: 'active', componentUuid: 'Comp.1' });
+        await expect(reflectionProbeRenderer.save(
+            'active',
+            'db://assets/Target.scene',
+            1000,
+        )).resolves.toBeUndefined();
+
+        expect(active.emit).toHaveBeenCalledWith(
+            'scene:capture-reflection-probe',
+            expect.objectContaining({ componentUuid: 'Comp.1' }),
+            expect.any(Function),
+        );
+        expect(active.emit).toHaveBeenCalledWith(
+            'scene:save-reflection-probes',
+            { sceneUrl: 'db://assets/Target.scene' },
+            expect.any(Function),
+        );
+    });
+
+    it('rejects duplicate reflection-probe component descriptors', async () => {
+        const active = rendererSocket({ id: 'active', visible: true });
+        active.emit.mockImplementation((event: string, ...args: unknown[]) => {
+            if (event === 'scene:list-reflection-probes') {
+                const reply = args.at(-1) as (error: Error | null, response?: unknown) => void;
+                reply(null, {
+                    result: {
+                        sceneUrl: 'db://assets/Target.scene',
+                        probes: [
+                            { nodePath: 'Probe A', componentUuid: 'Comp.1' },
+                            { nodePath: 'Probe B', componentUuid: 'Comp.1' },
+                        ],
+                    },
+                });
+            }
+        });
+        mockFetchSockets.mockResolvedValue([active]);
+
+        await expect(reflectionProbeRenderer.listActive(1000)).rejects.toThrow(
+            'duplicate reflection-probe descriptors',
+        );
     });
 
     it('selects the only renderer that is not explicitly hidden', async () => {
