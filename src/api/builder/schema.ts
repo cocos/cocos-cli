@@ -126,10 +126,11 @@ export const SchemaGooglePlayPackage = z.object({
 }).describe('Google Play platform specific configuration'); // Google Play平台特定配置
 
 // Huawei AGC Packages Configuration // Huawei AGC Packages 配置
+// 注意: huawei-agc 的 packageName 不是直接入参, 而是在构建时由 onBeforeBuild 钩子从
+// agconnect-services.json 的 client.package_name 读取后回填, 故此处不要求 packageName。
 export const SchemaHuaweiAgcPackage = z.object({
-    packageName: z.string()
-        .min(1, 'Huawei AGC package name cannot be empty') // Huawei AGC包名不能为空
-        .describe('Huawei AGC application package name (required)'), // Huawei AGC应用包名（必填）
+    serviceConfigPath: z.string().optional()
+        .describe('Path to agconnect-services.json; the package name is read from this file at build time'), // agconnect-services.json 路径，包名在构建时从该文件读取
 }).describe('Huawei AGC platform specific configuration'); // Huawei AGC平台特定配置
 
 // ==================== Basic Build Configuration ==================== // 基础构建配置
@@ -314,7 +315,7 @@ export const SchemaHuaweiAgcBuildOption = SchemaBuildBaseOption
             'huawei-agc': SchemaHuaweiAgcPackage
                 .catchall(z.any())  // 允许其他任意字段
                 .optional()
-        }).describe('Huawei AGC Platform Configuration') // Huawei AGC平台配置
+        }).optional().describe('Huawei AGC Platform Configuration') // Huawei AGC平台配置
     })
     .describe('Huawei AGC Platform Build Options'); // Huawei AGC平台构建选项
 
