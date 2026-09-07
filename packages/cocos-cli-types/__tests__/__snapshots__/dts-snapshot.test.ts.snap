@@ -6529,6 +6529,20 @@ export declare interface IOriginAxesConfig {
     y: boolean;
     z: boolean;
 }
+export declare interface IParticlePlayInfo {
+    speed: number;
+    time: number;
+    particle: number;
+    isPlaying: boolean;
+}
+export declare interface IParticleService {
+    queryPlayInfo(uuid: string): IParticlePlayInfo | null;
+    setPlaySpeed(uuid: string, speed: number): void;
+    play(): void;
+    stop(): void;
+    pause(): void;
+    restart(): void;
+}
 export declare interface IPasteParams {
     parentPath?: string;
     keepWorldTransform?: boolean;
@@ -6875,6 +6889,7 @@ export declare interface IServiceManager {
     Preview: IPreviewService;
     UI: IUIService;
     ReferenceImage: IReferenceImageService;
+    Particle: IParticleService;
     Terrain: ITerrainService;
 }
 export declare interface ISetParentParams {
