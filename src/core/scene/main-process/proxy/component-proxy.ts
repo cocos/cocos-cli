@@ -1,5 +1,7 @@
 import {
     IAddComponentOptions,
+    IRegeneratePolygon2DPointsOptions,
+    IRegeneratePolygon2DPointsResult,
     IRemoveComponentOptions,
     IQueryComponentOptions,
     IPublicComponentService,
@@ -109,6 +111,12 @@ export const ComponentProxy: IComponentProxy = {
             }] as any);
         }
         return true;
+    },
+
+    regeneratePolygon2DPoints(
+        options: IRegeneratePolygon2DPointsOptions,
+    ): Promise<IRegeneratePolygon2DPointsResult> {
+        return Rpc.getInstance().request('Component', 'regeneratePolygon2DPoints', [options]);
     },
 
     queryAll(): Promise<string[]> {

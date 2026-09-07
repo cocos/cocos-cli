@@ -1,4 +1,4 @@
-import type { AnimationGraphChangedEvent, AnimationGraphExpectedVersion, AnimationGraphInspectorPropertyOperationRequest, AnimationGraphInspectorSnapshot, AnimationGraphPoseGraphAssetDragHandlersEntry, AnimationGraphSnapshot, AnimationGraphTarget, AssetOperationOption, AssetPropertySchemaMap, CreateAssetByTypeOptions, DeleteAssetOptions, ExecuteAnimationGraphCommandRequest, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, MaterialDump, MaterialEffectInfo, MaterialTechniqueDump, QueryAssetsOption, ReloadAnimationGraphOptions, SerializedAssetPatch, SerializedAssetQueryResult, SetAnimationGraphInspectorPropertyRequest, AnimationMaskChange, AnimationMaskDump } from '../../core/assets/@types/public';
+import type { AnimationGraphChangedEvent, AnimationGraphExpectedVersion, AnimationGraphInspectorPropertyOperationRequest, AnimationGraphInspectorSnapshot, AnimationGraphMotionPreviewData, AnimationGraphPoseGraphAssetDragHandlersEntry, AnimationGraphSnapshot, AnimationGraphTarget, AssetOperationOption, AssetPropertySchemaMap, CreateAssetByTypeOptions, DeleteAssetOptions, ExecuteAnimationGraphCommandRequest, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, MaterialDump, MaterialEffectInfo, MaterialTechniqueDump, QueryAssetsOption, ReloadAnimationGraphOptions, SerializedAssetPatch, SerializedAssetQueryResult, SetAnimationGraphInspectorPropertyRequest, AnimationMaskChange, AnimationMaskDump } from '../../core/assets/@types/public';
 import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType, ThumbnailInfo, ThumbnailSize } from '../../core/assets/@types/protected';
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
@@ -220,6 +220,13 @@ export const animationGraph = {
         target: AnimationGraphTarget,
     ): Promise<AnimationGraphInspectorSnapshot> {
         return assetManager.queryAnimationGraphInspector(uuidOrUrlOrPath, target);
+    },
+
+    queryMotionPreviewData(
+        uuidOrUrlOrPath: string,
+        target: Extract<AnimationGraphTarget, { kind: 'motion' }>,
+    ): Promise<AnimationGraphMotionPreviewData> {
+        return assetManager.queryAnimationGraphMotionPreviewData(uuidOrUrlOrPath, target);
     },
 
     queryPoseGraphAssetDragHandlers(): Promise<AnimationGraphPoseGraphAssetDragHandlersEntry[]> {

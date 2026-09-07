@@ -52,6 +52,7 @@ const ATTRIBUTE_PROPS = [
     'bitmaskList',
     'displayName',
     'group',
+    'ui',
     'multiline',
     'step',
     'slide',

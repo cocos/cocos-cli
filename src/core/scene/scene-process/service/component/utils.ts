@@ -5,7 +5,6 @@ import {
     SphereCollider,
     BoxCollider,
     UITransformComponent,
-    PolygonCollider2D,
     MeshCollider,
     CapsuleCollider,
     CylinderCollider,
@@ -183,10 +182,6 @@ class ComponentUtils {
             if (radius !== 0) {
                 component.radius = radius;
             }
-        },
-
-        PolygonCollider2D(component: PolygonCollider2D, node: Node) {
-            //TODO: PhysicsUtils.resetPoints(component);
         },
 
         Camera(component: Camera, node: Node) {

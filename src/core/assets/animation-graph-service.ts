@@ -10,6 +10,7 @@ import type {
     AnimationGraphInspectorPropertyOperationRequest,
     AnimationGraphInspectorSnapshot,
     AnimationGraphLayerView,
+    AnimationGraphMotionPreviewData,
     AnimationGraphMotionType,
     AnimationGraphMotionView,
     AnimationGraphPoseGraphAssetDragHandlersEntry,
@@ -24,6 +25,7 @@ import type {
     AnimationGraphTarget,
     AnimationGraphTransitionConditionView,
     AnimationGraphTransitionView,
+    AnimationGraphVariableView,
     AnimationGraphVersion,
     AnimationGraphViewDump,
     ExecuteAnimationGraphCommandRequest,
@@ -123,6 +125,39 @@ class AnimationGraphAssetService {
             const document = await this._getOrLoad(asset);
             await this._refreshExternalState(document);
             return this._inspectorSnapshot(document, target);
+        });
+    }
+
+    /**
+     * 查询 Motion 预览数据：目标 Motion 的结构化描述（供 Scene 进程预览服务重建引擎
+     * Motion）以及图内全部变量（含当前值）。
+     *
+     * @param uuidOrUrlOrPath - 动画图资源（uuid / url / 路径）。
+     * @param target - 目标 Motion 的地址，与 Inspector 使用的 `AnimationGraphTarget` 一致。
+     * @returns Motion 预览数据。
+     * @throws {AnimationGraphEditError} 目标不存在或目标不是有效 Motion 时抛出 `TARGET_NOT_FOUND`。
+     *
+     * ```mermaid
+     * flowchart LR
+     *     Document[AnimationGraphDocument] --> Resolve[resolve target Motion]
+     *     Resolve --> MotionView[_queryMotion 结构化 Motion 视图]
+     *     Document --> Variables[图内变量 + 当前值]
+     *     MotionView --> Payload[AnimationGraphMotionPreviewData]
+     *     Variables --> Payload
+     * ```
+     */
+    async queryMotionPreviewData(
+        uuidOrUrlOrPath: string,
+        target: Extract<AnimationGraphTarget, { kind: 'motion' }>,
+    ): Promise<AnimationGraphMotionPreviewData> {
+        const asset = this._queryAnimationGraphAsset(uuidOrUrlOrPath);
+        return this._enqueue(asset.uuid, async () => {
+            const document = await this._getOrLoad(asset);
+            await this._refreshExternalState(document);
+            return {
+                motion: this._queryMotion(this._resolveMotion(document, target), target),
+                variables: this._queryGraphVariables(document),
+            };
         });
     }
 
@@ -611,6 +646,21 @@ class AnimationGraphAssetService {
         };
     }
 
+    private _queryGraphVariables(document: AnimationGraphDocument): AnimationGraphVariableView[] {
+        const graph = document.graph;
+        const api = getNewGenAnim();
+        return Array.from(graph.variables as Iterable<[string, any]>).map(([name, variable]) => {
+            const value = encodeSerializedObject(variable.value, api.getVariableValueAttributes(variable), variable, 'value');
+            value.path = 'value';
+            return {
+                name,
+                type: variable.type,
+                value,
+                resetMode: variable.type === api.VariableType.TRIGGER ? variable.resetMode : undefined,
+            };
+        });
+    }
+
     private _queryLayer(document: AnimationGraphDocument, layer: any, index: number): AnimationGraphLayerView {
         const stateMachineContext: AnimationGraphStateMachineContext = {
             kind: 'layer-state-machine',
@@ -805,6 +855,7 @@ class AnimationGraphAssetService {
             view.valueX = motion.paramX.value;
             view.variableY = motion.paramY.variable;
             view.valueY = motion.paramY.value;
+            view.algorithm = motion.algorithm;
         }
         if (threshold !== undefined) {
             view.threshold = isVec2Like(threshold)
@@ -953,18 +1004,38 @@ class AnimationGraphAssetService {
 
     private _createStateBinding(state: any): InspectorBinding {
         const api = getNewGenAnim();
+        const eventBindingAttrs = { type: 'String', default: '', group: { id: 'event-bindings', name: 'Event Bindings' } };
         const properties: Record<string, AdapterProperty> = {
-            name: directProperty(state, 'name', { type: 'String', default: '' }),
+            name: directProperty(state, 'name', { type: 'String', default: '', ui: { name: 'animationGraphRename' } }),
         };
         if (state instanceof api.MotionState) {
             properties.speed = directProperty(state, 'speed', { type: 'Number', default: 1, min: 0 });
-            properties.speedMultiplier = directProperty(state, 'speedMultiplier', { type: 'String', default: '' });
-            properties.speedMultiplierEnabled = directProperty(state, 'speedMultiplierEnabled', { type: 'Boolean', default: false });
-            properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', { type: 'String', default: '' });
-            properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', { type: 'String', default: '' });
+            // Speed Multiplier 与 Enabled 合并为一个字段：value 为 { enabled, multiplier }，
+            // 由 Inspector 侧 animationGraphSpeedMultiplier 渲染成 checkbox + 输入框。
+            properties.speedMultiplier = {
+                get: () => ({ enabled: !!state.speedMultiplierEnabled, multiplier: String(state.speedMultiplier ?? '') }),
+                set: (value: any) => {
+                    if (value && typeof value === 'object') {
+                        state.speedMultiplierEnabled = !!value.enabled;
+                        if (typeof value.multiplier === 'string') {
+                            state.speedMultiplier = value.multiplier;
+                        }
+                    }
+                },
+                // default 必须是完整对象工厂：Reset 时 setter 才能同时恢复 enabled 与 multiplier；
+                // 若为 null，Reset 写入 null 会被 setter 忽略，导致 Reset 静默失效。
+                attrs: {
+                    type: 'Object',
+                    default: () => ({ enabled: false, multiplier: '' }),
+                    displayName: 'Speed Multiplier',
+                    ui: { name: 'animationGraphSpeedMultiplier' },
+                },
+            };
+            properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', eventBindingAttrs);
+            properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', eventBindingAttrs);
         } else if (state instanceof api.ProceduralPoseState) {
-            properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', { type: 'String', default: '' });
-            properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', { type: 'String', default: '' });
+            properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', eventBindingAttrs);
+            properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', eventBindingAttrs);
         }
         return createAdapterBinding(getClassName(state), properties);
     }
@@ -995,10 +1066,16 @@ class AnimationGraphAssetService {
         const api = getNewGenAnim();
         const properties: Record<string, AdapterProperty> = {};
         if (motion instanceof api.ClipMotion) {
-            properties.clip = directProperty(motion, 'clip', { type: 'Object', ctor: getCC().AnimationClip, default: null });
+            properties.clip = directProperty(motion, 'clip', {
+                type: 'Object',
+                ctor: getCC().AnimationClip,
+                default: null,
+                displayName: 'Clip',
+                group: { id: 'animation-clip-motion', name: 'Animation Clip Motion', displayOrder: 0, style: 'tab' },
+            });
         }
         if (motion instanceof api.AnimationBlend) {
-            properties.name = directProperty(motion, 'name', { type: 'String', default: '' });
+            properties.name = directProperty(motion, 'name', { type: 'String', default: '', ui: { name: 'animationGraphRename' } });
         }
         if (motion instanceof api.AnimationBlend1D) {
             properties.variable = nestedProperty(motion.param, 'variable', { type: 'String', default: '' });
@@ -1009,9 +1086,17 @@ class AnimationGraphAssetService {
                 default: 0,
                 enumList: enumList(api.AnimationBlend2D.Algorithm),
             });
-            properties.variableX = nestedProperty(motion.paramX, 'variable', { type: 'String', default: '' });
+            properties.variableX = nestedProperty(motion.paramX, 'variable', {
+                type: 'String',
+                default: '',
+                ui: { name: 'animationGraphVariableSelect' },
+            });
             properties.valueX = nestedProperty(motion.paramX, 'value', { type: 'Number', default: 0 });
-            properties.variableY = nestedProperty(motion.paramY, 'variable', { type: 'String', default: '' });
+            properties.variableY = nestedProperty(motion.paramY, 'variable', {
+                type: 'String',
+                default: '',
+                ui: { name: 'animationGraphVariableSelect' },
+            });
             properties.valueY = nestedProperty(motion.paramY, 'value', { type: 'Number', default: 0 });
         }
         return createAdapterBinding(getClassName(motion), properties);
@@ -1279,6 +1364,8 @@ class AnimationGraphAssetService {
                         throw new AnimationGraphEditError('INVALID_PROPERTY_PATCH', 'A motion can only be attached to a motion state.', this._version(document));
                     }
                     state.motion = this._createMotion(command.motionType || 'clip', command.clipUuid);
+                    // 第一层的 motion 名称跟随 state 名称（对齐参考编辑器），避免引擎默认的 motion-0x 名。
+                    state.motion.name = state.name;
                 }
                 assignEditorData(state, command.editorData);
                 return;
@@ -1396,6 +1483,10 @@ class AnimationGraphAssetService {
                     if (!(state instanceof api.MotionState)) {
                         throw this._targetNotFound(document, command);
                     }
+                    if (motion) {
+                        // 第一层的 motion 名称跟随 state 名称（对齐参考编辑器），避免引擎默认的 motion-0x 名。
+                        motion.name = state.name;
+                    }
                     state.motion = motion;
                 }
                 return;
@@ -1495,6 +1586,66 @@ class AnimationGraphAssetService {
                     throw new AnimationGraphEditError('TARGET_NOT_FOUND', `Pose node type can not be found: ${command.nodeType}`, this._version(document));
                 }
                 const node = api.createPoseGraphNode(ctor, command.createArg);
+                // createPoseGraphNode 对无 factory 的具体类只做默认构造，这里把
+                // createArg 中的同名字段（如 variableName、stashName）补写到节点上。
+                if (command.createArg && typeof command.createArg === 'object') {
+                    for (const [key, value] of Object.entries(command.createArg)) {
+                        if (key in node) {
+                            node[key] = value;
+                        }
+                    }
+                }
+                poseGraph.addNode(node);
+                assignEditorData(node, command.editorData);
+                this._nodeId(document, node);
+                return;
+            }
+            case 'create-pose-node-on-asset-drag': {
+                const poseGraph = this._resolvePoseGraph(document, command);
+                const js = getCC().js;
+                const asset = assetQuery.queryAsset(command.assetUuid);
+                if (!asset) {
+                    throw new AnimationGraphEditError('TARGET_NOT_FOUND', `Asset can not be found: ${command.assetUuid}`, this._version(document));
+                }
+                const assetType = assetQuery.queryAssetProperty(asset, 'type') as string;
+                const assetCtor = typeof assetType === 'string' ? js.getClassByName(assetType) : undefined;
+                if (!assetCtor || !js.isChildClassOf(assetCtor, getCC().Asset)) {
+                    throw new AnimationGraphEditError('TARGET_NOT_FOUND', `Asset type can not be found: ${assetType}`, this._version(document));
+                }
+                // 引擎按资产构造器精确匹配注册表（registry.get(asset.constructor)），
+                // 这里先自行校验，把引擎的 console.warn + undefined 转换为明确的错误。
+                let registered: { handlers: Record<string, { displayName: string }> } | undefined;
+                for (const [ctor, info] of api.getPoseGraphAssetDragHandlersMap()) {
+                    if (ctor === assetCtor) {
+                        registered = info;
+                        break;
+                    }
+                }
+                if (!registered) {
+                    throw new AnimationGraphEditError(
+                        'TARGET_NOT_FOUND',
+                        `No pose graph asset drag handlers for asset type: ${assetType}`,
+                        this._version(document),
+                    );
+                }
+                if (!(command.handlerId in registered.handlers)) {
+                    throw new AnimationGraphEditError(
+                        'TARGET_NOT_FOUND',
+                        `Pose graph asset drag handler can not be found: ${command.handlerId}, existing handlers are ${Object.keys(registered.handlers).join(',')}`,
+                        this._version(document),
+                    );
+                }
+                // serialize.asAsset 生成的 stub 是资产构造器的真实实例（仅设置 _uuid），
+                // 内置 handler 只是把它赋给 motion.clip 字段，因此 stub 即可满足。
+                const reference = this._createAssetReference(command.assetUuid, assetCtor);
+                const node = api.createPoseNodeOnAssetDrag(reference, command.handlerId);
+                if (!node) {
+                    throw new AnimationGraphEditError(
+                        'INVALID_PROPERTY_PATCH',
+                        `Pose graph asset drag handler ${command.handlerId} did not create a pose node for asset: ${command.assetUuid}`,
+                        this._version(document),
+                    );
+                }
                 poseGraph.addNode(node);
                 assignEditorData(node, command.editorData);
                 this._nodeId(document, node);
@@ -1717,7 +1868,7 @@ class AnimationGraphAssetService {
                 }
                 const poseGraph = this._getPoseGraphByContext(document, command.poseGraph);
                 const originalNodes = Array.from(poseGraph.nodes() as Iterable<any>);
-                const stashName = command.stashName ?? uniqueStashName(layer);
+                const stashName = command.stashName?.trim() || uniqueStashName(layer);
                 if (layer.getStash(stashName)) {
                     throw this._nameConflict(document, 'stash', stashName);
                 }
@@ -2248,6 +2399,11 @@ function isVec2Like(value: unknown): value is { x: number; y: number } {
 }
 
 function getNodeTitle(node: any): string {
+    // GetVariable 系列节点：标题固定为 `Variable {variableName}`，
+    // 引擎 getTitle 返回的是 i18n key 数组且 variableName 为空时为 undefined。
+    if (typeof node.variableName === 'string') {
+        return `Variable ${node.variableName}`.trim();
+    }
     const title = node.getTitle?.();
     if (typeof title === 'string') {
         return title;

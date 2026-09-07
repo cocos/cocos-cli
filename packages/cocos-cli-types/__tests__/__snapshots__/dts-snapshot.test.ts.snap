@@ -7,6 +7,9 @@ exports[`DTS API compatibility assets.d.ts should match snapshot 1`] = `
 export declare const animationGraph: {
     query(uuidOrUrlOrPath: string): Promise<AnimationGraphSnapshot>;
     queryInspector(uuidOrUrlOrPath: string, target: AnimationGraphTarget): Promise<AnimationGraphInspectorSnapshot>;
+    queryMotionPreviewData(uuidOrUrlOrPath: string, target: Extract<AnimationGraphTarget, {
+        kind: "motion";
+    }>): Promise<AnimationGraphMotionPreviewData>;
     queryPoseGraphAssetDragHandlers(): Promise<AnimationGraphPoseGraphAssetDragHandlersEntry[]>;
     queryStateMachineComponentTypes(): Promise<string[]>;
     setInspectorProperty(uuidOrUrlOrPath: string, request: SetAnimationGraphInspectorPropertyRequest): Promise<AnimationGraphInspectorSnapshot>;
@@ -115,6 +118,10 @@ export declare interface AnimationGraphLayerView {
 export declare type AnimationGraphMotionAddress =
 | (AnimationGraphStateAddress & { level: number[] })
 | ({ poseGraph: AnimationGraphPoseGraphContext; nodeId: number; level: number[] });
+export declare interface AnimationGraphMotionPreviewData {
+    motion: AnimationGraphMotionView | null;
+    variables: AnimationGraphVariableView[];
+}
 export declare type AnimationGraphMotionType = 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct';
 export declare interface AnimationGraphMotionView {
     level: number[];
@@ -128,6 +135,7 @@ export declare interface AnimationGraphMotionView {
     valueX?: number;
     variableY?: string;
     valueY?: number;
+    algorithm?: number;
     threshold?: number | { x: number; y: number };
     weight?: { value: number; variable: string };
     children?: AnimationGraphMotionView[];
@@ -6538,6 +6546,7 @@ export declare interface IComponentService extends IServiceEvents {
     add(params: IAddComponentOptions): Promise<IComponent>;
     remove(params: IRemoveComponentOptions): Promise<boolean>;
     setProperty(params: ISetPropertyOptions): Promise<boolean>;
+    regeneratePolygon2DPoints(options: IRegeneratePolygon2DPointsOptions): Promise<IRegeneratePolygon2DPointsResult>;
     query(params: IQueryComponentOptions | string): Promise<IComponent | null>;
     queryAll(): Promise<string[]>;
     recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult>;
@@ -6727,6 +6736,42 @@ export declare interface ImageMeta {
     uri?: string;
     remap?: string;
 }
+export declare interface IMotionPreviewService {
+    showMotion(desc: MotionPreviewDesc): Promise<boolean>;
+    hideMotion(): Promise<void>;
+    setMotionModel(uuid: string): Promise<void>;
+    setMotionTime(time: number): Promise<void>;
+    playMotion(): Promise<void>;
+    pauseMotion(): Promise<void>;
+    stopMotion(): Promise<void>;
+    setMotionVariable(name: string, value: number): Promise<void>;
+    setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void>;
+    getMotionTimelineStats(): Promise<{
+        timeLineLength: number;
+    } | null>;
+    isMotionActive(): Promise<boolean>;
+    queryMotionImage(info: {
+        width: number;
+        height: number;
+    }): Promise<unknown>;
+    onMotionMouseDown(action: {
+        x: number;
+        y: number;
+        button: number;
+    }): Promise<void>;
+    onMotionMouseMove(action: {
+        movementX: number;
+        movementY: number;
+    }): Promise<void>;
+    onMotionMouseUp(action: {
+        x: number;
+        y: number;
+    }): Promise<void>;
+    onMotionMouseWheel(action: {
+        wheelDeltaY: number;
+        wheelDeltaX: number;
+    }): Promise<void>;
+}
 export declare interface IMoveArrayElementParams {
     nodePath: string;
     path: string;
@@ -6865,7 +6910,7 @@ export declare interface IPreviewInstance {
     resetCameraView(): void;
     hide(): void;
 }
-export declare interface IPreviewService {
+export declare interface IPreviewService extends IMotionPreviewService {
     open(uuid: string): Promise<IPreviewInstance | null>;
     generateThumbnail(uuid: string, assetType: string, width?: number, height?: number): Promise<any>;
 }
@@ -7012,6 +7057,16 @@ export declare interface IReferenceImageState {
 }
 export declare interface IReferenceImageVisibilityOptions {
     desiredVisible: boolean;
+}
+export declare interface IRegeneratePolygon2DPointsOptions {
+    path: string;
+    record?: boolean;
+}
+export declare interface IRegeneratePolygon2DPointsResult {
+    path: string;
+    changed: boolean;
+    pointCount: number;
+    source: Polygon2DPointsSource;
 }
 export declare interface IReloadOptions {
     urlOrUUID?: string;
@@ -7362,6 +7417,46 @@ export declare interface MeshSimplifyOptions {
     errorRate?: number;
     lockBoundary?: boolean;
 }
+export declare interface MotionPreviewDesc {
+    motion: MotionPreviewDescNode | null;
+    variables: MotionPreviewVariable[];
+}
+export declare type MotionPreviewDescNode = {
+    kind: 'clip';
+    clipUuid: string | null;
+} | {
+    kind: 'blend-1d';
+    variable: string | null;
+    value: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: number;
+    }[];
+} | {
+    kind: 'blend-2d';
+    variableX: string | null;
+    valueX: number;
+    variableY: string | null;
+    valueY: number;
+    algorithm?: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: {
+            x: number;
+            y: number;
+        };
+    }[];
+} | {
+    kind: 'blend-direct';
+    children: {
+        motion: MotionPreviewDescNode | null;
+        weight: number;
+    }[];
+};
+export declare interface MotionPreviewVariable {
+    name: string;
+    value: number | null;
+}
 export declare enum NodeEventType {
     TRANSFORM_CHANGED = "transform-changed",
     SIZE_CHANGED = "size-changed",
@@ -7481,6 +7576,7 @@ export declare interface PluginScriptUserData {
     loadPluginInMiniGame?: boolean;
     loadPluginInNative?: boolean;
 }
+export declare type Polygon2DPointsSource = 'sprite-alpha' | 'rect-fallback';
 export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
@@ -7983,6 +8079,9 @@ export declare interface AnimationClipAssetUserData {
 export declare const animationGraph: {
     query(uuidOrUrlOrPath: string): Promise<AnimationGraphSnapshot>;
     queryInspector(uuidOrUrlOrPath: string, target: AnimationGraphTarget): Promise<AnimationGraphInspectorSnapshot>;
+    queryMotionPreviewData(uuidOrUrlOrPath: string, target: Extract<AnimationGraphTarget, {
+        kind: "motion";
+    }>): Promise<AnimationGraphMotionPreviewData>;
     queryPoseGraphAssetDragHandlers(): Promise<AnimationGraphPoseGraphAssetDragHandlersEntry[]>;
     queryStateMachineComponentTypes(): Promise<string[]>;
     setInspectorProperty(uuidOrUrlOrPath: string, request: SetAnimationGraphInspectorPropertyRequest): Promise<AnimationGraphInspectorSnapshot>;
@@ -8091,6 +8190,10 @@ export declare interface AnimationGraphLayerView {
 export declare type AnimationGraphMotionAddress =
 | (AnimationGraphStateAddress & { level: number[] })
 | ({ poseGraph: AnimationGraphPoseGraphContext; nodeId: number; level: number[] });
+export declare interface AnimationGraphMotionPreviewData {
+    motion: AnimationGraphMotionView | null;
+    variables: AnimationGraphVariableView[];
+}
 export declare type AnimationGraphMotionType = 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct';
 export declare interface AnimationGraphMotionView {
     level: number[];
@@ -8104,6 +8207,7 @@ export declare interface AnimationGraphMotionView {
     valueX?: number;
     variableY?: string;
     valueY?: number;
+    algorithm?: number;
     threshold?: number | { x: number; y: number };
     weight?: { value: number; variable: string };
     children?: AnimationGraphMotionView[];
@@ -8502,6 +8606,7 @@ export declare namespace Assets {
         AnimationGraphStateMachineView,
         AnimationGraphLayerView,
         AnimationGraphVariableView,
+        AnimationGraphMotionPreviewData,
         AnimationGraphViewDump,
         AnimationGraphSnapshot,
         AnimationGraphInspectorPropertyCapabilities,
@@ -8819,6 +8924,9 @@ export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext
 export declare function getInfo(): Promise<EngineInfo>;
 export declare function getInfo_2(): Promise<ProjectInfo>;
 export declare function getMetadata(): Promise<ICocosConfigurationNode[]>;
+export declare function getMotionTimelineStats(): Promise<{
+    timeLineLength: number;
+} | null>;
 export declare function getProgrammingFacet(): Promise<ProgrammingFacet>;
 export declare function getRenderConfig(): Promise<ModuleRenderConfig>;
 export declare function getStatus(): {
@@ -8903,6 +9011,7 @@ export declare interface GlTFUserData {
         options: LODsOption[];
     };
 }
+export declare function hideMotion(): Promise<void>;
 export declare namespace i18n {
     export {
         i18n_2 as default
@@ -9367,6 +9476,7 @@ export declare interface ISceneCommandProvider {
     isConnect?(): boolean | undefined;
     dispose?(): void;
 }
+export declare function isMotionActive(): Promise<boolean>;
 export declare interface ISocketConfig {
     connection: (socket: any) => void;
     disconnect: (socket: any) => void;
@@ -9585,6 +9695,46 @@ export declare interface ModuleRenderConfig {
     version: string;
     migrationScript?: string;
 }
+export declare interface MotionPreviewDesc {
+    motion: MotionPreviewDescNode | null;
+    variables: MotionPreviewVariable[];
+}
+export declare type MotionPreviewDescNode = {
+    kind: 'clip';
+    clipUuid: string | null;
+} | {
+    kind: 'blend-1d';
+    variable: string | null;
+    value: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: number;
+    }[];
+} | {
+    kind: 'blend-2d';
+    variableX: string | null;
+    valueX: number;
+    variableY: string | null;
+    valueY: number;
+    algorithm?: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: {
+            x: number;
+            y: number;
+        };
+    }[];
+} | {
+    kind: 'blend-direct';
+    children: {
+        motion: MotionPreviewDescNode | null;
+        weight: number;
+    }[];
+};
+export declare interface MotionPreviewVariable {
+    name: string;
+    value: number | null;
+}
 export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
 export declare enum NormalImportSetting {
     optional = 0,
@@ -9604,6 +9754,23 @@ export declare function onCompileStart(listener: (e: {
 }) => void): () => void;
 export declare function onDBReady(listener: (dbInfo: IAssetDBInfo) => void): () => void;
 export declare function onDidSave(callback: () => void, scope?: ConfigurationScope): () => void;
+export declare function onMotionMouseDown(action: {
+    x: number;
+    y: number;
+    button: number;
+}): Promise<void>;
+export declare function onMotionMouseMove(action: {
+    movementX: number;
+    movementY: number;
+}): Promise<void>;
+export declare function onMotionMouseUp(action: {
+    x: number;
+    y: number;
+}): Promise<void>;
+export declare function onMotionMouseWheel(action: {
+    wheelDeltaY: number;
+    wheelDeltaX: number;
+}): Promise<void>;
 export declare function onPackBuildEnd(listener: (e: {
     targetName: string;
 }) => void): () => void;
@@ -9655,6 +9822,8 @@ export declare interface ParticleAssetUserData {
     rotatePerSVar: number;
     spriteFrameUuid: string;
 }
+export declare function pauseMotion(): Promise<void>;
+export declare function playMotion(): Promise<void>;
 export declare interface PluginScriptInfo {
     file: string;
     uuid: string;
@@ -9787,6 +9956,10 @@ export declare function queryLayerBuiltin(): Promise<{
 export declare function queryMaterial(uuidOrUrlOrPath: string): Promise<MaterialDump>;
 export declare function queryMaterialAllEffects(): Promise<Record<string, MaterialEffectInfo>>;
 export declare function queryMaterialEffect(effectNameOrUuid: string): Promise<MaterialTechniqueDump[]>;
+export declare function queryMotionImage(info: {
+    width: number;
+    height: number;
+}): Promise<unknown>;
 export declare function queryPath(urlOrUuid: string): Promise<string>;
 export declare function queryPropertySchema(importer: string): Promise<AssetPropertySchemaMap>;
 export declare function querySerializedData(uuidOrUrlOrPath: string): Promise<SerializedAssetQueryResult>;
@@ -9827,6 +10000,22 @@ export declare namespace Scene {
         startupWorker,
         setCommandProvider,
         resetCommandProvider,
+        showMotion,
+        hideMotion,
+        setMotionModel,
+        setMotionTime,
+        playMotion,
+        pauseMotion,
+        stopMotion,
+        setMotionVariable,
+        setMotionParameter,
+        getMotionTimelineStats,
+        isMotionActive,
+        queryMotionImage,
+        onMotionMouseDown,
+        onMotionMouseMove,
+        onMotionMouseUp,
+        onMotionMouseWheel,
         ISceneCommandProvider,
         SceneCommandProviderRegistration,
         SceneCommandRequestOptions,
@@ -9893,6 +10082,10 @@ export declare interface SetAnimationGraphInspectorPropertyRequest extends Anima
 }
 export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
 export declare function setFileSystemProvider(provider: IAssetFileSystemProvider): void;
+export declare function setMotionModel(uuid: string): Promise<void>;
+export declare function setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void>;
+export declare function setMotionTime(time: number): Promise<void>;
+export declare function setMotionVariable(name: string, value: number): Promise<void>;
 export declare interface SharedSettings {
     useDefineForClassFields: boolean;
     allowDeclareFields: boolean;
@@ -9908,6 +10101,7 @@ export declare interface SharedSettings {
         url: string;
     };
 }
+export declare function showMotion(desc: MotionPreviewDesc): Promise<boolean>;
 export declare interface SimplifyOptions {
     targetRatio?: number;
     enableSmartLink?: boolean;
@@ -9966,6 +10160,7 @@ export declare function startCompileScript(assetChanges?: AssetChangeInfo[]): Pr
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
 export declare function startupWorker(projectPath: string): Promise<void>;
 export declare function stop_2(): Promise<void>;
+export declare function stopMotion(): Promise<void>;
 export declare const SUPPORT_CREATE_TYPES: readonly ["animation-clip", "typescript", "auto-atlas", "effect", "scene", "prefab", "material", "texture-cube", "terrain", "physics-material", "label-atlas", "render-texture", "directory", "effect-header"];
 export declare enum TangentImportSetting {
     exclude = 0,
@@ -10122,6 +10317,10 @@ export { }
 
 exports[`DTS API compatibility scene.d.ts should match snapshot 1`] = `
 "import type { ChildProcess } from 'child_process';
+export declare function getMotionTimelineStats(): Promise<{
+    timeLineLength: number;
+} | null>;
+export declare function hideMotion(): Promise<void>;
 export declare function init(): Promise<void>;
 export declare interface ISceneCommandProvider {
     request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
@@ -10129,6 +10328,70 @@ export declare interface ISceneCommandProvider {
     isConnect?(): boolean | undefined;
     dispose?(): void;
 }
+export declare function isMotionActive(): Promise<boolean>;
+export declare interface MotionPreviewDesc {
+    motion: MotionPreviewDescNode | null;
+    variables: MotionPreviewVariable[];
+}
+export declare type MotionPreviewDescNode = {
+    kind: 'clip';
+    clipUuid: string | null;
+} | {
+    kind: 'blend-1d';
+    variable: string | null;
+    value: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: number;
+    }[];
+} | {
+    kind: 'blend-2d';
+    variableX: string | null;
+    valueX: number;
+    variableY: string | null;
+    valueY: number;
+    algorithm?: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: {
+            x: number;
+            y: number;
+        };
+    }[];
+} | {
+    kind: 'blend-direct';
+    children: {
+        motion: MotionPreviewDescNode | null;
+        weight: number;
+    }[];
+};
+export declare interface MotionPreviewVariable {
+    name: string;
+    value: number | null;
+}
+export declare function onMotionMouseDown(action: {
+    x: number;
+    y: number;
+    button: number;
+}): Promise<void>;
+export declare function onMotionMouseMove(action: {
+    movementX: number;
+    movementY: number;
+}): Promise<void>;
+export declare function onMotionMouseUp(action: {
+    x: number;
+    y: number;
+}): Promise<void>;
+export declare function onMotionMouseWheel(action: {
+    wheelDeltaY: number;
+    wheelDeltaX: number;
+}): Promise<void>;
+export declare function pauseMotion(): Promise<void>;
+export declare function playMotion(): Promise<void>;
+export declare function queryMotionImage(info: {
+    width: number;
+    height: number;
+}): Promise<unknown>;
 export declare function resetCommandProvider(): void;
 export declare interface SceneCommandProviderRegistration {
     dispose(): void;
@@ -10137,7 +10400,13 @@ export declare interface SceneCommandRequestOptions {
     timeout?: number;
 }
 export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
+export declare function setMotionModel(uuid: string): Promise<void>;
+export declare function setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void>;
+export declare function setMotionTime(time: number): Promise<void>;
+export declare function setMotionVariable(name: string, value: number): Promise<void>;
+export declare function showMotion(desc: MotionPreviewDesc): Promise<boolean>;
 export declare function startupWorker(projectPath: string): Promise<void>;
+export declare function stopMotion(): Promise<void>;
 export declare class WorkerSceneCommandProvider implements ISceneCommandProvider {
     private readonly rpc;
     constructor(process: ChildProcess | NodeJS.Process);

@@ -6,6 +6,8 @@ import {
     SchemaQueryAllComponentResult,
     SchemaQueryComponent,
     SchemaRemoveComponent,
+    SchemaRegeneratePolygon2DPointsOptions,
+    SchemaRegeneratePolygon2DPointsResult,
     SchemaRecalculateLODGroupBoundsOptions,
     SchemaLODGroupBoundsResult,
     SchemaInsertLODOptions,
@@ -20,6 +22,8 @@ import {
     TQueryAllComponentResult,
     TRemoveComponentOptions,
     TQueryComponentOptions,
+    TRegeneratePolygon2DPointsOptions,
+    TRegeneratePolygon2DPointsResult,
     TRecalculateLODGroupBoundsOptions,
     TLODGroupBoundsResult,
     TInsertLODOptions,
@@ -145,6 +149,30 @@ export class ComponentApi {
             return {
                 code: getCommonErrorStatus(e),
                 reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
+
+    /**
+     * Regenerate PolygonCollider2D points // 重新生成 PolygonCollider2D 顶点
+     */
+    @tool('scene-regenerate-polygon-2d-points')
+    @title('Regenerate PolygonCollider2D points')
+    @description('Regenerate cc.PolygonCollider2D points from the alpha contour of a Sprite on the same node. Falls back to the UITransform rectangle when no usable Sprite source exists. This overwrites the current points and records undo by default.')
+    @result(SchemaRegeneratePolygon2DPointsResult)
+    async regeneratePolygon2DPoints(
+        @param(SchemaRegeneratePolygon2DPointsOptions) options: TRegeneratePolygon2DPointsOptions,
+    ): Promise<CommonResultType<TRegeneratePolygon2DPointsResult>> {
+        try {
+            const result = await Scene.Component.regeneratePolygon2DPoints(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: result,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
             };
         }
     }

@@ -100,6 +100,8 @@ export interface AnimationGraphMotionView {
     valueX?: number;
     variableY?: string;
     valueY?: number;
+    /** Blend-2D 的插值算法（AnimationBlend2D.Algorithm 数值），供预览/编辑重建使用。 */
+    algorithm?: number;
     threshold?: number | { x: number; y: number };
     weight?: { value: number; variable: string };
     children?: AnimationGraphMotionView[];
@@ -255,6 +257,12 @@ export interface AnimationGraphVariableView {
     type: number;
     value: IProperty;
     resetMode?: number;
+}
+
+/** Motion 预览数据：目标 Motion 的结构化视图与图内全部变量（含当前值）。 */
+export interface AnimationGraphMotionPreviewData {
+    motion: AnimationGraphMotionView | null;
+    variables: AnimationGraphVariableView[];
 }
 
 export interface AnimationGraphViewDump {
