@@ -2,11 +2,15 @@ import type { ParticleSystem } from 'cc';
 import type { IProperty } from '../@types/public';
 import { restoreParticleSystemSnapshot } from '../scene-process/service/dump/particle-snapshot';
 
+jest.mock('cc', () => ({
+    builtinResMgr: { get: jest.fn((name: string) => ({ uuid: name, passes: [{}] })) },
+}));
+
 function property(value: unknown, type = 'Number'): IProperty {
     return { type, path: '', value } as IProperty;
 }
 
-function fixture(useGPU = false) {
+function fixture(useGPU = false, supportsGPU = true) {
     const cpu = { uuid: 'cpu', passes: [{}] };
     const gpu = { uuid: 'gpu', passes: [{}] };
     const fallback = { uuid: 'default', passes: [{}] };
@@ -21,10 +25,10 @@ function fixture(useGPU = false) {
         get useGPU() { return this._useGPU; },
         set useGPU(value: boolean) {
             if (this._useGPU === value) { return; }
-            this._useGPU = value;
-            processorGPU = value;
-            writes.push(`processor:${value}`);
-            this.particleMaterial = value ? this._gpuMaterial : this._cpuMaterial;
+            this._useGPU = value && supportsGPU;
+            processorGPU = this._useGPU;
+            writes.push(`processor:${this._useGPU}`);
+            this.particleMaterial = this._useGPU ? this._gpuMaterial : this._cpuMaterial;
         },
         get cpuMaterial() { return this._cpuMaterial; },
         set cpuMaterial(value: typeof cpu | null) {
@@ -98,6 +102,57 @@ describe('particle snapshot material restoration', () => {
         const f = fixture();
         await f.apply(f.snapshot(false, '', '', 'default'));
         expect(f.state()).toEqual({ active: 'default', cpu: undefined, gpu: undefined, processorGPU: false });
+    });
+
+    it.each([false, true])('resets empty materials to a usable built-in asset in GPU=%s mode', async useGPU => {
+        const f = fixture(useGPU);
+        const dump = f.snapshot(useGPU, '', '', '');
+        const original = JSON.stringify(dump);
+        await f.apply(dump);
+        expect(f.state()).toEqual({
+            active: useGPU ? 'default-particle-gpu-material' : 'default-particle-material',
+            cpu: undefined, gpu: undefined, processorGPU: useGPU,
+        });
+        expect(f.writes).not.toContain('active:null');
+        expect(JSON.stringify(dump)).toBe(original);
+    });
+
+    it('uses the CPU default if the device rejects a GPU snapshot with empty materials', async () => {
+        const f = fixture(false, false);
+        await f.apply(f.snapshot(true, '', '', ''));
+        expect(f.state()).toEqual({
+            active: 'default-particle-material', cpu: undefined, gpu: undefined, processorGPU: false,
+        });
+    });
+
+    it('does not clear initialized modules through private null aliases during Reset', async () => {
+        const f = fixture();
+        const dump = f.snapshot(false);
+        dump.value._trailModule = property(null, 'cc.TrailModule');
+        dump.value.trailModule = property({ enable: property(false, 'Boolean') }, 'cc.TrailModule');
+        const writes: string[] = [];
+        await restoreParticleSystemSnapshot(f.component as unknown as ParticleSystem, dump, async (_target, path) => {
+            writes.push(path);
+        });
+        expect(writes).toContain('trailModule');
+        expect(writes).not.toContain('_trailModule');
+    });
+
+    it('restores a valid default Trail asset before restoring module fields', async () => {
+        const f = fixture();
+        const dump = f.snapshot(false);
+        dump.value.renderer.value.trailMaterial = property(null, 'cc.Material');
+        await f.apply(dump);
+        expect(f.renderer.trailMaterial?.uuid).toBe('default-trail-material');
+    });
+
+    it('rejects a missing built-in default before changing the live renderer', async () => {
+        const { builtinResMgr } = require('cc');
+        builtinResMgr.get.mockReturnValueOnce(undefined);
+        const f = fixture();
+        await expect(f.apply(f.snapshot(false, '', '', ''))).rejects.toThrow('Cannot restore particle default material');
+        expect(f.state()).toEqual({ active: 'cpu', cpu: 'cpu', gpu: 'gpu', processorGPU: false });
+        expect(f.writes).toEqual([]);
     });
 
     it('switches the processor on Undo and Redo without replaying the raw mode alias', async () => {

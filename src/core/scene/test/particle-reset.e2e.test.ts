@@ -125,6 +125,30 @@ describe('particle Reset through real scene RPC', () => {
         expect((await field(other, key)).value).toBe(modified + 1);
     });
 
+    it.each([
+        ['Reset3DComponent', 'cc.ParticleSystem', 'capacity', 37, 100],
+        ['Reset2DComponent', 'cc.ParticleSystem2D', 'life', 2.5, 1],
+    ])('resets %s without changing identity or enabled state', async (name, type, key, modified, initial) => {
+        const p = await create(name, type);
+        await write(p, 'enabled', false);
+        await write(p, key, modified);
+        const identity = (await query(p)).value.uuid.value;
+        const rpc = Rpc.getInstance() as unknown as {
+            request(service: 'Component', method: 'reset', args: [{ path: string }]): Promise<boolean>;
+        };
+        expect(await rpc.request('Component', 'reset', [{ path: p.path }])).toBe(true);
+        expect((await field(p, key)).value).toBe(initial);
+        expect((await field(p, 'enabled')).value).toBe(false);
+        await history();
+        expect((await field(p, key)).value).toBe(modified);
+        await history(true);
+        expect((await field(p, key)).value).toBe(initial);
+        await reload();
+        expect((await field(p, key)).value).toBe(initial);
+        expect((await field(p, 'enabled')).value).toBe(false);
+        expect((await query(p)).value.uuid.value).toBe(identity);
+    });
+
     it('does not record a no-op Reset or a Reset with record:false', async () => {
         const p = await create('ResetNoRecord', 'cc.ParticleSystem2D');
         await write(p, 'life', 2.5);
@@ -137,4 +161,32 @@ describe('particle Reset through real scene RPC', () => {
         expect((await field(p, 'life')).value).toBe(1);
     });
 
+    it('restores an initialized Trail after component Reset', async () => {
+        const p = await create('ResetTrail', 'cc.ParticleSystem');
+        await write(p, 'enabled', false);
+        const trail = await field(p, 'trailModule');
+        if (trail.value === null) {
+            const rpc = Rpc.getInstance() as unknown as {
+                request(service: string, method: string, args: [ISetPropertyOptions]): Promise<boolean>;
+            };
+            expect(await rpc.request('Node', 'updatePropertyFromNull', [{
+                nodePath: p.nodePath, path: `__comps__.${p.index}.trailModule`, dump: trail, record: false,
+            }])).toBe(true);
+        }
+        // Build a serialized fixture. Fresh editor-created Trail modules are not
+        // initialized until scene load; enabling one directly is a separate issue.
+        await write(p, 'trailModule._enable', true);
+        await write(p, 'capacity', 37);
+        await reload();
+        const rpc = Rpc.getInstance() as unknown as {
+            request(service: 'Component', method: 'reset', args: [{ path: string }]): Promise<boolean>;
+        };
+        expect(await rpc.request('Component', 'reset', [{ path: p.path }])).toBe(true);
+        expect((await field(p, 'trailModule')).value.enable.value).toBe(false);
+        await history();
+        expect((await field(p, 'trailModule')).value.enable.value).toBe(true);
+        expect((await field(p, 'capacity')).value).toBe(37);
+        await history(true);
+        expect((await field(p, 'capacity')).value).toBe(100);
+    });
 });
