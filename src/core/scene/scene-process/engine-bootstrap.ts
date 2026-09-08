@@ -120,6 +120,9 @@ export async function startup(options: {
     cc.physics.selector.runInEditor = true;
 
     await cc.game.init(config);
+    // scene 进程运行在编辑器内嵌视图中，屏幕方向无意义；项目设置默认 'auto' 会让
+    // screenAdapter.orientation 停在 Orientation.AUTO(13)，引擎 resize 时对未映射方向打 DEBUG 告警，这里固定为竖屏。
+    cc.view.setOrientation(cc.macro.ORIENTATION_PORTRAIT);
     await syncSceneEditorBundles(serverURL, sceneEditorSettings?.bundleConfigs);
 
     let backend = 'builtin';
