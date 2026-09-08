@@ -19,6 +19,9 @@ import { Rpc } from '../main-process/rpc';
 const rpcRequest = (method: string, args?: any[]) =>
     (Rpc.getInstance() as any).request('Node', method, args);
 
+const undo = () => (Rpc.getInstance() as any).request('Undo', 'undo', []);
+const redo = () => (Rpc.getInstance() as any).request('Redo', 'redo', []);
+
 function copy(params: ICopyParams): Promise<string[]> {
     return rpcRequest('copy', [params]);
 }
@@ -216,6 +219,34 @@ describe('EditorProxy Prefab 测试', () => {
 
             expect(content).toContain('current-prefab-test-node');
             expect(content).toContain('abc-prefab');
+        });
+
+        it('save groups prefab structural edits so undo and redo restore the asset content', async () => {
+            const root = await EditorProxy.queryCurrent() as INodeInfo;
+            expect(root).not.toBeNull();
+            const rootPath = root.path || root.name;
+            const prefabAssetUuid = root.prefab?.asset?.uuid;
+            expect(prefabAssetUuid).toBeTruthy();
+            const childName = 'prefab-save-undo-redo-child';
+            const child = await NodeProxy.createByType({
+                path: rootPath,
+                nodeType: NodeType.EMPTY,
+                name: childName,
+            });
+            expect(child).not.toBeNull();
+
+            await EditorProxy.save({});
+            expect(readFileSync(currentPrefabFile, 'utf-8')).toContain(childName);
+
+            await expect(undo()).resolves.toMatchObject({ success: true });
+            expect(await NodeProxy.query({ path: child!.path })).toBeNull();
+            expect(readFileSync(currentPrefabFile, 'utf-8')).not.toContain(childName);
+
+            await expect(redo()).resolves.toMatchObject({ success: true });
+            const restored = await NodeProxy.query({ path: child!.path });
+            expect(restored).not.toBeNull();
+            expect(restored?.prefab?.asset?.uuid).toBe(prefabAssetUuid);
+            expect(readFileSync(currentPrefabFile, 'utf-8')).toContain(childName);
         });
 
         it('reload - 重载当前预制体', async () => {

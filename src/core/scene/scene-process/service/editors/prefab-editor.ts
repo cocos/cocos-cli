@@ -1,6 +1,7 @@
 import { Canvas, find, instantiate, Node, Prefab, Scene, UITransform } from 'cc';
 import { type IBaseIdentifier, ICreateOptions, IEditorTarget, INode, INodeDumpOptions } from '../../../common';
 import { Rpc } from '../../rpc';
+import { Service } from '../core';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
 import { sceneUtils } from '../scene/utils';
@@ -15,6 +16,8 @@ import type { IAssetInfo } from '../../../../assets/@types/public';
 export class PrefabEditor extends BaseEditor {
 
     private virtualScene: Scene | null = null;
+    private _savedPrefabContent: string | null = null;
+    private _undoGroupId: string | null = null;
 
     async encode(entity?: IEditorTarget | null, options?: INodeDumpOptions): Promise<INode> {
         entity = entity ?? this.entity;
@@ -69,16 +72,95 @@ export class PrefabEditor extends BaseEditor {
         return this.saveSerializedDataToAsset(asset.uuid);
     }
 
+    public async beginUndoGroup(): Promise<void> {
+        this._savedPrefabContent = this._serializeCurrentPrefab();
+        this._undoGroupId = Service.Undo?.beginGroup({ label: 'Edit Prefab' }) ?? null;
+    }
+
     private async saveSerializedDataToAsset(assetUuid: string): Promise<IAssetInfo> {
         if (!this.entity) {
             throw new Error('没有打开预制体');
         }
-        const serializedData = editorPrefabUtils.serialize(this.entity.instance);
-        const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
+        const serializedData = this._serializeCurrentPrefab();
+        const beforeContent = this._savedPrefabContent;
+        const isRecordingUndo = !!this._undoGroupId;
+        const changed = isRecordingUndo && !!beforeContent && beforeContent !== serializedData;
+        if (changed) {
+            this._preserveUndoHistoryForPrefabReload(assetUuid);
+        }
+
+        let saved: IAssetInfo;
+        try {
+            saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
+        } catch (error) {
+            if (changed) {
+                this._cancelPreservedUndoHistoryForPrefabReload(assetUuid);
+            }
+            this._finishUndoGroup();
+            if (isRecordingUndo) {
+                await this.beginUndoGroup();
+            }
+            throw error;
+        }
         if (!saved || saved.uuid !== assetUuid) {
             throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
         }
+        if (changed) {
+            // Structural edits produce regular node commands while this group is
+            // active. The prefab asset is the source of truth for both the editor
+            // and linked scene instances, so keep one asset-level command only.
+            this._discardUndoGroup();
+            const { PrefabAssetCommand } = await import('../undo/commands/prefab-asset-command');
+            Service.Undo?.push(new PrefabAssetCommand(
+                'prefab:edit',
+                'Edit Prefab',
+                assetUuid,
+                assetUuid,
+                beforeContent,
+                serializedData,
+            ));
+        }
+        this._savedPrefabContent = serializedData;
+        this._finishUndoGroup();
+        if (isRecordingUndo) {
+            await this.beginUndoGroup();
+        }
         return saved;
+    }
+
+    private _serializeCurrentPrefab(): string {
+        if (!this.entity) {
+            throw new Error('No prefab is open.');
+        }
+        return editorPrefabUtils.serialize(this.entity.instance);
+    }
+
+    private _discardUndoGroup(): void {
+        if (this._undoGroupId) {
+            Service.Undo?.cancelGroup(this._undoGroupId);
+            this._undoGroupId = null;
+        }
+    }
+
+    private _finishUndoGroup(): void {
+        if (this._undoGroupId) {
+            Service.Undo?.endGroup(this._undoGroupId);
+            this._undoGroupId = null;
+        }
+    }
+
+    private _preserveUndoHistoryForPrefabReload(assetUuid: string): void {
+        const prefabService = Service.Prefab as unknown as {
+            preserveUndoHistoryForPrefabReload?: (uuid: string) => void;
+        };
+        prefabService.preserveUndoHistoryForPrefabReload?.(assetUuid);
+    }
+
+    private _cancelPreservedUndoHistoryForPrefabReload(assetUuid: string): void {
+        const prefabService = Service.Prefab as unknown as {
+            cancelPreserveUndoHistoryForPrefabReload?: (uuid: string) => void;
+        };
+        prefabService.cancelPreserveUndoHistoryForPrefabReload?.(assetUuid);
     }
 
     protected async _doReload(): Promise<INode> {

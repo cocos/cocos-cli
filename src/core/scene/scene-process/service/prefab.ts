@@ -380,6 +380,25 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         this._undo.cancelPreserveUndoHistoryForPrefabReload(assetUuid);
     }
 
+    public async restorePrefabAssetContent(assetUuid: string, assetSource: string, content: string): Promise<void> {
+        await this._softReload.waitForIdle();
+        const shouldWaitForReload = nodeOperation.assetToNodesMap.has(assetUuid)
+            && await Service.Editor.hasOpen();
+        const reloadWaiter = shouldWaitForReload
+            ? this._softReload.waitForAssetReload(assetUuid)
+            : null;
+
+        this.preserveUndoHistoryForPrefabReload(assetUuid);
+        try {
+            await Rpc.getInstance().request('assetManager', 'saveAsset', [assetSource, content]);
+            await reloadWaiter?.promise;
+        } catch (error) {
+            reloadWaiter?.cancel();
+            this.cancelPreserveUndoHistoryForPrefabReload(assetUuid);
+            throw error;
+        }
+    }
+
     /// /////////////////////
     // components operation
     ////////////////////////
