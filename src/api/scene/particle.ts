@@ -148,45 +148,41 @@ export class ParticleApi {
 
     /**
      * 解析粒子组件所在节点的路径。优先使用调用方传入的 nodePath；
-     * 若仅提供 uuid，则先把组件 uuid 解析为所属节点 uuid，再由节点 uuid 取节点路径。
+     * 若仅提供 uuid，则通过组件 uuid 查询组件 dump，再由 dump 的 component_path
+     * 截取其所属节点路径。
      *
-     * 注意：组件 uuid 与节点 uuid 并非同一值。Node.getPathByUuid 接收的是节点 uuid，
-     * 传入组件 uuid 会查不到节点，导致后续粒子行为无法执行。
+     * 注意：Component.query(uuid) 返回的是组件 dump（IComponent），而非组件实例，
+     * dump 中没有顶层 node.uuid；节点路径需从 dump.component_path（如
+     * "Canvas/Particles/cc.ParticleSystem"）去掉尾部组件类型段得到
+     * "Canvas/Particles"。组件 uuid 与节点 uuid 并非同一值，不可把组件 uuid
+     * 直接传给 Node.getPathByUuid（其接收节点 uuid）。
      */
     private async _resolveNodePath(options: { uuid?: string; nodePath?: string }): Promise<string | null> {
         if (options.nodePath) {
             return options.nodePath;
         }
         if (options.uuid) {
-            // 先通过组件 uuid 查到组件实例，取其所属节点的 uuid。
-            // 组件服务支持以 uuid 字符串查询（返回组件实例），但 ComponentProxy 的
+            // 组件服务支持以 uuid 字符串查询并返回组件 dump，但 ComponentProxy 的
             // 对外类型收窄为 IQueryComponentOptions，故直接走 RPC 调用以传入字符串。
-            let Rpc: any;
+            let dump: any;
             try {
-                ({ Rpc } = await import('../../core/scene/main-process/rpc'));
+                const { Rpc } = await import('../../core/scene/main-process/rpc');
+                dump = await Rpc.getInstance().request('Component', 'query', [options.uuid]);
             } catch (e) {
                 return null;
             }
-            let comp: any;
-            try {
-                comp = await Rpc.getInstance().request('Component', 'query', [options.uuid]);
-            } catch (e) {
+            const componentPath: string | undefined = dump?.component_path;
+            if (typeof componentPath !== 'string' || componentPath.length === 0) {
                 return null;
             }
-            const nodeUuid = comp?.node?.uuid;
-            if (!nodeUuid) {
-                return null;
+            // component_path 形如 "Canvas/Particles/cc.ParticleSystem"，
+            // 节点路径 = 去掉最后一段组件类型。
+            const lastSlash = componentPath.lastIndexOf('/');
+            if (lastSlash <= 0) {
+                // 形如 "cc.ParticleSystem"（根节点上的组件），节点路径为场景根 "/"
+                return lastSlash === 0 ? '/' : componentPath;
             }
-            // Selection 服务以节点 path 进行选择，故需要把节点 uuid 转为 path。
-            // NodeProxy 未暴露 getPathByUuid，直接通过 RPC 调用。
-            try {
-                const path = await Rpc.getInstance().request('Node', 'getPathByUuid', [nodeUuid]);
-                if (typeof path === 'string' && path.length > 0) {
-                    return path;
-                }
-            } catch (e) {
-                return null;
-            }
+            return componentPath.slice(0, lastSlash);
         }
         return null;
     }

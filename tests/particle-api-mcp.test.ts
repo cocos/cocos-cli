@@ -125,21 +125,15 @@ describe('ParticleApi MCP 转发层', () => {
         });
 
         it('提供 uuid 时反查节点路径后选中再 stop', async () => {
-            // 明确区分组件 UUID 与所属节点 UUID。真实 Node.getPathByUuid 使用
-            // NodeMgr.getNode(uuid)，只接收节点 UUID；传入组件 UUID 会查不到节点、返回空，
-            // 导致后续粒子 stop 无法执行。
-            // 生产代码应先用组件 UUID 查到组件实例，取其所属节点 UUID，
-            // 再用节点 UUID 反查节点路径（绝不把组件 UUID 当作节点 UUID 传给 Node 查询）。
+            // 真实 Component.query(uuid) 返回组件 dump（IComponent），dump 无顶层 node.uuid，
+            // 但有 component_path（如 "Canvas/Particles/cc.ParticleSystem"）。
+            // 生产代码应先用组件 UUID 查到 dump，再由 component_path 截取所属节点路径，
+            // 用于 Selection.select；组件 UUID 不可直接传给 Node.getPathByUuid（其接收节点 UUID）。
             const componentUuid = 'comp-uuid-1';
-            const nodeUuid = 'node-uuid-1';
             mockRpcRequest.mockImplementation(async (module: string, method: string, args: unknown[]) => {
-                // 组件查询：返回组件实例（含 node.uuid），验证组件到所属节点的解析过程
+                // 组件查询：返回组件 dump（含 component_path），与真实接口对齐
                 if (module === 'Component' && method === 'query') {
-                    return { node: { uuid: nodeUuid } };
-                }
-                if (module === 'Node' && method === 'getPathByUuid') {
-                    // 只对正确的节点 UUID 返回路径，传组件 UUID 返回空（与真实 NodeMgr 一致）
-                    return args[0] === nodeUuid ? 'Canvas/Particles' : '';
+                    return { value: { uuid: { value: componentUuid } }, component_path: 'Canvas/Particles/cc.ParticleSystem' };
                 }
                 if (module === 'Selection' && method === 'select') {
                     return undefined;
@@ -150,33 +144,24 @@ describe('ParticleApi MCP 转发层', () => {
 
             const result = await api.stop({ uuid: componentUuid });
 
-            // 先用组件 UUID 查询组件实例（RPC: Component.query）
+            // 先用组件 UUID 查询组件 dump（RPC: Component.query）
             expect(mockRpcRequest).toHaveBeenCalledWith('Component', 'query', [componentUuid]);
-            // 绝不应把组件 UUID 当作节点 UUID 传给 Node 查询
+            // 组件 UUID 不应被当作节点 UUID 传给 Node 查询
             expect(mockRpcRequest).not.toHaveBeenCalledWith('Node', 'getPathByUuid', [componentUuid]);
-            // 应使用节点 UUID 查询节点路径
-            expect(mockRpcRequest).toHaveBeenCalledWith('Node', 'getPathByUuid', [nodeUuid]);
+            // 由 component_path 截取节点路径后选中节点
             expect(mockRpcRequest).toHaveBeenCalledWith('Selection', 'select', ['Canvas/Particles']);
             expect(mockStop).toHaveBeenCalled();
             expect(result.code).toBe(HTTP_STATUS.OK);
         });
 
-        it('组件 UUID 误传给 Node 查询时返回 404 且不执行粒子操作', async () => {
-            // 组件 UUID 与节点 UUID 不同时，若生产代码把组件 UUID 直接传给
-            // Node.getPathByUuid，真实接口会查不到节点（返回空路径），
-            // 因此 stop 无法执行、应返回 404。
-            // 修复后生产代码会先用组件 UUID 查到组件实例、再用节点 UUID 查路径。
-            // 此用例验证：组件存在但其所属节点路径解析失败（节点已被删除等）时，
-            // 返回 404 且不执行粒子操作。组件 UUID 绝不应被当作节点 UUID 传给 Node 查询。
+        it('组件 dump 不含 component_path 时返回 404 且不执行粒子操作', async () => {
+            // 组件 UUID 查到 dump 但缺少 component_path（节点已被删除等），
+            // 应返回 404 且不执行粒子操作、也不调用 Selection.select。
             const componentUuid = 'comp-uuid-2';
-            const nodeUuid = 'node-uuid-2';
             mockRpcRequest.mockImplementation(async (module: string, method: string, args: unknown[]) => {
                 if (module === 'Component' && method === 'query') {
-                    return { node: { uuid: nodeUuid } };
-                }
-                if (module === 'Node' && method === 'getPathByUuid') {
-                    // 所属节点路径解析失败（节点已被删除等），返回空路径
-                    return '';
+                    // dump 存在但无 component_path
+                    return { value: { uuid: { value: componentUuid } } };
                 }
                 return undefined;
             });
@@ -186,6 +171,8 @@ describe('ParticleApi MCP 转发层', () => {
 
             // 组件 UUID 不应被当作节点 UUID 传给 Node 查询
             expect(mockRpcRequest).not.toHaveBeenCalledWith('Node', 'getPathByUuid', [componentUuid]);
+            // 解析失败，不应选中节点也不应执行粒子操作
+            expect(mockRpcRequest).not.toHaveBeenCalledWith('Selection', 'select', expect.anything());
             expect(mockStop).not.toHaveBeenCalled();
             expect(result.code).toBe(HTTP_STATUS.NOT_FOUND);
         });
