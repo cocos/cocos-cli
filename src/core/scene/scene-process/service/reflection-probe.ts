@@ -107,6 +107,7 @@ interface IGeneratedProbeAsset {
 
 @register('ReflectionProbe')
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
+    private _revision = 0;
     private _task: IReflectionProbeTaskState = this._idleTask();
     private _baking = false;
     private _cancelRequested = false;
@@ -118,7 +119,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     }
 
     private _publish(message?: string, level: 'info' | 'error' = 'info'): void {
-        this._task.revision++;
+        this._task.revision = ++this._revision;
         if (message) {
             this._task.logs.push({ id: this._task.revision, timestamp: Date.now(), level, message });
             if (this._task.logs.length > 2000) { this._task.logs.splice(0, this._task.logs.length - 2000); }

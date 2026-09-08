@@ -378,6 +378,15 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(await service.getCapabilities()).toEqual({ protocolVersion: 1, bake: false, queue: false, cancel: false, clear: true, reason: 'host module unavailable' });
     });
 
+    it('keeps revisions monotonic across different tasks so late snapshots cannot replace new work', async () => {
+        await service.bake({ nodePath: 'A' });
+        const first = await service.getTaskState();
+        await service.bake({ nodePath: 'B' });
+        const second = await service.getTaskState();
+        expect(second.taskId).not.toBe(first.taskId);
+        expect(second.revision).toBeGreaterThan(first.revision);
+    });
+
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;
