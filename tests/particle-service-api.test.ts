@@ -16,7 +16,7 @@
  */
 
 // 模拟 cc 命名空间，避免引入真实引擎
-const mockComponentManagerQuery = jest.fn();
+const mockComponentManagerGetComponent = jest.fn();
 const mockNodeEmit = jest.fn();
 
 jest.mock('../src/core/scene/scene-process/service/core', () => ({
@@ -38,9 +38,11 @@ jest.mock('cc', () => ({
     js: { getClassName: (ctor: any) => ctor?.__clsName || '' },
 }), { virtual: true });
 
-// 注入 EditorExtends（service 内部通过它访问 ComponentManager.query / Node.emit）
+// 注入 EditorExtends（service 内部通过它访问 ComponentManager.getComponent / Node.emit）。
+// 与真实接口对齐：EditorExtends.Component 是 ComponentManager 实例，
+// 其查询方法是 getComponent(uuid)，而非 query。
 (globalThis as any).EditorExtends = {
-    Component: { query: (...args: any[]) => mockComponentManagerQuery(...args) },
+    Component: { getComponent: (...args: any[]) => mockComponentManagerGetComponent(...args) },
     Node: { emit: (...args: any[]) => mockNodeEmit(...args) },
 };
 (globalThis as any).cc = {
@@ -83,7 +85,7 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
     let selectedComps: any[];
 
     beforeEach(() => {
-        mockComponentManagerQuery.mockReset();
+        mockComponentManagerGetComponent.mockReset();
         mockNodeEmit.mockReset();
         service = new ParticleService();
         selectedComps = [];
@@ -94,11 +96,11 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
     describe('queryPlayInfo', () => {
         it('返回选中粒子的 speed/time/particle/isPlaying', () => {
             const comp = createFakeParticle({ isPlaying: true, time: 2.5, simulationSpeed: 1.5 });
-            mockComponentManagerQuery.mockReturnValue(comp);
+            mockComponentManagerGetComponent.mockReturnValue(comp);
 
             const info = service.queryPlayInfo('uuid-1');
 
-            expect(mockComponentManagerQuery).toHaveBeenCalledWith('uuid-1');
+            expect(mockComponentManagerGetComponent).toHaveBeenCalledWith('uuid-1');
             expect(info).toEqual({
                 speed: 1.5,
                 time: 2.5,
@@ -108,15 +110,34 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
         });
 
         it('找不到组件时返回 null', () => {
-            mockComponentManagerQuery.mockReturnValue(null);
+            mockComponentManagerGetComponent.mockReturnValue(null);
             expect(service.queryPlayInfo('missing')).toBeNull();
+        });
+
+        it('组件已注册但未选中，仍能通过组件 UUID 查询', () => {
+            // 组件已注册到 ComponentManager，但不在选中集合里（selectedComps 为空）。
+            // 真实接口下应能通过 getComponent(uuid) 直接查到，不依赖选中集合。
+            const comp = createFakeParticle({ isPlaying: true, time: 0.5, simulationSpeed: 0.8 });
+            mockComponentManagerGetComponent.mockReturnValue(comp);
+
+            const info = service.queryPlayInfo('registered-but-unselected');
+
+            expect(info).not.toBeNull();
+            expect(info).toEqual({
+                speed: 0.8,
+                time: 0.5,
+                particle: 42,
+                isPlaying: true,
+            });
+            // 选中集合应为空，证明不依赖选中
+            expect(selectedComps).toHaveLength(0);
         });
     });
 
     describe('setPlaySpeed', () => {
         it('更新 simulationSpeed 并广播 node change', () => {
             const comp = createFakeParticle({ simulationSpeed: 1 });
-            mockComponentManagerQuery.mockReturnValue(comp);
+            mockComponentManagerGetComponent.mockReturnValue(comp);
 
             service.setPlaySpeed('uuid-1', 2.5);
 
@@ -129,9 +150,27 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
         });
 
         it('组件不存在时不抛错', () => {
-            mockComponentManagerQuery.mockReturnValue(null);
+            mockComponentManagerGetComponent.mockReturnValue(null);
             expect(() => service.setPlaySpeed('missing', 2)).not.toThrow();
             expect(mockNodeEmit).not.toHaveBeenCalled();
+        });
+
+        it('组件已注册但未选中，仍能通过组件 UUID 设置速度', () => {
+            // 修复前：生产代码错误使用 ComponentManager.query（不存在），
+            // 查不到组件 → 退回选中集合查找 → 未选中时返回空 → 设置速度不生效。
+            // 修复后：使用 getComponent(uuid) 直接查到，无需选中。
+            const comp = createFakeParticle({ simulationSpeed: 1 });
+            mockComponentManagerGetComponent.mockReturnValue(comp);
+
+            service.setPlaySpeed('registered-but-unselected', 3.0);
+
+            expect(comp.simulationSpeed).toBe(3.0);
+            expect(mockNodeEmit).toHaveBeenCalledWith(
+                'change',
+                comp.node,
+                { propPath: '__comps__.0.simulationSpeed' },
+            );
+            expect(selectedComps).toHaveLength(0);
         });
     });
 
