@@ -82,6 +82,13 @@ class GizmoOperation {
     private _mouseDownRaycastGizmos: RaycastResults | null = null;
     private _anyKeyDown = false;
 
+    // ── light-probe vertex 模式：从「空白/线框处」起手的框选 ──────────────
+    // 命中的是 gizmo（线框等）但不是探针球时，若处于 vertex 模式，也允许在此起手框选，
+    // 这样「点探针拖」与「点空白拖」都能出现白色选区框并框选探针。
+    private _probeRegionActive = false;
+    private _probeRegionDragging = false;
+    private _probeRegionDownEvent: GizmoMouseEvent | null = null;
+
     /**
      * Raycast against gizmo nodes
      * 与编辑器一致：优先检测右上角 SceneGizmo，再检测 gizmo root
@@ -175,15 +182,63 @@ class GizmoOperation {
                 this._emitEventToNode(info.node, event);
                 if (event.propagationStopped) break;
             }
+            // light-probe vertex 模式下：若命中的 gizmo 不是探针球（没有探针处理器消费事件，
+            // propagationStopped 仍为 false，例如命中线框），则在此起手框选，
+            // 使「点空白/线框处拖动」也能画白框并框选探针。
+            if (!event.propagationStopped && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+                const gizmoSvc = getServiceProp('Gizmo');
+                if (gizmoSvc?.queryLightProbeEditMode?.()) {
+                    this._probeRegionActive = true;
+                    this._probeRegionDragging = false;
+                    this._probeRegionDownEvent = event;
+                }
+            }
             return false;
         }
         return true;
+    }
+
+    /** vertex 框选（从 gizmo 起手）：拖动达到阈值即画白框并按矩形框选探针。 */
+    private _handleProbeRegionMove(event: GizmoMouseEvent): void {
+        const down = this._probeRegionDownEvent;
+        if (!down) return;
+        const dx = event.x - down.x;
+        const dy = event.y - down.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (!this._probeRegionDragging && distance < 10) return;
+        this._probeRegionDragging = true;
+
+        const revertX = down.x > event.x;
+        const revertY = down.y < event.y;
+        const left = revertX ? event.x : down.x;
+        const right = revertX ? down.x : event.x;
+        const bottom = revertY ? down.y : event.y;
+        const top = revertY ? event.y : down.y;
+
+        // 画白色选区框（与场景节点框选同一套绘制）。
+        this._showSelectionRegion(left, right, top, bottom);
+        // 每帧 additive=false：以当前矩形为准重算命中集，天然幂等、gizmo 实时居中。
+        getServiceProp('Gizmo')?.regionSelectLightProbes?.(left, right, top, bottom, false);
     }
 
     private _onGizmoMouseUp(event: GizmoMouseEvent): boolean {
         // 与 cocos-editor 一致：相机移动中不处理
         const cameraCtrl = getServiceProp('Camera')?.controller;
         if (cameraCtrl?.isMoving?.()) return true;
+
+        // vertex 框选（从 gizmo 起手）收尾：隐藏白框，重置状态。
+        if (this._probeRegionActive) {
+            const wasDragging = this._probeRegionDragging;
+            this._probeRegionActive = false;
+            this._probeRegionDragging = false;
+            this._probeRegionDownEvent = null;
+            if (wasDragging) {
+                this._hideSelectionRegion();
+                this._curMouseDownInfos.length = 0;
+                return false;
+            }
+            // 未拖动：当作普通点击，继续走下面命中节点的 mouseUp 派发。
+        }
 
         if (this._curMouseDownInfos.length > 0) {
             for (const info of this._curMouseDownInfos) {
@@ -207,6 +262,11 @@ class GizmoOperation {
     }
 
     private _onGizmoMouseMove(event: GizmoMouseEvent, results: RaycastResults) {
+        // vertex 框选（从 gizmo 起手）：优先处理，画白框 + 框选探针。
+        if (this._probeRegionActive) {
+            this._handleProbeRegionMove(event);
+            return;
+        }
         if (this._curMouseDownInfos.length > 0) {
             const map = new Map<Node, Vec3>();
             results.forEach((info: any) => map.set(info.node, info.hitPoint || new Vec3()));
@@ -391,6 +451,16 @@ class GizmoOperation {
     ) {
         this._showSelectionRegion(left, right, top, bottom);
 
+        // 框选分流（方案 A）：若当前处于 light-probe vertex 模式，则把矩形交给探针 gizmo
+        // 自行投影判定命中（探针在 GIZMOS 层，走不了下面的场景节点框选），并提前 return，
+        // 完全不改场景节点框选的既有行为。
+        // 每帧传 additive=false：让探针 gizmo 以当前矩形为准重算命中集，天然幂等、无累加抖动。
+        const gizmoSvc = getServiceProp('Gizmo');
+        if (gizmoSvc?.queryLightProbeEditMode?.()) {
+            gizmoSvc.regionSelectLightProbes?.(left, right, top, bottom, false);
+            return;
+        }
+
         const camera = getServiceProp('Camera')?.getCamera?.()?.camera;
         if (!camera) return;
 
@@ -443,6 +513,15 @@ class GizmoOperation {
     private _hideSelectionRegion() {
         getServiceProp('Engine')?.getGeometryRenderer?.()?.removeData('addQuad');
         getServiceProp('Engine')?.repaintInEditMode?.();
+    }
+
+    // 供其它 gizmo（如 light-probe 探针框选）复用同一套选区矩形绘制，保证视觉一致。
+    public showRegionBox(left: number, right: number, top: number, bottom: number): void {
+        this._showSelectionRegion(left, right, top, bottom);
+    }
+
+    public hideRegionBox(): void {
+        this._hideSelectionRegion();
     }
 
     // --- Keyboard ---

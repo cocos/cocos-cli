@@ -16,6 +16,8 @@ import type { IReferenceImageEvents } from './reference-image';
  */
 export interface ISceneEvents {
     'scene:dimension-changed': [is2D: boolean];
+    'scene:light-probe-edit-mode-changed': [mode: boolean];
+    'scene:light-probe-bounding-box-edit-mode-changed': [mode: boolean];
 }
 
 /**
