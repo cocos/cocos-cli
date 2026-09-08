@@ -68,6 +68,7 @@ jest.mock('../scene-process/service/preview/asset-reload', () => ({
     removePreviewAssetCache: jest.fn(),
 }));
 
+import { register } from '../scene-process/service/core';
 import { ReflectionProbeService } from '../scene-process/service/reflection-probe';
 import { isReflectionProbeTextureCubeImported } from '../scene-process/service/reflection-probe-import-state';
 import { ReflectionProbeBakeHost } from '../main-process/reflection-probe-bake-host';
@@ -129,6 +130,24 @@ describe('reflection probe TextureCube import state', () => {
         expect(isReflectionProbeTextureCubeImported(importedMeta(1), 2)).toBe(false);
         expect(isReflectionProbeTextureCubeImported(importedMeta(2), 2)).toBe(true);
         expect(isReflectionProbeTextureCubeImported(importedMeta(1), 1)).toBe(true);
+    });
+});
+
+describe('ReflectionProbeService source identity', () => {
+    it('rejects reopening the same scene or replacing the runtime', async () => {
+        let generation = 1;
+        @register('Editor')
+        class EditorStub {
+            getEditorSession() { return { uuid: 'scene-a', generation }; }
+            isCurrentEditorSession(session: { uuid: string; generation: number }) { return session.generation === generation; }
+        }
+        const first = new ReflectionProbeService();
+        const source = await first.getSceneIdentity();
+        expect(() => first.assertSceneIdentity(source)).not.toThrow();
+        generation++;
+        expect(() => first.assertSceneIdentity(source)).toThrow('stale runtime or generation');
+        const replacement = new ReflectionProbeService();
+        expect(() => replacement.assertSceneIdentity({ ...source, generation })).toThrow('stale runtime or generation');
     });
 });
 
@@ -223,6 +242,29 @@ describe('ReflectionProbeService bake output transaction', () => {
         jest.restoreAllMocks();
     });
 
+    it('rolls back Node output if the source scene reopens before apply', async () => {
+        const device = jest.requireMock('cc').gfx.deviceManager.gfxDevice;
+        const source = { runtimeId: 'webview-1', sceneUuid: 'same-scene', generation: 1 };
+        let current = source;
+        service._getSceneIdentity = () => current;
+        service.capturePixels = jest.fn().mockResolvedValue(CAPTURE_RESULT);
+        service.applyBakedCubemap = jest.fn();
+        mockRpcRequest.mockImplementation(async (module: string, method: string) => {
+            if (module === 'reflectionProbeBakeHost' && method === 'prepare') {
+                current = { ...source, generation: 2 };
+                return { operationId: 'operation-1', cubemapUuid: 'cube', cubemapUrl: OUTPUT_URL };
+            }
+            if (module === 'reflectionProbeBakeHost' && method === 'rollback') { return; }
+            throw new Error(`Unexpected RPC ${module}.${method}`);
+        });
+        device.gfxAPI = 1;
+        try {
+            await expect(service.bake({ nodePath: 'Probe', source })).rejects.toThrow('stale runtime or generation');
+            expect(service.applyBakedCubemap).not.toHaveBeenCalled();
+            expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeBakeHost', 'rollback', [{ operationId: 'operation-1' }]);
+        } finally { device.gfxAPI = 0; }
+    });
+
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;
@@ -310,7 +352,7 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeRenderer', 'save', [
             'renderer-1',
             `db://assets/${SCENE_NAME}.scene`,
-            expect.any(Number),
+            expect.any(Number), undefined,
         ]);
     });
 
@@ -358,7 +400,7 @@ describe('ReflectionProbeService bake output transaction', () => {
         const removed: string[] = [];
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string, args: unknown[]) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'clearActive') {
-                expect(args).toEqual([true, expect.any(Number)]);
+                expect(args).toEqual([true, expect.any(Number), undefined]);
                 return {
                     sceneUrl,
                     sceneName: SCENE_NAME,

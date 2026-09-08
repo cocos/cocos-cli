@@ -1,6 +1,14 @@
 import type { IServiceEvents } from '../scene-process/service/core';
 
+/** Identifies one loaded scene, including close/reopen and runtime replacement. */
+export interface IReflectionProbeSceneIdentity {
+    runtimeId: string;
+    sceneUuid: string;
+    generation: number;
+}
+
 export interface IReflectionProbeBakeOptions {
+    source?: IReflectionProbeSceneIdentity;
     nodePath: string;
     saveScene?: boolean;
     timeoutMs?: number;
@@ -16,6 +24,7 @@ export interface IReflectionProbeBakeResult {
 }
 
 export interface IReflectionProbeBakeAllOptions {
+    source?: IReflectionProbeSceneIdentity;
     /** Explicit component selection. Empty selections are rejected, never expanded to all probes. */
     componentUuids?: string[];
     /** Omit or pass an empty array to bake every active cube reflection probe. */
@@ -41,6 +50,7 @@ export interface IReflectionProbeBakeAllResult {
 }
 
 export interface IReflectionProbeClearOptions {
+    source?: IReflectionProbeSceneIdentity;
     /** Save the active scene after all cubemap bindings are cleared. */
     saveScene?: boolean;
     /** Delete generated PNG and convolution assets after the scene no longer references them. */
@@ -71,6 +81,7 @@ export interface IReflectionProbeEvents {
 }
 
 export interface IReflectionProbeService extends IServiceEvents {
+    getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
     clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;

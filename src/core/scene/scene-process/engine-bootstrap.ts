@@ -1,3 +1,4 @@
+import type { IReflectionProbeSceneIdentity } from '../common/reflection-probe';
 import * as EditorExtends from '../../engine/editor-extends';
 import { Rpc } from './rpc';
 import { serviceManager } from './service/service-manager';
@@ -273,7 +274,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             }
         });
         socket.on('scene:capture-reflection-probe', async (
-            msg: { sceneUrl?: string; nodePath?: string; componentUuid?: string; timeoutMs?: number },
+            msg: { source?: IReflectionProbeSceneIdentity; sceneUrl?: string; nodePath?: string; componentUuid?: string; timeoutMs?: number },
             reply: (response: { result?: unknown; error?: string }) => void,
         ) => {
             try {
@@ -291,7 +292,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 const result = await (DecoratorService.ReflectionProbe as any).capturePixels(
                     msg.nodePath,
                     msg.timeoutMs,
-                    msg.componentUuid,
+                    msg.componentUuid, msg.source,
                 );
                 updateRendererScene(result.sceneUrl);
                 reply({ result });
@@ -300,7 +301,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             }
         });
         socket.on('scene:list-reflection-probes', async (
-            msg: { sceneUrl?: string },
+            msg: { sceneUrl?: string; source?: IReflectionProbeSceneIdentity },
             reply: (response: { result?: unknown; error?: string }) => void,
         ) => {
             try {
@@ -310,8 +311,10 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                         `The WebGL scene renderer is not displaying the requested scene: ${msg?.sceneUrl || 'unknown'}.`,
                     );
                 }
+                if (msg.source) { (DecoratorService.ReflectionProbe as any).assertSceneIdentity(msg.source); }
+                const source = await DecoratorService.ReflectionProbe.getSceneIdentity();
                 const probes = (DecoratorService.ReflectionProbe as any).listBakeableProbes();
-                reply({ result: { sceneUrl: currentSceneUrl, probes } });
+                reply({ result: { sceneUrl: currentSceneUrl, probes, source } });
             } catch (error) {
                 reply({ error: error instanceof Error ? error.message : String(error) });
             }
@@ -323,6 +326,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 componentUuid?: string;
                 cubemapUuid?: string;
                 captureToken?: string;
+                source?: IReflectionProbeSceneIdentity;
                 saveScene?: boolean;
                 timeoutMs?: number;
             },
@@ -338,6 +342,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                     componentUuid: msg.componentUuid,
                     cubemapUuid: msg.cubemapUuid,
                     captureToken: msg.captureToken,
+                    source: msg.source,
                     saveScene: msg.saveScene !== false,
                     timeoutMs: msg.timeoutMs,
                     serverURL,
@@ -349,7 +354,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             }
         });
         socket.on('scene:save-reflection-probes', async (
-            msg: { sceneUrl?: string },
+            msg: { sceneUrl?: string; source?: IReflectionProbeSceneIdentity },
             reply: (response: { result?: unknown; error?: string }) => void,
         ) => {
             try {
@@ -359,6 +364,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                         `The WebGL scene renderer is not displaying the requested scene: ${msg?.sceneUrl || 'unknown'}.`,
                     );
                 }
+                if (msg.source) { (DecoratorService.ReflectionProbe as any).assertSceneIdentity(msg.source); }
                 await DecoratorService.Editor.save({});
                 DecoratorService.Undo.markSaved();
                 updateRendererScene(currentSceneUrl);
@@ -370,6 +376,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
         socket.on('scene:clear-reflection-probes', async (
             msg: {
                 sceneUrl?: string;
+                source?: IReflectionProbeSceneIdentity;
                 saveScene?: boolean;
                 timeoutMs?: number;
             },
@@ -381,6 +388,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 }
                 const result = await (DecoratorService.ReflectionProbe as any).clearBakedCubemaps({
                     sceneUrl: msg.sceneUrl,
+                    source: msg.source,
                     saveScene: msg.saveScene !== false,
                     timeoutMs: msg.timeoutMs,
                 });

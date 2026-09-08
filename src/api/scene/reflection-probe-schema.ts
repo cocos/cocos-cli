@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
+export const SchemaReflectionProbeSceneIdentity = z.object({
+    runtimeId: z.string().min(1), sceneUuid: z.string().min(1), generation: z.number().int().nonnegative(),
+});
+
 export const SchemaReflectionProbeBakeOptions = z.object({
+    source: SchemaReflectionProbeSceneIdentity.optional(),
     nodePath: z.string().trim().min(1).describe('Path of the node containing cc.ReflectionProbe in the active Pink/browser scene'),
     saveScene: z.boolean().optional().default(true).describe('Save the same live scene after hot-applying the cubemap'),
     timeoutMs: z.number().int().positive().max(600_000).optional().default(120_000)
@@ -17,6 +22,7 @@ export const SchemaReflectionProbeBakeResult = z.object({
 }).describe('Reflection probe bake result');
 
 export const SchemaReflectionProbeBakeAllOptions = z.object({
+    source: SchemaReflectionProbeSceneIdentity.optional(),
     componentUuids: z.array(z.string().trim().min(1)).nonempty().optional()
         .describe('Explicit reflection-probe component UUIDs; cannot be combined with nodePaths'),
     nodePaths: z.array(z.string().trim().min(1)).optional()
@@ -44,6 +50,7 @@ export const SchemaReflectionProbeBakeAllResult = z.object({
 }).describe('Bake-all reflection probe result');
 
 export const SchemaReflectionProbeClearOptions = z.object({
+    source: SchemaReflectionProbeSceneIdentity.optional(),
     saveScene: z.boolean().optional().default(true)
         .describe('Save the active scene once after all cubemap bindings are cleared'),
     deleteAssets: z.boolean().optional().default(true)

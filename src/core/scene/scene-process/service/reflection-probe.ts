@@ -27,9 +27,11 @@ import type {
     IReflectionProbeClearResult,
     IReflectionProbeEvents,
     IReflectionProbeService,
+    IReflectionProbeSceneIdentity,
 } from '../../common';
 import { NodeEventType } from '../../common';
 import { BaseService, register, Service } from './core';
+import type { IEditorSessionService } from './core/editor-session';
 import { ServiceEvents } from './core/global-events';
 import { Rpc } from '../rpc';
 import { syncSceneEditorBundles } from '../scene-editor-assets';
@@ -49,6 +51,7 @@ interface IAssetInfo {
 type ICapturedFaces = IReflectionProbeCapturedFaces;
 
 interface IApplyBakedCubemapOptions {
+    source?: IReflectionProbeSceneIdentity;
     sceneUrl: string;
     nodePath: string;
     componentUuid: string;
@@ -65,6 +68,7 @@ interface IReflectionProbeDescriptor {
 }
 
 interface IRemoteRendererSelection {
+    source?: IReflectionProbeSceneIdentity;
     rendererId: string;
     sceneUrl: string;
 }
@@ -79,6 +83,7 @@ interface IReflectionProbeBakedDescriptor extends IReflectionProbeDescriptor {
 }
 
 interface IClearBakedCubemapsOptions {
+    source?: IReflectionProbeSceneIdentity;
     sceneUrl: string;
     saveScene: boolean;
     timeoutMs?: number;
@@ -100,6 +105,28 @@ interface IGeneratedProbeAsset {
 @register('ReflectionProbe')
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
     private _baking = false;
+    private readonly _runtimeId = globalThis.crypto.randomUUID();
+
+    public async getSceneIdentity(): Promise<IReflectionProbeSceneIdentity> {
+        return this._getSceneIdentity();
+    }
+
+    private _getSceneIdentity(): IReflectionProbeSceneIdentity {
+        const editor = Service.Editor as typeof Service.Editor & IEditorSessionService;
+        const session = editor.getEditorSession();
+        if (!session.uuid || !editor.isCurrentEditorSession(session)) {
+            throw new Error('No scene is currently open for reflection-probe baking.');
+        }
+        return { runtimeId: this._runtimeId, sceneUuid: session.uuid, generation: session.generation };
+    }
+
+    public assertSceneIdentity(source: IReflectionProbeSceneIdentity): void {
+        const current = this._getSceneIdentity();
+        if (source.runtimeId !== current.runtimeId || source.sceneUuid !== current.sceneUuid || source.generation !== current.generation) {
+            throw new Error('The WebGL scene changed during reflection-probe bake (stale runtime or generation).');
+        }
+    }
+
 
     public bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult> {
         return this._runExclusive(() => this._bakeOne(options));
@@ -132,16 +159,18 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
         try {
             const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+            const source = options.source ?? selection?.source ?? (remoteRenderer ? undefined : this._getSceneIdentity());
+            if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
             const captureTimeoutMs = Math.max(1, deadline - Date.now());
             const captured = this._validateCapturedFaces(remoteRenderer
                 ? await Rpc.getInstance().request(
                     'reflectionProbeRenderer',
                     selection ? 'captureSelected' : 'captureActive',
                     selection
-                        ? [selection.rendererId, selection.sceneUrl, nodePath, selection.componentUuid, captureTimeoutMs]
-                        : [nodePath, captureTimeoutMs],
+                        ? [selection.rendererId, selection.sceneUrl, nodePath, selection.componentUuid, captureTimeoutMs, source]
+                        : [nodePath, captureTimeoutMs, source],
                 )
-                : await this.capturePixels(nodePath, captureTimeoutMs, selection?.componentUuid), remoteRenderer);
+                : await this.capturePixels(nodePath, captureTimeoutMs, selection?.componentUuid, source), remoteRenderer);
             const {
                 sceneUrl,
                 componentUuid,
@@ -155,7 +184,9 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 [{ captured, timeoutMs: Math.max(1, deadline - Date.now()) }],
             ) as IPreparedReflectionProbeBake;
             try {
+                if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
                 const applyOptions: IApplyBakedCubemapOptions = {
+                    source,
                     sceneUrl,
                     nodePath,
                     componentUuid,
@@ -221,12 +252,14 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         }
         const deadline = started + timeoutMs;
         const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+        const source = options.source ?? (remoteRenderer ? undefined : this._getSceneIdentity());
+        if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
         const active = remoteRenderer
             ? await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [
-                Math.max(1, deadline - Date.now()),
+                Math.max(1, deadline - Date.now()), options.source,
             ]) as IActiveRendererProbeList
             : {
-                rendererId: '',
+                rendererId: '', source,
                 sceneUrl: await this._queryCurrentSceneUrl(),
                 probes: this.listBakeableProbes(),
             };
@@ -277,6 +310,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                             rendererId: active.rendererId,
                             sceneUrl: active.sceneUrl,
                             componentUuid: probe.componentUuid,
+                            source: active.source,
                         }));
                     } catch (error) {
                         if (this._isBatchFatalError(error)) {
@@ -308,9 +342,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     await Rpc.getInstance().request('reflectionProbeRenderer', 'save', [
                         active.rendererId,
                         active.sceneUrl,
-                        Math.max(1, deadline - Date.now()),
+                        Math.max(1, deadline - Date.now()), active.source,
                     ]);
                 } else {
+                    if (source) { this.assertSceneIdentity(source); }
                     await Service.Editor.save({});
                     Service.Undo.markSaved();
                 }
@@ -350,15 +385,18 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
         const failures: IReflectionProbeClearFailure[] = [];
         const deletedAssetUrls: string[] = [];
+        const source = options.source ?? (remoteRenderer ? undefined : this._getSceneIdentity());
+        if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
         const sceneUrl = remoteRenderer ? '' : await this._queryCurrentSceneUrl();
         this._assertClearBeforeDeadline(deadline, 'scene update');
         const cleared = remoteRenderer
             ? await Rpc.getInstance().request('reflectionProbeRenderer', 'clearActive', [
                 options.saveScene !== false,
-                Math.max(1, deadline - Date.now()),
+                Math.max(1, deadline - Date.now()), source,
             ]) as IClearBakedCubemapsResult
             : await this.clearBakedCubemaps({
                 sceneUrl,
+                source,
                 saveScene: options.saveScene !== false,
                 timeoutMs: Math.max(1, deadline - Date.now()),
             });
@@ -458,6 +496,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             throw new Error('Reflection probe clear timeoutMs must be greater than zero.');
         }
         const deadline = Date.now() + timeoutMs;
+        if (options.source) { this.assertSceneIdentity(options.source); }
         await this._assertCurrentScene(options.sceneUrl);
         const state = this.listBakedProbes();
         if (!state.probes.length) {
@@ -488,6 +527,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
             await Service.Engine.repaintInEditMode();
             if (options.saveScene) {
+                if (options.source) { this.assertSceneIdentity(options.source); }
                 this._assertClearBeforeDeadline(deadline, 'scene save');
                 await Service.Editor.save({});
                 sceneSaved = true;
@@ -521,10 +561,13 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         nodePath: string,
         timeoutMs = DEFAULT_TIMEOUT_MS,
         componentUuid?: string,
+        source?: IReflectionProbeSceneIdentity,
     ): Promise<ICapturedFaces> {
         if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
             throw new Error('Reflection-probe pixels cannot be captured with the headless EmptyDevice.');
         }
+        const captureSource = source ?? this._getSceneIdentity();
+        this.assertSceneIdentity(captureSource);
         const located = componentUuid ? this._findProbeByUuid(componentUuid) : null;
         const node = located?.node ?? this._getNodeByExactPath(nodePath);
         if (!node) {
@@ -553,10 +596,12 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             throw new Error('No scene is currently open in the WebGL scene renderer.');
         }
         const sceneUrl = await this._queryCurrentSceneUrl();
+        this.assertSceneIdentity(captureSource);
         const captureToken = this._createCaptureToken(node, component);
         const deadline = Date.now() + timeoutMs;
         component.probe.captureCubemap();
         await this._waitForCapture(component.probe, deadline);
+        this.assertSceneIdentity(captureSource);
         if (this._createCaptureToken(node, component) !== captureToken) {
             throw new Error(`Reflection probe changed during cubemap capture: ${nodePath}`);
         }
@@ -591,10 +636,12 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             throw new Error('Reflection probe apply timeoutMs must be greater than zero.');
         }
         const deadline = Date.now() + timeoutMs;
+        if (options.source) { this.assertSceneIdentity(options.source); }
         await this._assertCurrentScene(options.sceneUrl);
         await syncSceneEditorBundles(options.serverURL);
         this._assertBeforeDeadline(deadline, 'TextureCube bundle refresh');
         const textureCube = await this._loadTextureCube(options.cubemapUuid, deadline, true);
+        if (options.source) { this.assertSceneIdentity(options.source); }
         await this._assertCurrentScene(options.sceneUrl);
 
         const located = this._findProbeByUuid(options.componentUuid);
@@ -620,6 +667,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             this._notifyCubemapChanged(node, component);
             await Service.Engine.repaintInEditMode();
             if (options.saveScene) {
+                if (options.source) { this.assertSceneIdentity(options.source); }
                 this._assertBeforeDeadline(deadline, 'scene save');
                 await Service.Editor.save({});
                 sceneSaved = true;
@@ -689,6 +737,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const session = (Service.Editor as any).getEditorSession?.();
         const tuple = (value: any, keys: string[]) => keys.map((key) => Number(value?.[key] ?? 0));
         return JSON.stringify({
+            runtime: this._runtimeId,
             editor: [session?.uuid ?? null, session?.generation ?? null],
             component: component.uuid,
             probeId: component.probe.getProbeId(),
