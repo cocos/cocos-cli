@@ -125,13 +125,13 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
 | 参数 | 范围 | CLI 默认值 |
 | --- | --- | --- |
 | `msaa` | 1、2、4、8 | 4 |
-| `resolution` | 128–8192，整数 | 1024 |
+| `resolution` | 128、256、512、1024、2048 | 1024 |
 | `filter` | boolean | `true` |
 | `highp` | boolean | `false` |
 | `giScale` | 0–100 | 1 |
 | `giSamples` | 1–65535，整数 | 25 |
-| `giPathLength` | 1–64，整数 | 4 |
-| `aoLevel` | 0–2，整数 | 0 |
+| `giPathLength` | 1、2、3、4 | 4 |
+| `aoLevel` | 0、1、2 | 0 |
 | `aoStrength` | ≥ 0 | 0.5 |
 | `aoRadius` | ≥ 0 | 1 |
 | `aoColor` | 3 个 RGB 值及可选 Alpha，单项 0–255 | `[136, 136, 136]` |

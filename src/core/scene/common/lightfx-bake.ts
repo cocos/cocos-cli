@@ -28,13 +28,13 @@ export interface ILightProbeBakeResult {
 
 export interface ILightmapBakeOptions {
     msaa?: 1 | 2 | 4 | 8;
-    resolution?: number;
+    resolution?: 128 | 256 | 512 | 1024 | 2048;
     filter?: boolean;
     highp?: boolean;
     giScale?: number;
     giSamples?: number;
-    giPathLength?: number;
-    aoLevel?: number;
+    giPathLength?: 1 | 2 | 3 | 4;
+    aoLevel?: 0 | 1 | 2;
     aoStrength?: number;
     aoRadius?: number;
     aoColor?: [number, number, number, number?];

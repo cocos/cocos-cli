@@ -25,12 +25,12 @@ export const SchemaLightProbeBakeResult = z.object({
 
 export const SchemaLightmapBakeOptions = z.object({
     msaa: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(8)]).optional(),
-    resolution: z.number().int().min(128).max(8192).optional(),
+    resolution: z.union([z.literal(128), z.literal(256), z.literal(512), z.literal(1024), z.literal(2048)]).optional(),
     filter: z.boolean().optional(), highp: z.boolean().optional(),
     giScale: z.number().finite().min(0).max(100).optional(),
     giSamples: z.number().int().min(1).max(65535).optional(),
-    giPathLength: z.number().int().min(1).max(64).optional(),
-    aoLevel: z.number().int().min(0).max(2).optional(),
+    giPathLength: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
+    aoLevel: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
     aoStrength: z.number().finite().min(0).optional(),
     aoRadius: z.number().finite().min(0).optional(),
     aoColor: z.tuple([z.number().min(0).max(255), z.number().min(0).max(255), z.number().min(0).max(255), z.number().min(0).max(255).optional()]).optional(),
