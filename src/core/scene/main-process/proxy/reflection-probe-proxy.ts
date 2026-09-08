@@ -10,6 +10,9 @@ import type {
 import { Rpc } from '../rpc';
 
 export const ReflectionProbeProxy: IPublicReflectionProbeService = {
+    getTaskState(source) {
+        return Rpc.getInstance().request('ReflectionProbe', 'getTaskState', [source]);
+    },
     getSceneIdentity() {
         return Rpc.getInstance().request('ReflectionProbe', 'getSceneIdentity', []);
     },

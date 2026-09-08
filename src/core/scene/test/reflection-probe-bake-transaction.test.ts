@@ -265,6 +265,26 @@ describe('ReflectionProbeService bake output transaction', () => {
         } finally { device.gfxAPI = 0; }
     });
 
+    it('exposes a detached task snapshot while baking and retains the final result', async () => {
+        let finish!: () => void;
+        const gate = new Promise<void>((resolve) => { finish = resolve; });
+        const normalRequest = mockRpcRequest.getMockImplementation()!;
+        mockRpcRequest.mockImplementation(async (...args: unknown[]) => {
+            if (args[0] === 'reflectionProbeBakeHost' && args[1] === 'prepare') { await gate; }
+            return normalRequest(...args);
+        });
+        const pending = service.bake({ nodePath: 'Probe' });
+        await Promise.resolve();
+        const snapshot = await service.getTaskState();
+        expect(snapshot).toMatchObject({ taskId: expect.any(String), status: 'baking', total: 1 });
+        snapshot.remaining.push({ componentUuid: 'fake', nodePath: 'fake' });
+        expect((await service.getTaskState()).remaining).toEqual([]);
+        await expect(service.clearAll()).rejects.toThrow('already in progress');
+        finish();
+        await pending;
+        expect(await service.getTaskState()).toMatchObject({ taskId: snapshot.taskId, status: 'completed', completed: 1, results: [{ componentUuid: CAPTURE_RESULT.componentUuid }] });
+    });
+
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;

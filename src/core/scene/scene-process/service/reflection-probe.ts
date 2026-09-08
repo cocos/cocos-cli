@@ -28,6 +28,7 @@ import type {
     IReflectionProbeEvents,
     IReflectionProbeService,
     IReflectionProbeSceneIdentity,
+    IReflectionProbeTaskState,
 } from '../../common';
 import { NodeEventType } from '../../common';
 import { BaseService, register, Service } from './core';
@@ -104,7 +105,24 @@ interface IGeneratedProbeAsset {
 
 @register('ReflectionProbe')
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
+    private _task: IReflectionProbeTaskState = this._idleTask();
     private _baking = false;
+
+    private _idleTask(): IReflectionProbeTaskState {
+        return { taskId: null, status: 'idle', remaining: [], total: 0, completed: 0, results: [], failures: [] };
+    }
+
+    public async getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState> {
+        if (source) {
+            this.assertSceneIdentity(source);
+            const owner = this._task.source;
+            if (!owner || owner.runtimeId !== source.runtimeId || owner.sceneUuid !== source.sceneUuid || owner.generation !== source.generation) {
+                return { ...this._idleTask(), source: { ...source } };
+            }
+        }
+        return structuredClone(this._task);
+    }
+
     private readonly _runtimeId = globalThis.crypto.randomUUID();
 
     public async getSceneIdentity(): Promise<IReflectionProbeSceneIdentity> {
@@ -129,15 +147,15 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
 
     public bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult> {
-        return this._runExclusive(() => this._bakeOne(options));
+        return this._runExclusive(() => this._bakeOne(options), 'baking', options.source);
     }
 
     public bakeAll(options: IReflectionProbeBakeAllOptions = {}): Promise<IReflectionProbeBakeAllResult> {
-        return this._runExclusive(() => this._bakeAll(options));
+        return this._runExclusive(() => this._bakeAll(options), 'baking', options.source);
     }
 
     public clearAll(options: IReflectionProbeClearOptions = {}): Promise<IReflectionProbeClearResult> {
-        return this._runExclusive(() => this._clearAll(options));
+        return this._runExclusive(() => this._clearAll(options), 'clearing', options.source);
     }
 
     private async _bakeOne(
@@ -155,6 +173,8 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
         const deadline = Date.now() + timeoutMs;
         const nodePath = options.nodePath.trim();
+        this._task.current = { nodePath, componentUuid: selection?.componentUuid ?? '' };
+        this._task.total = Math.max(1, this._task.total);
         this.broadcast('reflection-probe:bake-start', nodePath);
 
         try {
@@ -178,6 +198,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 fastBake,
             } = captured;
 
+            this._task.current = { nodePath, componentUuid };
             const prepared = await Rpc.getInstance().request(
                 'reflectionProbeBakeHost',
                 'prepare',
@@ -208,7 +229,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     operationId: prepared.operationId,
                 }]);
                 this.broadcast('reflection-probe:bake-end', nodePath);
-                return {
+                const result = {
                     nodePath,
                     componentUuid,
                     probeId,
@@ -216,6 +237,9 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     cubemapUrl: prepared.cubemapUrl,
                     fastBake,
                 };
+                this._task.results.push(result);
+                this._task.completed++;
+                return result;
             } catch (error) {
                 if (this._isUnknownRemoteApplyState(error)) {
                     // The Webview may still finish binding/saving after the acknowledgement transport
@@ -282,11 +306,16 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         }
 
         const results: IReflectionProbeBakeResult[] = [];
+        this._task.total = totalCount;
+        this._task.remaining = probes.slice();
         this.broadcast('reflection-probe:bake-all-start', totalCount);
         try {
             let completedCount = 0;
             for (const failure of failures) {
                 completedCount += 1;
+                this._task.completed = completedCount;
+                this._task.failures = failures.slice();
+                this._task.results = results.slice();
                 this.broadcast(
                     'reflection-probe:bake-all-progress',
                     completedCount,
@@ -296,6 +325,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 );
             }
             for (const probe of probes) {
+                this._task.remaining.shift();
                 let errorMessage: string | undefined;
                 const remaining = deadline - Date.now();
                 if (remaining <= 0) {
@@ -327,6 +357,9 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     });
                 }
                 completedCount += 1;
+                this._task.completed = completedCount;
+                this._task.failures = failures.slice();
+                this._task.results = results.slice();
                 this.broadcast(
                     'reflection-probe:bake-all-progress',
                     completedCount,
@@ -793,14 +826,27 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             || message.includes('is not displaying the requested scene');
     }
 
-    private async _runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    private async _runExclusive<T>(
+        operation: () => Promise<T>, status: 'baking' | 'clearing', source?: IReflectionProbeSceneIdentity,
+    ): Promise<T> {
         if (this._baking) {
-            throw new Error('A reflection probe bake is already in progress.');
+            throw new Error('A reflection probe bake or clear is already in progress.');
         }
+        const owner = source ?? (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN ? undefined : this._getSceneIdentity());
+        if (owner) { this.assertSceneIdentity(owner); }
         this._baking = true;
+        this._task = { ...this._idleTask(), taskId: globalThis.crypto.randomUUID(), source: owner, status };
         try {
-            return await operation();
+            const result = await operation();
+            this._task.status = this._task.failures.length ? 'failed' : 'completed';
+            return result;
+        } catch (error) {
+            this._task.status = 'failed';
+            this._task.error = this._errorMessage(error);
+            throw error;
         } finally {
+            this._task.current = undefined;
+            this._task.remaining = [];
             this._baking = false;
         }
     }

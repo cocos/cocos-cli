@@ -72,6 +72,19 @@ export interface IReflectionProbeClearResult {
     durationMs: number;
 }
 
+export interface IReflectionProbeTaskState {
+    taskId: string | null;
+    source?: IReflectionProbeSceneIdentity;
+    status: 'idle' | 'baking' | 'clearing' | 'completed' | 'failed' | 'cancelling' | 'cancelled';
+    current?: { nodePath: string; componentUuid: string };
+    remaining: Array<{ nodePath: string; componentUuid: string }>;
+    total: number;
+    completed: number;
+    results: IReflectionProbeBakeResult[];
+    failures: IReflectionProbeBakeFailure[];
+    error?: string;
+}
+
 export interface IReflectionProbeEvents {
     'reflection-probe:bake-start': [nodePath: string];
     'reflection-probe:bake-end': [nodePath: string, error?: string];
@@ -82,6 +95,7 @@ export interface IReflectionProbeEvents {
 
 export interface IReflectionProbeService extends IServiceEvents {
     getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
     clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;
