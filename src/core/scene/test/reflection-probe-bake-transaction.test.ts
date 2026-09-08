@@ -347,6 +347,8 @@ describe('ReflectionProbeService bake output transaction', () => {
         finish();
         await expect(pending).rejects.toThrow('cancelled');
         expect((await service.getTaskState()).status).toBe('cancelled');
+        expect((await service.getTaskState()).logs.some((entry: { level: string }) => entry.level === 'error')).toBe(false);
+        expect((await service.getTaskState()).logs.some((entry: { message: string }) => entry.message === 'Reflection probe cancelled: Probe')).toBe(true);
         expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeRenderer', 'apply', expect.anything());
     });
 

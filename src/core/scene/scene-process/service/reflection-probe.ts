@@ -387,7 +387,11 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            this._publish(`Reflection probe failed: ${nodePath}: ${message}`, 'error');
+            if (this._cancelRequested) {
+                this._publish(`Reflection probe cancelled: ${nodePath}`);
+            } else {
+                this._publish(`Reflection probe failed: ${nodePath}: ${message}`, 'error');
+            }
             this.broadcast('reflection-probe:bake-end', nodePath, message);
             throw error;
         }
