@@ -345,6 +345,27 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeRenderer', 'apply', expect.anything());
     });
 
+    it('accepts a batch immediately and appends distinct probes without replaying the current one', async () => {
+        let finish!: () => void;
+        const probes = [{ nodePath: 'A', componentUuid: 'a' }, { nodePath: 'B', componentUuid: 'b' }];
+        mockRpcRequest.mockResolvedValue({ rendererId: 'r', sceneUrl: 'db://assets/a.scene', probes });
+        service._bakeOne = jest.fn(async (_options: unknown, selected: { componentUuid: string }) => {
+            service._task.current = probes.find((probe) => probe.componentUuid === selected.componentUuid);
+            if (selected.componentUuid === 'a') { await new Promise<void>((resolve) => { finish = resolve; }); }
+            return { componentUuid: selected.componentUuid };
+        });
+        const accepted = await service.startBake({ componentUuids: ['a'], saveScene: false });
+        while (!finish) { await Promise.resolve(); }
+        const appended = await service.startBake({ componentUuids: ['b', 'b'], saveScene: false });
+        expect(appended).toMatchObject({ taskId: accepted.taskId, status: 'baking', total: 2, remaining: [{ componentUuid: 'b' }] });
+        await expect(service.startBake({ componentUuids: ['a'] })).rejects.toThrow('already baking or queued');
+        await expect(service.startBake({ componentUuids: ['b'] })).rejects.toThrow('already baking or queued');
+        finish();
+        while ((await service.getTaskState()).status === 'baking') { await Promise.resolve(); }
+        expect(service._bakeOne.mock.calls.map(([, selected]: [unknown, { componentUuid: string }]) => selected.componentUuid)).toEqual(['a', 'b']);
+        expect(await service.getTaskState()).toMatchObject({ taskId: accepted.taskId, status: 'completed', total: 2, completed: 2 });
+    });
+
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;

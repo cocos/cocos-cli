@@ -103,6 +103,7 @@ export interface IReflectionProbeEvents {
 
 export interface IReflectionProbeService extends IServiceEvents {
     getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState>;
     cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
     getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;

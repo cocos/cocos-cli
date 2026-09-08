@@ -109,6 +109,8 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     private _task: IReflectionProbeTaskState = this._idleTask();
     private _baking = false;
     private _cancelRequested = false;
+    private _batchProbes?: IReflectionProbeDescriptor[];
+    private _batchSelection?: IRemoteRendererSelection;
 
     private _idleTask(): IReflectionProbeTaskState {
         return { revision: 0, logs: [], taskId: null, status: 'idle', remaining: [], total: 0, completed: 0, results: [], failures: [] };
@@ -121,6 +123,62 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             if (this._task.logs.length > 2000) { this._task.logs.splice(0, this._task.logs.length - 2000); }
         }
         this.broadcast('reflection-probe:task-changed', structuredClone(this._task));
+    }
+
+    /** Accepts a task immediately; appends distinct selected probes to an active bake. */
+    public async startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState> {
+        options = structuredClone(options);
+        this._validateSelection(options);
+        if (gfx.deviceManager.gfxDevice.gfxAPI !== gfx.API.UNKNOWN) {
+            options.source ??= this._getSceneIdentity();
+            this.assertSceneIdentity(options.source);
+        }
+        if (!this._baking) {
+            // bakeAll owns errors and terminal state. Acceptance is separate from completion.
+            void this.bakeAll(options).catch(() => undefined);
+            return structuredClone(this._task);
+        }
+        if (this._task.status !== 'baking' || !this._batchProbes || !options.componentUuids) {
+            throw new Error('The reflection-probe task cannot accept additional probes right now.');
+        }
+        const task = this._task;
+        const remote = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+        const source = options.source ?? (remote ? task.source : this._getSceneIdentity());
+        if (!remote && source) { this.assertSceneIdentity(source); }
+        if (source?.runtimeId !== task.source?.runtimeId || source?.sceneUuid !== task.source?.sceneUuid || source?.generation !== task.source?.generation) {
+            throw new Error('Additional probes must belong to the same reflection-probe source scene.');
+        }
+        const active: IActiveRendererProbeList = remote
+            ? await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [30_000, source]) as IActiveRendererProbeList
+            : { rendererId: '', sceneUrl: await this._queryCurrentSceneUrl(), source, probes: this.listBakeableProbes() };
+        if (task !== this._task || this._task.status !== 'baking' || !this._batchProbes
+            || (this._batchSelection && (active.rendererId !== this._batchSelection.rendererId || active.sceneUrl !== this._batchSelection.sceneUrl))) {
+            throw new Error('The reflection-probe task changed before the additional probes could be queued.');
+        }
+        if (!remote && source) { this.assertSceneIdentity(source); }
+        const ids = new Set(options.componentUuids.map((uuid) => uuid.trim()));
+        const additions = active.probes.filter((probe) => ids.has(probe.componentUuid));
+        if (!additions.length) { throw new Error('No eligible reflection-probe components were selected.'); }
+        if (additions.some((probe) => task.current?.componentUuid === probe.componentUuid
+            || this._batchProbes!.some((queued) => queued.componentUuid === probe.componentUuid))) {
+            throw new Error('A selected reflection probe is already baking or queued.');
+        }
+        this._batchSelection ??= active;
+        this._batchProbes.push(...additions);
+        task.total += additions.length;
+        task.remaining = this._batchProbes.slice();
+        this._publish(`Queued ${additions.length} additional reflection probes.`);
+        return structuredClone(task);
+    }
+
+    private _validateSelection(options: IReflectionProbeBakeAllOptions): void {
+        if (options.componentUuids !== undefined && (
+            !Array.isArray(options.componentUuids) || !options.componentUuids.length
+            || options.componentUuids.some((uuid) => typeof uuid !== 'string' || !uuid.trim())
+            || options.nodePaths !== undefined
+        )) {
+            throw new Error('A non-empty componentUuids selection is required and cannot be combined with nodePaths.');
+        }
     }
 
     public async cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState> {
@@ -179,7 +237,26 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
 
     public bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult> {
-        return this._runExclusive(() => this._bakeOne(options), 'baking', options.source);
+        return this._runExclusive(async () => {
+            this._batchProbes = [];
+            const result = await this._bakeOne(options);
+            while (this._batchProbes.length && !this._cancelRequested) {
+                const probe = this._batchProbes.shift()!;
+                this._task.remaining = this._batchProbes.slice();
+                try {
+                    await this._bakeOne({ ...options, nodePath: probe.nodePath }, {
+                        rendererId: this._batchSelection?.rendererId ?? '',
+                        sceneUrl: this._batchSelection?.sceneUrl ?? '',
+                        source: this._task.source, componentUuid: probe.componentUuid,
+                    });
+                } catch (error) {
+                    if (this._cancelRequested || this._isBatchFatalError(error)) { throw error; }
+                    this._task.failures.push({ ...probe, reason: this._errorMessage(error) });
+                    this._task.completed++;
+                }
+            }
+            return result;
+        }, 'baking', options.source);
     }
 
     public bakeAll(options: IReflectionProbeBakeAllOptions = {}): Promise<IReflectionProbeBakeAllResult> {
@@ -300,13 +377,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     }
 
     private async _bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult> {
-        if (options.componentUuids !== undefined && (
-            !Array.isArray(options.componentUuids) || !options.componentUuids.length
-            || options.componentUuids.some((uuid) => typeof uuid !== 'string' || !uuid.trim())
-            || options.nodePaths !== undefined
-        )) {
-            throw new Error('A non-empty componentUuids selection is required and cannot be combined with nodePaths.');
-        }
+        this._validateSelection(options);
         const started = Date.now();
         const timeoutMs = options.timeoutMs ?? 600_000;
         if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -345,6 +416,9 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
         const results: IReflectionProbeBakeResult[] = [];
         this._task.total = totalCount;
+        this._batchProbes = probes;
+        this._batchSelection = active;
+        this._task.source ??= active.source;
         this._task.remaining = probes.slice();
         this._publish();
         this.broadcast('reflection-probe:bake-all-start', totalCount);
@@ -359,14 +433,15 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 this.broadcast(
                     'reflection-probe:bake-all-progress',
                     completedCount,
-                    totalCount,
+                    this._task.total,
                     failure.nodePath,
                     failure.reason,
                 );
             }
-            for (const probe of probes) {
+            while (probes.length) {
+                const probe = probes.shift()!;
                 if (this._cancelRequested) { break; }
-                this._task.remaining.shift();
+                this._task.remaining = probes.slice();
                 let errorMessage: string | undefined;
                 const remaining = deadline - Date.now();
                 if (remaining <= 0) {
@@ -406,12 +481,13 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 this.broadcast(
                     'reflection-probe:bake-all-progress',
                     completedCount,
-                    totalCount,
+                    this._task.total,
                     probe.nodePath,
                     errorMessage,
                 );
             }
 
+            this._batchProbes = undefined;
             if (results.length && options.saveScene !== false) {
                 this._assertBeforeDeadline(deadline, 'batch scene save');
                 if (remoteRenderer) {
@@ -430,7 +506,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             this.broadcast('reflection-probe:bake-all-end', results.length, failures.length);
             return {
                 sceneUrl: active.sceneUrl,
-                totalCount,
+                totalCount: this._task.total,
                 bakedCount: results.length,
                 failedCount: failures.length,
                 results,
@@ -897,6 +973,8 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             this._task.current = undefined;
             this._task.remaining = [];
             this._baking = false;
+            this._batchProbes = undefined;
+            this._batchSelection = undefined;
             this._publish(this._task.status === 'cancelled' ? 'Reflection-probe bake cancelled; cleanup finished.' : this._task.error ?? 'Reflection-probe operation finished.', this._task.status === 'failed' ? 'error' : 'info');
         }
     }
