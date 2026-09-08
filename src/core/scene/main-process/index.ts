@@ -17,6 +17,7 @@ import { sceneConfigInstance } from '../scene-configs';
 import i18n from '../../base/i18n';
 import { referenceImageFiles } from './reference-image-files';
 import { referenceImageStore } from './reference-image-store';
+import { reflectionProbeBakeHost } from './reflection-probe-bake-host';
 
 export interface IMainModule {
     'assetManager': typeof assetManager;
@@ -26,6 +27,7 @@ export interface IMainModule {
     'reflectionProbeRenderer': typeof reflectionProbeRenderer;
     'referenceImageFiles': typeof referenceImageFiles;
     'referenceImageStore': typeof referenceImageStore;
+    'reflectionProbeBakeHost': typeof reflectionProbeBakeHost;
 }
 
 export const Scene = {

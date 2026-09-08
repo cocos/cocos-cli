@@ -1,6 +1,5 @@
 'use strict';
 
-import { ChildProcess, spawn } from 'child_process';
 import {
     assert,
     assetManager,
@@ -12,18 +11,11 @@ import {
     TextureCube,
 } from 'cc';
 import { ReflectionProbeManager } from 'cc/editor/reflection-probe';
-import {
-    copy,
-    ensureDir,
-    existsSync,
-    outputJson,
-    pathExists,
-    readJson,
-    readdir,
-    move,
-    remove,
-} from 'fs-extra';
-import { basename, dirname, join } from 'path';
+import { basename } from 'path';
+import type {
+    IPreparedReflectionProbeBake,
+    IReflectionProbeCapturedFaces,
+} from '../../common/reflection-probe-host';
 import type {
     IReflectionProbeBakeAllOptions,
     IReflectionProbeBakeAllResult,
@@ -54,17 +46,7 @@ interface IAssetInfo {
     [key: string]: unknown;
 }
 
-interface ICapturedFaces {
-    sceneUrl: string;
-    sceneName: string;
-    componentUuid: string;
-    probeId: number;
-    resolution: number;
-    fastBake: boolean;
-    captureToken: string;
-    faces: string[];
-    rendererId?: string;
-}
+type ICapturedFaces = IReflectionProbeCapturedFaces;
 
 interface IApplyBakedCubemapOptions {
     sceneUrl: string;
@@ -75,11 +57,6 @@ interface IApplyBakedCubemapOptions {
     saveScene: boolean;
     timeoutMs: number;
     serverURL?: string;
-}
-
-interface IOutputTransaction {
-    commit(): Promise<void>;
-    rollback(): Promise<void>;
 }
 
 interface IReflectionProbeDescriptor {
@@ -123,7 +100,6 @@ interface IGeneratedProbeAsset {
 @register('ReflectionProbe')
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
     private _baking = false;
-    private _cmftProcess: ChildProcess | null = null;
 
     public bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult> {
         return this._runExclusive(() => this._bakeOne(options));
@@ -168,102 +144,65 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 : await this.capturePixels(nodePath, captureTimeoutMs, selection?.componentUuid), remoteRenderer);
             const {
                 sceneUrl,
-                sceneName,
                 componentUuid,
                 probeId,
-                resolution,
                 fastBake,
             } = captured;
 
-            const assetRoot = await Rpc.getInstance().request('assetManager', 'queryPath', ['db://assets']) as string | null;
-            if (!assetRoot) {
-                throw new Error('The db://assets directory is unavailable.');
-            }
-
-            const sceneDir = join(assetRoot, sceneName);
-            const backupRoot = join(assetRoot, '..', 'temp', 'reflection-probe-bake');
-            const workDir = join(backupRoot, `work-${process.pid}-${Date.now()}-${probeId}`);
-            await ensureDir(sceneDir);
-            await ensureDir(workDir);
+            const prepared = await Rpc.getInstance().request(
+                'reflectionProbeBakeHost',
+                'prepare',
+                [{ captured, timeoutMs: Math.max(1, deadline - Date.now()) }],
+            ) as IPreparedReflectionProbeBake;
             try {
-                await this._cleanupLegacyWorkingFiles(sceneDir, probeId);
-                const facePaths = await this._writeFaces(captured.faces, workDir, resolution, deadline);
-                const outputBase = join(sceneDir, `reflectionProbe_${probeId}`);
-                const outputPath = `${outputBase}.png`;
-                const outputUrl = `db://assets/${sceneName}/reflectionProbe_${probeId}.png`;
-                const textureCubeUrl = `${outputUrl}/textureCube`;
-                const stagedBase = join(workDir, `reflectionProbe_${probeId}`);
-                const stagedOutputPath = `${stagedBase}.png`;
-
-                await this._runCmft(facePaths, stagedBase, deadline);
-                await this._prepareMeta(stagedOutputPath, fastBake, outputPath);
-                const outputTransaction = await this._replaceOutput(
-                    stagedOutputPath,
-                    outputPath,
-                    backupRoot,
-                    fastBake,
-                );
-                try {
-                    this._assertBeforeDeadline(deadline, 'asset import');
-                    await Rpc.getInstance().request('assetManager', 'refreshAssetOnly', [outputUrl]);
-                    if (!fastBake) {
-                        await this._ensureConvolution(outputBase, outputUrl, deadline);
-                    }
-                    await this._waitForTextureCubeImport(outputPath, fastBake, deadline);
-                    const cubeInfo = await this._waitForTextureCube(textureCubeUrl, deadline);
-                    const applyOptions: IApplyBakedCubemapOptions = {
-                        sceneUrl,
-                        nodePath,
-                        componentUuid,
-                        cubemapUuid: cubeInfo.uuid,
-                        captureToken: captured.captureToken,
-                        saveScene: options.saveScene !== false,
-                        timeoutMs: Math.max(1, deadline - Date.now()),
-                    };
-                    if (remoteRenderer) {
-                        await Rpc.getInstance().request('reflectionProbeRenderer', 'apply', [
-                            captured.rendererId!,
-                            applyOptions,
-                            applyOptions.timeoutMs,
-                        ]);
-                    } else {
-                        await this.applyBakedCubemap(applyOptions);
-                    }
-                    await outputTransaction.commit();
-                    this.broadcast('reflection-probe:bake-end', nodePath);
-                    return {
-                        nodePath,
-                        componentUuid,
-                        probeId,
-                        cubemapUuid: cubeInfo.uuid,
-                        cubemapUrl: cubeInfo.url,
-                        fastBake,
-                    };
-                } catch (error) {
-                    if (this._isUnknownRemoteApplyState(error)) {
-                        // The Webview may still finish binding/saving after the
-                        // acknowledgement transport times out. Keep the valid
-                        // imported asset so a late save cannot reference a
-                        // rolled-back or missing TextureCube.
-                        await outputTransaction.commit();
-                    } else {
-                        await outputTransaction.rollback();
-                        await Rpc.getInstance().request('assetManager', 'refreshAssetOnly', [outputUrl]).catch(() => undefined);
-                    }
-                    throw error;
+                const applyOptions: IApplyBakedCubemapOptions = {
+                    sceneUrl,
+                    nodePath,
+                    componentUuid,
+                    cubemapUuid: prepared.cubemapUuid,
+                    captureToken: captured.captureToken,
+                    saveScene: options.saveScene !== false,
+                    timeoutMs: Math.max(1, deadline - Date.now()),
+                };
+                if (remoteRenderer) {
+                    await Rpc.getInstance().request('reflectionProbeRenderer', 'apply', [
+                        captured.rendererId!,
+                        applyOptions,
+                        applyOptions.timeoutMs,
+                    ]);
+                } else {
+                    await this.applyBakedCubemap(applyOptions);
                 }
-            } finally {
-                await this._removeWithRetry(workDir);
+                await Rpc.getInstance().request('reflectionProbeBakeHost', 'commit', [{
+                    operationId: prepared.operationId,
+                }]);
+                this.broadcast('reflection-probe:bake-end', nodePath);
+                return {
+                    nodePath,
+                    componentUuid,
+                    probeId,
+                    cubemapUuid: prepared.cubemapUuid,
+                    cubemapUrl: prepared.cubemapUrl,
+                    fastBake,
+                };
+            } catch (error) {
+                if (this._isUnknownRemoteApplyState(error)) {
+                    // The Webview may still finish binding/saving after the acknowledgement transport
+                    // times out. Keep the imported asset so a late save cannot reference a missing cube.
+                    await Rpc.getInstance().request('reflectionProbeBakeHost', 'commit', [{
+                        operationId: prepared.operationId,
+                    }]);
+                } else {
+                    await Rpc.getInstance().request('reflectionProbeBakeHost', 'rollback', [{
+                        operationId: prepared.operationId,
+                    }]);
+                }
+                throw error;
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             this.broadcast('reflection-probe:bake-end', nodePath, message);
             throw error;
-        } finally {
-            if (this._cmftProcess) {
-                this._cmftProcess.kill();
-                this._cmftProcess = null;
-            }
         }
     }
 
@@ -801,10 +740,6 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         try {
             return await operation();
         } finally {
-            if (this._cmftProcess) {
-                this._cmftProcess.kill();
-                this._cmftProcess = null;
-            }
             this._baking = false;
         }
     }
@@ -913,51 +848,6 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         });
     }
 
-    private async _writeFaces(
-        faces: string[],
-        workDir: string,
-        resolution: number,
-        deadline: number,
-    ): Promise<string[]> {
-        const result: string[] = [];
-        try {
-            // Keep sharp out of the browser service initialization path. Its
-            // libvips bootstrap is Node-only and crashes the WebGL scene client.
-            const sharp = (await import('sharp')).default;
-            const decodedFaces = faces.map((face, index) => {
-                const data = Buffer.from(face, 'base64');
-                if (data.length !== resolution * resolution * 4) {
-                    throw new Error(`Reflection probe face ${FACE_NAMES[index]} has an invalid byte length.`);
-                }
-                return data;
-            });
-            const hasAnyColor = decodedFaces.some((data) => {
-                for (let offset = 0; offset < data.length; offset += 4) {
-                    if (data[offset] !== 0 || data[offset + 1] !== 0 || data[offset + 2] !== 0) {
-                        return true;
-                    }
-                }
-                return false;
-            });
-            if (!hasAnyColor) {
-                throw new Error('All reflection probe faces are empty; refusing to overwrite the existing bake.');
-            }
-            for (let i = 0; i < FACE_NAMES.length; i++) {
-                this._assertBeforeDeadline(deadline, 'render texture readback');
-                const data = decodedFaces[i];
-                const facePath = join(workDir, `${FACE_NAMES[i]}.png`);
-                result.push(facePath);
-                await sharp(data, {
-                    raw: { width: resolution, height: resolution, channels: 4 },
-                }).png().toFile(facePath);
-            }
-            return result;
-        } catch (error) {
-            await Promise.all(result.map(async (path) => remove(path).catch(() => undefined)));
-            throw error;
-        }
-    }
-
     private _readPixels(texture: any): Uint8Array {
         const gfxTexture = texture?.getGFXTexture?.();
         if (!gfxTexture) {
@@ -991,170 +881,6 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         return btoa(binary);
     }
 
-    private async _runCmft(facePaths: string[], outputBase: string, deadline: number): Promise<void> {
-        const executable = this._resolveCmftExecutable();
-        const args = [
-            '--rgbm',
-            '--bypassoutputtype',
-            '--output0params', 'png,rgbm,latlong',
-            '--inputFacePosX', facePaths[0],
-            '--inputFaceNegX', facePaths[1],
-            '--inputFacePosY', facePaths[2],
-            '--inputFaceNegY', facePaths[3],
-            '--inputFacePosZ', facePaths[4],
-            '--inputFaceNegZ', facePaths[5],
-            '--output0', outputBase,
-        ];
-        const remaining = deadline - Date.now();
-        if (remaining <= 0) {
-            throw new Error('Reflection probe bake timed out before cmft started.');
-        }
-
-        await new Promise<void>((resolve, reject) => {
-            const child = this._cmftProcess = spawn(executable, args, { windowsHide: true });
-            let stderr = '';
-            child.stderr?.on('data', (data) => { stderr += String(data); });
-            const timer = setTimeout(() => {
-                child.kill();
-                reject(new Error('Reflection probe bake timed out while running cmft.'));
-            }, remaining);
-            child.once('error', (error) => {
-                clearTimeout(timer);
-                reject(new Error(`Failed to start cmft: ${error.message}`));
-            });
-            child.once('close', (code) => {
-                clearTimeout(timer);
-                this._cmftProcess = null;
-                if (code !== 0) {
-                    reject(new Error(`cmft exited with code ${code}${stderr ? `: ${stderr.trim()}` : ''}`));
-                } else {
-                    resolve();
-                }
-            });
-        });
-
-        if (!await pathExists(`${outputBase}.png`)) {
-            throw new Error(`cmft did not create the expected output: ${outputBase}.png`);
-        }
-    }
-
-    private _resolveCmftExecutable(): string {
-        const suffix = process.platform === 'win32' ? '.exe' : '';
-        // This service is also bundled for the browser WebGL renderer. Resolve
-        // the Node-only static path lazily so browser module initialization does
-        // not import GlobalPaths (which relies on __dirname).
-        const staticDir = join(__dirname, '../../../../../static');
-        const candidates = [
-            join(staticDir, `tools/cmft/cmftRelease64${suffix}`),
-            join(staticDir, `tools/cmft/cmft${suffix}`),
-        ];
-        const executable = candidates.find(existsSync);
-        if (!executable) {
-            throw new Error(`cmft executable was not found (checked ${candidates.join(', ')}).`);
-        }
-        return executable;
-    }
-
-    private async _prepareMeta(outputPath: string, fastBake: boolean, previousOutputPath?: string): Promise<void> {
-        const metaPath = `${outputPath}.meta`;
-        let meta: any = {};
-        const previousMetaPath = previousOutputPath ? `${previousOutputPath}.meta` : metaPath;
-        if (await pathExists(previousMetaPath)) {
-            meta = await readJson(previousMetaPath);
-        }
-        meta.ver ??= '0.0.0';
-        meta.importer ??= '*';
-        meta.imported = false;
-        meta.userData ??= {};
-        meta.userData.type = 'texture cube';
-        meta.userData.isRGBE = true;
-        meta.subMetas ??= {};
-        meta.subMetas.b47c0 ??= {};
-        meta.subMetas.b47c0.imported = false;
-        meta.subMetas.b47c0.userData ??= {};
-        meta.subMetas.b47c0.userData.mipBakeMode = fastBake ? 1 : 2;
-        for (const child of Object.values(meta.subMetas.b47c0.subMetas ?? {}) as any[]) {
-            child.imported = false;
-        }
-        await outputJson(metaPath, meta, { spaces: 2 });
-    }
-
-    private async _replaceOutput(
-        stagedOutputPath: string,
-        outputPath: string,
-        backupRoot: string,
-        fastBake: boolean,
-    ): Promise<IOutputTransaction> {
-        await this._cleanupLegacyBackupMetas(outputPath);
-        const backupDir = join(backupRoot, `${process.pid}-${Date.now()}`);
-        await ensureDir(backupDir);
-        const outputBase = outputPath.slice(0, -4);
-        const targets = [outputPath, `${outputPath}.meta`, `${outputBase}_convolution`];
-        const backups = targets.map((_target, index) => join(backupDir, String(index)));
-        const savedBackups: Array<{ target: string; backup: string }> = [];
-
-        const restore = async () => {
-            await Promise.all(targets.map(async (target) => remove(target).catch(() => undefined)));
-            for (const { target, backup } of savedBackups) {
-                if (await pathExists(backup)) {
-                    await copy(backup, target, { overwrite: true });
-                }
-            }
-            await remove(backupDir).catch(() => undefined);
-        };
-
-        try {
-            for (let i = 0; i < targets.length; i++) {
-                if (await pathExists(targets[i])) {
-                    await copy(targets[i], backups[i], { overwrite: false });
-                    savedBackups.push({ target: targets[i], backup: backups[i] });
-                }
-            }
-            if (fastBake) {
-                await remove(`${outputBase}_convolution`).catch(() => undefined);
-            } else {
-                // Preserve AssetDB-generated meta files and their UUIDs while
-                // invalidating only the six stale convolution images.
-                await Promise.all(FACE_NAMES.map(async (_face, index) => (
-                    remove(join(`${outputBase}_convolution`, `mipmap_${index}.png`)).catch(() => undefined)
-                )));
-            }
-            await move(stagedOutputPath, outputPath, { overwrite: true });
-            await move(`${stagedOutputPath}.meta`, `${outputPath}.meta`, { overwrite: true });
-        } catch (error) {
-            await restore();
-            throw error;
-        }
-
-        return {
-            commit: async () => {
-                await remove(backupDir).catch(() => undefined);
-            },
-            rollback: restore,
-        };
-    }
-
-    private async _cleanupLegacyBackupMetas(outputPath: string): Promise<void> {
-        const prefix = `${basename(outputPath)}.bake-backup-`;
-        const entries = await readdir(dirname(outputPath)).catch(() => []);
-        await Promise.all(entries
-            .filter((entry) => entry.startsWith(prefix) && entry.endsWith('.meta'))
-            .map(async (entry) => this._removeWithRetry(join(dirname(outputPath), entry))));
-    }
-
-    private async _cleanupLegacyWorkingFiles(sceneDir: string, probeId: number): Promise<void> {
-        const prefix = `.reflection-probe-${probeId}-`;
-        const entries = await readdir(sceneDir).catch(() => []);
-        await Promise.all(entries.filter((entry) => {
-            if (!entry.startsWith(prefix)) {
-                return false;
-            }
-            const suffix = entry.slice(prefix.length);
-            return FACE_NAMES.some((face) => suffix === `${face}.png` || suffix === `${face}.png.meta`)
-                || /^\d+\.png(?:\.meta)?$/.test(suffix);
-        }).map(async (entry) => this._removeWithRetry(join(sceneDir, entry))));
-    }
-
     private _notifyCubemapChanged(node: any, component: ReflectionProbe): void {
         ReflectionProbeManager.probeManager.updateBakedCubemap(component.probe);
         ReflectionProbeManager.probeManager.updatePreviewSphere(component.probe);
@@ -1162,68 +888,6 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             type: NodeEventType.SET_PROPERTY,
             propPath: `_components.${node.components.indexOf(component)}._cubemap`,
         });
-    }
-
-    private async _ensureConvolution(outputBase: string, outputUrl: string, deadline: number): Promise<void> {
-        const convolutionDir = `${outputBase}_convolution`;
-        if (!await this._hasCompleteConvolution(convolutionDir)) {
-            // A brand-new PNG is imported in two stages: the image importer
-            // first creates the TextureCube subasset, then erp-texture-cube can
-            // run its convolution importer on the following refresh.
-            this._assertBeforeDeadline(deadline, 'texture cube convolution');
-            await this._prepareMeta(`${outputBase}.png`, false);
-            await Rpc.getInstance().request('assetManager', 'refreshAssetOnly', [outputUrl]);
-        }
-        while (Date.now() < deadline) {
-            if (await this._hasCompleteConvolution(convolutionDir)) {
-                return;
-            }
-            await this._delay(Math.min(POLL_INTERVAL_MS, Math.max(1, deadline - Date.now())));
-        }
-        throw new Error(`TextureCube convolution mipmaps were not generated before timeout: ${outputUrl}`);
-    }
-
-    private async _hasCompleteConvolution(convolutionDir: string): Promise<boolean> {
-        return (await Promise.all(FACE_NAMES.map((_face, index) => (
-            pathExists(join(convolutionDir, `mipmap_${index}.png`))
-        )))).every(Boolean);
-    }
-
-    private async _waitForTextureCubeImport(
-        outputPath: string,
-        fastBake: boolean,
-        deadline: number,
-    ): Promise<void> {
-        const metaPath = `${outputPath}.meta`;
-        while (Date.now() < deadline) {
-            try {
-                const meta = await readJson(metaPath);
-                if (isReflectionProbeTextureCubeImported(meta, fastBake ? 1 : 2)) {
-                    return;
-                }
-            } catch {
-                // AssetDB may be replacing the meta file while an import is in progress.
-            }
-            await this._delay(Math.min(POLL_INTERVAL_MS, Math.max(1, deadline - Date.now())));
-        }
-        throw new Error(`TextureCube and its six faces were not fully imported before timeout: ${metaPath}`);
-    }
-
-    private async _waitForTextureCube(url: string, deadline: number): Promise<IAssetInfo> {
-        let lastError: unknown;
-        while (Date.now() < deadline) {
-            try {
-                const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [url]) as IAssetInfo | null;
-                if (info?.uuid) {
-                    return info;
-                }
-            } catch (error) {
-                lastError = error;
-            }
-            await this._delay(Math.min(POLL_INTERVAL_MS, Math.max(1, deadline - Date.now())));
-        }
-        const detail = lastError instanceof Error ? ` Last error: ${lastError.message}` : '';
-        throw new Error(`TextureCube subasset was not imported before timeout: ${url}.${detail}`);
     }
 
     private async _loadTextureCube(uuid: string, deadline: number, reloadAsset = false): Promise<TextureCube> {
@@ -1275,16 +939,4 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    private async _removeWithRetry(path: string): Promise<void> {
-        for (let attempt = 0; attempt < 3; attempt++) {
-            try {
-                await remove(path);
-                return;
-            } catch {
-                if (attempt < 2) {
-                    await this._delay(50 * (attempt + 1));
-                }
-            }
-        }
-    }
 }

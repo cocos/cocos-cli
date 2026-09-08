@@ -2,11 +2,8 @@ import {
     ensureDir,
     mkdtemp,
     outputFile,
-    outputJson,
     pathExists,
     readFile,
-    readJson,
-    readdir,
     remove,
 } from 'fs-extra';
 import { tmpdir } from 'os';
@@ -14,6 +11,13 @@ import { join } from 'path';
 
 const mockRpcRequest = jest.fn();
 const mockGetScene = jest.fn();
+const mockHostAssetManager = {
+    queryPath: jest.fn(),
+    refreshAssetOnly: jest.fn(),
+    queryAssetInfo: jest.fn(),
+};
+
+jest.mock('../../assets', () => ({ assetManager: mockHostAssetManager }));
 
 jest.mock('cc', () => ({
     assert: (condition: unknown, message: string) => {
@@ -66,6 +70,7 @@ jest.mock('../scene-process/service/preview/asset-reload', () => ({
 
 import { ReflectionProbeService } from '../scene-process/service/reflection-probe';
 import { isReflectionProbeTextureCubeImported } from '../scene-process/service/reflection-probe-import-state';
+import { ReflectionProbeBakeHost } from '../main-process/reflection-probe-bake-host';
 
 const FACE_NAMES = ['px', 'nx', 'py', 'ny', 'pz', 'nz'];
 const IMPORTED_FACE_NAMES = ['right', 'left', 'top', 'bottom', 'front', 'back'];
@@ -101,11 +106,6 @@ function importedMeta(mipBakeMode = 2) {
     };
 }
 
-interface ITransactionSpies {
-    commit: jest.Mock<Promise<void>, []>;
-    rollback: jest.Mock<Promise<void>, []>;
-}
-
 describe('reflection probe TextureCube import state', () => {
     it('requires the root, TextureCube and all six faces to finish importing', () => {
         const rootPending = importedMeta();
@@ -132,35 +132,78 @@ describe('reflection probe TextureCube import state', () => {
     });
 });
 
-describe('ReflectionProbeService bake output transaction', () => {
+describe('ReflectionProbeBakeHost output ownership', () => {
     let tempRoot: string;
     let assetRoot: string;
-    let sceneDir: string;
-    let backupRoot: string;
-    let workDir: string;
-    let applyError: Error | undefined;
-    let service: any;
-    let transaction: ITransactionSpies | undefined;
+    let outputPath: string;
+    let host: any;
 
     beforeEach(async () => {
-        mockGetScene.mockReset().mockReturnValue(null);
-        tempRoot = await mkdtemp(join(tmpdir(), 'cocos-cli-reflection-probe-bake-'));
+        tempRoot = await mkdtemp(join(tmpdir(), 'cocos-cli-reflection-probe-host-'));
         assetRoot = join(tempRoot, 'assets');
-        sceneDir = join(assetRoot, SCENE_NAME);
-        backupRoot = join(tempRoot, 'temp', 'reflection-probe-bake');
-        workDir = '';
+        outputPath = join(assetRoot, SCENE_NAME, OUTPUT_NAME);
+        await ensureDir(join(assetRoot, SCENE_NAME));
+        await outputFile(outputPath, 'old-output');
+        await outputFile(`${outputPath}.meta`, '{}');
+        mockHostAssetManager.queryPath.mockReset().mockReturnValue(assetRoot);
+        mockHostAssetManager.refreshAssetOnly.mockReset().mockResolvedValue(1);
+        mockHostAssetManager.queryAssetInfo.mockReset().mockReturnValue({
+            uuid: 'cubemap-uuid',
+            url: `${OUTPUT_URL}/textureCube`,
+        });
+        host = new ReflectionProbeBakeHost();
+        host.writeFaces = jest.fn(async () => FACE_NAMES.map((face) => `${face}.png`));
+        host.runCmft = jest.fn(async (_faces: string[], stagedBase: string) => {
+            await outputFile(`${stagedBase}.png`, 'new-output');
+        });
+        host.waitForTextureCubeImport = jest.fn(async () => undefined);
+    });
+
+    afterEach(async () => {
+        await host.dispose();
+        await remove(tempRoot);
+    });
+
+    it('rolls back staged output when the Scene runtime cannot apply it', async () => {
+        const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 10_000 });
+        await expect(readFile(outputPath, 'utf8')).resolves.toBe('new-output');
+
+        await host.rollback({ operationId: prepared.operationId });
+
+        await expect(readFile(outputPath, 'utf8')).resolves.toBe('old-output');
+        expect(mockHostAssetManager.refreshAssetOnly).toHaveBeenCalledWith(OUTPUT_URL);
+    });
+
+    it('keeps staged output only after the Scene runtime commits it', async () => {
+        const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 10_000 });
+
+        await host.commit({ operationId: prepared.operationId });
+
+        await expect(readFile(outputPath, 'utf8')).resolves.toBe('new-output');
+        await expect(pathExists(join(tempRoot, 'temp', 'reflection-probe-bake'))).resolves.toBe(true);
+    });
+});
+
+describe('ReflectionProbeService bake output transaction', () => {
+    let applyError: Error | undefined;
+    let service: any;
+
+    beforeEach(() => {
+        mockGetScene.mockReset().mockReturnValue(null);
         applyError = undefined;
-        transaction = undefined;
-        await ensureDir(assetRoot);
 
         mockRpcRequest.mockReset().mockImplementation(async (serviceName: string, method: string) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') {
                 return CAPTURE_RESULT;
             }
-            if (serviceName === 'assetManager' && method === 'queryPath') {
-                return assetRoot;
+            if (serviceName === 'reflectionProbeBakeHost' && method === 'prepare') {
+                return {
+                    operationId: 'operation-1',
+                    cubemapUuid: 'cubemap-uuid',
+                    cubemapUrl: `${OUTPUT_URL}/textureCube`,
+                };
             }
-            if (serviceName === 'assetManager' && method === 'refreshAssetOnly') {
+            if (serviceName === 'reflectionProbeBakeHost' && (method === 'commit' || method === 'rollback')) {
                 return undefined;
             }
             if (serviceName === 'reflectionProbeRenderer' && method === 'apply') {
@@ -174,92 +217,36 @@ describe('ReflectionProbeService bake output transaction', () => {
 
         service = new ReflectionProbeService();
         jest.spyOn(service, 'broadcast').mockImplementation(() => undefined);
-        service._writeFaces = jest.fn(async (_faces: string[], directory: string) => {
-            workDir = directory;
-            await outputFile(join(directory, 'work-marker'), 'temporary');
-            return FACE_NAMES.map((face) => join(directory, `${face}.png`));
-        });
-        service._runCmft = jest.fn(async (_facePaths: string[], outputBase: string) => {
-            await outputFile(`${outputBase}.png`, 'new-output');
-        });
-        service._waitForTextureCubeImport = jest.fn(async () => undefined);
-        service._waitForTextureCube = jest.fn(async () => ({
-            uuid: 'cubemap-uuid',
-            url: `${OUTPUT_URL}/textureCube`,
-        }));
-
-        const replaceOutput = service._replaceOutput.bind(service);
-        service._replaceOutput = jest.fn(async (...args: unknown[]) => {
-            const outputTransaction = await replaceOutput(...args);
-            transaction = {
-                commit: jest.fn(async () => outputTransaction.commit()),
-                rollback: jest.fn(async () => outputTransaction.rollback()),
-            };
-            return transaction;
-        });
     });
 
-    afterEach(async () => {
+    afterEach(() => {
         jest.restoreAllMocks();
-        await remove(tempRoot);
     });
 
-    async function preparePreviousOutput(): Promise<{
-        outputPath: string;
-        oldMeta: Record<string, unknown>;
-        convolutionPath: string;
-    }> {
-        const outputPath = join(sceneDir, OUTPUT_NAME);
-        const convolutionPath = join(sceneDir, 'reflectionProbe_0_convolution', 'mipmap_0.png');
-        const oldMeta = {
-            ver: '1.0.0',
-            importer: 'image',
-            imported: true,
-            userData: { marker: 'old-meta' },
-        };
-        await ensureDir(join(convolutionPath, '..'));
-        await outputFile(outputPath, 'old-output');
-        await outputJson(`${outputPath}.meta`, oldMeta, { spaces: 2 });
-        await outputFile(convolutionPath, 'old-convolution');
-        return { outputPath, oldMeta, convolutionPath };
-    }
-
-    function refreshCalls(): unknown[][] {
-        return mockRpcRequest.mock.calls.filter(([serviceName, method]) => (
-            serviceName === 'assetManager' && method === 'refreshAssetOnly'
-        ));
-    }
-
-    it('removes the work directory when cmft fails before the output transaction starts', async () => {
-        service._runCmft.mockRejectedValueOnce(new Error('cmft failed'));
+    it('propagates a Node host preparation failure without finalizing a transaction', async () => {
+        mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
+            if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;
+            if (serviceName === 'reflectionProbeBakeHost' && method === 'prepare') throw new Error('cmft failed');
+            throw new Error(`Unexpected RPC request: ${serviceName}.${method}`);
+        });
 
         await expect(service.bake({ nodePath: 'Reflection Probe' })).rejects.toThrow('cmft failed');
-
-        expect(workDir).not.toBe('');
-        await expect(pathExists(workDir)).resolves.toBe(false);
-        expect(service._replaceOutput).not.toHaveBeenCalled();
-        await expect(readdir(backupRoot)).resolves.toEqual([]);
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeBakeHost', 'commit', expect.anything());
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeBakeHost', 'rollback', expect.anything());
     });
 
     it('rolls back the previous output when the renderer explicitly rejects apply', async () => {
-        const { outputPath, oldMeta, convolutionPath } = await preparePreviousOutput();
         applyError = new Error('scene changed during bake');
 
         await expect(service.bake({ nodePath: 'Reflection Probe' }))
             .rejects.toThrow('scene changed during bake');
-
-        expect(transaction?.rollback).toHaveBeenCalledTimes(1);
-        expect(transaction?.commit).not.toHaveBeenCalled();
-        await expect(readFile(outputPath, 'utf8')).resolves.toBe('old-output');
-        await expect(readJson(`${outputPath}.meta`)).resolves.toEqual(oldMeta);
-        await expect(readFile(convolutionPath, 'utf8')).resolves.toBe('old-convolution');
-        await expect(pathExists(workDir)).resolves.toBe(false);
-        await expect(readdir(backupRoot)).resolves.toEqual([]);
-        expect(refreshCalls()).toHaveLength(2);
+        expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeBakeHost', 'rollback', [{
+            operationId: 'operation-1',
+        }]);
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeBakeHost', 'commit', expect.anything());
     });
 
     it('commits the new output when apply acknowledgement times out with unknown final state', async () => {
-        const { outputPath, oldMeta, convolutionPath } = await preparePreviousOutput();
         applyError = new Error(
             'The reflection-probe apply acknowledgement timed out; '
             + 'the final WebGL apply state is unknown. (operation has timed out)',
@@ -267,28 +254,10 @@ describe('ReflectionProbeService bake output transaction', () => {
 
         await expect(service.bake({ nodePath: 'Reflection Probe' }))
             .rejects.toThrow('final WebGL apply state is unknown');
-
-        expect(transaction?.commit).toHaveBeenCalledTimes(1);
-        expect(transaction?.rollback).not.toHaveBeenCalled();
-        await expect(readFile(outputPath, 'utf8')).resolves.toBe('new-output');
-        await expect(readJson(`${outputPath}.meta`)).resolves.toEqual(expect.objectContaining({
-            imported: false,
-            userData: expect.objectContaining({
-                marker: (oldMeta.userData as { marker: string }).marker,
-                type: 'texture cube',
-                isRGBE: true,
-            }),
-            subMetas: expect.objectContaining({
-                b47c0: expect.objectContaining({
-                    imported: false,
-                    userData: expect.objectContaining({ mipBakeMode: 1 }),
-                }),
-            }),
-        }));
-        await expect(pathExists(convolutionPath)).resolves.toBe(false);
-        await expect(pathExists(workDir)).resolves.toBe(false);
-        await expect(readdir(backupRoot)).resolves.toEqual([]);
-        expect(refreshCalls()).toHaveLength(1);
+        expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeBakeHost', 'commit', [{
+            operationId: 'operation-1',
+        }]);
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeBakeHost', 'rollback', expect.anything());
     });
 
     it('bakes a probe batch serially on one renderer and saves successful results once', async () => {
