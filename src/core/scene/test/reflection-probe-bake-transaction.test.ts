@@ -495,6 +495,23 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(service._bakeOne).toHaveBeenCalledTimes(1);
     });
 
+    it('shares clearing state across all entry points and releases it after failure', async () => {
+        let fail!: (error: Error) => void;
+        service._clearAll = jest.fn(() => new Promise((_resolve, reject) => { fail = reject; }));
+        const pending = service.clearAll();
+        const snapshot = await service.getTaskState();
+        expect(snapshot.status).toBe('clearing');
+        await expect(service.bake({ nodePath: 'Probe' })).rejects.toThrow('already in progress');
+        await expect(service.startBake({ componentUuids: ['a'] })).rejects.toThrow('cannot accept');
+        await expect(service.clearAll()).rejects.toThrow('already in progress');
+        await expect(service.cancelBake({ taskId: snapshot.taskId })).rejects.toThrow('cannot be cancelled');
+        expect((await service.getTaskState()).taskId).toBe(snapshot.taskId);
+        fail(new Error('asset save failed'));
+        await expect(pending).rejects.toThrow('asset save failed');
+        expect(await service.getTaskState()).toMatchObject({ status: 'failed', error: 'asset save failed' });
+        await expect(service.bake({ nodePath: 'Probe' })).resolves.toMatchObject({ componentUuid: CAPTURE_RESULT.componentUuid });
+    });
+
     it('clears all bindings before deleting only conventionally generated probe assets', async () => {
         const sceneUrl = `db://assets/${SCENE_NAME}.scene`;
         const convolutionUrl = `db://assets/${SCENE_NAME}/reflectionProbe_0_convolution`;

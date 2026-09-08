@@ -576,6 +576,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
         }
 
+        if (failures.length) { this._task.error = `${failures.length} generated reflection-probe assets could not be deleted.`; }
         this._task.total = cleared.probes.length;
         this._task.completed = cleared.clearedCount;
         for (const failure of failures) { this._publish(`Clear failed: ${failure.assetUrl}: ${failure.reason}`, 'error'); }
@@ -963,7 +964,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         this._publish(status === 'clearing' ? 'Clearing reflection-probe bake data.' : 'Reflection-probe bake started.');
         try {
             const result = await operation();
-            this._task.status = this._cancelRequested ? 'cancelled' : this._task.failures.length ? 'failed' : 'completed';
+            this._task.status = this._cancelRequested ? 'cancelled' : (this._task.failures.length || this._task.error) ? 'failed' : 'completed';
             return result;
         } catch (error) {
             this._task.status = this._cancelRequested ? 'cancelled' : 'failed';
