@@ -360,6 +360,7 @@ describe('ReflectionProbeService bake output transaction', () => {
             return { componentUuid: selected.componentUuid };
         });
         const accepted = await service.startBake({ componentUuids: ['a'], saveScene: false });
+        expect([accepted.current, ...accepted.remaining].some((probe) => probe?.componentUuid === 'a')).toBe(true);
         while (!finish) { await Promise.resolve(); }
         const appended = await service.startBake({ componentUuids: ['b', 'b'], saveScene: false });
         expect(appended).toMatchObject({ taskId: accepted.taskId, status: 'baking', total: 2, remaining: [{ componentUuid: 'b' }] });

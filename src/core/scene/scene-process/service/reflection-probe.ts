@@ -111,6 +111,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     private _task: IReflectionProbeTaskState = this._idleTask();
     private _baking = false;
     private _cancelRequested = false;
+    private _taskReady?: () => void;
     private _batchProbes?: IReflectionProbeDescriptor[];
     private _batchSelection?: IRemoteRendererSelection;
 
@@ -148,7 +149,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         }
         if (!this._baking) {
             // bakeAll owns errors and terminal state. Acceptance is separate from completion.
+            const ready = new Promise<void>((resolve) => { this._taskReady = resolve; });
             void this.bakeAll(options).catch(() => undefined);
+            await ready;
+            this._taskReady = undefined;
             return structuredClone(this._task);
         }
         if (this._task.status !== 'baking' || !this._batchProbes || !options.componentUuids) {
@@ -435,6 +439,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         this._task.remaining = probes.slice();
         this._publish();
         this.broadcast('reflection-probe:bake-all-start', totalCount);
+        this._taskReady?.();
         try {
             let completedCount = 0;
             for (const failure of failures) {
@@ -989,6 +994,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             this._baking = false;
             this._batchProbes = undefined;
             this._batchSelection = undefined;
+            this._taskReady?.();
             this._publish(this._task.status === 'cancelled' ? 'Reflection-probe bake cancelled; cleanup finished.' : this._task.error ?? 'Reflection-probe operation finished.', this._task.status === 'failed' ? 'error' : 'info');
         }
     }
