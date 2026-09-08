@@ -149,6 +149,43 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
 }
 ```
 
+### 查询 Lightmap 烘焙信息
+
+工具名：`scene-query-lightmap-bake-info`
+
+该只读工具不接收参数。它从当前活动场景中 MeshRenderer 和 Terrain 的实际 Lightmap 绑定反查资源，不依赖 Creator Lightmap 面板的私有 Profile：
+
+```json
+{
+  "result": {
+    "code": 200,
+    "data": {
+      "sceneUrl": "db://assets/LightProbe.scene",
+      "baked": true,
+      "meshCount": 1,
+      "terrainCount": 0,
+      "highp": false,
+      "stationaryMainLight": false,
+      "textures": [
+        {
+          "uuid": "texture-asset-uuid",
+          "url": "db://assets/LightProbe/lightmap/LFX_Mesh_0000.png",
+          "filename": "LFX_Mesh_0000.png",
+          "size": 45650,
+          "createdAt": 1788782429000,
+          "modifiedAt": 1788782429000
+        }
+      ],
+      "missingTextureUuids": []
+    }
+  }
+}
+```
+
+`size` 的单位为字节，时间字段为 Unix 毫秒时间戳。`meshCount` 和 `terrainCount` 是当前绑定 Lightmap 的组件数量；重复使用的贴图在 `textures` 中只返回一次。场景仍然存在贴图绑定但 Asset DB 或源文件缺失时，根资源 UUID 会列入 `missingTextureUuids`。
+
+Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面板。缩略图加载、RGBA 通道切换和时间格式化由 Pink 根据资源 URL/UUID 实现，CLI 不传输图片像素。
+
 ### 清理 Lightmap
 
 工具名：`scene-clear-lightmap`
@@ -231,6 +268,8 @@ LFX_Terrain_0000.png
 CLI 烘焙并保存后，Creator 重新打开场景可以正常加载和显示 Light Probe 与 Lightmap 结果。在 Pink 中通过当前可见的 Scene Webview 烘焙时，结果会直接应用并重绘，无需重启编辑器。
 
 Creator Lightmap 面板的“清除”操作依赖该面板自己保存的 `latestLightmapResultDir`。CLI 不写入 Creator 的私有面板状态，因此 Creator 面板可能无法清除 CLI 生成的 Lightmap。请使用 `scene-clear-lightmap` 清理 CLI 烘焙结果。CLI 不伪造 Creator Profile 状态，以避免耦合面板内部实现或误删资源。
+
+Pink 的烘焙信息面板应使用 `scene-query-lightmap-bake-info`，以当前场景真实绑定作为数据源，不需要兼容 Creator 的 `latestLightmapResultMap`。
 
 ## 运行时兼容性
 

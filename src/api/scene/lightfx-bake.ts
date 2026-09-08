@@ -2,9 +2,10 @@ import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { Scene } from '../../core/scene';
 import {
-    SchemaClearCountResult, SchemaLightFXCancelResult, SchemaLightmapBakeOptions, SchemaLightmapBakeResult,
+    SchemaClearCountResult, SchemaLightFXCancelResult, SchemaLightmapBakeInfo,
+    SchemaLightmapBakeOptions, SchemaLightmapBakeResult,
     SchemaLightmapClearOptions, SchemaLightProbeBakeOptions, SchemaLightProbeBakeResult, SchemaLightProbeClearOptions,
-    TLightmapBakeOptions, TLightmapBakeResult, TLightProbeBakeOptions, TLightProbeBakeResult,
+    TLightmapBakeInfo, TLightmapBakeOptions, TLightmapBakeResult, TLightProbeBakeOptions, TLightProbeBakeResult,
 } from './lightfx-bake-schema';
 
 async function execute<T>(operation: () => Promise<T>): Promise<CommonResultType<T>> {
@@ -35,6 +36,14 @@ export class LightFXBakeApi {
     @result(SchemaLightmapBakeResult)
     bakeLightmap(@param(SchemaLightmapBakeOptions) options: TLightmapBakeOptions): Promise<CommonResultType<TLightmapBakeResult>> {
         return execute(() => Scene.LightmapBake.bake(options));
+    }
+
+    @tool('scene-query-lightmap-bake-info')
+    @title('Query lightmap bake information')
+    @description('Query lightmap textures and bake flags currently bound to meshes and terrains in the active scene.')
+    @result(SchemaLightmapBakeInfo)
+    queryLightmapBakeInfo(): Promise<CommonResultType<TLightmapBakeInfo>> {
+        return execute(() => Scene.LightmapBake.queryBakeInfo());
     }
 
     @tool('scene-clear-lightmap')

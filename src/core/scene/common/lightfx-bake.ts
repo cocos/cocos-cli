@@ -1,4 +1,5 @@
 import type { IServiceEvents } from '../scene-process/service/core';
+import type { ILightmapTextureInfo } from './lightfx-host';
 
 export interface ILightProbeBakeOptions {
     giScale?: number;
@@ -42,6 +43,17 @@ export interface ILightmapBakeResult {
     durationMs: number;
 }
 
+export interface ILightmapBakeInfo {
+    sceneUrl: string;
+    baked: boolean;
+    meshCount: number;
+    terrainCount: number;
+    highp: boolean;
+    stationaryMainLight: boolean;
+    textures: ILightmapTextureInfo[];
+    missingTextureUuids: string[];
+}
+
 export interface ILightFXCancelResult {
     cancelled: boolean;
     target: 'light-probe' | 'lightmap' | null;
@@ -60,9 +72,10 @@ export interface ILightProbeBakeService extends IServiceEvents {
 
 export interface ILightmapBakeService extends IServiceEvents {
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
+    queryBakeInfo(): Promise<ILightmapBakeInfo>;
     clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }>;
     cancel(): Promise<ILightFXCancelResult>;
 }
 
 export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'bake' | 'clearBake' | 'cancel'>;
-export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'bake' | 'clearBake' | 'cancel'>;
+export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;

@@ -80,6 +80,25 @@ describe('LightFX active scene renderer routing', () => {
         expect(fallback).toHaveBeenCalledTimes(1);
     });
 
+    it('routes a lightmap bake-info query to the active renderer', async () => {
+        const visible = createSocket({
+            id: 'visible',
+            sceneUrl: 'db://assets/Lightmap.scene',
+            visible: true,
+            result: { baked: true, textures: [] },
+        });
+        useSockets([visible]);
+
+        await expect(lightFXBakeRenderer.invoke(
+            'LightmapBake', 'queryBakeInfo', [], 120_000, jest.fn(),
+        )).resolves.toEqual({ baked: true, textures: [] });
+        expect(visible.emit).toHaveBeenCalledWith(
+            'scene:invoke-lightfx',
+            expect.objectContaining({ module: 'LightmapBake', method: 'queryBakeInfo' }),
+            expect.any(Function),
+        );
+    });
+
     it('does not silently bake in the Scene Worker when the visible renderer has no scene', async () => {
         useSockets([
             createSocket({ id: 'visible', sceneUrl: '', visible: true }),

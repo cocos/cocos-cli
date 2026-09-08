@@ -6,6 +6,7 @@ const mockAssetManager = {
     queryPath: jest.fn(),
     refreshAsset: jest.fn(),
     queryUUID: jest.fn(),
+    queryAssetInfo: jest.fn(),
     queryAssetMeta: jest.fn(),
     saveAssetMeta: jest.fn(),
 };
@@ -42,6 +43,7 @@ describe('LightFXBakeHost', () => {
         ));
         mockAssetManager.refreshAsset.mockReset().mockResolvedValue(undefined);
         mockAssetManager.queryUUID.mockReset();
+        mockAssetManager.queryAssetInfo.mockReset();
         mockAssetManager.queryAssetMeta.mockReset();
         mockAssetManager.saveAssetMeta.mockReset();
         mockRunnerRun.mockReset();
@@ -135,6 +137,33 @@ describe('LightFXBakeHost', () => {
     it('returns a stable no-op result when there is no operation to cancel', async () => {
         await expect(host.cancel()).resolves.toEqual({ cancelled: false, target: null });
         expect(mockRunnerCancel).not.toHaveBeenCalled();
+    });
+
+    it('queries display-safe metadata for bound lightmap textures', async () => {
+        const uuid = '11111111-1111-4111-8111-111111111111';
+        const missingUuid = '22222222-2222-4222-8222-222222222222';
+        const file = join(assetRoot, 'Lightmap', 'lightmap', 'LFX_Mesh_0000.png');
+        await outputFile(file, Buffer.from('lightmap'));
+        mockAssetManager.queryAssetInfo.mockImplementation((value: string) => value === uuid ? {
+            uuid,
+            url: 'db://assets/Lightmap/lightmap/LFX_Mesh_0000.png',
+            file,
+        } : null);
+
+        await expect(host.queryLightmapTextureInfo({
+            uuids: [`${uuid}@6c48a`, uuid, missingUuid],
+        })).resolves.toEqual({
+            textures: [{
+                uuid,
+                url: 'db://assets/Lightmap/lightmap/LFX_Mesh_0000.png',
+                filename: 'LFX_Mesh_0000.png',
+                size: 8,
+                createdAt: expect.any(Number),
+                modifiedAt: expect.any(Number),
+            }],
+            missingTextureUuids: [missingUuid],
+        });
+        expect(mockAssetManager.queryAssetInfo).toHaveBeenCalledTimes(2);
     });
 
     it('reports cancellation instead of an unknown operation when upload continues after cancel', async () => {

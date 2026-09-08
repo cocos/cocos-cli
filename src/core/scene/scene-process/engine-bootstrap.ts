@@ -276,7 +276,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             msg: {
                 sceneUrl?: string;
                 module?: 'LightProbeBake' | 'LightmapBake';
-                method?: 'bake' | 'clearBake' | 'cancel';
+                method?: 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel';
                 args?: unknown[];
             },
             reply: (response: { result?: unknown; sceneUrl?: string; error?: string }) => void,
@@ -285,7 +285,7 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 const methods = msg?.module === 'LightProbeBake'
                     ? new Set(['bake', 'clearBake', 'cancel'])
                     : msg?.module === 'LightmapBake'
-                        ? new Set(['bake', 'clearBake', 'cancel'])
+                        ? new Set(['bake', 'queryBakeInfo', 'clearBake', 'cancel'])
                         : null;
                 if (!methods?.has(msg.method || '')) {
                     throw new Error('Invalid LightFX scene request.');

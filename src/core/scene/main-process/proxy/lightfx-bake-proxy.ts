@@ -21,6 +21,10 @@ export const LightmapBakeProxy: IPublicLightmapBakeService = {
         'LightmapBake', 'bake', [options], (options.timeoutMs ?? 600_000) + 30_000,
         () => Rpc.getInstance().request('LightmapBake', 'bake', [options]), true,
     ),
+    queryBakeInfo: () => lightFXBakeRenderer.invoke(
+        'LightmapBake', 'queryBakeInfo', [], 120_000,
+        () => Rpc.getInstance().request('LightmapBake', 'queryBakeInfo'),
+    ),
     clearBake: (options) => lightFXBakeRenderer.invoke(
         'LightmapBake', 'clearBake', [options], 120_000,
         () => Rpc.getInstance().request('LightmapBake', 'clearBake', [options]),

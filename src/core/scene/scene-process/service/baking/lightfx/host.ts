@@ -4,6 +4,8 @@ import type {
     IBeginLightFXBakeResult,
     ILightFXBakeHostService,
     ILightFXOperationOptions,
+    IQueryLightmapTextureInfoOptions,
+    IQueryLightmapTextureInfoResult,
     IRemoveLightmapAssetsOptions,
     IResolveLightFXTextureSourceOptions,
     IResolvedLightFXTextureSource,
@@ -22,4 +24,5 @@ export const lightFXBakeHost: ILightFXBakeHostService = {
     rollback: (options: ILightFXOperationOptions): Promise<void> => Rpc.getInstance().request('lightFXBakeHost', 'rollback', [options]),
     cancel: (): Promise<{ cancelled: boolean; target: 'light-probe' | 'lightmap' | null }> => Rpc.getInstance().request('lightFXBakeHost', 'cancel'),
     removeLightmapAssets: (options: IRemoveLightmapAssetsOptions): Promise<void> => Rpc.getInstance().request('lightFXBakeHost', 'removeLightmapAssets', [options]),
+    queryLightmapTextureInfo: (options: IQueryLightmapTextureInfoOptions): Promise<IQueryLightmapTextureInfoResult> => Rpc.getInstance().request('lightFXBakeHost', 'queryLightmapTextureInfo', [options]),
 };

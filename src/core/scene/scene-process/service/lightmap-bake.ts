@@ -1,11 +1,12 @@
 import { director, MeshRenderer, Scene, Terrain, Texture2D } from 'cc';
 import type {
     ILightFXBakeEvents, ILightFXCancelResult, ILightmapBakeOptions,
-    ILightmapBakeResult, ILightmapBakeService,
+    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService,
 } from '../../common';
 import { Rpc } from '../rpc';
 import { lightFXCoordinator } from './baking/lightfx/baker';
 import type { LightFXBakeOutput } from './baking/lightfx/baker';
+import { lightFXBakeHost } from './baking/lightfx/host';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
@@ -87,6 +88,48 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             this.broadcast('lightfx:bake-end', 'lightmap', this.errorMessage(error));
             throw error;
         }
+    }
+
+    async queryBakeInfo(): Promise<ILightmapBakeInfo> {
+        const scene = director.getScene() as Scene | null;
+        if (!scene) throw new Error('No scene is currently open.');
+
+        const textureUuids = new Set<string>();
+        let meshCount = 0;
+        let terrainCount = 0;
+        const addTexture = (texture: any): boolean => {
+            const uuid = texture?.uuid ?? texture?._uuid;
+            if (typeof uuid !== 'string' || !uuid) return false;
+            textureUuids.add(uuid);
+            return true;
+        };
+        const visit = (node: any): void => {
+            for (const model of node.getComponents(MeshRenderer) as any[]) {
+                if (addTexture(model.bakeSettings?.texture)) meshCount += 1;
+            }
+            for (const terrain of node.getComponents(Terrain) as any[]) {
+                let hasLightmap = false;
+                for (const info of (terrain._lightmapInfos ?? []) as any[]) {
+                    hasLightmap = addTexture(info?.texture) || hasLightmap;
+                }
+                if (hasLightmap) terrainCount += 1;
+            }
+            node.children.forEach(visit);
+        };
+        visit(scene);
+
+        const assetInfo = await lightFXBakeHost.queryLightmapTextureInfo({
+            uuids: [...textureUuids],
+        });
+        return {
+            sceneUrl: await this.querySceneUrl(),
+            baked: meshCount > 0 || terrainCount > 0,
+            meshCount,
+            terrainCount,
+            highp: Boolean((scene.globals as any).bakedWithHighpLightmap),
+            stationaryMainLight: Boolean((scene.globals as any).bakedWithStationaryMainLight),
+            ...assetInfo,
+        };
     }
 
     async clearBake(options: { saveScene?: boolean; deleteAssets?: boolean } = {}): Promise<{ clearedCount: number }> {

@@ -75,6 +75,24 @@ export interface IRemoveLightmapAssetsOptions {
     sceneName: string;
 }
 
+export interface IQueryLightmapTextureInfoOptions {
+    uuids: string[];
+}
+
+export interface ILightmapTextureInfo {
+    uuid: string;
+    url: string;
+    filename: string;
+    size: number;
+    createdAt: number;
+    modifiedAt: number;
+}
+
+export interface IQueryLightmapTextureInfoResult {
+    textures: ILightmapTextureInfo[];
+    missingTextureUuids: string[];
+}
+
 /**
  * Node-hosted half of LightFX baking.
  *
@@ -90,4 +108,5 @@ export interface ILightFXBakeHostService {
     rollback(options: ILightFXOperationOptions): Promise<void>;
     cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
     removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<void>;
+    queryLightmapTextureInfo(options: IQueryLightmapTextureInfoOptions): Promise<IQueryLightmapTextureInfoResult>;
 }

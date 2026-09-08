@@ -37,6 +37,26 @@ export const SchemaLightmapBakeResult = z.object({
     terrainCount: z.number().int().nonnegative(), durationMs: z.number().nonnegative(),
 });
 
+export const SchemaLightmapTextureInfo = z.object({
+    uuid: z.string(),
+    url: z.string(),
+    filename: z.string(),
+    size: z.number().int().nonnegative(),
+    createdAt: z.number().finite().nonnegative(),
+    modifiedAt: z.number().finite().nonnegative(),
+});
+
+export const SchemaLightmapBakeInfo = z.object({
+    sceneUrl: z.string(),
+    baked: z.boolean(),
+    meshCount: z.number().int().nonnegative(),
+    terrainCount: z.number().int().nonnegative(),
+    highp: z.boolean(),
+    stationaryMainLight: z.boolean(),
+    textures: z.array(SchemaLightmapTextureInfo),
+    missingTextureUuids: z.array(z.string()),
+});
+
 export const SchemaLightFXCancelResult = z.object({
     cancelled: z.boolean(), target: z.enum(['light-probe', 'lightmap']).nullable(),
 });
@@ -49,3 +69,4 @@ export type TLightProbeBakeOptions = z.infer<typeof SchemaLightProbeBakeOptions>
 export type TLightProbeBakeResult = z.infer<typeof SchemaLightProbeBakeResult>;
 export type TLightmapBakeOptions = z.infer<typeof SchemaLightmapBakeOptions>;
 export type TLightmapBakeResult = z.infer<typeof SchemaLightmapBakeResult>;
+export type TLightmapBakeInfo = z.infer<typeof SchemaLightmapBakeInfo>;

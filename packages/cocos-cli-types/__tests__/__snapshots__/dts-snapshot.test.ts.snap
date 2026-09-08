@@ -6403,6 +6403,16 @@ export declare interface ILightFXCancelResult {
     cancelled: boolean;
     target: 'light-probe' | 'lightmap' | null;
 }
+export declare interface ILightmapBakeInfo {
+    sceneUrl: string;
+    baked: boolean;
+    meshCount: number;
+    terrainCount: number;
+    highp: boolean;
+    stationaryMainLight: boolean;
+    textures: ILightmapTextureInfo[];
+    missingTextureUuids: string[];
+}
 export declare interface ILightmapBakeOptions {
     msaa?: 1 | 2 | 4 | 8;
     resolution?: number;
@@ -6428,6 +6438,7 @@ export declare interface ILightmapBakeResult {
 }
 export declare interface ILightmapBakeService extends IServiceEvents {
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
+    queryBakeInfo(): Promise<ILightmapBakeInfo>;
     clearBake(options?: {
         saveScene?: boolean;
         deleteAssets?: boolean;
@@ -6435,6 +6446,14 @@ export declare interface ILightmapBakeService extends IServiceEvents {
         clearedCount: number;
     }>;
     cancel(): Promise<ILightFXCancelResult>;
+}
+export declare interface ILightmapTextureInfo {
+    uuid: string;
+    url: string;
+    filename: string;
+    size: number;
+    createdAt: number;
+    modifiedAt: number;
 }
 export declare interface ILightProbeBakeOptions {
     giScale?: number;

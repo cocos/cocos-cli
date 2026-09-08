@@ -8,6 +8,7 @@ import {
     readFile,
     readdir,
     remove,
+    stat,
 } from 'fs-extra';
 import { basename, dirname, join } from 'path';
 import Utils from '../../base/utils';
@@ -18,6 +19,8 @@ import type {
     ILightFXBakeHostService,
     ILightFXOperationOptions,
     ILightFXTextureSource,
+    IQueryLightmapTextureInfoOptions,
+    IQueryLightmapTextureInfoResult,
     IRemoveLightmapAssetsOptions,
     IResolvedLightFXTextureSource,
     IResolveLightFXTextureSourceOptions,
@@ -77,6 +80,48 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     ): Promise<IResolvedLightFXTextureSource | null> {
         const resolved = await this.resolveHostTextureSource(options);
         return resolved ? { fileName: resolved.fileName } : null;
+    }
+
+    public async queryLightmapTextureInfo(
+        options: IQueryLightmapTextureInfoOptions,
+    ): Promise<IQueryLightmapTextureInfoResult> {
+        if (!options || !Array.isArray(options.uuids) || options.uuids.length > MAX_TEXTURE_SOURCES) {
+            throw new Error('Invalid Lightmap texture UUID list.');
+        }
+
+        const uuids = [...new Set(options.uuids.map((value) => {
+            if (typeof value !== 'string') {
+                throw new Error('Invalid Lightmap texture UUID.');
+            }
+            const uuid = Utils.UUID.decompressUUID(value).split('@', 1)[0];
+            if (!Utils.UUID.isUUID(uuid)) {
+                throw new Error('Invalid Lightmap texture UUID.');
+            }
+            return uuid;
+        }))];
+        const textures: IQueryLightmapTextureInfoResult['textures'] = [];
+        const missingTextureUuids: string[] = [];
+        for (const uuid of uuids) {
+            const info = assetManager.queryAssetInfo(uuid);
+            if (!info?.file || !info.url) {
+                missingTextureUuids.push(uuid);
+                continue;
+            }
+            try {
+                const fileStat = await stat(info.file);
+                textures.push({
+                    uuid: info.uuid || uuid,
+                    url: info.url,
+                    filename: basename(info.file),
+                    size: fileStat.size,
+                    createdAt: fileStat.birthtimeMs,
+                    modifiedAt: fileStat.mtimeMs,
+                });
+            } catch {
+                missingTextureUuids.push(uuid);
+            }
+        }
+        return { textures, missingTextureUuids };
     }
 
     public async begin(options: IBeginLightFXBakeOptions): Promise<IBeginLightFXBakeResult> {
