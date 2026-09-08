@@ -17,5 +17,7 @@ export * from './scene-view';
 export * from './preview';
 export * from './ui';
 export * from './reflection-probe';
+export * from './terrain';
 export * from './message';
 export * from './reference-image';
+export * from './particle';

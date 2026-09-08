@@ -125,6 +125,14 @@ export const SchemaGooglePlayPackage = z.object({
         .describe('Google Play application package name (required)'), // Google Play应用包名（必填）
 }).describe('Google Play platform specific configuration'); // Google Play平台特定配置
 
+// Huawei AGC Packages Configuration // Huawei AGC Packages 配置
+// 注意: huawei-agc 的 packageName 不是直接入参, 而是在构建时由 onBeforeBuild 钩子从
+// agconnect-services.json 的 client.package_name 读取后回填, 故此处不要求 packageName。
+export const SchemaHuaweiAgcPackage = z.object({
+    serviceConfigPath: z.string().optional()
+        .describe('Path to agconnect-services.json; the package name is read from this file at build time'), // agconnect-services.json 路径，包名在构建时从该文件读取
+}).describe('Huawei AGC platform specific configuration'); // Huawei AGC平台特定配置
+
 // ==================== Basic Build Configuration ==================== // 基础构建配置
 
 // Core Build Field Definitions (excluding platform and packages, defined in platform-specific configurations) // 核心构建字段定义（不包含 platform 和 packages，这些在平台特定配置中定义）
@@ -299,6 +307,18 @@ export const SchemaGooglePlayBuildOption = SchemaBuildBaseOption
     })
     .describe('Google Play Platform Build Options'); // Google Play平台构建选项
 
+// Huawei AGC Build Options // Huawei AGC 构建选项
+export const SchemaHuaweiAgcBuildOption = SchemaBuildBaseOption
+    .extend({
+        platform: z.literal('huawei-agc').describe('Build Platform'), // 构建平台
+        packages: z.object({
+            'huawei-agc': SchemaHuaweiAgcPackage
+                .catchall(z.any())  // 允许其他任意字段
+                .optional()
+        }).optional().describe('Huawei AGC Platform Configuration') // Huawei AGC平台配置
+    })
+    .describe('Huawei AGC Platform Build Options'); // Huawei AGC平台构建选项
+
 // Mac Build Options // Mac 构建选项
 export const SchemaMacBuildOption = SchemaBuildBaseOption
     .extend({
@@ -329,7 +349,8 @@ export const SchemaKnownBuildOptions = [
     SchemaAndroidBuildOption,
     SchemaOhosBuildOption,
     SchemaHarmonyOSNextBuildOption,
-    SchemaGooglePlayBuildOption
+    SchemaGooglePlayBuildOption,
+    SchemaHuaweiAgcBuildOption
 ];
 
 // ==================== Create discriminatedUnion ==================== //
@@ -422,6 +443,7 @@ export const SchemaBuildConfigResult = z.union([
     SchemaOhosBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
     SchemaHarmonyOSNextBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
     SchemaGooglePlayBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
+    SchemaHuaweiAgcBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
     SchemaOtherPlatformBuildOption.omit({ configPath: true, skipCheck: true, taskId: true, taskName: true, logDest: true }),
 ]).nullable().describe('Build configuration query result (all fields required, including packages)'); // 构建配置查询结果（所有字段必填，包含 packages）
 

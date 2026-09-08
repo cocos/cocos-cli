@@ -1,11 +1,12 @@
 'use strict';
-import { Node, Component, js, CCClass, Scene } from 'cc';
+import { Node, Component, js, CCClass, Scene, type ParticleSystem } from 'cc';
 import { parsingPath } from './utils';
 import get from 'lodash/get';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeComponent, encodeScene, encodeNode } from './encode';
 import { IComponent, INode, IScene } from '../../../common';
+import { restoreParticleSystemSnapshot } from './particle-snapshot';
 import {
     NODE_SNAPSHOT_RESTORE_PROPERTY_PATHS,
     SCENE_SNAPSHOT_SPECIAL_PROPERTY_KEYS,
@@ -200,6 +201,10 @@ class DumpUtil {
      */
     async restoreComponentSnapshotProperties(component: Component, dump: any) {
         if (!dump?.value) {
+            return;
+        }
+        if (js.getClassName(component) === 'cc.ParticleSystem' && dump.value.renderer?.value) {
+            await restoreParticleSystemSnapshot(component as ParticleSystem, dump, (target, path, property) => decodePatch(path, property, target));
             return;
         }
         for (const key in dump.value) {

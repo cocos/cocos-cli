@@ -1,6 +1,6 @@
 'use strict';
 
-import { Camera, Color, Component, gfx, js, Layers, Node, Rect, Vec3, director } from 'cc';
+import { Camera, Color, Component, gfx, js, Layers, Node, Rect, Terrain, Vec3, director } from 'cc';
 import { BaseService } from './core';
 import { register, Service } from './core/decorator';
 import { ServiceEvents } from './core/global-events';
@@ -35,6 +35,13 @@ import './gizmo/components/mesh-collider';
 import './gizmo/components/box-collider-2d';
 import './gizmo/components/circle-collider-2d';
 import './gizmo/components/polygon-collider-2d';
+import './gizmo/components/distance-joint-2d';
+import './gizmo/components/spring-joint-2d';
+import './gizmo/components/hinge-joint-2d';
+import './gizmo/components/fixed-joint-2d';
+import './gizmo/components/relative-joint-2d';
+import './gizmo/components/slider-joint-2d';
+import './gizmo/components/wheel-joint-2d';
 import './gizmo/components/mesh-renderer';
 import './gizmo/components/skinned-mesh-renderer';
 import './gizmo/components/video-player';
@@ -42,6 +49,11 @@ import './gizmo/components/web-view';
 import './gizmo/components/light-probe-group';
 import './gizmo/components/reflection-probe';
 import './gizmo/components/lod-group';
+import './gizmo/components/particle-system';
+// Avoid browser-runtime require('cc') while keeping lightweight cc mocks from loading Terrain dependencies.
+if (Terrain) {
+    require('./gizmo/components/terrain');
+}
 
 type TGizmoType = 'icon' | 'persistent' | 'component';
 
@@ -507,7 +519,11 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
                             if (gizmo.target !== component) {
                                 this._showGizmo('component', component, true);
                             }
-                            gizmo.checkVisible() ? gizmo.show() : gizmo.hide();
+                            const visible = gizmo.checkVisible();
+                            if (visible)
+                                gizmo.show();
+                            else
+                                gizmo.hide();
                         }
                     });
                 }
@@ -820,6 +836,11 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
             }
         });
         return !stopped;
+    }
+
+    /** Returns the component gizmo without exposing the internal WeakMap to callers. */
+    getComponentGizmo(component: Component): GizmoBase | null {
+        return getGizmoProperty('component', component) ?? null;
     }
 
     // ── Selection integration (与 cocos-editor SelectionGizmoManager 一致) ─────

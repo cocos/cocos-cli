@@ -29,6 +29,7 @@ export interface IGizmoService {
     removeAllGizmoOfNode(node: any, recursive?: boolean): void;
     clearAllGizmos(): void;
     callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
+    getComponentGizmo(component: any): any;
     onUpdate(deltaTime: number): void;
 
     // 与 cocos-editor GizmoManager 一致：GizmoConfig 方法

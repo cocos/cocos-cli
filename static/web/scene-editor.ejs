@@ -35,6 +35,20 @@
             height: 100%;
         }
 
+        /* ── Preview in Editor：Play 时以全屏 iframe 加载游戏运行时，覆盖编辑器画布 ── */
+        #previewFrame {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            z-index: 9998; /* 低于 testPanel(9999)，高于游戏画布 */
+            background: #000;
+            display: none;
+        }
+        #previewFrame.active { display: block; }
+
         /* ── Test Panel ── */
         #testPanel {
             position: fixed;
@@ -164,6 +178,9 @@
         </div>
     </div>
 
+    <!-- Preview in Editor：Play 时把编辑器实时场景交给游戏运行时，在此 iframe 内运行 -->
+    <iframe id="previewFrame" title="Game Preview"></iframe>
+
     <button id="panelToggle" onclick="togglePanel()">Panel</button>
 
     <div id="testPanel">
@@ -182,6 +199,10 @@
                 <div class="row">
                     <button class="btn btn-primary" id="btnPreview" onclick="openBrowserPreview()">▶ Preview (Browser)</button>
                     <span class="info-text">opens /</span>
+                </div>
+                <div class="row">
+                    <button class="btn btn-primary" id="btnPlayInEditor" onclick="togglePlayInEditor()">▶ Play (In Editor)</button>
+                    <span id="playStatus" class="info-text">stopped</span>
                 </div>
                 <div class="row">
                     <label>Script</label>
@@ -463,6 +484,82 @@
             const url = scene ? '/?scene=' + encodeURIComponent(scene) : '/';
             window.open(url, '_blank');
         }
+
+        /* ── Preview in Editor ──
+         * Play：序列化编辑器里的实时场景（含未保存改动）→ POST /scene/current →
+         *   在覆盖画布的 iframe 里以 /?scene=__current__ 运行游戏运行时。
+         * Stop：卸掉 iframe，恢复编辑器视图。
+         * 注意：本页的预览 iframe 只叠加游戏画面，不装配 static/web/preview-inspect.js
+         * （运行态 Hierarchy 编辑 agent）——该 agent 需要宿主侧 Hierarchy/Inspector UI 消费，
+         * 由 IDE 侧预览 webview（PinK previewMain.pink.ts）装配；本页没有这套 UI。
+         */
+        let _previewPlaying = false;
+
+        async function playInEditor() {
+            const status = document.getElementById('playStatus');
+            const btn = document.getElementById('btnPlayInEditor');
+            try {
+                const ed = window.cli && window.cli.Scene && window.cli.Scene.Editor;
+                if (!ed || !ed.querySceneSerializedData) {
+                    log('Editor.querySceneSerializedData not available', 'status-err');
+                    status.textContent = 'no editor'; status.className = 'info-text status-err';
+                    return;
+                }
+                status.textContent = 'serializing...'; status.className = 'info-text status-warn';
+                // querySceneSerializedData 已返回 JSON 字符串，禁止再 JSON.stringify(json)——
+                // 那会得到顶层字符串被 express.json strict 以 400 拒绝。
+                const json = await ed.querySceneSerializedData();
+                const res = await fetch(WebEnv.serverURL + '/scene/current', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ data: json }),
+                });
+                if (!res.ok) {
+                    throw new Error('POST /scene/current failed: ' + res.status);
+                }
+                // iframe reload 会自动经 game-boot fetch /scene/current.json，无需再 post。
+                const frame = document.getElementById('previewFrame');
+                frame.src = '/?scene=__current__';
+                frame.classList.add('active');
+                // 让编辑器引擎停在下方不再渲染，避免与预览抢 GPU（可选，失败无害）。
+                try { window.cli.Scene.Engine.pause && window.cli.Scene.Engine.pause(); } catch (e) {}
+                _previewPlaying = true;
+                btn.textContent = '■ Stop (In Editor)';
+                btn.classList.add('active');
+                status.textContent = 'running'; status.className = 'info-text status-ok';
+                log('Play in editor: running current scene', 'status-ok');
+            } catch (e) {
+                status.textContent = 'failed'; status.className = 'info-text status-err';
+                log('Play in editor error: ' + e.message, 'status-err');
+            }
+        }
+
+        function stopPreview() {
+            const frame = document.getElementById('previewFrame');
+            frame.classList.remove('active');
+            frame.src = 'about:blank';
+            // 恢复编辑器引擎渲染。
+            try { window.cli.Scene.Engine.resume && window.cli.Scene.Engine.resume(); } catch (e) {}
+            try { window.cli.Scene.Engine.repaintInEditMode && window.cli.Scene.Engine.repaintInEditMode(); } catch (e) {}
+            _previewPlaying = false;
+            const btn = document.getElementById('btnPlayInEditor');
+            btn.textContent = '▶ Play (In Editor)';
+            btn.classList.remove('active');
+            const status = document.getElementById('playStatus');
+            status.textContent = 'stopped'; status.className = 'info-text';
+            log('Stopped preview, editor view restored', 'status-ok');
+        }
+
+        function togglePlayInEditor() {
+            if (_previewPlaying) {
+                stopPreview();
+            } else {
+                playInEditor();
+            }
+        }
+        window.playInEditor = playInEditor;
+        window.stopPreview = stopPreview;
+        window.togglePlayInEditor = togglePlayInEditor;
 
         /* ── Scene ── */
         async function doLoadScene() {

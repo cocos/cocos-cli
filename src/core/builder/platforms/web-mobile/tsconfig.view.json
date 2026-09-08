@@ -19,12 +19,7 @@
         ],
         "types": [
             "node"
-        ],
-        "paths": {
-            "pink": [
-                "../types/pink.internal-platform.d.ts"
-            ]
-        }
+        ]
     },
     "include": [
         "src/view",

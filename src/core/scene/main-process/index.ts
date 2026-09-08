@@ -9,6 +9,7 @@ import { PrefabProxy } from './proxy/prefab-proxy';
 import { ReflectionProbeProxy } from './proxy/reflection-probe-proxy';
 import { reflectionProbeRenderer } from './reflection-probe-renderer';
 import { ReferenceImageProxy } from './proxy/reference-image-proxy';
+import { ParticleProxy } from './proxy/particle-proxy';
 
 import { assetManager } from '../../assets';
 import scriptManager from '../../scripting';
@@ -34,6 +35,8 @@ export const Scene = {
     ...EngineProxy,
     ...PrefabProxy,
     ReferenceImage: ReferenceImageProxy,
+    // 粒子系统相关接口（play/pause/stop/restart/setPlaySpeed/queryPlayInfo）
+    Particle: ParticleProxy,
     // 节点相关的接口
     Node: NodeProxy,
     // 组件相关的接口
