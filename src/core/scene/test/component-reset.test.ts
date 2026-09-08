@@ -1,3 +1,5 @@
+import type { CompManager } from '../scene-process/service/component/index';
+
 const mockDestroy = jest.fn();
 const mockAddComponent = jest.fn();
 const mockDumpComponent = jest.fn();
@@ -26,7 +28,7 @@ jest.mock('../scene-process/service/core/global-events', () => ({ ServiceEvents:
 jest.mock('../scene-process/service/core/decorator', () => ({ queryRegisteredService: jest.fn() }));
 
 describe('component Reset restoration', () => {
-    let manager: import('../scene-process/service/component/index').CompManager;
+    let manager: CompManager;
     const previousCC = (globalThis as any).cc;
     const previousEditor = (globalThis as any).EditorExtends;
     const before = { value: { uuid: { value: 'original' }, capacity: { value: 37 }, enabled: { value: false } } };
