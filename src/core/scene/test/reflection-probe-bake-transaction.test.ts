@@ -314,6 +314,25 @@ describe('ReflectionProbeService bake output transaction', () => {
         ]);
     });
 
+    it('rejects empty or ambiguous UUID selections before any RPC', async () => {
+        await expect(service.bakeAll({ componentUuids: [] })).rejects.toThrow('non-empty');
+        await expect(service.bakeAll({ componentUuids: ['Comp.2'], nodePaths: [] })).rejects.toThrow('cannot be combined');
+        expect(mockRpcRequest).not.toHaveBeenCalled();
+    });
+
+    it('selects and deduplicates component UUIDs despite duplicate node names', async () => {
+        mockRpcRequest.mockResolvedValue({ rendererId: 'renderer-1', sceneUrl: 'db://assets/a.scene', probes: [
+            { nodePath: 'Probe', componentUuid: 'Comp.1' },
+            { nodePath: 'Probe', componentUuid: 'Comp.2' },
+        ] });
+        service._bakeOne = jest.fn().mockResolvedValue({ componentUuid: 'Comp.2' });
+        const result = await service.bakeAll({ componentUuids: ['Comp.2', 'Comp.2', 'disabled-or-missing'], saveScene: false });
+        expect(service._bakeOne).toHaveBeenCalledTimes(1);
+        expect(service._bakeOne).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ componentUuid: 'Comp.2' }));
+        expect(result).toMatchObject({ totalCount: 2, bakedCount: 1, failedCount: 1,
+            failures: [{ componentUuid: 'disabled-or-missing' }] });
+    });
+
     it('stops a probe batch when its selected renderer is no longer available', async () => {
         mockRpcRequest.mockResolvedValue({
             rendererId: 'renderer-1',

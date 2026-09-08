@@ -16,6 +16,8 @@ export interface IReflectionProbeBakeResult {
 }
 
 export interface IReflectionProbeBakeAllOptions {
+    /** Explicit component selection. Empty selections are rejected, never expanded to all probes. */
+    componentUuids?: string[];
     /** Omit or pass an empty array to bake every active cube reflection probe. */
     nodePaths?: string[];
     saveScene?: boolean;

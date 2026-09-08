@@ -207,6 +207,13 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     }
 
     private async _bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult> {
+        if (options.componentUuids !== undefined && (
+            !Array.isArray(options.componentUuids) || !options.componentUuids.length
+            || options.componentUuids.some((uuid) => typeof uuid !== 'string' || !uuid.trim())
+            || options.nodePaths !== undefined
+        )) {
+            throw new Error('A non-empty componentUuids selection is required and cannot be combined with nodePaths.');
+        }
         const started = Date.now();
         const timeoutMs = options.timeoutMs ?? 600_000;
         if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -225,12 +232,17 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             };
         const requestedPaths = [...new Set((options.nodePaths ?? []).map((path) => path.trim()).filter(Boolean))];
         const requestedSet = new Set(requestedPaths);
-        const probes = requestedPaths.length
-            ? active.probes.filter((probe) => requestedSet.has(probe.nodePath))
-            : active.probes;
-        const failures: IReflectionProbeBakeFailure[] = requestedPaths
-            .filter((path) => !active.probes.some((probe) => probe.nodePath === path))
-            .map((nodePath) => ({ nodePath, reason: 'Reflection probe node was not found in the active scene.' }));
+        const selectedUuids = options.componentUuids ? new Set(options.componentUuids.map((uuid) => uuid.trim())) : undefined;
+        const probes = selectedUuids
+            ? active.probes.filter((probe) => selectedUuids.has(probe.componentUuid))
+            : requestedPaths.length
+                ? active.probes.filter((probe) => requestedSet.has(probe.nodePath))
+                : active.probes;
+        const failures: IReflectionProbeBakeFailure[] = selectedUuids
+            ? [...selectedUuids].filter((uuid) => !probes.some((probe) => probe.componentUuid === uuid))
+                .map((componentUuid) => ({ nodePath: '', componentUuid, reason: 'No active cube reflection probe with this component UUID exists in the source scene.' }))
+            : requestedPaths.filter((path) => !active.probes.some((probe) => probe.nodePath === path))
+                .map((nodePath) => ({ nodePath, reason: 'Reflection probe node was not found in the active scene.' }));
         const totalCount = probes.length + failures.length;
         if (!totalCount) {
             throw new Error('No active cube reflection probes were found in the current scene.');

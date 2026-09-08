@@ -17,6 +17,8 @@ export const SchemaReflectionProbeBakeResult = z.object({
 }).describe('Reflection probe bake result');
 
 export const SchemaReflectionProbeBakeAllOptions = z.object({
+    componentUuids: z.array(z.string().trim().min(1)).nonempty().optional()
+        .describe('Explicit reflection-probe component UUIDs; cannot be combined with nodePaths'),
     nodePaths: z.array(z.string().trim().min(1)).optional()
         .describe('Optional reflection-probe node paths; omit or pass an empty array to bake all'),
     saveScene: z.boolean().optional().default(true)
