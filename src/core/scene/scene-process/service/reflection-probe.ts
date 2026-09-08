@@ -199,7 +199,13 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     }
 
     public async cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState> {
-        if (options.source) { this.assertSceneIdentity(options.source); }
+        if (options.source) {
+            await this._validateTaskSource(options.source);
+            const owner = this._task.source;
+            if (!owner || owner.runtimeId !== options.source.runtimeId || owner.sceneUuid !== options.source.sceneUuid || owner.generation !== options.source.generation) {
+                throw new Error('The reflection-probe task belongs to a different source scene.');
+            }
+        }
         if (!options.taskId || options.taskId !== this._task.taskId) { throw new Error('Unknown reflection-probe bake task.'); }
         if (this._task.status === 'clearing') { throw new Error('Clearing reflection-probe data cannot be cancelled.'); }
         if (this._task.status !== 'baking' || this._cancelRequested) { return structuredClone(this._task); }
@@ -221,7 +227,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     public async getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState> {
         if (source) {
-            this.assertSceneIdentity(source);
+            await this._validateTaskSource(source);
             const owner = this._task.source;
             if (!owner || owner.runtimeId !== source.runtimeId || owner.sceneUuid !== source.sceneUuid || owner.generation !== source.generation) {
                 return { ...this._idleTask(), source: { ...source } };
@@ -233,7 +239,23 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     private readonly _runtimeId = globalThis.crypto.randomUUID();
 
     public async getSceneIdentity(): Promise<IReflectionProbeSceneIdentity> {
+        if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
+            const active = await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [30_000]) as IActiveRendererProbeList;
+            if (!active.source) { throw new Error('The WebGL renderer does not provide a reflection-probe scene identity.'); }
+            return active.source;
+        }
         return this._getSceneIdentity();
+    }
+
+    private async _validateTaskSource(source: IReflectionProbeSceneIdentity): Promise<void> {
+        if (gfx.deviceManager.gfxDevice.gfxAPI !== gfx.API.UNKNOWN) {
+            this.assertSceneIdentity(source);
+            return;
+        }
+        const active = await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [30_000, source]) as IActiveRendererProbeList;
+        if (!active.source || active.source.runtimeId !== source.runtimeId || active.source.sceneUuid !== source.sceneUuid || active.source.generation !== source.generation) {
+            throw new Error('The WebGL scene changed during reflection-probe bake (stale runtime or generation).');
+        }
     }
 
     private _getSceneIdentity(): IReflectionProbeSceneIdentity {

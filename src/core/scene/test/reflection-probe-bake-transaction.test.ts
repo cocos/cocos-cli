@@ -142,7 +142,9 @@ describe('ReflectionProbeService source identity', () => {
             isCurrentEditorSession(session: { uuid: string; generation: number }) { return session.generation === generation; }
         }
         const first = new ReflectionProbeService();
-        const source = await first.getSceneIdentity();
+        const device = jest.requireMock('cc').gfx.deviceManager.gfxDevice;
+        device.gfxAPI = 1;
+        const source = await first.getSceneIdentity().finally(() => { device.gfxAPI = 0; });
         expect(() => first.assertSceneIdentity(source)).not.toThrow();
         generation++;
         expect(() => first.assertSceneIdentity(source)).toThrow('stale runtime or generation');
@@ -268,6 +270,27 @@ describe('ReflectionProbeService bake output transaction', () => {
 
     afterEach(() => {
         jest.restoreAllMocks();
+    });
+
+    it('validates remote task query and cancellation against the WebGL source', async () => {
+        const source = { runtimeId: 'renderer-runtime', sceneUuid: 'scene-a', generation: 7 };
+        let active = source;
+        mockRpcRequest.mockImplementation(async (module: string, method: string) => {
+            if (module === 'reflectionProbeRenderer' && method === 'listActive') {
+                return { rendererId: 'r', sceneUrl: 'db://assets/a.scene', source: active, probes: [] };
+            }
+            if (module === 'reflectionProbeBakeHost' && method === 'cancel') { return; }
+            throw new Error(`Unexpected RPC ${module}.${method}`);
+        });
+        expect(await service.getSceneIdentity()).toEqual(source);
+        service._task = { ...service._idleTask(), taskId: 'remote-task', source, status: 'baking' };
+        expect((await service.getTaskState(source)).taskId).toBe('remote-task');
+        expect((await service.cancelBake({ taskId: 'remote-task', source })).status).toBe('cancelling');
+        expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeBakeHost', 'cancel', [{ taskId: 'remote-task' }]);
+        active = { ...source, generation: 8 };
+        await expect(service.getTaskState(source)).rejects.toThrow('stale runtime or generation');
+        await expect(service.cancelBake({ taskId: 'remote-task', source })).rejects.toThrow('stale runtime or generation');
+        await expect(service.cancelBake({ taskId: 'remote-task', source: active })).rejects.toThrow('different source scene');
     });
 
     it('rolls back Node output if the source scene reopens before apply', async () => {
