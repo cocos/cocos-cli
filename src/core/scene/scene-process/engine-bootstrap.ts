@@ -367,6 +367,29 @@ async function setupBrowserInvokeChannel(serverURL: string) {
                 reply({ error: error instanceof Error ? error.message : String(error) });
             }
         });
+        socket.on('scene:clear-reflection-probes', async (
+            msg: {
+                sceneUrl?: string;
+                saveScene?: boolean;
+                timeoutMs?: number;
+            },
+            reply: (response: { result?: unknown; error?: string }) => void,
+        ) => {
+            try {
+                if (!msg?.sceneUrl) {
+                    throw new Error('Invalid reflection-probe clear request.');
+                }
+                const result = await (DecoratorService.ReflectionProbe as any).clearBakedCubemaps({
+                    sceneUrl: msg.sceneUrl,
+                    saveScene: msg.saveScene !== false,
+                    timeoutMs: msg.timeoutMs,
+                });
+                updateRendererScene(msg.sceneUrl);
+                reply({ result });
+            } catch (error) {
+                reply({ error: error instanceof Error ? error.message : String(error) });
+            }
+        });
         // Reconcile feature-local runtime state after first connection or reconnect.
         // Reference images need this because their Sprite objects are not persisted with configuration.
         socket.on('connect', () => {

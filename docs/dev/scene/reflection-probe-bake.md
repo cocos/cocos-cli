@@ -94,6 +94,52 @@ MCP 工具在 Node 主进程执行，并经 Node IPC 进入 scene-process。由�
 }
 ```
 
+### 批量清理
+
+工具名：`scene-clear-reflection-probes`
+
+该工具解除当前活动场景中全部 Reflection Probe 的 CubeMap 绑定、立即刷新 Pink 场景，并默认保存场景和删除 CLI 生成的烘焙资源：
+
+```json
+{
+  "options": {
+    "saveScene": true,
+    "deleteAssets": true,
+    "timeoutMs": 120000
+  }
+}
+```
+
+- `saveScene` 默认 `true`，全部绑定清除后只保存一次场景。
+- `deleteAssets` 默认 `true`；设为 `false` 时只解除绑定，保留 PNG 与卷积资源。
+- 为避免磁盘场景保留已删除资源的引用，`saveScene=false` 时必须同时设置 `deleteAssets=false`。
+- `timeoutMs` 默认 120 秒，最大 600 秒。
+- 无需先调用 `scene-open`，清理固定使用调用时 Pink 中的活动场景渲染器。
+- 为避免误删用户资产，只有组件实际引用 `db://assets/<scene-name>/reflectionProbe_<probeId>.png/textureCube` 时，CLI 才会删除对应 PNG 与 `_convolution` 目录；其他手动绑定的 CubeMap 只解除绑定。
+- 场景绑定与保存成功后才删除资源。单个资源删除失败不会恢复已经清除的场景，失败项会出现在 `failures` 中。
+- 与 Creator 原清理行为一致，删除资产的清理操作不写入场景 Undo，避免撤销后重新引用已删除的 CubeMap。
+
+成功返回示例：
+
+```json
+{
+  "result": {
+    "code": 200,
+    "data": {
+      "sceneUrl": "db://assets/ReflectionProbeTest.scene",
+      "totalCount": 1,
+      "clearedCount": 1,
+      "deletedAssetUrls": [
+        "db://assets/ReflectionProbeTest/reflectionProbe_0_convolution",
+        "db://assets/ReflectionProbeTest/reflectionProbe_0.png"
+      ],
+      "failures": [],
+      "durationMs": 120
+    }
+  }
+}
+```
+
 ## 处理链路
 
 ```text
@@ -146,3 +192,4 @@ npm.cmd test -- --runInBand tests/reflection-probe-bake-api.test.ts tests/reflec
 6. 分别验证 `fastBake=true` 与 `fastBake=false`；非 fast 模式应在六面子资源全部导入后才返回成功并刷新场景，`assets` 下不应残留 `.reflection-probe-*.png`。
 7. 同时打开两个包含同路径探针的场景，只切换 Pink 场景标签、不点击视口后执行烘焙；结果必须只应用到当前活动场景。活动场景无法唯一识别时必须失败，不能回退到其他场景。
 8. 在包含多个探针（包括同名节点）的场景中执行 `scene-bake-reflection-probes`，确认全部结果绑定到原窗口、每个 probe ID 对应独立资源，并且场景只在批量结束后保存。
+9. 执行 `scene-clear-reflection-probes`，确认所有探针预览立即恢复为未烘焙状态，场景只保存一次，生成的 PNG 与卷积目录被删除；手动绑定的非烘焙 CubeMap 不应被删除。

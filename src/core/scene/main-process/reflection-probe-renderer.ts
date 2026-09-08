@@ -28,6 +28,19 @@ export interface IActiveReflectionProbeListResult {
     probes: IReflectionProbeDescriptor[];
 }
 
+export interface IBakedReflectionProbeDescriptor extends IReflectionProbeDescriptor {
+    probeId: number;
+    cubemapUuid: string;
+}
+
+export interface IReflectionProbeClearResult {
+    sceneUrl: string;
+    sceneName: string;
+    probes: IBakedReflectionProbeDescriptor[];
+    clearedCount: number;
+    saved: boolean;
+}
+
 export interface IReflectionProbeApplyRequest {
     sceneUrl: string;
     nodePath: string;
@@ -68,6 +81,11 @@ interface IListResponse {
 
 interface ISaveResponse {
     result?: { saved?: boolean; sceneUrl?: string };
+    error?: string;
+}
+
+interface IClearResponse {
+    result?: IReflectionProbeClearResult;
     error?: string;
 }
 
@@ -214,6 +232,39 @@ function requestSave(socket: Socket, sceneUrl: string, timeoutMs: number): Promi
     });
 }
 
+function requestClear(
+    socket: Socket,
+    sceneUrl: string,
+    saveScene: boolean,
+    timeoutMs: number,
+): Promise<IReflectionProbeClearResult> {
+    return new Promise((resolve, reject) => {
+        socket.timeout(timeoutMs).emit(
+            'scene:clear-reflection-probes',
+            { sceneUrl, saveScene, timeoutMs },
+            (error: Error | null, response?: IClearResponse) => {
+                if (error) {
+                    reject(new Error(
+                        'The reflection-probe clear acknowledgement timed out; '
+                        + `the final WebGL clear state is unknown. (${error.message})`,
+                    ));
+                } else if (response?.error) {
+                    reject(new Error(response.error));
+                } else if (response?.result?.sceneUrl === sceneUrl
+                    && typeof response.result.sceneName === 'string'
+                    && Array.isArray(response.result.probes)
+                    && Number.isInteger(response.result.clearedCount)
+                    && response.result.clearedCount === response.result.probes.length
+                    && response.result.saved === (saveScene && response.result.probes.length > 0)) {
+                    resolve(response.result);
+                } else {
+                    reject(new Error('WebGL scene renderer returned an invalid reflection-probe clear acknowledgement.'));
+                }
+            },
+        );
+    });
+}
+
 function captureError(error: unknown): Error {
     const detail = error instanceof Error ? error.message : String(error);
     return new Error(
@@ -334,5 +385,24 @@ export const reflectionProbeRenderer = {
             throw new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.');
         }
         await requestSave(socket, sceneUrl, timeoutMs);
+    },
+
+    async clearActive(saveScene: boolean, timeoutMs: number): Promise<IReflectionProbeClearResult> {
+        const sockets = await requireRendererSockets();
+        requireAvailableRenderer(sockets);
+        const selection = selectActiveRenderer(sockets);
+        const result = await requestClear(selection.socket, selection.sceneUrl, saveScene, timeoutMs);
+        if (!result.sceneName || result.sceneName === '.' || result.sceneName === '..'
+            || result.probes.some((probe) => !probe || typeof probe.nodePath !== 'string'
+                || typeof probe.componentUuid !== 'string' || !probe.componentUuid
+                || !Number.isInteger(probe.probeId) || probe.probeId < 0
+                || typeof probe.cubemapUuid !== 'string' || !probe.cubemapUuid)) {
+            throw new Error('WebGL scene renderer returned invalid cleared reflection-probe descriptors.');
+        }
+        const componentUuids = new Set(result.probes.map((probe) => probe.componentUuid));
+        if (componentUuids.size !== result.probes.length) {
+            throw new Error('WebGL scene renderer returned duplicate cleared reflection-probe descriptors.');
+        }
+        return result;
     },
 };

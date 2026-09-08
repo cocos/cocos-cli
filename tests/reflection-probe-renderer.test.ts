@@ -60,6 +60,21 @@ function rendererSocket(options: IMockRendererOptions = {}) {
                 });
             } else if (event === 'scene:save-reflection-probes') {
                 reply(null, { result: { saved: true, sceneUrl } });
+            } else if (event === 'scene:clear-reflection-probes') {
+                reply(null, {
+                    result: {
+                        sceneUrl,
+                        sceneName: 'Target',
+                        probes: [{
+                            nodePath: 'Probe',
+                            componentUuid: 'Comp.1',
+                            probeId: 0,
+                            cubemapUuid: 'cube@b47c0',
+                        }],
+                        clearedCount: 1,
+                        saved: request.saveScene,
+                    },
+                });
             }
         }),
     };
@@ -191,6 +206,34 @@ describe('reflection probe WebGL renderer bridge', () => {
         expect(active.emit).toHaveBeenCalledWith(
             'scene:save-reflection-probes',
             { sceneUrl: 'db://assets/Target.scene' },
+            expect.any(Function),
+        );
+    });
+
+    it('lists and clears baked probes through the same active renderer', async () => {
+        const active = rendererSocket({ id: 'active', visible: true });
+        mockFetchSockets.mockResolvedValue([active]);
+
+        await expect(reflectionProbeRenderer.clearActive(true, 1000)).resolves.toEqual({
+            sceneUrl: 'db://assets/Target.scene',
+            sceneName: 'Target',
+            probes: [{
+                nodePath: 'Probe',
+                componentUuid: 'Comp.1',
+                probeId: 0,
+                cubemapUuid: 'cube@b47c0',
+            }],
+            clearedCount: 1,
+            saved: true,
+        });
+
+        expect(active.emit).toHaveBeenCalledWith(
+            'scene:clear-reflection-probes',
+            expect.objectContaining({
+                sceneUrl: 'db://assets/Target.scene',
+                saveScene: true,
+                timeoutMs: 1000,
+            }),
             expect.any(Function),
         );
     });

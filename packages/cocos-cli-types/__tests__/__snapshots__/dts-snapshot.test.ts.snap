@@ -6743,9 +6743,27 @@ export declare interface IReflectionProbeBakeResult {
     cubemapUrl: string;
     fastBake: boolean;
 }
+export declare interface IReflectionProbeClearFailure {
+    assetUrl: string;
+    reason: string;
+}
+export declare interface IReflectionProbeClearOptions {
+    saveScene?: boolean;
+    deleteAssets?: boolean;
+    timeoutMs?: number;
+}
+export declare interface IReflectionProbeClearResult {
+    sceneUrl: string;
+    totalCount: number;
+    clearedCount: number;
+    deletedAssetUrls: string[];
+    failures: IReflectionProbeClearFailure[];
+    durationMs: number;
+}
 export declare interface IReflectionProbeService extends IServiceEvents {
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
+    clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;
 }
 export declare interface IRegeneratePolygon2DPointsOptions {
     path: string;

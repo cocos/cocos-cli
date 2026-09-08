@@ -30,6 +30,9 @@ import type {
     IReflectionProbeBakeFailure,
     IReflectionProbeBakeOptions,
     IReflectionProbeBakeResult,
+    IReflectionProbeClearFailure,
+    IReflectionProbeClearOptions,
+    IReflectionProbeClearResult,
     IReflectionProbeEvents,
     IReflectionProbeService,
 } from '../../common';
@@ -93,6 +96,30 @@ interface IActiveRendererProbeList extends IRemoteRendererSelection {
     probes: IReflectionProbeDescriptor[];
 }
 
+interface IReflectionProbeBakedDescriptor extends IReflectionProbeDescriptor {
+    probeId: number;
+    cubemapUuid: string;
+}
+
+interface IClearBakedCubemapsOptions {
+    sceneUrl: string;
+    saveScene: boolean;
+    timeoutMs?: number;
+}
+
+interface IClearBakedCubemapsResult {
+    sceneUrl: string;
+    sceneName: string;
+    probes: IReflectionProbeBakedDescriptor[];
+    clearedCount: number;
+    saved: boolean;
+}
+
+interface IGeneratedProbeAsset {
+    outputUrl: string;
+    convolutionUrl: string;
+}
+
 @register('ReflectionProbe')
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
     private _baking = false;
@@ -104,6 +131,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     public bakeAll(options: IReflectionProbeBakeAllOptions = {}): Promise<IReflectionProbeBakeAllResult> {
         return this._runExclusive(() => this._bakeAll(options));
+    }
+
+    public clearAll(options: IReflectionProbeClearOptions = {}): Promise<IReflectionProbeClearResult> {
+        return this._runExclusive(() => this._clearAll(options));
     }
 
     private async _bakeOne(
@@ -355,6 +386,65 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         }
     }
 
+    private async _clearAll(options: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult> {
+        const started = Date.now();
+        const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+            throw new Error('Reflection probe clear timeoutMs must be greater than zero.');
+        }
+        if (options.saveScene === false && options.deleteAssets !== false) {
+            throw new Error('deleteAssets requires saveScene so the saved scene cannot retain deleted cubemap references.');
+        }
+        const deadline = started + timeoutMs;
+        const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+        const failures: IReflectionProbeClearFailure[] = [];
+        const deletedAssetUrls: string[] = [];
+        const sceneUrl = remoteRenderer ? '' : await this._queryCurrentSceneUrl();
+        this._assertClearBeforeDeadline(deadline, 'scene update');
+        const cleared = remoteRenderer
+            ? await Rpc.getInstance().request('reflectionProbeRenderer', 'clearActive', [
+                options.saveScene !== false,
+                Math.max(1, deadline - Date.now()),
+            ]) as IClearBakedCubemapsResult
+            : await this.clearBakedCubemaps({
+                sceneUrl,
+                saveScene: options.saveScene !== false,
+                timeoutMs: Math.max(1, deadline - Date.now()),
+            });
+        const generatedAssets = options.deleteAssets === false
+            ? []
+            : await this._resolveGeneratedProbeAssets(cleared.sceneName, cleared.probes);
+
+        for (const asset of generatedAssets) {
+            for (const assetUrl of [asset.convolutionUrl, asset.outputUrl]) {
+                try {
+                    this._assertClearBeforeDeadline(deadline, 'asset deletion');
+                    const info = await Rpc.getInstance().request(
+                        'assetManager',
+                        'queryAssetInfo',
+                        [assetUrl],
+                    ) as IAssetInfo | null;
+                    if (!info) {
+                        continue;
+                    }
+                    await Rpc.getInstance().request('assetManager', 'removeAsset', [assetUrl]);
+                    deletedAssetUrls.push(assetUrl);
+                } catch (error) {
+                    failures.push({ assetUrl, reason: this._errorMessage(error) });
+                }
+            }
+        }
+
+        return {
+            sceneUrl: cleared.sceneUrl,
+            totalCount: cleared.probes.length,
+            clearedCount: cleared.clearedCount,
+            deletedAssetUrls,
+            failures,
+            durationMs: Date.now() - started,
+        };
+    }
+
     /**
      * Runs inside the browser scene client when the Node scene process uses EmptyDevice.
      * Faces are base64 encoded so they can cross socket.io and process IPC unchanged.
@@ -377,6 +467,103 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         };
         visit(scene, '/');
         return probes;
+    }
+
+    /** Returns every probe that currently owns a baked cubemap binding, including inactive probes. */
+    public listBakedProbes(): { sceneName: string; probes: IReflectionProbeBakedDescriptor[] } {
+        const scene = director.getScene();
+        if (!scene) {
+            throw new Error('No scene is currently open in the WebGL scene renderer.');
+        }
+        const probes: IReflectionProbeBakedDescriptor[] = [];
+        const visit = (node: any, nodePath: string): void => {
+            const component = node.getComponent?.(ReflectionProbe) as ReflectionProbe | null;
+            const cubemapUuid = component?.cubemap?.uuid;
+            if (component && typeof cubemapUuid === 'string' && cubemapUuid) {
+                probes.push({
+                    nodePath,
+                    componentUuid: component.uuid,
+                    probeId: component.probe.getProbeId(),
+                    cubemapUuid,
+                });
+            }
+            for (const child of node.children ?? []) {
+                visit(child, nodePath === '/' ? child.name : `${nodePath}/${child.name}`);
+            }
+        };
+        visit(scene, '/');
+        return { sceneName: scene.name, probes };
+    }
+
+    /** Atomically clears bindings in the live renderer and optionally saves that same scene. */
+    public async clearBakedCubemaps(
+        options: IClearBakedCubemapsOptions,
+    ): Promise<IClearBakedCubemapsResult> {
+        if (!options?.sceneUrl) {
+            throw new Error('Invalid reflection-probe clear request.');
+        }
+        const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+        if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+            throw new Error('Reflection probe clear timeoutMs must be greater than zero.');
+        }
+        const deadline = Date.now() + timeoutMs;
+        await this._assertCurrentScene(options.sceneUrl);
+        const state = this.listBakedProbes();
+        if (!state.probes.length) {
+            return {
+                sceneUrl: options.sceneUrl,
+                sceneName: state.sceneName,
+                probes: [],
+                clearedCount: 0,
+                saved: false,
+            };
+        }
+
+        const targets = state.probes.map((probe) => {
+            const located = this._findProbeByUuid(probe.componentUuid);
+            if (!located?.component.cubemap?.uuid || located.component.cubemap.uuid !== probe.cubemapUuid) {
+                throw new Error(`Reflection probe changed before its baked cubemap could be cleared: ${probe.componentUuid}`);
+            }
+            return {
+                ...located,
+                previousCubemap: located.component.cubemap,
+            };
+        });
+        let sceneSaved = false;
+        try {
+            for (const { node, component } of targets) {
+                component.cubemap = null;
+                this._notifyCubemapChanged(node, component);
+            }
+            await Service.Engine.repaintInEditMode();
+            if (options.saveScene) {
+                this._assertClearBeforeDeadline(deadline, 'scene save');
+                await Service.Editor.save({});
+                sceneSaved = true;
+                Service.Undo.markSaved();
+            }
+            return {
+                sceneUrl: options.sceneUrl,
+                sceneName: state.sceneName,
+                probes: state.probes,
+                clearedCount: targets.length,
+                saved: options.saveScene,
+            };
+        } catch (error) {
+            if (sceneSaved) {
+                const detail = this._errorMessage(error);
+                throw new Error(
+                    'The reflection-probe scene was saved, but the final WebGL clear state is unknown. '
+                    + `(${detail})`,
+                );
+            }
+            for (const { node, component, previousCubemap } of targets) {
+                component.cubemap = previousCubemap;
+                this._notifyCubemapChanged(node, component);
+            }
+            await Service.Engine.repaintInEditMode().catch(() => undefined);
+            throw error;
+        }
     }
 
     public async capturePixels(
@@ -624,6 +811,35 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     private _errorMessage(error: unknown): string {
         return error instanceof Error ? error.message : String(error);
+    }
+
+    private async _resolveGeneratedProbeAssets(
+        sceneName: string,
+        probes: IReflectionProbeBakedDescriptor[],
+    ): Promise<IGeneratedProbeAsset[]> {
+        if (!sceneName || sceneName !== basename(sceneName) || sceneName === '.' || sceneName === '..') {
+            throw new Error('The active scene has an invalid name for reflection-probe asset cleanup.');
+        }
+        const result: IGeneratedProbeAsset[] = [];
+        for (const probe of probes) {
+            const separator = probe.cubemapUuid.indexOf('@');
+            const rootUuid = separator < 0 ? probe.cubemapUuid : probe.cubemapUuid.slice(0, separator);
+            const info = await Rpc.getInstance().request(
+                'assetManager',
+                'queryAssetInfo',
+                [rootUuid],
+            ) as IAssetInfo | null;
+            const outputUrl = `db://assets/${sceneName}/reflectionProbe_${probe.probeId}.png`;
+            if (info?.url !== outputUrl) {
+                // The probe references a user-owned cubemap rather than the conventional bake output.
+                continue;
+            }
+            result.push({
+                outputUrl,
+                convolutionUrl: outputUrl.slice(0, -'.png'.length) + '_convolution',
+            });
+        }
+        return result;
     }
 
     private async _waitForCapture(probe: any, deadline: number): Promise<void> {
@@ -1049,6 +1265,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     private _assertBeforeDeadline(deadline: number, stage: string): void {
         assert(Date.now() < deadline, `Reflection probe bake timed out during ${stage}.`);
+    }
+
+    private _assertClearBeforeDeadline(deadline: number, stage: string): void {
+        assert(Date.now() < deadline, `Reflection probe clear timed out during ${stage}.`);
     }
 
     private _delay(ms: number): Promise<void> {

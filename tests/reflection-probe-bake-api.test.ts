@@ -5,10 +5,13 @@ import {
     SchemaReflectionProbeBakeAllResult,
     SchemaReflectionProbeBakeOptions,
     SchemaReflectionProbeBakeResult,
+    SchemaReflectionProbeClearOptions,
+    SchemaReflectionProbeClearResult,
 } from '../src/api/scene/reflection-probe-schema';
 
 const mockBake = jest.fn();
 const mockBakeAll = jest.fn();
+const mockClearAll = jest.fn();
 
 jest.mock('../src/api/decorator/decorator.js', () => ({
     description: () => jest.fn(),
@@ -23,6 +26,7 @@ jest.mock('../src/core/scene', () => ({
         ReflectionProbe: {
             bake: (...args: unknown[]) => mockBake(...args),
             bakeAll: (...args: unknown[]) => mockBakeAll(...args),
+            clearAll: (...args: unknown[]) => mockClearAll(...args),
         },
     },
 }));
@@ -33,6 +37,7 @@ describe('reflection probe bake API', () => {
     beforeEach(() => {
         mockBake.mockReset();
         mockBakeAll.mockReset();
+        mockClearAll.mockReset();
     });
 
     it('applies safe defaults and rejects invalid input', () => {
@@ -149,6 +154,50 @@ describe('reflection probe bake API', () => {
             nodePaths: [],
             saveScene: true,
             timeoutMs: 600_000,
+        });
+    });
+
+    it('applies clear-all defaults and accepts its result shape', () => {
+        expect(SchemaReflectionProbeClearOptions.parse({})).toEqual({
+            saveScene: true,
+            deleteAssets: true,
+            timeoutMs: 120_000,
+        });
+        expect(() => SchemaReflectionProbeClearOptions.parse({
+            saveScene: false,
+            deleteAssets: true,
+        })).toThrow();
+        expect(() => SchemaReflectionProbeClearOptions.parse({ timeoutMs: 600_001 })).toThrow();
+        expect(SchemaReflectionProbeClearResult.parse({
+            sceneUrl: 'db://assets/Main.scene',
+            totalCount: 2,
+            clearedCount: 2,
+            deletedAssetUrls: ['db://assets/Main/reflectionProbe_0.png'],
+            failures: [],
+            durationMs: 12,
+        }).clearedCount).toBe(2);
+    });
+
+    it('forwards clear-all options and wraps success', async () => {
+        const data = {
+            sceneUrl: 'db://assets/Main.scene',
+            totalCount: 1,
+            clearedCount: 1,
+            deletedAssetUrls: ['db://assets/Main/reflectionProbe_0.png'],
+            failures: [],
+            durationMs: 10,
+        };
+        mockClearAll.mockResolvedValue(data);
+
+        await expect(new ReflectionProbeApi().clearAll({
+            saveScene: true,
+            deleteAssets: true,
+            timeoutMs: 120_000,
+        })).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data });
+        expect(mockClearAll).toHaveBeenCalledWith({
+            saveScene: true,
+            deleteAssets: true,
+            timeoutMs: 120_000,
         });
     });
 });

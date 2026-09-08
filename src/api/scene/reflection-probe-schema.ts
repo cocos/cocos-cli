@@ -41,7 +41,35 @@ export const SchemaReflectionProbeBakeAllResult = z.object({
     durationMs: z.number().nonnegative(),
 }).describe('Bake-all reflection probe result');
 
+export const SchemaReflectionProbeClearOptions = z.object({
+    saveScene: z.boolean().optional().default(true)
+        .describe('Save the active scene once after all cubemap bindings are cleared'),
+    deleteAssets: z.boolean().optional().default(true)
+        .describe('Delete CLI-generated cubemap PNG and convolution assets after clearing their bindings'),
+    timeoutMs: z.number().int().positive().max(600_000).optional().default(120_000)
+        .describe('Timeout for the complete clear operation'),
+}).refine((options) => options.saveScene || !options.deleteAssets, {
+    message: 'deleteAssets requires saveScene so the saved scene cannot retain deleted cubemap references',
+    path: ['deleteAssets'],
+}).describe('Clear-all reflection probe options');
+
+export const SchemaReflectionProbeClearFailure = z.object({
+    assetUrl: z.string(),
+    reason: z.string(),
+});
+
+export const SchemaReflectionProbeClearResult = z.object({
+    sceneUrl: z.string(),
+    totalCount: z.number().int().nonnegative(),
+    clearedCount: z.number().int().nonnegative(),
+    deletedAssetUrls: z.array(z.string()),
+    failures: z.array(SchemaReflectionProbeClearFailure),
+    durationMs: z.number().nonnegative(),
+}).describe('Clear-all reflection probe result');
+
 export type TReflectionProbeBakeOptions = z.infer<typeof SchemaReflectionProbeBakeOptions>;
 export type TReflectionProbeBakeResult = z.infer<typeof SchemaReflectionProbeBakeResult>;
 export type TReflectionProbeBakeAllOptions = z.infer<typeof SchemaReflectionProbeBakeAllOptions>;
 export type TReflectionProbeBakeAllResult = z.infer<typeof SchemaReflectionProbeBakeAllResult>;
+export type TReflectionProbeClearOptions = z.infer<typeof SchemaReflectionProbeClearOptions>;
+export type TReflectionProbeClearResult = z.infer<typeof SchemaReflectionProbeClearResult>;

@@ -364,6 +364,83 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(service._bakeOne).toHaveBeenCalledTimes(1);
     });
 
+    it('clears all bindings before deleting only conventionally generated probe assets', async () => {
+        const sceneUrl = `db://assets/${SCENE_NAME}.scene`;
+        const convolutionUrl = `db://assets/${SCENE_NAME}/reflectionProbe_0_convolution`;
+        const removed: string[] = [];
+        mockRpcRequest.mockImplementation(async (serviceName: string, method: string, args: unknown[]) => {
+            if (serviceName === 'reflectionProbeRenderer' && method === 'clearActive') {
+                expect(args).toEqual([true, expect.any(Number)]);
+                return {
+                    sceneUrl,
+                    sceneName: SCENE_NAME,
+                    probes: [{
+                        nodePath: 'Probe',
+                        componentUuid: 'Comp.1',
+                        probeId: 0,
+                        cubemapUuid: 'cube@b47c0',
+                    }],
+                    clearedCount: 1,
+                    saved: true,
+                };
+            }
+            if (serviceName === 'assetManager' && method === 'queryAssetInfo') {
+                const urlOrUuid = args[0];
+                if (urlOrUuid === 'cube') return { uuid: 'cube', url: OUTPUT_URL };
+                if (urlOrUuid === OUTPUT_URL || urlOrUuid === convolutionUrl) {
+                    return { uuid: String(urlOrUuid), url: urlOrUuid };
+                }
+                return null;
+            }
+            if (serviceName === 'assetManager' && method === 'removeAsset') {
+                removed.push(args[0] as string);
+                return {};
+            }
+            throw new Error(`Unexpected RPC request: ${serviceName}.${method}`);
+        });
+
+        await expect(service.clearAll({})).resolves.toEqual({
+            sceneUrl,
+            totalCount: 1,
+            clearedCount: 1,
+            deletedAssetUrls: [convolutionUrl, OUTPUT_URL],
+            failures: [],
+            durationMs: expect.any(Number),
+        });
+        expect(removed).toEqual([convolutionUrl, OUTPUT_URL]);
+    });
+
+    it('clears but does not delete a user-owned cubemap', async () => {
+        const sceneUrl = `db://assets/${SCENE_NAME}.scene`;
+        mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
+            if (serviceName === 'reflectionProbeRenderer' && method === 'clearActive') {
+                return {
+                    sceneUrl,
+                    sceneName: SCENE_NAME,
+                    probes: [{
+                        nodePath: 'Probe',
+                        componentUuid: 'Comp.1',
+                        probeId: 0,
+                        cubemapUuid: 'manual@b47c0',
+                    }],
+                    clearedCount: 1,
+                    saved: true,
+                };
+            }
+            if (serviceName === 'assetManager' && method === 'queryAssetInfo') {
+                return { uuid: 'manual', url: 'db://assets/Environment/manual.hdr' };
+            }
+            throw new Error(`Unexpected RPC request: ${serviceName}.${method}`);
+        });
+
+        await expect(service.clearAll({})).resolves.toEqual(expect.objectContaining({
+            clearedCount: 1,
+            deletedAssetUrls: [],
+            failures: [],
+        }));
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('assetManager', 'removeAsset', expect.anything());
+    });
+
     it('lists active cube probes with component UUIDs even when node paths are duplicated', () => {
         const makeNode = (componentUuid: string) => {
             const component = { uuid: componentUuid, enabled: true, probeType: 0 };

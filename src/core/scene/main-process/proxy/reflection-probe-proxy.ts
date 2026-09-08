@@ -4,6 +4,8 @@ import type {
     IReflectionProbeBakeAllResult,
     IReflectionProbeBakeOptions,
     IReflectionProbeBakeResult,
+    IReflectionProbeClearOptions,
+    IReflectionProbeClearResult,
 } from '../../common';
 import { Rpc } from '../rpc';
 
@@ -13,5 +15,8 @@ export const ReflectionProbeProxy: IPublicReflectionProbeService = {
     },
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult> {
         return Rpc.getInstance().request('ReflectionProbe', 'bakeAll', [options]);
+    },
+    clearAll(options: IReflectionProbeClearOptions = {}): Promise<IReflectionProbeClearResult> {
+        return Rpc.getInstance().request('ReflectionProbe', 'clearAll', [options]);
     },
 };

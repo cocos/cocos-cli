@@ -38,6 +38,28 @@ export interface IReflectionProbeBakeAllResult {
     durationMs: number;
 }
 
+export interface IReflectionProbeClearOptions {
+    /** Save the active scene after all cubemap bindings are cleared. */
+    saveScene?: boolean;
+    /** Delete generated PNG and convolution assets after the scene no longer references them. */
+    deleteAssets?: boolean;
+    timeoutMs?: number;
+}
+
+export interface IReflectionProbeClearFailure {
+    assetUrl: string;
+    reason: string;
+}
+
+export interface IReflectionProbeClearResult {
+    sceneUrl: string;
+    totalCount: number;
+    clearedCount: number;
+    deletedAssetUrls: string[];
+    failures: IReflectionProbeClearFailure[];
+    durationMs: number;
+}
+
 export interface IReflectionProbeEvents {
     'reflection-probe:bake-start': [nodePath: string];
     'reflection-probe:bake-end': [nodePath: string, error?: string];
@@ -49,6 +71,7 @@ export interface IReflectionProbeEvents {
 export interface IReflectionProbeService extends IServiceEvents {
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
+    clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;
 }
 
 export type IPublicReflectionProbeService = Omit<IReflectionProbeService, keyof IServiceEvents>;

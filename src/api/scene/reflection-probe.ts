@@ -6,10 +6,14 @@ import {
     SchemaReflectionProbeBakeAllResult,
     SchemaReflectionProbeBakeOptions,
     SchemaReflectionProbeBakeResult,
+    SchemaReflectionProbeClearOptions,
+    SchemaReflectionProbeClearResult,
     TReflectionProbeBakeAllOptions,
     TReflectionProbeBakeAllResult,
     TReflectionProbeBakeOptions,
     TReflectionProbeBakeResult,
+    TReflectionProbeClearOptions,
+    TReflectionProbeClearResult,
 } from './reflection-probe-schema';
 
 export class ReflectionProbeApi {
@@ -41,6 +45,25 @@ export class ReflectionProbeApi {
     ): Promise<CommonResultType<TReflectionProbeBakeAllResult>> {
         try {
             const data = await Scene.ReflectionProbe.bakeAll(options);
+            return { code: COMMON_STATUS.SUCCESS, data };
+        } catch (error) {
+            console.error(error);
+            return {
+                code: COMMON_STATUS.FAIL,
+                reason: error instanceof Error ? error.message : String(error),
+            };
+        }
+    }
+
+    @tool('scene-clear-reflection-probes')
+    @title('Clear all baked reflection probes')
+    @description('Clear all baked cubemap bindings in the active Pink/browser scene, optionally delete CLI-generated assets, and save the scene. No scene-open call is required.')
+    @result(SchemaReflectionProbeClearResult)
+    async clearAll(
+        @param(SchemaReflectionProbeClearOptions) options: TReflectionProbeClearOptions,
+    ): Promise<CommonResultType<TReflectionProbeClearResult>> {
+        try {
+            const data = await Scene.ReflectionProbe.clearAll(options);
             return { code: COMMON_STATUS.SUCCESS, data };
         } catch (error) {
             console.error(error);
