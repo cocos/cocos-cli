@@ -54,7 +54,16 @@ function fixture(useGPU = false, supportsGPU = true) {
         let parent = target as Record<string, unknown>;
         for (const key of keys.slice(0, -1)) { parent = parent[key] as Record<string, unknown>; }
         const uuid = (dump.value as { uuid?: keyof typeof assets } | null)?.uuid;
-        parent[keys.at(-1)!] = dump.type === 'cc.Material' ? (uuid ? assets[uuid] : null) : dump.value;
+        const key = keys.at(-1)!;
+        if (dump.type === 'cc.Material') {
+            parent[key] = uuid ? assets[uuid] : null;
+        } else if (dump.value && typeof dump.value === 'object' && !Array.isArray(dump.value)) {
+            for (const [field, value] of Object.entries(dump.value as Record<string, IProperty>)) {
+                await restore(parent[key] as object, field, value);
+            }
+        } else {
+            parent[key] = dump.value;
+        }
     };
     const snapshot = (targetGPU: boolean, cpuUuid = 'cpu', gpuUuid = 'gpu', activeUuid = targetGPU ? gpuUuid : cpuUuid) => property({
         uuid: property('component-id', 'String'),
@@ -145,6 +154,55 @@ describe('particle snapshot material restoration', () => {
         await f.apply(dump);
         expect(f.renderer.trailMaterial?.uuid).toBe('default-trail-material');
     });
+
+    it.each(['private-first', 'public-first', 'public-only'])(
+        'synchronizes module execution through Reset, Undo and Redo with %s aliases', async aliases => {
+            const f = fixture();
+            const executingModules = new Set(['velocity']);
+            const target = {
+                enableModule(name: string, enabled: boolean) {
+                    if (enabled) { executingModules.add(name); }
+                    else { executingModules.delete(name); }
+                },
+            };
+            const module = {
+                _enable: true,
+                target,
+                get enable() { return this._enable; },
+                set enable(value: boolean) {
+                    // Cocos short-circuits this setter if the backing field already matches.
+                    if (value === this._enable) { return; }
+                    this._enable = value;
+                    this.target.enableModule('velocity', value);
+                },
+            };
+            const component = Object.assign(f.component, {
+                velocityOvertimeModule: module,
+                _velocityOvertimeModule: module,
+            });
+            for (const enabled of [false, true, false]) {
+                const dump = f.snapshot(false);
+                const moduleDump = property({
+                    _enable: property(enabled, 'Boolean'),
+                    enable: property(enabled, 'Boolean'),
+                }, 'cc.VelocityOvertimeModule');
+                const publicEntry = { velocityOvertimeModule: moduleDump };
+                const privateEntry = { _velocityOvertimeModule: moduleDump };
+                Object.assign(dump.value, aliases === 'public-only' ? publicEntry
+                    : aliases === 'public-first' ? { ...publicEntry, ...privateEntry }
+                        : { ...privateEntry, ...publicEntry });
+                const original = JSON.stringify(dump);
+
+                await f.apply(dump);
+
+                expect({ enabled: module.enable, executing: executingModules.has('velocity') })
+                    .toEqual({ enabled, executing: enabled });
+                expect(component.velocityOvertimeModule).toBe(module);
+                expect(module.target).toBe(target);
+                expect(JSON.stringify(dump)).toBe(original);
+            }
+        },
+    );
 
     it('rejects a missing built-in default before changing the live renderer', async () => {
         const { builtinResMgr } = require('cc');

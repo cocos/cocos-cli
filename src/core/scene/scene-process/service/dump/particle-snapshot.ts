@@ -95,7 +95,15 @@ export async function restoreParticleSystemSnapshot(
         if (key.startsWith('_') && key.endsWith('Module') && properties[key.slice(1)]?.value) {
             continue;
         }
-        await restore(component, key, property);
+        if (key.endsWith('Module') && property.value?.enable && property.value?._enable) {
+            // Writing _enable first makes the public setter skip enableModule(),
+            // leaving the processor's execution lists out of sync with the dump.
+            const value: Record<string, IProperty> = { ...property.value };
+            delete value._enable;
+            await restore(component, key, { ...property, value });
+        } else {
+            await restore(component, key, property);
+        }
     }
     for (const [key, property] of Object.entries(fields)) {
         if (!rendererMaterialKeys.has(key)) {
