@@ -6,15 +6,21 @@ const SaveAndTimeout = {
 };
 
 export const SchemaLightProbeBakeOptions = z.object({
-    giScale: z.number().finite().min(0).max(100).optional().describe('GI multiplier for this bake only'),
-    giSamples: z.number().int().min(64).max(65535).optional().describe('GI probe sample count for this bake only'),
-    bounces: z.number().int().min(1).max(4).optional().describe('Probe ray bounce count for this bake only'),
+    giScale: z.number().finite().min(0).max(100).optional().describe('GI multiplier; defaults to the current scene value'),
+    giSamples: z.number().int().min(64).max(65535).optional().describe('GI probe sample count; defaults to the current scene value'),
+    bounces: z.number().int().min(1).max(4).optional().describe('Probe ray bounce count; defaults to the current scene value'),
+    reduceRinging: z.number().finite().min(0).max(0.05).optional().describe('Spherical-harmonic ringing reduction; defaults to the current scene value'),
+    showWireframe: z.boolean().optional().describe('Show light-probe connections in the scene view; defaults to the current scene value'),
+    showConvex: z.boolean().optional().describe('Show the light-probe convex hull in the scene view; defaults to the current scene value'),
+    lightProbeSphereVolume: z.number().finite().min(0).max(100).optional().describe('Light-probe sphere display size; defaults to the current scene value'),
     ...SaveAndTimeout,
 }).describe('Light probe bake options');
 
 export const SchemaLightProbeBakeResult = z.object({
     sceneUrl: z.string(), probeCount: z.number().int().nonnegative(),
-    giScale: z.number(), giSamples: z.number().int(), bounces: z.number().int(), durationMs: z.number().nonnegative(),
+    giScale: z.number(), giSamples: z.number().int(), bounces: z.number().int(),
+    reduceRinging: z.number(), showWireframe: z.boolean(), showConvex: z.boolean(), lightProbeSphereVolume: z.number(),
+    durationMs: z.number().nonnegative(),
 });
 
 export const SchemaLightmapBakeOptions = z.object({

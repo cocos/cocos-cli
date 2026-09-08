@@ -15,6 +15,16 @@ interface ProbeSnapshot {
     coefficients: Vec3[];
 }
 
+interface LightProbeSettings {
+    giScale: number;
+    giSamples: number;
+    bounces: number;
+    reduceRinging: number;
+    showWireframe: boolean;
+    showConvex: boolean;
+    lightProbeSphereVolume: number;
+}
+
 @register('LightProbeBake')
 export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> implements ILightProbeBakeService {
     async bake(options: ILightProbeBakeOptions = {}): Promise<ILightProbeBakeResult> {
@@ -27,13 +37,20 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         const probes: any[] = info.data?.probes ?? [];
         if (probes.length < 4) throw new Error('At least four generated light probes are required.');
 
-        const giScale = options.giScale ?? info.giScale;
-        const giSamples = options.giSamples ?? info.giSamples;
-        const bounces = options.bounces ?? info.bounces;
+        const previousSettings = this.getSettings(info);
+        const settingsToApply: LightProbeSettings = {
+            giScale: options.giScale ?? previousSettings.giScale,
+            giSamples: options.giSamples ?? previousSettings.giSamples,
+            bounces: options.bounces ?? previousSettings.bounces,
+            reduceRinging: options.reduceRinging ?? previousSettings.reduceRinging,
+            showWireframe: options.showWireframe ?? previousSettings.showWireframe,
+            showConvex: options.showConvex ?? previousSettings.showConvex,
+            lightProbeSphereVolume: options.lightProbeSphereVolume ?? previousSettings.lightProbeSphereVolume,
+        };
         const settings = createDefaultLightFXSettings('light-probe');
-        settings.giProbeScale = giScale;
-        settings.giProbeSamples = giSamples;
-        settings.giProbePathLength = bounces;
+        settings.giProbeScale = settingsToApply.giScale;
+        settings.giProbeSamples = settingsToApply.giSamples;
+        settings.giProbePathLength = settingsToApply.bounces;
 
         const previous = this.snapshot(probes);
         let output: LightFXBakeOutput | undefined;
@@ -44,6 +61,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
 
             const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Bake light probes' });
             try {
+                this.applySettings(info, settingsToApply);
                 this.applyResult(probes, output);
                 info.onProbeBakeFinished();
                 await Service.Engine.repaintInEditMode();
@@ -56,10 +74,16 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             }
 
             this.broadcast('lightfx:bake-end', 'light-probe');
-            return { sceneUrl, probeCount: probes.length, giScale, giSamples, bounces, durationMs: Date.now() - started };
+            return {
+                sceneUrl,
+                probeCount: probes.length,
+                ...settingsToApply,
+                durationMs: Date.now() - started,
+            };
         } catch (error) {
             if (output) await lightFXCoordinator.rollback(output.operationId).catch(() => undefined);
             this.restore(probes, previous);
+            this.applySettings(info, previousSettings);
             info.onProbeBakeFinished();
             await Service.Engine.repaintInEditMode();
             this.broadcast('lightfx:bake-end', 'light-probe', this.errorMessage(error));
@@ -138,6 +162,28 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             probes[index].normal.set(item.normal);
             probes[index].coefficients = item.coefficients;
         });
+    }
+
+    private getSettings(info: any): LightProbeSettings {
+        return {
+            giScale: info.giScale,
+            giSamples: info.giSamples,
+            bounces: info.bounces,
+            reduceRinging: info.reduceRinging,
+            showWireframe: info.showWireframe,
+            showConvex: info.showConvex,
+            lightProbeSphereVolume: info.lightProbeSphereVolume,
+        };
+    }
+
+    private applySettings(info: any, settings: LightProbeSettings): void {
+        info.giScale = settings.giScale;
+        info.giSamples = settings.giSamples;
+        info.bounces = settings.bounces;
+        info.reduceRinging = settings.reduceRinging;
+        info.showWireframe = settings.showWireframe;
+        info.showConvex = settings.showConvex;
+        info.lightProbeSphereVolume = settings.lightProbeSphereVolume;
     }
 
     private errorMessage(error: unknown): string {

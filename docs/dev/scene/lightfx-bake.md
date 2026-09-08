@@ -33,6 +33,10 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
     "giScale": 8,
     "giSamples": 4096,
     "bounces": 1,
+    "reduceRinging": 0,
+    "showWireframe": true,
+    "showConvex": false,
+    "lightProbeSphereVolume": 1,
     "saveScene": true,
     "timeoutMs": 600000
   }
@@ -46,10 +50,14 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
 | `giScale` | 0–100 | 使用场景 `lightProbeInfo.giScale` |
 | `giSamples` | 64–65535，整数 | 使用场景 `lightProbeInfo.giSamples` |
 | `bounces` | 1–4，整数 | 使用场景 `lightProbeInfo.bounces` |
+| `reduceRinging` | 0–0.05 | 使用场景 `lightProbeInfo.reduceRinging` |
+| `showWireframe` | boolean | 使用场景 `lightProbeInfo.showWireframe` |
+| `showConvex` | boolean | 使用场景 `lightProbeInfo.showConvex` |
+| `lightProbeSphereVolume` | 0–100 | 使用场景 `lightProbeInfo.lightProbeSphereVolume` |
 | `saveScene` | boolean | `true` |
 | `timeoutMs` | 1000–3600000 ms | 600000 ms |
 
-这些覆盖参数只影响本次烘焙，不会修改 LightProbeInfo 的持久化配置。`reduceRinging`、`showWireframe`、`showConvex` 和探针显示尺寸不参与 LightFX 计算，因此不属于该接口参数。
+所有参数均可选，未传入时使用场景当前值。`giScale`、`giSamples` 和 `bounces` 参与 LightFX 计算；`reduceRinging`、`showWireframe`、`showConvex` 和 `lightProbeSphereVolume` 用于烘焙结果后处理或编辑器显示。烘焙成功后，本次的有效参数与 SH 结果作为同一次 Undo 操作写回 `LightProbeInfo`；烘焙失败或取消时保留原场景配置。
 
 成功返回示例：
 
@@ -63,6 +71,10 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
       "giScale": 8,
       "giSamples": 4096,
       "bounces": 1,
+      "reduceRinging": 0,
+      "showWireframe": true,
+      "showConvex": false,
+      "lightProbeSphereVolume": 1,
       "durationMs": 1630
     }
   }

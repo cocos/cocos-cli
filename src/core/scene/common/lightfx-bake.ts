@@ -5,6 +5,10 @@ export interface ILightProbeBakeOptions {
     giScale?: number;
     giSamples?: number;
     bounces?: number;
+    reduceRinging?: number;
+    showWireframe?: boolean;
+    showConvex?: boolean;
+    lightProbeSphereVolume?: number;
     saveScene?: boolean;
     timeoutMs?: number;
 }
@@ -15,6 +19,10 @@ export interface ILightProbeBakeResult {
     giScale: number;
     giSamples: number;
     bounces: number;
+    reduceRinging: number;
+    showWireframe: boolean;
+    showConvex: boolean;
+    lightProbeSphereVolume: number;
     durationMs: number;
 }
 

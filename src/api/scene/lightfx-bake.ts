@@ -16,7 +16,7 @@ async function execute<T>(operation: () => Promise<T>): Promise<CommonResultType
 export class LightFXBakeApi {
     @tool('scene-bake-light-probes')
     @title('Bake light probes')
-    @description('Bake all light probes in the current scene with LightFX and write spherical-harmonic coefficients back to the scene.')
+    @description('Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.')
     @result(SchemaLightProbeBakeResult)
     bakeLightProbes(@param(SchemaLightProbeBakeOptions) options: TLightProbeBakeOptions): Promise<CommonResultType<TLightProbeBakeResult>> {
         return execute(() => Scene.LightProbeBake.bake(options));

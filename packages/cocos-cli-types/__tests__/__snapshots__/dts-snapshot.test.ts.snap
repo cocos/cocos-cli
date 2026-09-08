@@ -6448,6 +6448,10 @@ export declare interface ILightProbeBakeOptions {
     giScale?: number;
     giSamples?: number;
     bounces?: number;
+    reduceRinging?: number;
+    showWireframe?: boolean;
+    showConvex?: boolean;
+    lightProbeSphereVolume?: number;
     saveScene?: boolean;
     timeoutMs?: number;
 }
@@ -6457,6 +6461,10 @@ export declare interface ILightProbeBakeResult {
     giScale: number;
     giSamples: number;
     bounces: number;
+    reduceRinging: number;
+    showWireframe: boolean;
+    showConvex: boolean;
+    lightProbeSphereVolume: number;
     durationMs: number;
 }
 export declare interface ILightProbeBakeService extends IServiceEvents {
