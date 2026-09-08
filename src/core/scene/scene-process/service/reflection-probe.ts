@@ -109,7 +109,16 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     private _baking = false;
 
     private _idleTask(): IReflectionProbeTaskState {
-        return { taskId: null, status: 'idle', remaining: [], total: 0, completed: 0, results: [], failures: [] };
+        return { revision: 0, logs: [], taskId: null, status: 'idle', remaining: [], total: 0, completed: 0, results: [], failures: [] };
+    }
+
+    private _publish(message?: string, level: 'info' | 'error' = 'info'): void {
+        this._task.revision++;
+        if (message) {
+            this._task.logs.push({ id: this._task.revision, timestamp: Date.now(), level, message });
+            if (this._task.logs.length > 2000) { this._task.logs.splice(0, this._task.logs.length - 2000); }
+        }
+        this.broadcast('reflection-probe:task-changed', structuredClone(this._task));
     }
 
     public async getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState> {
@@ -175,6 +184,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const nodePath = options.nodePath.trim();
         this._task.current = { nodePath, componentUuid: selection?.componentUuid ?? '' };
         this._task.total = Math.max(1, this._task.total);
+        this._publish(`Baking reflection probe: ${nodePath}`);
         this.broadcast('reflection-probe:bake-start', nodePath);
 
         try {
@@ -199,6 +209,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             } = captured;
 
             this._task.current = { nodePath, componentUuid };
+            this._publish();
             const prepared = await Rpc.getInstance().request(
                 'reflectionProbeBakeHost',
                 'prepare',
@@ -239,6 +250,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 };
                 this._task.results.push(result);
                 this._task.completed++;
+                this._publish(`Reflection probe completed: ${nodePath}`);
                 return result;
             } catch (error) {
                 if (this._isUnknownRemoteApplyState(error)) {
@@ -256,6 +268,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
+            this._publish(`Reflection probe failed: ${nodePath}: ${message}`, 'error');
             this.broadcast('reflection-probe:bake-end', nodePath, message);
             throw error;
         }
@@ -308,6 +321,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const results: IReflectionProbeBakeResult[] = [];
         this._task.total = totalCount;
         this._task.remaining = probes.slice();
+        this._publish();
         this.broadcast('reflection-probe:bake-all-start', totalCount);
         try {
             let completedCount = 0;
@@ -316,6 +330,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 this._task.completed = completedCount;
                 this._task.failures = failures.slice();
                 this._task.results = results.slice();
+                this._publish();
                 this.broadcast(
                     'reflection-probe:bake-all-progress',
                     completedCount,
@@ -360,6 +375,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 this._task.completed = completedCount;
                 this._task.failures = failures.slice();
                 this._task.results = results.slice();
+                this._publish();
                 this.broadcast(
                     'reflection-probe:bake-all-progress',
                     completedCount,
@@ -457,6 +473,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             }
         }
 
+        this._task.total = cleared.probes.length;
+        this._task.completed = cleared.clearedCount;
+        for (const failure of failures) { this._publish(`Clear failed: ${failure.assetUrl}: ${failure.reason}`, 'error'); }
+        this._publish(`Cleared ${cleared.clearedCount} reflection-probe bindings; deleted ${deletedAssetUrls.length} assets.`);
         return {
             sceneUrl: cleared.sceneUrl,
             totalCount: cleared.probes.length,
@@ -833,9 +853,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             throw new Error('A reflection probe bake or clear is already in progress.');
         }
         const owner = source ?? (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN ? undefined : this._getSceneIdentity());
-        if (owner) { this.assertSceneIdentity(owner); }
+        if (owner && gfx.deviceManager.gfxDevice.gfxAPI !== gfx.API.UNKNOWN) { this.assertSceneIdentity(owner); }
         this._baking = true;
         this._task = { ...this._idleTask(), taskId: globalThis.crypto.randomUUID(), source: owner, status };
+        this._publish(status === 'clearing' ? 'Clearing reflection-probe bake data.' : 'Reflection-probe bake started.');
         try {
             const result = await operation();
             this._task.status = this._task.failures.length ? 'failed' : 'completed';
@@ -848,6 +869,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             this._task.current = undefined;
             this._task.remaining = [];
             this._baking = false;
+            this._publish(this._task.error ?? 'Reflection-probe operation finished.', this._task.status === 'failed' ? 'error' : 'info');
         }
     }
 

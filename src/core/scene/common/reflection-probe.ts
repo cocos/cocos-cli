@@ -73,6 +73,8 @@ export interface IReflectionProbeClearResult {
 }
 
 export interface IReflectionProbeTaskState {
+    revision: number;
+    logs: Array<{ id: number; timestamp: number; level: 'info' | 'error'; message: string }>;
     taskId: string | null;
     source?: IReflectionProbeSceneIdentity;
     status: 'idle' | 'baking' | 'clearing' | 'completed' | 'failed' | 'cancelling' | 'cancelled';
@@ -86,6 +88,7 @@ export interface IReflectionProbeTaskState {
 }
 
 export interface IReflectionProbeEvents {
+    'reflection-probe:task-changed': [state: IReflectionProbeTaskState];
     'reflection-probe:bake-start': [nodePath: string];
     'reflection-probe:bake-end': [nodePath: string, error?: string];
     'reflection-probe:bake-all-start': [totalCount: number];

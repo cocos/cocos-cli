@@ -285,6 +285,20 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(await service.getTaskState()).toMatchObject({ taskId: snapshot.taskId, status: 'completed', completed: 1, results: [{ componentUuid: CAPTURE_RESULT.componentUuid }] });
     });
 
+    it('publishes ordered task snapshots and retains correlated logs after completion', async () => {
+        await service.bake({ nodePath: 'Probe' });
+        const events = service.broadcast.mock.calls.filter(([name]: [string]) => name === 'reflection-probe:task-changed')
+            .map(([, state]: [string, any]) => state);
+        expect(new Set(events.map((state: any) => state.taskId)).size).toBe(1);
+        expect(events.map((state: any) => state.revision)).toEqual(events.map((_state: any, index: number) => index + 1));
+        expect(events[0].status).toBe('baking');
+        expect(events[events.length - 1]).toEqual(await service.getTaskState());
+        expect(events[events.length - 1].logs.map((entry: any) => entry.message)).toEqual([
+            'Reflection-probe bake started.', 'Baking reflection probe: Probe',
+            'Reflection probe completed: Probe', 'Reflection-probe operation finished.',
+        ]);
+    });
+
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
             if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;
