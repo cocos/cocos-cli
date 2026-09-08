@@ -8,6 +8,7 @@ import { EngineProxy } from './proxy/engine-proxy';
 import { PrefabProxy } from './proxy/prefab-proxy';
 import { ReferenceImageProxy } from './proxy/reference-image-proxy';
 import { LightmapBakeProxy, LightProbeBakeProxy } from './proxy/lightfx-bake-proxy';
+import { PreviewProxy } from './proxy/preview-proxy';
 import { ParticleProxy } from './proxy/particle-proxy';
 
 import { assetManager } from '../../assets';
@@ -37,6 +38,7 @@ export const Scene = {
     ReferenceImage: ReferenceImageProxy,
     LightProbeBake: LightProbeBakeProxy,
     LightmapBake: LightmapBakeProxy,
+    Preview: PreviewProxy,
     // 粒子系统相关接口（play/pause/stop/restart/setPlaySpeed/queryPlayInfo）
     Particle: ParticleProxy,
     // 节点相关的接口

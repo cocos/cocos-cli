@@ -11,6 +11,7 @@ const mockService = {
         lock: jest.fn(async () => undefined),
         unlock: jest.fn(),
         getRootNode: jest.fn(() => ({ uuid: 'scene-root' })),
+        getCurrentEditorType: jest.fn(() => 'scene'),
     },
     Prefab: {
         filterChildOfPrefabAssetWhenRemoveNode: jest.fn(),
@@ -92,6 +93,7 @@ describe('NodeService delete prefab filtering', () => {
         jest.clearAllMocks();
         mockEditorNode.getNodeByPath.mockReturnValue(node);
         mockService.Editor.getRootNode.mockReturnValue({ uuid: 'scene-root' });
+        mockService.Editor.getCurrentEditorType.mockReturnValue('scene');
         mockShouldRecordStructureCommand.mockReturnValue(true);
     });
 

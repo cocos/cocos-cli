@@ -1,5 +1,5 @@
 import { PreviewBase } from './preview-base';
-import { scenePreview, ScenePreview } from './scene-preview';
+import { scenePreview } from './scene-preview';
 import { MiniPreview } from './mini-preview';
 import { MaterialPreview } from './material-preview';
 import { ModelPreview } from './model-preview';
@@ -7,7 +7,9 @@ import { MeshPreview } from './mesh-preview';
 import { SkeletonPreview } from './skeleton-preview';
 import { PrefabPreview } from './prefab-preview';
 import { SpinePreview } from './spine-preview';
+import { MotionPreview } from './motion-preview';
 import { Camera, gfx } from 'cc';
+import type { MotionPreviewDesc } from '../../../common/preview';
 import { BaseService, register, Service } from '../core';
 import { Rpc } from '../../rpc';
 import type { InteractivePreview } from './interactive-preview';
@@ -35,6 +37,7 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
     skeletonPreview = new SkeletonPreview();
     prefabPreview = new PrefabPreview();
     spinePreview = new SpinePreview();
+    motionPreview = new MotionPreview();
 
     get activePreview(): IPreviewInstance | null {
         return this._activePreview;
@@ -51,6 +54,7 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
         this.initPreview('scene:skeleton-preview', 'query-skeleton-preview-data', this.skeletonPreview);
         this.initPreview('scene:prefab-preview', 'query-prefab-preview-data', this.prefabPreview);
         this.initPreview('scene:spine-preview', 'query-spine-preview-data', this.spinePreview);
+        this.initPreview('scene:motion-preview', 'query-motion-preview-data', this.motionPreview);
         this.initTypeMap();
         console.log('[Preview] PreviewService initialized');
     }
@@ -73,8 +77,8 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
 
     // importer name → preview type 的映射（用于 assetType 为 cc.Asset 等泛型的回退）
     private static readonly IMPORTER_MAP: Record<string, string> = {
-        'gltf': 'model',
-        'fbx': 'model',
+        gltf: 'model',
+        fbx: 'model',
         'spine-data': 'spine',
     };
 
@@ -108,6 +112,80 @@ export class PreviewService extends BaseService<IPreviewEvents> implements IPrev
             }
         }
         return false;
+    }
+
+    // --- 通用 Motion 预览（透传到 motionPreview 实例） ---
+
+    public async showMotion(desc: MotionPreviewDesc): Promise<boolean> {
+        return this.motionPreview.showMotion(desc);
+    }
+
+    public async hideMotion(): Promise<void> {
+        // 结束未完成的相机手势，避免调用方在释放事件丢失后污染下一次预览。
+        if (this.motionPreview.isActive) {
+            this.motionPreview.onMouseUp({ x: 0, y: 0 });
+        }
+        await this.motionPreview.hideMotionPreview();
+    }
+
+    public async setMotionModel(uuid: string): Promise<void> {
+        await this.motionPreview.setModel(uuid);
+    }
+
+    public async setMotionTime(time: number): Promise<void> {
+        await this.motionPreview.setTimeMotionPreview(time);
+    }
+
+    public async playMotion(): Promise<void> {
+        await this.motionPreview.playMotionPreview();
+    }
+
+    public async pauseMotion(): Promise<void> {
+        await this.motionPreview.pauseMotionPreview();
+    }
+
+    public async stopMotion(): Promise<void> {
+        await this.motionPreview.stopMotionPreview();
+    }
+
+    public async setMotionVariable(name: string, value: number): Promise<void> {
+        await this.motionPreview.setMotionPreviewVariable(name, value);
+    }
+
+    public async setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void> {
+        await this.motionPreview.setMotionPreviewParameter(axis, value);
+    }
+
+    public async getMotionTimelineStats(): Promise<{ timeLineLength: number } | null> {
+        return this.motionPreview.getMotionPreviewTimelineStats();
+    }
+
+    public async isMotionActive(): Promise<boolean> {
+        return this.motionPreview.isActive;
+    }
+
+    public async queryMotionImage(info: { width: number; height: number }): Promise<unknown> {
+        return this.motionPreview.queryPreviewData(info);
+    }
+
+    public async onMotionMouseDown(action: { x: number; y: number; button: number }): Promise<void> {
+        if (!this.motionPreview.isActive) return;
+        this.motionPreview.onMouseDown(action);
+    }
+
+    public async onMotionMouseMove(action: { movementX: number; movementY: number }): Promise<void> {
+        if (!this.motionPreview.isActive) return;
+        this.motionPreview.onMouseMove(action);
+    }
+
+    public async onMotionMouseUp(action: { x: number; y: number }): Promise<void> {
+        if (!this.motionPreview.isActive) return;
+        this.motionPreview.onMouseUp(action);
+    }
+
+    public async onMotionMouseWheel(action: { wheelDeltaY: number; wheelDeltaX: number }): Promise<void> {
+        if (!this.motionPreview.isActive) return;
+        this.motionPreview.onMouseWheel(action);
     }
 
     // --- 上屏预览 ---

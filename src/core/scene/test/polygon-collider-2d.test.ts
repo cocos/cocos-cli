@@ -41,6 +41,8 @@ class MockSprite extends MockComponent {
 
 class MockSpriteFrame {
     _uuid = 'texture-uuid@spriteFrame';
+    texture = { _uuid: 'texture-uuid@texture' };
+    original: { _texture: { _uuid: string } } | null = null;
 
     constructor(
         private readonly rect = { x: 0, y: 0, width: 2, height: 2 },
@@ -200,6 +202,62 @@ describe('PolygonCollider2D regeneration helpers', () => {
             },
         ]);
         expect(collider.points).toEqual(oldPoints);
+    });
+
+    it('resolves the original texture UUID when a SpriteFrame is packed into a dynamic atlas', async () => {
+        const node = new MockNode();
+        node.attach(new MockUITransform());
+        const sprite = node.attach(new MockSprite());
+        sprite.spriteFrame = new MockSpriteFrame();
+        sprite.spriteFrame._uuid = 'sprite-frame-uuid@frame';
+        sprite.spriteFrame.texture = { _uuid: 'dynamic-atlas-uuid@texture' };
+        sprite.spriteFrame.original = { _texture: { _uuid: 'texture-uuid@texture' } };
+        const collider = node.attach(new MockPolygonCollider2D());
+        collider.threshold = 0;
+        mockAssetRequest.mockResolvedValue({
+            dataBase64: Buffer.from(new Uint8Array(2 * 2 * 4)).toString('base64'),
+            width: 2,
+            height: 2,
+            channels: 4,
+        });
+
+        await polygonModule().generatePolygonPoints(collider as any);
+
+        expect(mockAssetRequest).toHaveBeenCalledWith('assetManager', 'extractImagePixels', [
+            'texture-uuid',
+            expect.any(Object),
+        ]);
+    });
+
+    it('keeps one closing point for a thin opaque contour', () => {
+        const { traceAlphaContour } = require('../scene-process/service/component/polygon-collider-2d/contour');
+        const rgba = new Uint8Array(4);
+        rgba[3] = 255;
+
+        const contour = traceAlphaContour(rgba, 1, 1, true);
+
+        expect(contour[0]).toEqual(contour[contour.length - 1]);
+        expect(contour[contour.length - 2]).not.toEqual(contour[0]);
+    });
+
+    it('initializes a thin Sprite Alpha collider with at least three points at the default threshold', async () => {
+        const node = new MockNode();
+        node.attach(new MockUITransform());
+        const sprite = node.attach(new MockSprite());
+        sprite.spriteFrame = new MockSpriteFrame({ x: 0, y: 0, width: 1, height: 1 });
+        const collider = node.attach(new MockPolygonCollider2D());
+        const originalPoints = collider.points;
+        mockAssetRequest.mockResolvedValue({
+            dataBase64: Buffer.from([0, 0, 0, 255]).toString('base64'),
+            width: 1,
+            height: 1,
+            channels: 4,
+        });
+
+        await polygonModule().initializePolygonCollider2DPoints(collider as any);
+
+        expect(collider.points).not.toBe(originalPoints);
+        expect(collider.points.length).toBeGreaterThanOrEqual(3);
     });
 
     it('keeps the Editor Marching Squares and RDP behavior in pure helpers', () => {

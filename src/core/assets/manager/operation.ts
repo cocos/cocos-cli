@@ -356,6 +356,27 @@ class AssetOperation extends EventEmitter {
             throw new Error(`${i18n.t('assets.save_asset.fail.uuid')}`);
         }
 
+        return this._runAnimationGraphExternalWrite(asset, () => this._saveAssetContent(asset, content));
+    }
+
+    async saveAnimationGraphDocument(uuidOrURLOrPath: string, content: string | Buffer) {
+        const asset = assetQuery.queryAsset(uuidOrURLOrPath);
+        if (!asset) {
+            throw new Error(`${i18n.t('assets.save_asset.fail.asset', { asset: uuidOrURLOrPath })}`);
+        }
+        if (asset._assetDB.options.readonly) {
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
+        }
+        if (content === undefined) {
+            throw new Error(`${i18n.t('assets.save_asset.fail.content')}`);
+        }
+        if (!asset.source) {
+            throw new Error(`${i18n.t('assets.save_asset.fail.uuid')}`);
+        }
+        return this._saveAssetContent(asset, content);
+    }
+
+    private async _saveAssetContent(asset: IAsset, content: string | Buffer) {
         this._validateAssetContentBeforeSave(asset, content);
         const res = await assetHandlerManager.saveAsset(asset, content);
         if (res) {
@@ -419,16 +440,19 @@ class AssetOperation extends EventEmitter {
             options.target = url2path(options.target);
         }
         options.target = this._checkOverwrite(options.target, options);
-        const assetPath = await assetHandlerManager.createAsset(options);
-        await this.refreshAsset(assetPath);
-        const asset = assetQuery.queryAsset(assetPath);
-        if (!asset) {
-            throw new Error(`Create asset in ${options.target} failed`);
-        }
-        if (asset && (!asset.imported || asset.invalid)) {
-            throw asset.importError || new Error(`Create asset in ${options.target} failed`);
-        }
-        return assetQuery.encodeAsset(asset);
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(options.target);
+        return this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
+            const assetPath = await assetHandlerManager.createAsset(options);
+            await assetDBManager.addTask(this._refreshAsset.bind(this), [assetPath]);
+            const asset = assetQuery.queryAsset(assetPath);
+            if (!asset) {
+                throw new Error(`Create asset in ${options.target} failed`);
+            }
+            if (!asset.imported || asset.invalid) {
+                throw asset.importError || new Error(`Create asset in ${options.target} failed`);
+            }
+            return assetQuery.encodeAsset(asset);
+        });
     }
 
     /**
@@ -488,30 +512,33 @@ class AssetOperation extends EventEmitter {
 
     private async _importAsset(source: string, targetPath: string, options?: AssetOperationOption): Promise<IAssetInfo[]> {
         const isSamePath = this._isSameFilesystemPath(source, targetPath);
+        const reservation = isSamePath ? undefined : this._reserveImportTargetPath(targetPath, options);
+        targetPath = reservation?.targetPath ?? targetPath;
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(targetPath);
 
-        if (!isSamePath) {
-            const reservation = this._reserveImportTargetPath(targetPath, options);
-            targetPath = reservation.targetPath;
-            try {
-                const copyOptions = options?.overwrite === undefined ? undefined : { overwrite: options.overwrite };
-                await copyPath(source, targetPath, copyOptions);
-            } finally {
-                reservation.release();
-            }
-        }
+        try {
+            return await this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
+                if (!isSamePath) {
+                    const copyOptions = options?.overwrite === undefined ? undefined : { overwrite: options.overwrite };
+                    await copyPath(source, targetPath, copyOptions);
+                }
 
-        const assetTarget = this._pathToDbUrlIfInsideAssetDB(targetPath);
-        await this.refreshAsset(assetTarget);
-        const assetInfo = assetQuery.queryAssetInfo(assetTarget);
-        if (!assetInfo) {
-            return [];
+                const assetTarget = this._pathToDbUrlIfInsideAssetDB(targetPath);
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [assetTarget]);
+                const assetInfo = assetQuery.queryAssetInfo(assetTarget);
+                if (!assetInfo) {
+                    return [];
+                }
+                if (!assetInfo.isDirectory) {
+                    return [assetInfo];
+                }
+                return assetQuery.queryAssetInfos({
+                    pattern: `${assetInfo.url}/**/*`
+                });
+            });
+        } finally {
+            reservation?.release();
         }
-        if (!assetInfo.isDirectory) {
-            return [assetInfo];
-        }
-        return assetQuery.queryAssetInfos({
-            pattern: `${assetInfo.url}/**/*`
-        });
     }
 
     private _queueImportByTargetPath<T = unknown>(targetPath: string, task: () => Promise<T>): Promise<T> {
@@ -592,6 +619,11 @@ class AssetOperation extends EventEmitter {
             throw new Error(`Cannot copy an asset into or over itself.\nsource: ${source}\ntarget: ${target}`);
         }
 
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(target);
+        return this._runAnimationGraphExternalWrites(affectedGraphs, () => this._copyAssetSource(source, target, options));
+    }
+
+    private async _copyAssetSource(source: string, target: string, options?: AssetOperationOption): Promise<IAssetInfo> {
         const transaction = await copyAssetSource(source, target, options);
         let copiedAsset: IAsset | null = null;
         try {
@@ -685,8 +717,10 @@ class AssetOperation extends EventEmitter {
      * @returns boolean
      */
     async refreshAsset(pathOrUrlOrUUID: string): Promise<number> {
-        // 将实际的刷新任务塞到 db 管理器的队列内等待执行
-        return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID]);
+        return this._runAnimationGraphExternalWrites(this._queryAnimationGraphAssetsAt(pathOrUrlOrUUID), async () => {
+            // 将实际的刷新任务塞到 db 管理器的队列内等待执行
+            return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID]);
+        });
     }
 
     private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<number> {
@@ -735,7 +769,9 @@ class AssetOperation extends EventEmitter {
      * @returns 
      */
     async reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo> {
-        return await assetDBManager.addTask(this._reimportAsset.bind(this), [pathOrUrlOrUUID]);
+        return this._runAnimationGraphExternalWrites(this._queryAnimationGraphAssetsAt(pathOrUrlOrUUID), async () => {
+            return await assetDBManager.addTask(this._reimportAsset.bind(this), [pathOrUrlOrUUID]);
+        });
     }
 
     private async _reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo> {
@@ -792,22 +828,25 @@ class AssetOperation extends EventEmitter {
         this._checkReadonly(asset);
         source = asset.source;
         target = this._checkOverwrite(target, option);
-        await moveAssetSource(source, target, option);
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(source, target);
+        await this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
+            await moveAssetSource(source, target, option);
 
-        const url = queryUrl(target);
-        const reg = /db:\/\/[^/]+/.exec(url);
-        // 常规的资源移动：期望只有 change 消息
-        if (reg && reg[0] && url.startsWith(reg[0])) {
-            await this.refreshAsset(target);
-            // 因为文件被移走之后，文件夹的 mtime 会变化，所以要主动刷新一次被移走文件的文件夹
-            // 必须在目标位置文件刷新完成后再刷新，如果放到前面，会导致先识别到文件被删除，触发 delete 后再发送 add
-            await this.refreshAsset(dirname(source));
-        } else {
-            // 跨数据库移动资源或者覆盖操作时需要先刷目标文件，触发 delete 后再发送 add
-            await this.refreshAsset(source);
-            await this.refreshAsset(target);
-        }
-        console.debug(`move asset from ${source} -> ${target} success`);
+            const url = queryUrl(target);
+            const reg = /db:\/\/[^/]+/.exec(url);
+            // 常规的资源移动：期望只有 change 消息
+            if (reg && reg[0] && url.startsWith(reg[0])) {
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [target]);
+                // 因为文件被移走之后，文件夹的 mtime 会变化，所以要主动刷新一次被移走文件的文件夹
+                // 必须在目标位置文件刷新完成后再刷新，如果放到前面，会导致先识别到文件被删除，触发 delete 后再发送 add
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [dirname(source)]);
+            } else {
+                // 跨数据库移动资源或者覆盖操作时需要先刷目标文件，触发 delete 后再发送 add
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [source]);
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [target]);
+            }
+            console.debug(`move asset from ${source} -> ${target} success`);
+        });
     }
 
     /**
@@ -837,19 +876,22 @@ class AssetOperation extends EventEmitter {
             throw new Error(`${i18n.t('assets.rename_asset.fail.parent')} \nsource: ${source}\ntarget: ${target}`);
         }
 
-        const temp = join(dirname(target), '.rename_temp');
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(source, target);
+        await this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
+            const temp = join(dirname(target), '.rename_temp');
 
-        // 改到临时路径，然后刷新，删除原来的缓存
-        await renamePath(source + '.meta', temp + '.meta');
-        await renamePath(source, temp);
-        await this._refreshAsset(source, false);
+            // 改到临时路径，然后刷新，删除原来的缓存
+            await renamePath(source + '.meta', temp + '.meta');
+            await renamePath(source, temp);
+            await this._refreshAsset(source, false);
 
-        // 改为真正的路径，然后刷新，用新名字重新导入
-        await renamePath(temp + '.meta', target + '.meta');
-        await renamePath(temp, target);
-        await this._refreshAsset(target);
-        // TODO 返回资源信息
-        console.debug(`rename asset from ${source} -> ${target} success`);
+            // 改为真正的路径，然后刷新，用新名字重新导入
+            await renamePath(temp + '.meta', target + '.meta');
+            await renamePath(temp, target);
+            await this._refreshAsset(target);
+            // TODO 返回资源信息
+            console.debug(`rename asset from ${source} -> ${target} success`);
+        });
     }
 
     /**
@@ -868,14 +910,91 @@ class AssetOperation extends EventEmitter {
             throw new Error(`子资源无法单独删除，请传递父资源的 URL 地址`);
         }
         const path = asset.source;
-        const res = await assetDBManager.addTask(this._removeAsset.bind(this), [path, options]);
-        return res ? assetQuery.encodeAsset(asset) : null;
+        return this._runAnimationGraphExternalWrites(this._queryAnimationGraphAssetsAt(asset.source), async () => {
+            const res = await assetDBManager.addTask(this._removeAsset.bind(this), [path, options]);
+            return res ? assetQuery.encodeAsset(asset) : null;
+        });
+    }
+
+    private async _runAnimationGraphExternalWrite<T>(asset: IAsset | null | undefined, write: () => Promise<T>): Promise<T> {
+        return this._runAnimationGraphExternalWrites(asset ? [asset] : [], write);
+    }
+
+    private _queryAnimationGraphAssetsAt(...pathsOrUrlsOrUuids: string[]): IAsset[] {
+        const result = new Map<string, IAsset>();
+        let allAssets: IAsset[] | undefined;
+        const queryAllAssets = () => {
+            if (allAssets) {
+                return allAssets;
+            }
+            // Some embedders and tests expose only the single-asset query surface.
+            // File operations do not need a full database scan in that case.
+            allAssets = typeof assetQuery.queryAssets === 'function'
+                ? assetQuery.queryAssets()
+                : [];
+            return allAssets;
+        };
+        for (const pathOrUrlOrUuid of pathsOrUrlsOrUuids) {
+            const root = assetQuery.queryAsset(pathOrUrlOrUuid);
+            if (!root) {
+                continue;
+            }
+            const candidates = root.meta?.importer === 'database'
+                ? queryAllAssets().filter((asset) => this._isAssetInDatabase(root, asset))
+                : this._isAssetDirectory(root)
+                    ? queryAllAssets().filter((asset) => this._isSameFilesystemPath(root.source, asset.source) || utils.Path.contains(root.source, asset.source))
+                    : [root];
+            for (const asset of candidates) {
+                if (this._isAnimationGraphAsset(asset)) {
+                    result.set(asset.uuid, asset);
+                }
+            }
+        }
+        return Array.from(result.values()).sort((left, right) => left.uuid.localeCompare(right.uuid));
+    }
+
+    private _isAssetDirectory(asset: IAsset): boolean {
+        try {
+            return typeof asset.isDirectory === 'function' && asset.isDirectory();
+        } catch {
+            return false;
+        }
+    }
+
+    private _isAssetInDatabase(databaseRoot: IAsset, asset: IAsset): boolean {
+        const databaseUrl = databaseRoot.source.replace(/[\\/]+$/, '');
+        const assetUrl = typeof asset.url === 'string' ? asset.url : '';
+        if (assetUrl === databaseUrl || assetUrl.startsWith(`${databaseUrl}/`) || assetUrl.startsWith(`${databaseUrl}@`)) {
+            return true;
+        }
+
+        const databaseName = databaseRoot.meta?.name || databaseRoot.meta?.id || databaseUrl.slice('db://'.length);
+        return asset._assetDB?.options?.name === databaseName;
+    }
+
+    private _isAnimationGraphAsset(asset: IAsset): boolean {
+        return asset.meta?.importer === 'animation-graph' || (asset as any).type === 'cc.AnimationGraph';
+    }
+
+    private async _runAnimationGraphExternalWrites<T>(assets: IAsset[], write: () => Promise<T>): Promise<T> {
+        if (!assets.length) {
+            return write();
+        }
+        // Dynamically require the service to keep the asset operation module independent from
+        // the document service during module initialization.
+        const animationGraph = require('../animation-graph-service').default as {
+            runExternalWrites<TResult>(uuids: string[], task: () => Promise<TResult>): Promise<TResult>;
+        };
+        return animationGraph.runExternalWrites(assets.map((asset) => asset.uuid), write);
     }
 
     private async _removeAsset(path: string, options: DeleteAssetOptions = { useTrash: true }): Promise<boolean> {
         let res = false;
         await removeAssetSource(path, { useTrash: options.useTrash !== false });
-        await this.refreshAsset(path);
+        // removeAsset() may already be running inside the Animation Graph document queue.
+        // Calling the public refreshAsset() here would enqueue the same graph again and
+        // deadlock while the outer delete waits for this refresh to finish.
+        await assetDBManager.addTask(this._refreshAsset.bind(this), [path]);
         res = true;
         console.debug(`remove asset ${path} success`);
         return res;

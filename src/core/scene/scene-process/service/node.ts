@@ -532,6 +532,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return null;
             }
 
+            // The root in prefab editing mode represents the prefab asset.
+            // A select-all delete may include it, but the asset root must stay
+            // in place so that it is not replaced with an anonymous Empty Node.
+            if (Service.Editor.getCurrentEditorType() === 'prefab' && node.uuid === root.uuid) {
+                console.warn('Cannot remove the root node of an opened prefab asset.');
+                return null;
+            }
+
             const uuids = Service.Prefab.filterChildOfPrefabAssetWhenRemoveNode(node.uuid);
             if (!uuids.length) {
                 return null;

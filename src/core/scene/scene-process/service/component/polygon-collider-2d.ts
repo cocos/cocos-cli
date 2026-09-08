@@ -1,4 +1,5 @@
 import { Component, Physics2DUtils, PolygonCollider2D, Sprite, UITransform, Vec2, js } from 'cc';
+import type { SpriteFrame } from 'cc';
 import type { IProperty } from '../../../@types/public';
 import type { Polygon2DPointsSource } from '../../../common/component';
 import type { IExtractedImagePixels } from '../../../../assets/image-processing';
@@ -175,7 +176,7 @@ async function generateSpriteAlphaPolygonPoints(
     }
 
     const spriteFrameUuid = (spriteFrame as { _uuid?: string })._uuid;
-    const sourceUuid = spriteFrameUuid?.split('@')[0];
+    const sourceUuid = resolveSpriteFrameSourceUuid(spriteFrame);
     if (!sourceUuid) {
         return null;
     }
@@ -210,8 +211,9 @@ async function generateSpriteAlphaPolygonPoints(
 
     const data = decodeImagePixels(imagePixels);
 
-    let points = traceAlphaContour(data, imagePixels.width, imagePixels.height, true);
-    points = simplifyContour(points, collider.threshold);
+    const contour = traceAlphaContour(data, imagePixels.width, imagePixels.height, true);
+    const simplified = simplifyContour(contour, collider.threshold);
+    const points = simplified.length >= 4 ? simplified : contour;
 
     if (
         points.length > 0
@@ -230,6 +232,13 @@ async function generateSpriteAlphaPolygonPoints(
 
     Physics2DUtils.PolygonSeparator.ForceCounterClockWise(result);
     return result;
+}
+
+function resolveSpriteFrameSourceUuid(spriteFrame: SpriteFrame): string | undefined {
+    const originalTextureUuid = (spriteFrame.original as { _texture?: { _uuid?: string } } | null | undefined)?._texture?._uuid;
+    const textureUuid = originalTextureUuid ?? (spriteFrame.texture as { _uuid?: string } | null | undefined)?._uuid;
+    const spriteFrameUuid = (spriteFrame as { _uuid?: string })._uuid;
+    return (textureUuid ?? spriteFrameUuid)?.split('@')[0];
 }
 
 function hasUsableTransform(transform: UITransform | null): transform is UITransform {

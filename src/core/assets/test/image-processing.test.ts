@@ -1,5 +1,7 @@
 export {};
 
+import { join } from 'path';
+
 jest.mock('sharp', () => ({
     __esModule: true,
     default: jest.fn(),
@@ -11,6 +13,45 @@ const imageProcessingModule = () => require('../image-processing') as typeof imp
 describe('asset image processing', () => {
     beforeEach(() => {
         mockSharp.mockReset();
+    });
+
+    it('prefers an existing imported library image over the source extension', () => {
+        const libraryImage = join(
+            __dirname,
+            '../../../../tests/fixtures/projects/asset-operation/library/b5/b5929d2c-caf4-4454-8f7e-4e84cb5ce144.png',
+        );
+        const asset = {
+            source: 'D:/project/assets/image.tga',
+            library: libraryImage.slice(0, -4),
+            meta: { importer: 'image', files: ['.json', '.png'] },
+            parent: null,
+            getFilePath: (extension: string) => `${libraryImage.slice(0, -4)}${extension}`,
+        };
+
+        expect(imageProcessingModule().resolveImageSourceFile(asset as any)).toBe(libraryImage);
+    });
+
+    it('resolves an image library output through a virtual image subasset', () => {
+        const libraryImage = join(
+            __dirname,
+            '../../../../tests/fixtures/projects/asset-operation/library/b5/b5929d2c-caf4-4454-8f7e-4e84cb5ce144.png',
+        );
+        const parent = {
+            source: 'D:/project/assets/image.png',
+            library: libraryImage.slice(0, -4),
+            meta: { importer: 'image', files: ['.json', '.png'] },
+            parent: null,
+            getFilePath: (extension: string) => `${libraryImage.slice(0, -4)}${extension}`,
+        };
+        const asset = {
+            source: 'D:/project/assets/image.png@texture',
+            library: 'D:/project/library/image@texture',
+            meta: { importer: 'texture', files: ['.json'] },
+            parent,
+            getFilePath: (extension: string) => `D:/project/library/image@texture${extension}`,
+        };
+
+        expect(imageProcessingModule().resolveImageSourceFile(asset as any)).toBe(libraryImage);
     });
 
     it('extracts RGBA pixels in Node and returns JSON-safe Base64 data', async () => {

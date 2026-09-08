@@ -1,4 +1,7 @@
 import Sharp from 'sharp';
+import { existsSync } from 'fs-extra';
+import { extname } from 'path';
+import type { Asset, VirtualAsset } from '@cocos/asset-db';
 
 export interface IImagePixelExtractionOptions {
     rect: {
@@ -15,6 +18,29 @@ export interface IExtractedImagePixels {
     width: number;
     height: number;
     channels: number;
+}
+
+/**
+ * 解析资源导入后的图片文件，优先使用 library 中实际存在的导入产物。
+ *
+ * @param asset 图片源资源或其虚拟子资源
+ * @returns 可供图片处理器读取的绝对路径；没有可用文件时返回 null
+ */
+export function resolveImageSourceFile(asset: Asset | VirtualAsset): string | null {
+    const sourceAsset = asset.parent ?? asset;
+    const sourceExtension = extname(sourceAsset.source).toLowerCase();
+    const extensions = ['.png', sourceExtension].filter((extension, index, all) => (
+        extension && all.indexOf(extension) === index && sourceAsset.meta.files.includes(extension)
+    ));
+
+    for (const extension of extensions) {
+        const file = sourceAsset.getFilePath(extension);
+        if (existsSync(file)) {
+            return file;
+        }
+    }
+
+    return existsSync(sourceAsset.source) ? sourceAsset.source : null;
 }
 
 /**

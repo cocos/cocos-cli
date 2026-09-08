@@ -221,12 +221,16 @@ export class ParticleService extends BaseService<Record<string, never>> implemen
 
     /**
      * 通过组件 uuid 查找粒子组件实例。
+     *
+     * 与真实 EditorExtends.Component 接口对齐：组件管理器的查询方法是
+     * getComponent(uuid)，而非 query。组件在编辑器中注册后即可通过其 uuid
+     * 直接查到，无需依赖当前选中集合。
      */
     private _findComponentByUuid(uuid: string): Component | null {
         const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
         const ComponentManager = EditorExtends?.Component;
-        if (ComponentManager?.query) {
-            const comp = ComponentManager.query(uuid);
+        if (ComponentManager?.getComponent) {
+            const comp = ComponentManager.getComponent(uuid);
             if (comp && isParticleSystem(comp)) {
                 return comp;
             }

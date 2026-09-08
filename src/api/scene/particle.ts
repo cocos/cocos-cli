@@ -148,25 +148,41 @@ export class ParticleApi {
 
     /**
      * 解析粒子组件所在节点的路径。优先使用调用方传入的 nodePath；
-     * 若仅提供 uuid，则通过组件 uuid 反查节点，再由节点 uuid 取节点路径。
+     * 若仅提供 uuid，则通过组件 uuid 查询组件 dump，再由 dump 的 component_path
+     * 截取其所属节点路径。
+     *
+     * 注意：Component.query(uuid) 返回的是组件 dump（IComponent），而非组件实例，
+     * dump 中没有顶层 node.uuid；节点路径需从 dump.component_path（如
+     * "Canvas/Particles/cc.ParticleSystem"）去掉尾部组件类型段得到
+     * "Canvas/Particles"。组件 uuid 与节点 uuid 并非同一值，不可把组件 uuid
+     * 直接传给 Node.getPathByUuid（其接收节点 uuid）。
      */
     private async _resolveNodePath(options: { uuid?: string; nodePath?: string }): Promise<string | null> {
         if (options.nodePath) {
             return options.nodePath;
         }
         if (options.uuid) {
-            // 组件 uuid 与节点 uuid 相同（cc 引擎约定：组件继承自 CCObject，其 uuid 即节点 uuid）。
-            // Selection 服务以节点 path 进行选择，故需要把 uuid 转为 path。
-            // NodeProxy 未暴露 getPathByUuid，直接通过 RPC 调用。
+            // 组件服务支持以 uuid 字符串查询并返回组件 dump，但 ComponentProxy 的
+            // 对外类型收窄为 IQueryComponentOptions，故直接走 RPC 调用以传入字符串。
+            let dump: any;
             try {
                 const { Rpc } = await import('../../core/scene/main-process/rpc');
-                const path = await Rpc.getInstance().request('Node', 'getPathByUuid', [options.uuid]);
-                if (typeof path === 'string' && path.length > 0) {
-                    return path;
-                }
+                dump = await Rpc.getInstance().request('Component', 'query', [options.uuid]);
             } catch (e) {
                 return null;
             }
+            const componentPath: string | undefined = dump?.component_path;
+            if (typeof componentPath !== 'string' || componentPath.length === 0) {
+                return null;
+            }
+            // component_path 形如 "Canvas/Particles/cc.ParticleSystem"，
+            // 节点路径 = 去掉最后一段组件类型。
+            const lastSlash = componentPath.lastIndexOf('/');
+            if (lastSlash <= 0) {
+                // 形如 "cc.ParticleSystem"（根节点上的组件），节点路径为场景根 "/"
+                return lastSlash === 0 ? '/' : componentPath;
+            }
+            return componentPath.slice(0, lastSlash);
         }
         return null;
     }

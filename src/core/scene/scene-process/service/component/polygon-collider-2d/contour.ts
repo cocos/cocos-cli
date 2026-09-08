@@ -51,14 +51,10 @@ export function traceAlphaContour(
                 return [];
         }
 
-        if (x >= 0 && x <= width && y >= 0 && y <= height) {
+        if (x >= 0 && x <= width && y >= 0 && y <= height && (loop || x !== start.x || y !== start.y)) {
             points.push({ x, y });
         }
     } while (x !== start.x || y !== start.y);
-
-    if (loop) {
-        points.push({ x, y });
-    }
 
     return points;
 }

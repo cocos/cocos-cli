@@ -5,6 +5,7 @@ declare const EditorExtends: any;
 
 import dumpUtil from './utils';
 import { getDumpComponentAccess } from './service-access';
+import { applyParticleInspectorMetadata } from './particle-inspector-metadata';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
@@ -388,6 +389,7 @@ export function encodeComponent(component: any): IComponent {
     // component的__prefab只有一个属性，所以这里可以直接复制
     (data as any).__compPrefab__ = (component as any).__prefab || null;
 
+    applyParticleInspectorMetadata(data);
     return data;
 }
 
