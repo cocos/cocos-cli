@@ -1,3 +1,4 @@
+import { access, constants } from 'fs/promises';
 import { ChildProcess, spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import {
@@ -47,6 +48,20 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     private preparing = false;
     private preparingTaskId?: string;
     private cancelled = false;
+
+    public async getCapabilities(): Promise<{ bake: boolean; reason?: string }> {
+        try {
+            const executable = this.resolveCmftExecutable();
+            await access(executable, constants.X_OK);
+            const assetRoot = assetManager.queryPath('db://assets');
+            if (!assetRoot) { throw new Error('The project asset directory is unavailable.'); }
+            await access(assetRoot, constants.W_OK);
+            await import('sharp');
+            return { bake: true };
+        } catch (error) {
+            return { bake: false, reason: error instanceof Error ? error.message : String(error) };
+        }
+    }
 
     public async prepare(options: IPrepareReflectionProbeBakeOptions): Promise<IPreparedReflectionProbeBake> {
         if (this.operation || this.preparing) {

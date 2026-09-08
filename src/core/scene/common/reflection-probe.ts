@@ -72,6 +72,15 @@ export interface IReflectionProbeClearResult {
     durationMs: number;
 }
 
+export interface IReflectionProbeCapabilities {
+    protocolVersion: 1;
+    bake: boolean;
+    cancel: boolean;
+    clear: boolean;
+    queue: boolean;
+    reason?: string;
+}
+
 export interface IReflectionProbeCancelOptions {
     taskId: string;
     source?: IReflectionProbeSceneIdentity;
@@ -103,6 +112,7 @@ export interface IReflectionProbeEvents {
 
 export interface IReflectionProbeService extends IServiceEvents {
     getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    getCapabilities(): Promise<IReflectionProbeCapabilities>;
     startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState>;
     cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
     getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;

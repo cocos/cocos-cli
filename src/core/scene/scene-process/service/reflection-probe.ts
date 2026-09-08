@@ -30,6 +30,7 @@ import type {
     IReflectionProbeSceneIdentity,
     IReflectionProbeTaskState,
     IReflectionProbeCancelOptions,
+    IReflectionProbeCapabilities,
 } from '../../common';
 import { NodeEventType } from '../../common';
 import { BaseService, register, Service } from './core';
@@ -123,6 +124,17 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             if (this._task.logs.length > 2000) { this._task.logs.splice(0, this._task.logs.length - 2000); }
         }
         this.broadcast('reflection-probe:task-changed', structuredClone(this._task));
+    }
+
+    public async getCapabilities(): Promise<IReflectionProbeCapabilities> {
+        try {
+            const host = await Rpc.getInstance().request('reflectionProbeBakeHost', 'getCapabilities', []) as { bake: boolean; reason?: string };
+            return { protocolVersion: 1, bake: host.bake === true, cancel: host.bake === true,
+                clear: true, queue: host.bake === true, reason: host.reason };
+        } catch (error) {
+            return { protocolVersion: 1, bake: false, cancel: false, clear: true, queue: false,
+                reason: this._errorMessage(error) };
+        }
     }
 
     /** Accepts a task immediately; appends distinct selected probes to an active bake. */

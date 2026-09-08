@@ -183,6 +183,11 @@ describe('ReflectionProbeBakeHost output ownership', () => {
         await remove(tempRoot);
     });
 
+    it('reports an unavailable native tool without pretending baking is supported', async () => {
+        host.resolveCmftExecutable = () => join(tempRoot, 'missing-cmft');
+        expect(await host.getCapabilities()).toMatchObject({ bake: false, reason: expect.stringContaining('ENOENT') });
+    });
+
     it('rolls back staged output when the Scene runtime cannot apply it', async () => {
         const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 10_000 });
         await expect(readFile(outputPath, 'utf8')).resolves.toBe('new-output');
@@ -364,6 +369,13 @@ describe('ReflectionProbeService bake output transaction', () => {
         while ((await service.getTaskState()).status === 'baking') { await Promise.resolve(); }
         expect(service._bakeOne.mock.calls.map(([, selected]: [unknown, { componentUuid: string }]) => selected.componentUuid)).toEqual(['a', 'b']);
         expect(await service.getTaskState()).toMatchObject({ taskId: accepted.taskId, status: 'completed', total: 2, completed: 2 });
+    });
+
+    it('queries real host capabilities and keeps clear available if bake infrastructure is missing', async () => {
+        mockRpcRequest.mockResolvedValue({ bake: true });
+        expect(await service.getCapabilities()).toMatchObject({ protocolVersion: 1, bake: true, queue: true, cancel: true, clear: true });
+        mockRpcRequest.mockRejectedValue(new Error('host module unavailable'));
+        expect(await service.getCapabilities()).toEqual({ protocolVersion: 1, bake: false, queue: false, cancel: false, clear: true, reason: 'host module unavailable' });
     });
 
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
