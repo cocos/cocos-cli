@@ -39,6 +39,11 @@ class GizmoBase<T extends Component = Component> {
     private _hidden = true;
     private _target: T | null;
     protected _isInitialized = false;
+    /**
+     * Synchronous control lifecycle state shared with derived gizmos during teardown.
+     * Keep resets of these flags before any asynchronous Undo finalization so hide,
+     * destroy, target replacement, and mouse-up cannot finish the same drag twice.
+     */
     protected _isControlBegin = false;
     protected _recorded = false;
     protected _nodeSelected = false;
@@ -118,6 +123,9 @@ class GizmoBase<T extends Component = Component> {
 
     async onControlEnd(propPath: string | null) {
         this._isControlBegin = false;
+        // Gizmo 可能在异步 Undo 提交完成前因为选择切换、组件删除或场景关闭
+        // 被解绑。提前保存稳定的节点路径，避免提交后再读取空的 this.nodes。
+        const animationCommitNodePaths = this.collectAnimationPropertyCommitNodePaths(propPath);
         await this.commitChanges();
         try {
             const svcEvents = getServiceEvents();
@@ -125,7 +133,7 @@ class GizmoBase<T extends Component = Component> {
         } catch (e) {
             console.warn('[Gizmo] Failed to broadcast legacy control-end event:', e);
         }
-        this.broadcastAnimationPropertyCommitted(propPath);
+        this.broadcastAnimationPropertyCommitted(propPath, animationCommitNodePaths);
     }
 
     recordChanges(propPath?: string | null) {
@@ -145,9 +153,15 @@ class GizmoBase<T extends Component = Component> {
     }
 
     async commitChanges() {
+        // This reset is intentionally synchronous. Derived gizmos may inspect
+        // `_recorded` while another teardown path is awaiting endRecording().
         this._recorded = false;
-        if (this.undoID !== '') {
-            const undoID = this.undoID;
+        const undoID = this.undoID;
+        // 在等待异步 endRecording 前先释放当前 ID。销毁、隐藏或快速切换目标
+        // 可能再次触发 commitChanges；提前清空可避免重复结束旧事务，也不会让
+        // 旧事务完成后覆盖期间新建的 recording ID。
+        this.undoID = '';
+        if (undoID !== '') {
             try {
                 const svc = getService();
                 await svc?.Undo?.endRecording?.(undoID);
@@ -155,7 +169,6 @@ class GizmoBase<T extends Component = Component> {
                 console.warn('[Gizmo] Failed to end undo recording:', e);
             }
         }
-        this.undoID = '';
     }
 
     private createRecordingScope(propPath?: string | null): IUndoScope | undefined {
@@ -229,26 +242,44 @@ class GizmoBase<T extends Component = Component> {
         }
     }
 
-    getCompPropPath(propName: string) {
+    getCompPropPath(propName: string): string | null {
         const target = this.target;
         if (target) {
             const node = target.node;
-            const compIdx = (node as any)['_components'].indexOf(target);
+            const components = (node as any)['_components'] as Component[] | undefined;
+            const compIdx = components?.indexOf(target) ?? -1;
+            if (compIdx < 0) {
+                return null;
+            }
             return '_components.' + compIdx + '.' + propName;
         }
         return null;
     }
 
-    private broadcastAnimationPropertyCommitted(propPath: string | null): void {
+    private collectAnimationPropertyCommitNodePaths(propPath: string | null): string[] {
+        if (!propPath) {
+            return [];
+        }
+        const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+        const nodePaths: string[] = [];
+        for (const node of this.nodes) {
+            try {
+                const nodePath = EditorExtends?.Node?.getNodePath?.(node);
+                if (nodePath) {
+                    nodePaths.push(nodePath);
+                }
+            } catch (e) {
+                console.warn('[Gizmo] Failed to capture animation property commit target:', e);
+            }
+        }
+        return nodePaths;
+    }
+
+    private broadcastAnimationPropertyCommitted(propPath: string | null, nodePaths: readonly string[]): void {
         if (!propPath) {
             return;
         }
-        const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-        for (const node of this.nodes) {
-            const nodePath = EditorExtends?.Node?.getNodePath?.(node);
-            if (!nodePath) {
-                continue;
-            }
+        for (const nodePath of nodePaths) {
             broadcastAnimationPropertyCommitted({
                 nodePath,
                 propPath,

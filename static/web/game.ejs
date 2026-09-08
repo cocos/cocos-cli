@@ -157,8 +157,14 @@
         if (window.__previewSettingsFailed) {
             console.info('[Game Preview Warning] backend not ready (settings.js failed); skip boot, awaiting server-driven reload.');
         } else {
-            const { default: gameBoot } = await import('/static/web/game-boot.js');
-            await gameBoot();
+            try {
+                const { default: gameBoot } = await import('/static/web/game-boot.js');
+                await gameBoot();
+            } catch (e) {
+                // gameBoot 现在会在 boot 失败时 rethrow（供 IDE 预览感知）；浏览器首屏这里吞掉，
+                // 错误已由 game-boot 内部 showError + console.error 呈现，且由 live-reload 自愈。
+                console.error('[Game Preview] boot failed:', e && (e.stack || e.message) || e);
+            }
             if (new URLSearchParams(window.location.search).get('previewToolbar') === '1') {
                 const { default: initializePreviewToolbar } = await import('/static/web/game-preview-ui.js');
                 initializePreviewToolbar();

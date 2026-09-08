@@ -32,7 +32,7 @@ const AnimationHandler: AssetHandler = {
     importer: {
         // 版本号如果变更，则会强制重新导入
         version: '2.0.4',
-        versionCode: 2,
+        versionCode: 3,
 
         /**
          * 如果改名就强制刷新

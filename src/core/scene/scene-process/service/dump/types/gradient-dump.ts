@@ -26,6 +26,9 @@ class GradientDump implements DumpInterface {
         // 获取需要修改的数据
         const ccType = cc.js.getClassByName('cc.Gradient');
         const gradient = new ccType();
+        if (dump.value.mode !== undefined) {
+            gradient.mode = dump.value.mode;
+        }
         if (dump.value.alphaKeys.length > 0) {
             for (const item of dump.value.alphaKeys) {
                 const AlphaKeyCtor = cc.js.getClassByName('cc.AlphaKey');

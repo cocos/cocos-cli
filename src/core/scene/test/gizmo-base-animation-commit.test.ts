@@ -150,6 +150,112 @@ describe('GizmoBase animation property commit event', () => {
         }]);
     });
 
+    it('preserves the animation commit target when the gizmo target is detached during async undo', async () => {
+        endRecordingPromise = new Promise((resolve) => {
+            endRecordingResolve = () => resolve(undefined);
+        });
+        const { Component } = require('cc');
+        const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
+        const target = new Component();
+        target.node.uuid = 'JointNode';
+        const gizmo = new GizmoBase(target);
+        const propPath = '_components.0.anchor';
+
+        gizmo.onControlBegin(propPath);
+        const controlEnd = gizmo.onControlEnd(propPath);
+        gizmo.target = null;
+        const { Service } = require('../scene-process/service/core/decorator');
+
+        await Promise.resolve();
+        expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+        expect(broadcasts).not.toContainEqual(['animation:property-committed', {
+            nodePath: 'Canvas/JointNode',
+            propPath: '__comps__.0.anchor',
+            source: 'engine',
+        }]);
+
+        endRecordingResolve?.();
+        await controlEnd;
+
+        expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+        expect(broadcasts.filter(([event]) => event === 'animation:property-committed')).toEqual([
+            ['animation:property-committed', {
+                nodePath: 'Canvas/JointNode',
+                propPath: '__comps__.0.anchor',
+                source: 'engine',
+            }],
+        ]);
+    });
+
+    it('records and commits a normalized Joint2D anchor component scope', async () => {
+        const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
+        class TestGizmo extends GizmoBase {
+            get nodes() {
+                return [{ uuid: 'JointNode' }];
+            }
+        }
+        const gizmo = new (TestGizmo as any)(null);
+        const propPath = '_components.0.anchor';
+
+        gizmo.onControlUpdate(propPath);
+        gizmo.onControlUpdate(propPath);
+        const { Service } = require('../scene-process/service/core/decorator');
+        expect(Service.Undo.beginRecording).toHaveBeenCalledTimes(1);
+        expect(Service.Undo.beginRecording).toHaveBeenCalledWith(['JointNode'], {
+            label: 'Gizmo _components.0.anchor',
+            scope: {
+                editorType: 'scene',
+                nodePath: 'Canvas/JointNode',
+                propPath: '__comps__.0.anchor',
+            },
+        });
+
+        await gizmo.onControlEnd(propPath);
+
+        expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+        expect(broadcasts).toContainEqual(['animation:property-committed', {
+            nodePath: 'Canvas/JointNode',
+            propPath: '__comps__.0.anchor',
+            source: 'engine',
+        }]);
+    });
+
+    it('does not end the same recording twice when destroy races an async control end', async () => {
+        endRecordingPromise = new Promise((resolve) => {
+            endRecordingResolve = () => resolve(undefined);
+        });
+        const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
+        class TestGizmo extends GizmoBase {
+            get nodes() {
+                return [{ uuid: 'JointNode' }];
+            }
+        }
+        const gizmo = new (TestGizmo as any)(null);
+        gizmo.onControlBegin('_components.0.connectedAnchor');
+
+        const controlEnd = gizmo.onControlEnd('_components.0.connectedAnchor');
+        gizmo.destroy();
+        const { Service } = require('../scene-process/service/core/decorator');
+        expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+
+        endRecordingResolve?.();
+        await controlEnd;
+        expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns null when the target is absent from the node component list', () => {
+        const { Component } = require('cc');
+        const GizmoBase = require('../scene-process/service/gizmo/base/gizmo-base').default;
+        const target = new Component();
+        target.node._components = [];
+        const gizmo = new GizmoBase(target);
+
+        expect(gizmo.getCompPropPath('anchor')).toBeNull();
+
+        target.node._components.push(target);
+        expect(gizmo.getCompPropPath('anchor')).toBe('_components.0.anchor');
+    });
+
     it('emits a component-changed node event when a component gizmo updates data', () => {
         const { globalEventEmitter } = require('../scene-process/service/core/global-events');
         const { NodeEventType } = require('../common');

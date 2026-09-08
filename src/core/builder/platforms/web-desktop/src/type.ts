@@ -1,16 +1,6 @@
 import { IBuildPaths } from '../../../@types';
 import { InternalBuildResult } from '../../../@types/protected';
-export type UploadEnv = 'dev' | 'fat' | 'prod';
 export interface IOptions {
-    appid?: string;
-    versionName?: string;
-    uploadEnv?: UploadEnv;
-    accessToken?: string;
-    codeVersion?: string | number | null;
-    bridgeLink?: string;
-    bridgeBuildToken?: string;
-    entryPath?: string;
-    encryptKey?: string;
     /**
      * 是否使用 WEBGPU 渲染后端
      * @default false

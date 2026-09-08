@@ -25,6 +25,7 @@ import { NodeApi } from './node';
 import { PrefabApi } from './prefab';
 import { ReferenceImageApi } from './reference-image';
 import { LightFXBakeApi } from './lightfx-bake';
+import { ParticleApi } from './particle';
 import { options } from '../../core/builder/platforms/android/i18n/en';
 
 export class SceneApi {
@@ -33,6 +34,7 @@ export class SceneApi {
     public prefab: PrefabApi;
     public referenceImage: ReferenceImageApi;
     public lightFXBake: LightFXBakeApi;
+    public particle: ParticleApi;
 
     constructor() {
         this.component = new ComponentApi();
@@ -40,6 +42,7 @@ export class SceneApi {
         this.prefab = new PrefabApi();
         this.referenceImage = new ReferenceImageApi();
         this.lightFXBake = new LightFXBakeApi();
+        this.particle = new ParticleApi();
     }
 
     @tool('scene-query-current')
