@@ -72,6 +72,11 @@ export interface IReflectionProbeClearResult {
     durationMs: number;
 }
 
+export interface IReflectionProbeCancelOptions {
+    taskId: string;
+    source?: IReflectionProbeSceneIdentity;
+}
+
 export interface IReflectionProbeTaskState {
     revision: number;
     logs: Array<{ id: number; timestamp: number; level: 'info' | 'error'; message: string }>;
@@ -98,6 +103,7 @@ export interface IReflectionProbeEvents {
 
 export interface IReflectionProbeService extends IServiceEvents {
     getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
     getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;

@@ -193,6 +193,29 @@ describe('ReflectionProbeBakeHost output ownership', () => {
         expect(mockHostAssetManager.refreshAssetOnly).toHaveBeenCalledWith(OUTPUT_URL);
     });
 
+    it('cancels only the matching Node preparation and preserves existing output', async () => {
+        let finish!: () => void;
+        host.runCmft = jest.fn(async (_faces: string[], stagedBase: string) => {
+            await new Promise<void>((resolve) => { finish = resolve; });
+            await outputFile(`${stagedBase}.png`, 'new-output');
+        });
+        const pending = host.prepare({ captured: CAPTURE_RESULT, taskId: 'task-1', timeoutMs: 10_000 });
+        while (!finish) { await new Promise((resolve) => setTimeout(resolve, 1)); }
+        await host.cancel({ taskId: 'other-task' });
+        expect(host.cancelled).toBe(false);
+        await host.cancel({ taskId: 'task-1' });
+        finish();
+        await expect(pending).rejects.toThrow('cancelled');
+        await expect(readFile(outputPath, 'utf8')).resolves.toBe('old-output');
+    });
+
+    it('retains prepared output when apply acknowledgement expires', async () => {
+        const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 40 });
+        await new Promise((resolve) => setTimeout(resolve, 65));
+        await expect(readFile(outputPath, 'utf8')).resolves.toBe('new-output');
+        await expect(host.rollback({ operationId: prepared.operationId })).rejects.toThrow('Unknown');
+    });
+
     it('keeps staged output only after the Scene runtime commits it', async () => {
         const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 10_000 });
 
@@ -297,6 +320,29 @@ describe('ReflectionProbeService bake output transaction', () => {
             'Reflection-probe bake started.', 'Baking reflection probe: Probe',
             'Reflection probe completed: Probe', 'Reflection-probe operation finished.',
         ]);
+    });
+
+    it('waits for cancellation cleanup and deduplicates repeated cancellation', async () => {
+        let finish!: () => void;
+        const gate = new Promise<void>((resolve) => { finish = resolve; });
+        const normalRequest = mockRpcRequest.getMockImplementation()!;
+        mockRpcRequest.mockImplementation(async (...args: unknown[]) => {
+            if (args[0] === 'reflectionProbeBakeHost' && args[1] === 'prepare') { await gate; }
+            if (args[0] === 'reflectionProbeBakeHost' && args[1] === 'cancel') { return; }
+            return normalRequest(...args);
+        });
+        const pending = service.bake({ nodePath: 'Probe' });
+        await Promise.resolve(); await Promise.resolve();
+        const { taskId } = await service.getTaskState();
+        await expect(service.cancelBake({ taskId: 'other' })).rejects.toThrow('Unknown');
+        await service.cancelBake({ taskId });
+        await service.cancelBake({ taskId });
+        expect((await service.getTaskState()).status).toBe('cancelling');
+        expect(mockRpcRequest.mock.calls.filter(([module, method]) => module === 'reflectionProbeBakeHost' && method === 'cancel')).toHaveLength(1);
+        finish();
+        await expect(pending).rejects.toThrow('cancelled');
+        expect((await service.getTaskState()).status).toBe('cancelled');
+        expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeRenderer', 'apply', expect.anything());
     });
 
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {

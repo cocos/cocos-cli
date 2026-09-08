@@ -29,6 +29,7 @@ import type {
     IReflectionProbeService,
     IReflectionProbeSceneIdentity,
     IReflectionProbeTaskState,
+    IReflectionProbeCancelOptions,
 } from '../../common';
 import { NodeEventType } from '../../common';
 import { BaseService, register, Service } from './core';
@@ -107,6 +108,7 @@ interface IGeneratedProbeAsset {
 export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> implements IReflectionProbeService {
     private _task: IReflectionProbeTaskState = this._idleTask();
     private _baking = false;
+    private _cancelRequested = false;
 
     private _idleTask(): IReflectionProbeTaskState {
         return { revision: 0, logs: [], taskId: null, status: 'idle', remaining: [], total: 0, completed: 0, results: [], failures: [] };
@@ -119,6 +121,27 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             if (this._task.logs.length > 2000) { this._task.logs.splice(0, this._task.logs.length - 2000); }
         }
         this.broadcast('reflection-probe:task-changed', structuredClone(this._task));
+    }
+
+    public async cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState> {
+        if (options.source) { this.assertSceneIdentity(options.source); }
+        if (!options.taskId || options.taskId !== this._task.taskId) { throw new Error('Unknown reflection-probe bake task.'); }
+        if (this._task.status === 'clearing') { throw new Error('Clearing reflection-probe data cannot be cancelled.'); }
+        if (this._task.status !== 'baking' || this._cancelRequested) { return structuredClone(this._task); }
+        this._cancelRequested = true;
+        this._task.status = 'cancelling';
+        this._publish('Reflection-probe cancellation requested; waiting for cleanup.');
+        try {
+            await Rpc.getInstance().request('reflectionProbeBakeHost', 'cancel', [{ taskId: options.taskId }]);
+        } catch (error) {
+            // Still stop at the next scene boundary if the host acknowledgement is unavailable.
+            this._publish(`Cancellation acknowledgement failed: ${this._errorMessage(error)}`, 'error');
+        }
+        return structuredClone(this._task);
+    }
+
+    private _assertNotCancelled(): void {
+        if (this._cancelRequested) { throw new Error('Reflection-probe bake cancelled.'); }
     }
 
     public async getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState> {
@@ -208,14 +231,16 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 fastBake,
             } = captured;
 
+            this._assertNotCancelled();
             this._task.current = { nodePath, componentUuid };
             this._publish();
             const prepared = await Rpc.getInstance().request(
                 'reflectionProbeBakeHost',
                 'prepare',
-                [{ captured, timeoutMs: Math.max(1, deadline - Date.now()) }],
+                [{ taskId: this._task.taskId ?? undefined, captured, timeoutMs: Math.max(1, deadline - Date.now()) }],
             ) as IPreparedReflectionProbeBake;
             try {
+                this._assertNotCancelled();
                 if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
                 const applyOptions: IApplyBakedCubemapOptions = {
                     source,
@@ -340,6 +365,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                 );
             }
             for (const probe of probes) {
+                if (this._cancelRequested) { break; }
                 this._task.remaining.shift();
                 let errorMessage: string | undefined;
                 const remaining = deadline - Date.now();
@@ -358,6 +384,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                             source: active.source,
                         }));
                     } catch (error) {
+                        if (this._cancelRequested) { break; }
                         if (this._isBatchFatalError(error)) {
                             throw error;
                         }
@@ -855,21 +882,22 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const owner = source ?? (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN ? undefined : this._getSceneIdentity());
         if (owner && gfx.deviceManager.gfxDevice.gfxAPI !== gfx.API.UNKNOWN) { this.assertSceneIdentity(owner); }
         this._baking = true;
+        this._cancelRequested = false;
         this._task = { ...this._idleTask(), taskId: globalThis.crypto.randomUUID(), source: owner, status };
         this._publish(status === 'clearing' ? 'Clearing reflection-probe bake data.' : 'Reflection-probe bake started.');
         try {
             const result = await operation();
-            this._task.status = this._task.failures.length ? 'failed' : 'completed';
+            this._task.status = this._cancelRequested ? 'cancelled' : this._task.failures.length ? 'failed' : 'completed';
             return result;
         } catch (error) {
-            this._task.status = 'failed';
+            this._task.status = this._cancelRequested ? 'cancelled' : 'failed';
             this._task.error = this._errorMessage(error);
             throw error;
         } finally {
             this._task.current = undefined;
             this._task.remaining = [];
             this._baking = false;
-            this._publish(this._task.error ?? 'Reflection-probe operation finished.', this._task.status === 'failed' ? 'error' : 'info');
+            this._publish(this._task.status === 'cancelled' ? 'Reflection-probe bake cancelled; cleanup finished.' : this._task.error ?? 'Reflection-probe operation finished.', this._task.status === 'failed' ? 'error' : 'info');
         }
     }
 
@@ -908,6 +936,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     private async _waitForCapture(probe: any, deadline: number): Promise<void> {
         do {
+            this._assertNotCancelled();
             this._assertBeforeDeadline(deadline, 'cubemap capture');
             // Subscribe before requesting a repaint. The browser editor renders
             // on demand, so subscribing afterwards can miss the only frame and
