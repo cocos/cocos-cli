@@ -151,7 +151,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
         if (!options?.taskId) { throw new Error('A reflection-probe task ID is required.'); }
         if (this.preparing && this.preparingTaskId === options.taskId) {
             this.cancelled = true;
-            this.cmftProcess?.kill();
+            this.cmftProcess?.kill('SIGKILL');
         }
     }
 
@@ -165,7 +165,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
 
     public async dispose(): Promise<void> {
         this.cancelled = true;
-        this.cmftProcess?.kill();
+        this.cmftProcess?.kill('SIGKILL');
         this.cmftProcess = null;
         if (this.operation) {
             await this.finish(this.operation, true);
@@ -277,19 +277,23 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
         await new Promise<void>((resolve, reject) => {
             const child = this.cmftProcess = spawn(executable, args, { windowsHide: true });
             let stderr = '';
+            let processError: Error | undefined;
             child.stderr?.on('data', (data) => { stderr += String(data); });
             const timer = setTimeout(() => {
-                child.kill();
-                reject(new Error('Reflection probe bake timed out while running cmft.'));
+                processError = new Error('Reflection probe bake timed out while running cmft.');
+                child.kill('SIGKILL');
             }, remaining);
             child.once('error', (error) => {
                 clearTimeout(timer);
-                reject(new Error(`Failed to start cmft: ${error.message}`));
+                processError ??= new Error(`Failed to run cmft: ${error.message}`);
             });
             child.once('close', (code) => {
                 clearTimeout(timer);
-                this.cmftProcess = null;
-                if (code !== 0) {
+                if (this.cmftProcess === child) { this.cmftProcess = null; }
+                // Do not release the output lock or remove staged files while cmft can still write.
+                if (processError) {
+                    reject(processError);
+                } else if (code !== 0) {
                     reject(new Error(`cmft exited with code ${code}${stderr ? `: ${stderr.trim()}` : ''}`));
                 } else {
                     resolve();

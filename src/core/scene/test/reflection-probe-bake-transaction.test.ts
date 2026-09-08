@@ -8,6 +8,7 @@ import {
 } from 'fs-extra';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { EventEmitter } from 'events';
 
 const mockRpcRequest = jest.fn();
 const mockGetScene = jest.fn();
@@ -188,6 +189,28 @@ describe('ReflectionProbeBakeHost output ownership', () => {
     it('reports an unavailable native tool without pretending baking is supported', async () => {
         host.resolveCmftExecutable = () => join(tempRoot, 'missing-cmft');
         expect(await host.getCapabilities()).toMatchObject({ bake: false, reason: expect.stringContaining('ENOENT') });
+    });
+
+    it('waits for cmft to close after timeout before releasing staged output', async () => {
+        const child = Object.assign(new EventEmitter(), { stderr: new EventEmitter(), kill: jest.fn() });
+        const spawn = jest.spyOn(jest.requireActual('child_process'), 'spawn').mockReturnValue(child);
+        host.resolveCmftExecutable = () => 'cmft-test';
+        jest.useFakeTimers();
+        try {
+            let settled = false;
+            const pending = Object.getPrototypeOf(host).runCmft.call(host, FACE_NAMES, 'output', Date.now() + 20);
+            const outcome = pending.catch((error: Error) => { settled = true; return error; });
+            await jest.advanceTimersByTimeAsync(20);
+            expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+            expect(settled).toBe(false);
+            expect(host.cmftProcess).toBe(child);
+            child.emit('close', null);
+            expect((await outcome).message).toContain('timed out while running cmft');
+            expect(host.cmftProcess).toBeNull();
+        } finally {
+            spawn.mockRestore();
+            jest.useRealTimers();
+        }
     });
 
     it('rolls back staged output when the Scene runtime cannot apply it', async () => {
