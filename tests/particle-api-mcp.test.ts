@@ -128,12 +128,15 @@ describe('ParticleApi MCP 转发层', () => {
             // 明确区分组件 UUID 与所属节点 UUID。真实 Node.getPathByUuid 使用
             // NodeMgr.getNode(uuid)，只接收节点 UUID；传入组件 UUID 会查不到节点、返回空，
             // 导致后续粒子 stop 无法执行。
-            // 组件 UUID 与所属节点 UUID 不同时，当前生产代码把组件 uuid 直接传给
-            // Node.getPathByUuid，会拿不到节点路径（mock 只对 nodeUuid 返回路径），
-            // 该用例用于暴露这一 bug。
+            // 生产代码应先用组件 UUID 查到组件实例，取其所属节点 UUID，
+            // 再用节点 UUID 反查节点路径（绝不把组件 UUID 当作节点 UUID 传给 Node 查询）。
             const componentUuid = 'comp-uuid-1';
             const nodeUuid = 'node-uuid-1';
             mockRpcRequest.mockImplementation(async (module: string, method: string, args: unknown[]) => {
+                // 组件查询：返回组件实例（含 node.uuid），验证组件到所属节点的解析过程
+                if (module === 'Component' && method === 'query') {
+                    return { node: { uuid: nodeUuid } };
+                }
                 if (module === 'Node' && method === 'getPathByUuid') {
                     // 只对正确的节点 UUID 返回路径，传组件 UUID 返回空（与真实 NodeMgr 一致）
                     return args[0] === nodeUuid ? 'Canvas/Particles' : '';
@@ -147,6 +150,8 @@ describe('ParticleApi MCP 转发层', () => {
 
             const result = await api.stop({ uuid: componentUuid });
 
+            // 先用组件 UUID 查询组件实例（RPC: Component.query）
+            expect(mockRpcRequest).toHaveBeenCalledWith('Component', 'query', [componentUuid]);
             // 绝不应把组件 UUID 当作节点 UUID 传给 Node 查询
             expect(mockRpcRequest).not.toHaveBeenCalledWith('Node', 'getPathByUuid', [componentUuid]);
             // 应使用节点 UUID 查询节点路径
@@ -160,12 +165,18 @@ describe('ParticleApi MCP 转发层', () => {
             // 组件 UUID 与节点 UUID 不同时，若生产代码把组件 UUID 直接传给
             // Node.getPathByUuid，真实接口会查不到节点（返回空路径），
             // 因此 stop 无法执行、应返回 404。
+            // 修复后生产代码会先用组件 UUID 查到组件实例、再用节点 UUID 查路径。
+            // 此用例验证：组件存在但其所属节点路径解析失败（节点已被删除等）时，
+            // 返回 404 且不执行粒子操作。组件 UUID 绝不应被当作节点 UUID 传给 Node 查询。
             const componentUuid = 'comp-uuid-2';
             const nodeUuid = 'node-uuid-2';
             mockRpcRequest.mockImplementation(async (module: string, method: string, args: unknown[]) => {
+                if (module === 'Component' && method === 'query') {
+                    return { node: { uuid: nodeUuid } };
+                }
                 if (module === 'Node' && method === 'getPathByUuid') {
-                    // 严格按真实接口：只对节点 UUID 返回路径
-                    return args[0] === nodeUuid ? 'Canvas/Particles' : '';
+                    // 所属节点路径解析失败（节点已被删除等），返回空路径
+                    return '';
                 }
                 return undefined;
             });
@@ -173,11 +184,10 @@ describe('ParticleApi MCP 转发层', () => {
 
             const result = await api.stop({ uuid: componentUuid });
 
-            // 该断言用于暴露 bug：生产代码错误地把组件 UUID 传给 Node 查询。
-            // 修复后此处改为断言不传 componentUuid、而传 nodeUuid。
+            // 组件 UUID 不应被当作节点 UUID 传给 Node 查询
             expect(mockRpcRequest).not.toHaveBeenCalledWith('Node', 'getPathByUuid', [componentUuid]);
-            expect(mockStop).toHaveBeenCalled();
-            expect(result.code).toBe(HTTP_STATUS.OK);
+            expect(mockStop).not.toHaveBeenCalled();
+            expect(result.code).toBe(HTTP_STATUS.NOT_FOUND);
         });
 
         it('不提供标识时直接作用于当前选中的粒子', async () => {

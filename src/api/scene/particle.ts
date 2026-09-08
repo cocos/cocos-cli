@@ -148,19 +148,39 @@ export class ParticleApi {
 
     /**
      * 解析粒子组件所在节点的路径。优先使用调用方传入的 nodePath；
-     * 若仅提供 uuid，则通过组件 uuid 反查节点，再由节点 uuid 取节点路径。
+     * 若仅提供 uuid，则先把组件 uuid 解析为所属节点 uuid，再由节点 uuid 取节点路径。
+     *
+     * 注意：组件 uuid 与节点 uuid 并非同一值。Node.getPathByUuid 接收的是节点 uuid，
+     * 传入组件 uuid 会查不到节点，导致后续粒子行为无法执行。
      */
     private async _resolveNodePath(options: { uuid?: string; nodePath?: string }): Promise<string | null> {
         if (options.nodePath) {
             return options.nodePath;
         }
         if (options.uuid) {
-            // 组件 uuid 与节点 uuid 相同（cc 引擎约定：组件继承自 CCObject，其 uuid 即节点 uuid）。
-            // Selection 服务以节点 path 进行选择，故需要把 uuid 转为 path。
+            // 先通过组件 uuid 查到组件实例，取其所属节点的 uuid。
+            // 组件服务支持以 uuid 字符串查询（返回组件实例），但 ComponentProxy 的
+            // 对外类型收窄为 IQueryComponentOptions，故直接走 RPC 调用以传入字符串。
+            let Rpc: any;
+            try {
+                ({ Rpc } = await import('../../core/scene/main-process/rpc'));
+            } catch (e) {
+                return null;
+            }
+            let comp: any;
+            try {
+                comp = await Rpc.getInstance().request('Component', 'query', [options.uuid]);
+            } catch (e) {
+                return null;
+            }
+            const nodeUuid = comp?.node?.uuid;
+            if (!nodeUuid) {
+                return null;
+            }
+            // Selection 服务以节点 path 进行选择，故需要把节点 uuid 转为 path。
             // NodeProxy 未暴露 getPathByUuid，直接通过 RPC 调用。
             try {
-                const { Rpc } = await import('../../core/scene/main-process/rpc');
-                const path = await Rpc.getInstance().request('Node', 'getPathByUuid', [options.uuid]);
+                const path = await Rpc.getInstance().request('Node', 'getPathByUuid', [nodeUuid]);
                 if (typeof path === 'string' && path.length > 0) {
                     return path;
                 }
