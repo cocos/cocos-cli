@@ -1,4 +1,6 @@
 import { register, BaseService, Service } from './core';
+import { queryRegisteredService } from './core/decorator';
+import type { ComponentService } from './component';
 import {
     type ICreateByAssetParams,
     type ICreateByNodeTypeParams,
@@ -864,6 +866,14 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     public async resetProperty(options: ISetPropertyOptions): Promise<boolean> {
+        // Node snapshots deliberately skip components during restoration.
+        if (/^__comps__\.\d+\./.test(options.path)) {
+            const componentService = queryRegisteredService<ComponentService>('Component');
+            if (!componentService) {
+                throw new Error('Component service is not registered');
+            }
+            return componentService.resetProperty(options);
+        }
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
             return false;

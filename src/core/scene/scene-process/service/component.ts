@@ -552,6 +552,28 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return result;
     }
 
+    /** Internal entry used by Node.resetProperty for component paths. */
+    async resetProperty(options: ISetPropertyOptions): Promise<boolean> {
+        const node = resolveNodeByPath(options.nodePath);
+        if (!node || !this._resolveComponentPropertyTarget(node, options.path)) {
+            return false;
+        }
+        return this._recordComponentPropertySnapshot(node, {
+            label: `Reset ${options.path}`,
+            type: 'component:reset-property',
+            nodePath: options.nodePath,
+            path: options.path,
+            record: options.record,
+        }, async () => {
+            this.emit('node:before-change', node);
+            await dumpUtil.resetProperty(node, options.path);
+            this.emit('node:change', node, {
+                type: NodeEventType.SET_PROPERTY, propPath: options.path, record: options.record,
+            });
+            return true;
+        });
+    }
+
     private _shouldRecordComponentCommand(): boolean {
         return !Service.Undo?.isApplying?.();
     }

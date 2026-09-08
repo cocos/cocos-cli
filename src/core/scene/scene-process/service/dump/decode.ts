@@ -646,7 +646,24 @@ export function resetProperty(node: any, path: string) {
         setNodeSpecialProperty(data, info.key, value);
     } else {
         const attr = cc.Class.attr(data.constructor, info.key);
-        data[info.key] = getDefaultAttrData(attr);
+        if (attr?.default !== undefined) {
+            data[info.key] = getDefaultAttrData(attr);
+        } else {
+            // Accessors such as ParticleSystem.capacity have no attribute.default;
+            // their initial value lives in the constructor (capacity's setter maps
+            // undefined to 0). Read a fresh instance instead of writing undefined.
+            const temporaryNode = data instanceof Component ? new Node() : undefined;
+            try {
+                const defaults = temporaryNode ? temporaryNode.addComponent(data.constructor) : new data.constructor();
+                const value = defaults[info.key];
+                if (value === undefined) {
+                    throw new Error(`Cannot reset property without a default: ${path}`);
+                }
+                data[info.key] = value;
+            } finally {
+                temporaryNode?.destroy();
+            }
+        }
     }
 }
 
