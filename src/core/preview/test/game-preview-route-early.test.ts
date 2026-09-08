@@ -1,5 +1,7 @@
 import { join } from 'path';
 import GamePreviewMiddleware from '../game-preview.middleware';
+import { getPreviewToolbarOptions, resetPreviewToolbarOptions } from '../preview-toolbar-options';
+import i18n from '../../base/i18n';
 
 /**
  * 回归测试：浏览器预览入口 `/` 必须能在「builder / scene 尚未初始化」时就渲染 game.ejs。
@@ -49,6 +51,11 @@ function findRootHandler() {
 }
 
 describe('game preview `/` route works before builder init (early-registration invariant)', () => {
+    beforeEach(async () => {
+        resetPreviewToolbarOptions();
+        await i18n.setLanguage('en');
+    });
+
     it('renders game.ejs (200) with only scripting.projectPath, no builder', async () => {
         const handler = findRootHandler();
         const req = {
@@ -69,6 +76,10 @@ describe('game preview `/` route works before builder init (early-registration i
         // （preview-live-reload.js 负责创建 socket + 注册 browser:reload 监听），CLI 就绪后即可被广播刷新。
         expect(res.body).toContain('/socket.io/socket.io.js');
         expect(res.body).toContain('/static/web/preview-live-reload.js');
+        // 工具栏是浏览器预览页面的可选层；普通 URL 仍保持纯游戏画面，由查询参数显式启用。
+        expect(res.body).toContain('/static/web/game-preview.css');
+        expect(res.body).toContain('/static/web/game-preview-ui.js');
+        expect(res.body).toContain("get('previewToolbar') === '1'");
         // settings.js 带上 scene 查询，指向惰性计算的预览 settings 路由
         expect(res.body).toContain('/preview/settings.js?scene=');
     });
@@ -77,5 +88,47 @@ describe('game preview `/` route works before builder init (early-registration i
         // GamePreview 必须显式提供 `/`，registerBrowserPreview 早注册时它才能先于场景宽泛路由命中。
         const urls = (GamePreviewMiddleware.get || []).map((m: any) => String(m.url));
         expect(urls).toContain('/');
+    });
+
+    it('keeps Creator-style toolbar options across a refreshed page', async () => {
+        const handlers = new Map<string, Function>();
+        (GamePreviewMiddleware.socket as any).connection({
+            on: (event: string, handler: Function) => handlers.set(event, handler),
+        });
+
+        handlers.get('changeOption')?.('debugMode', 'INFO_FOR_WEB_PAGE');
+        handlers.get('changeOption')?.('showFps', true);
+        handlers.get('changeOption')?.('device', 'iphone-14');
+        handlers.get('changeOption')?.('rotate', true);
+
+        expect(getPreviewToolbarOptions()).toEqual({
+            debugMode: 'INFO_FOR_WEB_PAGE',
+            showFps: true,
+            device: 'iphone-14',
+            rotate: true,
+        });
+
+        const handler = findRootHandler();
+        const req = { protocol: 'http', get: () => 'localhost:9527', query: {} };
+        const res = makeRes();
+        await handler(req, res, jest.fn());
+
+        expect(res.body).toContain('"debugMode":"INFO_FOR_WEB_PAGE"');
+        expect(res.body).toContain('"showFps":true');
+        expect(res.body).toContain('"device":"iphone-14"');
+        expect(res.body).toContain('"rotate":true');
+    });
+
+    it('injects Creator-style localized device names from the CLI i18n service', async () => {
+        await i18n.setLanguage('zh');
+        const handler = findRootHandler();
+        const req = { protocol: 'http', get: () => 'localhost:9527', query: {} };
+        const res = makeRes();
+
+        await handler(req, res, jest.fn());
+
+        expect(res.body).toContain('"designResolution":"设计分辨率"');
+        expect(res.body).toContain('"fullScreen":"全屏"');
+        expect(res.body).toContain('"webpageFullScreen":"网页全屏"');
     });
 });

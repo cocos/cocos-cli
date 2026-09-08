@@ -425,7 +425,8 @@ class AssetHandlerManager {
             // content 不存在，新建一个文件夹
             await createDirectoryPath(options.target);
         } else {
-            if (typeof options.content === 'object') {
+            // Buffers are already a filesystem write type; serializing one would corrupt binary assets.
+            if (typeof options.content === 'object' && !Buffer.isBuffer(options.content)) {
                 options.content = JSON.stringify(options.content, null, 4);
             }
             // Normalize EOL for string content

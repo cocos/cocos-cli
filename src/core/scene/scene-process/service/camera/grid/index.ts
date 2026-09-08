@@ -60,7 +60,7 @@ class Grid {
     }
 
     setScaleH(lods: number[], minScale: number, maxScale: number) {
-        this.hTicks = new LinearTicks().initTicks(lods, minScale, maxScale).spacing(10, 80);
+        this.hTicks = new LinearTicks().initTicks(lods, minScale, maxScale).spacing(10, 200);
         this.xAxisScale = clamp(this.xAxisScale, this.hTicks.minValueScale, this.hTicks.maxValueScale);
         this.pixelToValueH = (x: number) => (x - this.xAxisOffset) / this.xAxisScale;
         this.valueToPixelH = (x: number) => x * this.xAxisScale + this.xAxisOffset;
@@ -86,7 +86,7 @@ class Grid {
     }
 
     setScaleV(lods: number[], minScale: number, maxScale: number) {
-        this.vTicks = new LinearTicks().initTicks(lods, minScale, maxScale).spacing(10, 80);
+        this.vTicks = new LinearTicks().initTicks(lods, minScale, maxScale).spacing(10, 200);
         this.yAxisScale = clamp(this.yAxisScale, this.vTicks.minValueScale, this.vTicks.maxValueScale);
         this.pixelToValueV = (y: number) => (this._canvasHeight - y + this.yAxisOffset) / this.yAxisScale;
         this.valueToPixelV = (y: number) => -y * this.yAxisScale + this._canvasHeight + this.yAxisOffset;

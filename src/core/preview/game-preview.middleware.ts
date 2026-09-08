@@ -7,6 +7,8 @@ import { GlobalPaths } from '../../global';
 import { scriptingRoutes } from './scripting-routes';
 import { getCachedPreviewSettings, PreviewNotReadyError } from './preview-settings';
 import { notePreviewNotReady } from './live-reload';
+import { getPreviewToolbarOptions, setPreviewToolbarOption } from './preview-toolbar-options';
+import i18n from '../base/i18n';
 
 /**
  * 各资源数据库的 library（已导入数据）目录缓存。
@@ -173,6 +175,62 @@ export const gamePreviewResourceRoutes = [
             }
         },
     },
+    {
+        /**
+         * 预览态类型化创建节点所需的「节点类型 → 内置 Prefab uuid」映射（只读）。
+         *
+         * 预览 iframe 里的 inspect agent（static/web/preview-inspect.js）在 Hierarchy 右键
+         * Create ▸ Cube / Button … 时需要这张表。这里**直接输出编辑态的 NODE_CONFIGS**，
+         * 而不是在前端 JS 里重抄一份，保证两侧的 uuid / canvasRequired / project-type 永不漂移。
+         *
+         * node-type-config 是无依赖的纯数据模块（不 import cc），可安全在 CLI 主进程加载。
+         * 注意必须注册在 `/scene/(.+).json` 之前也无妨——两者路径模式不重叠（本路由无 .json 后缀）。
+         */
+        url: '/scene/asset-meta',
+        async handler(req: Request, res: Response, next: NextFunction) {
+            try {
+                const dbURL = typeof req.query.dbURL === 'string' ? req.query.dbURL : '';
+                if (!dbURL) {
+                    return next();
+                }
+                const { assetManager } = await import('../assets');
+                const info = assetManager.queryAssetInfo(dbURL);
+                res.set('Cache-Control', 'no-store');
+                if (!info || info.isDirectory || !info.uuid) {
+                    res.status(404).json({ error: `asset not found: ${dbURL}` });
+                    return;
+                }
+                // subAssets 一并输出(一层):预览端创建 Sprite 节点时优先挂真子资产 SpriteFrame,
+                // 让 Inspector 的 spriteFrame 属性带资产 uuid、可索引回 Assets。
+                const subAssets = info.subAssets
+                    ? Object.values(info.subAssets).map(sub => ({ uuid: sub.uuid, type: sub.type, name: sub.name }))
+                    : [];
+                res.status(200).json({ uuid: info.uuid, type: info.type, name: info.name, subAssets });
+            } catch (err) {
+                next(err);
+            }
+        },
+    },
+    {
+        /**
+         * 预览态「按资产拖拽创建节点」所需的「db:// URL → { uuid, type, name }」只读路由。
+         *
+         * Hierarchy 接受资产拖拽时（node.create-by-asset）只把 db:// URL 传进预览 iframe 的
+         * inspect agent（static/web/preview-inspect.js），而活场景加载/实例化需要 uuid 与类型：
+         * 这里在 CLI 主进程直接查 asset-db 返回最小字段，与 node-type-config 同属预览只读数据路由。
+         */
+        url: '/scene/node-type-config',
+        async handler(_req: Request, res: Response, next: NextFunction) {
+            try {
+                const { NODE_CONFIGS } = await import('../scene/scene-process/service/node/node-type-config');
+                // 表随 CLI 版本固定，但预览生命周期短，不缓存以免升级后拿到旧表。
+                res.set('Cache-Control', 'no-store');
+                res.status(200).json(NODE_CONFIGS);
+            } catch (err) {
+                next(err);
+            }
+        },
+    },
 ];
 
 export default {
@@ -195,6 +253,17 @@ export default {
                         serverURL: serverBaseUrl,
                         settingsJs: `/preview/settings.js${sceneQuery}`,
                         sceneQuery,
+                        previewToolbarOptions: getPreviewToolbarOptions(),
+                        // Keep the preview page aligned with Creator: localize device-mode names on the
+                        // server, then inject the resolved values into the browser page. The toolbar
+                        // itself does not need a second client-side i18n runtime.
+                        previewToolbarI18n: {
+                            device: {
+                                designResolution: i18n.t('common.preview.device.design_resolution'),
+                                fullScreen: i18n.t('common.preview.device.full_screen'),
+                                webpageFullScreen: i18n.t('common.preview.device.webpage_full_screen'),
+                            },
+                        },
                     };
                     const templatePath = join(GlobalPaths.workspace, 'static', 'web', 'game.ejs');
                     const html = await ejs.renderFile(templatePath, renderData);
@@ -214,7 +283,13 @@ export default {
     post: [],
     staticFiles: [],
     socket: {
-        connection: (_socket: any) => { },
+        connection: (socket: any) => {
+            // 对齐 Creator preview-app：工具栏通过同一个 socket 上报 changeOption，
+            // 服务端保存会话状态，下一次页面渲染时重新注入。
+            socket.on?.('changeOption', (name: unknown, value: unknown) => {
+                setPreviewToolbarOption(name, value);
+            });
+        },
         disconnect: (_socket: any) => { },
     },
 } as IMiddlewareContribution;

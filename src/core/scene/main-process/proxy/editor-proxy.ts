@@ -45,6 +45,9 @@ export const EditorProxy: IEditorProxy = {
         if (!result) return null;
         return convertEditorResult(result);
     },
+    querySceneSerializedData() {
+        return Rpc.getInstance().request('Editor', 'querySceneSerializedData');
+    },
     hasOpen() {
         return Rpc.getInstance().request('Editor', 'hasOpen');
     }

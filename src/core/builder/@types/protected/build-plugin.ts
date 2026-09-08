@@ -235,6 +235,9 @@ export namespace IInternalHook {
     export type onBeforeUpload = IInternalStageTaskHooks;
     export type upload = IInternalStageTaskHooks;
     export type onAfterUpload = IInternalStageTaskHooks;
+
+    // 内置插件才有可能触发这个函数
+    export type publish = IInternalStageTaskHooks;
 }
 
 export interface PlatformPackageOptions {

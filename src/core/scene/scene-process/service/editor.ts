@@ -128,6 +128,19 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? await editor.encode() : null;
     }
 
+    /**
+     * 序列化当前正在编辑的场景（含未保存改动），返回可被 loadWithJson 加载的 JSON 字符串。
+     * 用于「Preview in Editor」：把编辑器里的实时场景交给游戏运行时预览。
+     * 该方法经 Service proxy 自动暴露到浏览器侧 window.cli.Scene.Editor.querySceneSerializedData。
+     */
+    async querySceneSerializedData(): Promise<string> {
+        const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
+        if (editor instanceof SceneEditor) {
+            return editor.serializeCurrent();
+        }
+        throw new Error('[querySceneSerializedData] 当前没有打开场景');
+    }
+
     getRootNode(): cc.Scene | cc.Node | null {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         return editor ? editor.getRootNode() : null;
@@ -237,6 +250,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
 
             this.invalidateEditorSession();
+            if (params.save !== false) {
+                await this.saveTerrainAssets();
+            }
             const result = await editor.close({ save: params.save ?? true });
 
             if (editor === this.editorMap.get(currentEditorUuid)) {
@@ -273,6 +289,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
             const { assetInfo, currentEditorUuid, editor } = await this.resolveSaveTarget(urlOrUUID);
+            await this.saveTerrainAssets();
             const result = assetInfo.uuid === currentEditorUuid
                 ? await editor.save()
                 : await this.recoverDeletedSourceTo(assetInfo, currentEditorUuid, editor);
@@ -286,6 +303,22 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         } catch (error) {
             console.error(`保存失败: [${urlOrUUID}]`, error);
             throw error;
+        }
+    }
+
+    /** Terrain data lives in .terrain assets, not in the scene JSON. */
+    private async saveTerrainAssets(): Promise<void> {
+        try {
+            const terrain = (Service as any).Terrain;
+            if (!terrain?.saveAsset) return;
+            const result = await terrain.saveAsset(false);
+            if (result === 2) {
+                throw new Error('Terrain asset save failed or requires a Save As target.');
+            }
+        } catch (error) {
+            // During early bootstrap or isolated editor tests TerrainService may
+            // not be registered. Real terrain save failures use the explicit error above.
+            if (error instanceof Error && error.message.includes('requires a Save As')) throw error;
         }
     }
 
