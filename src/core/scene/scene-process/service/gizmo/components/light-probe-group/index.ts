@@ -395,13 +395,6 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         if (currentEditMode === LightEditMode.VERTEX && !this._vertexEditMode) {
             this.lightProbeEditModeChanged(true);
         }
-        // 默认行为：点选 LightProbeGroup 即自动进入 Probe Vertex 编辑模式。
-        // 仅当当前不处于任何编辑模式时才自动进入，避免覆盖用户已手动开启的 box 模式。
-        // 走 changeEditMode 状态机（会发 MODE_CHANGED / 广播 / 通知各 gizmo / 切 position 工具），
-        // 保证面板按钮态与场景状态一致；enter 后面板按钮应显示 "Exit Probe Edit Mode"。
-        if (getEditMode() === LightEditMode.NONE) {
-            changeEditMode(LightEditMode.VERTEX);
-        }
     }
 
     onHide() {
