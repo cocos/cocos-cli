@@ -723,6 +723,15 @@ class AssetOperation extends EventEmitter {
         });
     }
 
+    /**
+     * Refreshes only the requested target. This is intended for generated
+     * assets whose importer writes sibling files while it is running; a
+     * follow-up parent-directory refresh would recursively observe that work.
+     */
+    async refreshAssetOnly(pathOrUrlOrUUID: string): Promise<number> {
+        return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID, false]);
+    }
+
     private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<number> {
         const refreshTarget = this._pathToDbUrlIfInsideAssetDB(pathOrUrlOrUUID);
         const refreshDir = this._dirnameForRefresh(refreshTarget);

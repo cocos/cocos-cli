@@ -9,18 +9,10 @@ function toPrecision(val: number, n: number): number {
     return Math.round(val * Math.pow(10, n)) / Math.pow(10, n);
 }
 
-function makeVec2InPrecision(v: Vec2, p: number): Vec2 {
-    const pow = Math.pow(10, p);
-    v.x = Math.round(v.x * pow) / pow;
-    v.y = Math.round(v.y * pow) / pow;
-    return v;
-}
-
 const HandleType = RectangleController.RectHandleType;
 
 const tempQuat_a = new Quat();
 const tempMat4 = new Mat4();
-const tempVec2 = new Vec2();
 
 class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
     private _controller!: RectangleController;
@@ -30,6 +22,8 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
     private _anchor: Vec2 = new Vec2(0.5, 0.5);
     private _altKey = false;
     private _propPath: string | null = null;
+    private _dragTarget: BoxCollider2D | null = null;
+    private _dragOffsetPath: string | null = null;
 
     init() {
         this.createController();
@@ -42,6 +36,8 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
     }
 
     onHide() {
+        this.finishControl();
+        this._altKey = false;
         this._controller.hide();
     }
 
@@ -58,30 +54,69 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
     }
 
     onControllerMouseDown() {
-        if (!this.target) {
+        this.finishControl();
+        const offsetPath = this.getCompPropPath('offset');
+        if (!this.target || !offsetPath || this.target.isValid === false || this.target.node.isValid === false || this.target.editing === false) {
             return;
         }
+        this._dragTarget = this.target;
+        this._dragOffsetPath = offsetPath;
+        this._propPath = this._controller.getCurHandleType() === HandleType.Area
+            ? offsetPath : this.getCompPropPath('size');
         this._size = this.target.size.clone();
         this._offset = this.target.offset.clone();
-        this._propPath = this.getCompPropPath('size');
     }
 
     onControllerMouseMove() {
+        if (!this._dragTarget) return;
+        if (!this.isDragTargetValid() || this.target?.editing === false) {
+            this.finishControl();
+            return;
+        }
         if (this._controller.updated) {
-            this.onControlUpdate(this._propPath);
             const handleType = this._controller.getCurHandleType();
             const deltaSize = this._controller.getDeltaSize();
             if (handleType === HandleType.Area) {
                 this.handleAreaMove(deltaSize);
             } else {
-                const keepCenter: boolean = this._altKey;
-                this.handleTargetSize(handleType, deltaSize, keepCenter);
+                this.handleTargetSize(handleType, deltaSize, this._altKey);
             }
         }
     }
 
     onControllerMouseUp() {
-        this.onControlEnd(this._propPath);
+        this.finishControl();
+    }
+
+    private isDragTargetValid(): boolean {
+        const target = this._dragTarget;
+        return !!target && this.target === target && target.isValid !== false && target.node.isValid !== false
+            && this.getCompPropPath('offset') === this._dragOffsetPath;
+    }
+
+    private finishControl(commitProperty = true) {
+        const target = this._dragTarget;
+        const propPath = this._propPath;
+        // Scope and animation use the gesture's primary property (Resize: size,
+        // Area: offset). The node snapshot still restores all changed properties.
+        const primaryChanged = this.isDragTargetValid() && target && (
+            propPath === this._dragOffsetPath
+                ? target.offset.x !== this._offset.x || target.offset.y !== this._offset.y
+                : target.size.width !== this._size.width || target.size.height !== this._size.height
+        );
+        this._dragTarget = null;
+        this._dragOffsetPath = null;
+        this._propPath = null;
+        if (this._isControlBegin) {
+            if (commitProperty && primaryChanged) {
+                void this.onControlEnd(propPath);
+            } else {
+                // Unbound/invalid targets and unchanged gestures must not emit an
+                // animation commit. The recorded node UUID still owns the Undo.
+                this._isControlBegin = false;
+                void this.commitChanges();
+            }
+        }
     }
 
     onKeyDown(event: any) {
@@ -107,11 +142,12 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
         }
 
         posDelta.z = 0;
-        tempVec2.set(this._offset);
-        tempVec2.add2f(posDelta.x, posDelta.y);
-        makeVec2InPrecision(tempVec2, 1);
+        const offsetX = toPrecision(this._offset.x + posDelta.x, 1);
+        const offsetY = toPrecision(this._offset.y + posDelta.y, 1);
+        if (offsetX === this.target.offset.x && offsetY === this.target.offset.y) return;
 
-        this.target.offset.set(tempVec2);
+        this.onControlUpdate(this._propPath);
+        this.target.offset.set(offsetX, offsetY);
         this.onComponentChanged(node);
     }
 
@@ -158,20 +194,23 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
             return;
         }
         const node = this.target.node;
-        node.getWorldMatrix(tempMat4);
-        Mat4.invert(tempMat4, tempMat4);
-        tempMat4.m12 = tempMat4.m13 = 0;
-        Vec3.transformMat4(posDelta, posDelta, tempMat4);
+        let offsetX = this.target.offset.x;
+        let offsetY = this.target.offset.y;
 
         if (!keepCenter) {
-            const localRot = tempQuat_a;
-            node.getRotation(localRot);
-            Vec3.transformQuat(posDelta, posDelta, localRot);
+            // Resize deltas are projected onto the controller axes, in world units.
+            // Rotate the center delta into world space before converting to offset's
+            // local space, so parent rotation is accounted for as well.
+            const worldRot = tempQuat_a;
+            node.getWorldRotation(worldRot);
+            Vec3.transformQuat(posDelta, posDelta, worldRot);
+            node.getWorldMatrix(tempMat4);
+            Mat4.invert(tempMat4, tempMat4);
+            tempMat4.m12 = tempMat4.m13 = tempMat4.m14 = 0;
+            Vec3.transformMat4(posDelta, posDelta, tempMat4);
             posDelta.z = 0;
-            tempVec2.set(this._offset);
-            tempVec2.add2f(posDelta.x, posDelta.y);
-            makeVec2InPrecision(tempVec2, 1);
-            this.target.offset.set(tempVec2);
+            offsetX = toPrecision(this._offset.x + posDelta.x, 1);
+            offsetY = toPrecision(this._offset.y + posDelta.y, 1);
         }
 
         const worldScale = new Vec3();
@@ -183,13 +222,24 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
         let height = this._size.height + sizeDelta.y;
         width = toPrecision(width, 1);
         height = toPrecision(height, 1);
-        this.target.size.set(new Size(width, height));
+        const sizeChanged = width !== this.target.size.width || height !== this.target.size.height;
+        const offsetChanged = offsetX !== this.target.offset.x || offsetY !== this.target.offset.y;
+        if (!sizeChanged && !offsetChanged) return;
+
+        // Record before writing, but only after rounding confirms a value change.
+        this.onControlUpdate(this._propPath);
+        if (offsetChanged) this.target.offset.set(offsetX, offsetY);
+        if (sizeChanged) this.target.size.set(new Size(width, height));
 
         this.onComponentChanged(node);
     }
 
     updateControllerData() {
         if (!this._isInitialized || this.target === null) {
+            return;
+        }
+        if (this.target.isValid === false || this.target.node.isValid === false || !this.getCompPropPath('offset')) {
+            this._controller.hide();
             return;
         }
 
@@ -223,11 +273,19 @@ class BoxCollider2DGizmo extends GizmoBase<BoxCollider2D> {
     }
 
     onTargetUpdate() {
+        if (!this._isInitialized) return;
+        this.finishControl(false);
         this.updateController();
     }
 
     onNodeChanged() {
+        if (this._dragTarget && (!this.isDragTargetValid() || this.target?.editing === false)) this.finishControl();
         this.updateController();
+    }
+
+    override destroy() {
+        this.finishControl();
+        super.destroy();
     }
 }
 

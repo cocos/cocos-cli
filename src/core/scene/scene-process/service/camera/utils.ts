@@ -135,7 +135,8 @@ export class CameraUtils {
     }
 
     static createGrid(effectName: string, parentNode: Node) {
-        const node = new cc.Node(effectName);
+        // 节点名不允许包含 /\:*?"<>|；effectName 是资源路径（如 'internal/editor/grid-2d'），脱敏后用作节点名
+        const node = new cc.Node(effectName.replace(/[/\\:*?"<>|]/g, '-'));
         node.layer = cc.Layers.Enum.EDITOR | cc.Layers.Enum.IGNORE_RAYCAST;
         node._objFlags |= CCObject.Flags.DontSave;
         node.parent = parentNode;

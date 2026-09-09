@@ -18,6 +18,7 @@ import {
     create3DNode,
 } from '../../utils/engine-utils';
 import { registerGizmo } from '../../gizmo-defines';
+import { queryRegisteredService } from '../../../core/decorator';
 
 function toPrecision(val: number, n: number): number {
     return Math.round(val * Math.pow(10, n)) / Math.pow(10, n);
@@ -407,10 +408,53 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
     private _propPath: string | null = null;
     private _3dPoints: Vec3[] = [];
     private _points: Vec2[] = [];
+    private _dragTarget: PolygonCollider2D | null = null;
+    private _dragOffsetPath: string | null = null;
+    private _dragPointIndex = -1;
 
     private _curHoverInHandleType: string = HandleType.None;
     private _curHoverInElemIndex = -1;
     private _isDeletePointKeyDown = false;
+
+    public get isDeletePointKeyDown() {
+        return this._isDeletePointKeyDown;
+    }
+
+    public set isDeletePointKeyDown(value: boolean) {
+        this._isDeletePointKeyDown = value;
+        if (value && this.curHoverInHandleType === HandleType.Point) {
+            this.changePointer('alias');
+            this.highlightDeleteLine(true);
+        } else {
+            if (this.curHoverInHandleType === HandleType.Point) {
+                this.changePointer('default');
+            }
+            this.highlightDeleteLine(false);
+        }
+    }
+
+    public get curHoverInHandleType() {
+        return this._curHoverInHandleType;
+    }
+
+    public set curHoverInHandleType(value: string) {
+        this._curHoverInHandleType = value;
+        switch (value) {
+            case HandleType.None:
+            case HandleType.Area:
+                this.changePointer('default');
+                this.highlightDeleteLine(false);
+                break;
+            case HandleType.Point:
+                this.changePointer(this.isDeletePointKeyDown ? 'alias' : 'default');
+                this.highlightDeleteLine(this.isDeletePointKeyDown);
+                break;
+            case HandleType.Line:
+                this.changePointer('copy');
+                this.highlightDeleteLine(false);
+                break;
+        }
+    }
 
     init() {
         this.createController();
@@ -423,7 +467,12 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
     }
 
     onHide() {
+        this.finishControl();
         this._controller.hide();
+        this._ctrlKey = false;
+        this._metaKey = false;
+        this._isDeletePointKeyDown = false;
+        this.clearHoverFeedback();
     }
 
     createController() {
@@ -447,11 +496,22 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
         this._rightDeleteLine.hide();
     }
 
-    onControllerMouseDown() {
+    onControllerMouseDown(event?: GizmoMouseEvent) {
+        this.finishControl();
         const handleData = this._controller.getHandleData();
-        if (!handleData || !this.target) {
+        const offsetPath = this.getCompPropPath('offset');
+        if (!handleData || !this.target || !offsetPath || this.target.isValid === false || this.target.node.isValid === false || this.target.editing === false) {
             return;
         }
+        if (event) {
+            this._ctrlKey = event.ctrlKey;
+            this._metaKey = event.metaKey;
+            this.isDeletePointKeyDown = this._ctrlKey || this._metaKey;
+        }
+        this._dragTarget = this.target;
+        this._dragOffsetPath = offsetPath;
+        this._offset = this.target.offset.clone();
+        this._points = this.target.points.map(point => point.clone());
 
         if (handleData.type === HandleType.Line) {
             const hitPoint = handleData.hitPos;
@@ -469,34 +529,36 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
                 this.onComponentChanged(this.target.node);
             }
         } else if (handleData.type === HandleType.Point) {
-            this.onControlUpdate(this._propPath);
             this._propPath = this.getCompPropPath('points');
-            if (this._isDeletePointKeyDown) {
+            if (this.isDeletePointKeyDown) {
+                this.onControlUpdate(this._propPath);
                 const points = this.target.points;
                 points.splice(handleData.index, 1);
                 this.target.points = points;
                 this.onComponentChanged(this.target.node);
-                this._curHoverInHandleType = HandleType.None;
+                this.curHoverInHandleType = HandleType.None;
                 this._curHoverInElemIndex = -1;
+            } else {
+                this._dragPointIndex = handleData.index;
             }
-
-            this._points = [];
-            this.target.points.forEach((point: Vec2) => {
-                this._points.push(point.clone());
-            });
         } else if (handleData.type === HandleType.Area) {
-            this._offset = this.target.offset.clone();
             this._propPath = this.getCompPropPath('offset');
         }
     }
 
     onControllerMouseMove(event: GizmoMouseEvent) {
+        // Hover events also carry current modifiers, including after a missed KeyUp.
         this._ctrlKey = event.ctrlKey;
         this._metaKey = event.metaKey;
-        this._isDeletePointKeyDown = this._ctrlKey || this._metaKey;
+        this.isDeletePointKeyDown = this._ctrlKey || this._metaKey;
+        if (!this._dragTarget) return;
+        if (!this.isDragTargetValid() || this.target?.editing === false) {
+            this.finishControl();
+            return;
+        }
         if (this._controller.updated) {
             const handleData = this._controller.getHandleData();
-            if (handleData.type === HandleType.Point) {
+            if (handleData.type === HandleType.Point && handleData.index === this._dragPointIndex) {
                 this.onControlUpdate(this._propPath);
                 this.handlePoints(handleData);
             } else if (handleData.type === HandleType.Area) {
@@ -507,35 +569,70 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
     }
 
     onControllerMouseUp() {
-        this.onControlEnd(this._propPath);
+        this.finishControl();
+    }
+
+    private isDragTargetValid(): boolean {
+        const target = this._dragTarget;
+        return !!target && this.target === target && target.isValid !== false && target.node.isValid !== false
+            && this.getCompPropPath('offset') === this._dragOffsetPath;
+    }
+
+    private finishControl(commitProperty = true) {
+        const target = this._dragTarget;
+        const changed = this.isDragTargetValid() && target && (
+            target.offset.x !== this._offset.x || target.offset.y !== this._offset.y
+            || target.points.length !== this._points.length
+            || target.points.some((point, index) => point.x !== this._points[index].x || point.y !== this._points[index].y)
+        );
+        this._dragTarget = null;
+        this._dragOffsetPath = null;
+        this._dragPointIndex = -1;
+        if (this._isControlBegin) {
+            if (commitProperty && changed) {
+                void this.onControlEnd(this._propPath);
+            } else {
+                this._isControlBegin = false;
+                void this.commitChanges();
+            }
+        }
+        this._propPath = null;
     }
 
     onControllerHoverIn(event: GizmoMouseEvent<{ index: number }>) {
         if (event.handleName.charAt(0) === 'l') {
-            this._curHoverInHandleType = HandleType.Line;
-            this._curHoverInElemIndex = event.customData?.index!;
+            const index = event.customData?.index;
+            if (index === undefined) {
+                return;
+            }
+            this._curHoverInElemIndex = index;
+            this.curHoverInHandleType = HandleType.Line;
         } else if (event.handleName.charAt(0) === 'p') {
-            this._curHoverInHandleType = HandleType.Point;
-            this._curHoverInElemIndex = event.customData?.index!;
+            const index = event.customData?.index;
+            if (index === undefined) {
+                return;
+            }
+            this._curHoverInElemIndex = index;
+            this.curHoverInHandleType = HandleType.Point;
         } else if (event.handleName === HandleType.Area) {
-            this._curHoverInHandleType = HandleType.Area;
+            this.curHoverInHandleType = HandleType.Area;
         }
     }
 
     onControllerHoverOut(event: GizmoMouseEvent) {
         if (event.handleName.charAt(0) === 'l') {
-            if (this._curHoverInHandleType === HandleType.Line) {
-                this._curHoverInHandleType = HandleType.None;
+            if (this.curHoverInHandleType === HandleType.Line) {
+                this.curHoverInHandleType = HandleType.None;
                 this._curHoverInElemIndex = -1;
             }
         } else if (event.handleName.charAt(0) === 'p') {
-            if (this._curHoverInHandleType === HandleType.Point) {
-                this._curHoverInHandleType = HandleType.None;
+            if (this.curHoverInHandleType === HandleType.Point) {
+                this.curHoverInHandleType = HandleType.None;
                 this._curHoverInElemIndex = -1;
             }
         } else if (event.handleName === HandleType.Area) {
-            if (this._curHoverInHandleType === HandleType.Area) {
-                this._curHoverInHandleType = HandleType.None;
+            if (this.curHoverInHandleType === HandleType.Area) {
+                this.curHoverInHandleType = HandleType.None;
             }
         }
     }
@@ -543,13 +640,58 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
     onKeyDown(event: any) {
         this._ctrlKey = event.ctrlKey;
         this._metaKey = event.metaKey;
-        this._isDeletePointKeyDown = this._ctrlKey || this._metaKey;
+        this.isDeletePointKeyDown = this._ctrlKey || this._metaKey;
     }
 
     onKeyUp(event: any) {
         this._ctrlKey = event.ctrlKey;
         this._metaKey = event.metaKey;
-        this._isDeletePointKeyDown = this._ctrlKey || this._metaKey;
+        this.isDeletePointKeyDown = this._ctrlKey || this._metaKey;
+    }
+
+    highlightDeleteLine(active: boolean) {
+        if (!active || this._curHoverInElemIndex < 0 || !this.target || this.target.editing === false) {
+            this._leftDeleteLine.hide();
+            this._rightDeleteLine.hide();
+            this.repaintInEditMode();
+            return;
+        }
+
+        const points = this.target.points;
+        const pointsWithOffset = this._controller.points;
+        if (points.length < 2 || pointsWithOffset.length < 2 || this._curHoverInElemIndex >= pointsWithOffset.length) {
+            this._leftDeleteLine.hide();
+            this._rightDeleteLine.hide();
+        } else if (points.length === 2) {
+            this._leftDeleteLine.updateData(pointsWithOffset[0], pointsWithOffset[1]);
+            this._leftDeleteLine.show();
+            this._rightDeleteLine.hide();
+        } else {
+            const curIndex = this._curHoverInElemIndex;
+            const preIndex = curIndex === 0 ? pointsWithOffset.length - 1 : curIndex - 1;
+            const nextIndex = curIndex === pointsWithOffset.length - 1 ? 0 : curIndex + 1;
+            this._leftDeleteLine.updateData(pointsWithOffset[preIndex], pointsWithOffset[curIndex]);
+            this._rightDeleteLine.updateData(pointsWithOffset[curIndex], pointsWithOffset[nextIndex]);
+            this._leftDeleteLine.show();
+            this._rightDeleteLine.show();
+        }
+        this.repaintInEditMode();
+    }
+
+    private clearHoverFeedback() {
+        if (this._curHoverInHandleType === HandleType.None && this._curHoverInElemIndex < 0) {
+            return;
+        }
+        this._curHoverInElemIndex = -1;
+        this.curHoverInHandleType = HandleType.None;
+    }
+
+    private changePointer(type: string) {
+        queryRegisteredService<{ changePointer(pointerType: string): void }>('Operation')?.changePointer(type);
+    }
+
+    private repaintInEditMode() {
+        queryRegisteredService<{ repaintInEditMode(): void }>('Engine')?.repaintInEditMode();
     }
 
     worldToLocalPos(out: Vec3, inPos: Vec3) {
@@ -583,7 +725,7 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
 
     handlePoints(handleMoveData: IPolygonHandleData) {
         const index = handleMoveData.index;
-        if (index < 0 || !this.target) {
+        if (index < 0 || !this.target || index >= this._points.length || index >= this.target.points.length) {
             return;
         }
 
@@ -610,6 +752,11 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
 
     updateControllerData() {
         if (!this._isInitialized || this.target === null) {
+            return;
+        }
+        if (this.target.isValid === false || this.target.node.isValid === false || !this.getCompPropPath('offset')) {
+            this._controller.hide();
+            this.clearHoverFeedback();
             return;
         }
 
@@ -640,6 +787,14 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
             });
             this._controller.updateData(this._3dPoints);
             this._controller.edit = polygonCollider2D.editing;
+            if (!polygonCollider2D.editing) {
+                this.finishControl();
+                this.clearHoverFeedback();
+            } else if (this.isDeletePointKeyDown && this.curHoverInHandleType === HandleType.Point) {
+                // Input can keep the same modifier state while node:change updates
+                // the vertices. Refresh from the newly computed world points.
+                this.highlightDeleteLine(true);
+            }
         } else {
             this._controller.hide();
         }
@@ -650,11 +805,20 @@ class PolygonCollider2DGizmo extends GizmoBase<PolygonCollider2D> {
     }
 
     onTargetUpdate() {
+        if (!this._isInitialized) return;
+        this.finishControl(false);
+        this.clearHoverFeedback();
         this.updateController();
     }
 
     onNodeChanged() {
+        if (this._dragTarget && (!this.isDragTargetValid() || this.target?.editing === false)) this.finishControl();
         this.updateController();
+    }
+
+    override destroy() {
+        this.finishControl();
+        super.destroy();
     }
 }
 

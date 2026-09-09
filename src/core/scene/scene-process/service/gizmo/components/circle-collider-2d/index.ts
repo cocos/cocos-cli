@@ -21,7 +21,7 @@ const HandleType = DiscController.DiscHandleType;
 
 const tempQuat_a = new Quat();
 const tempMat4 = new Mat4();
-const tempVec2 = new Vec2();
+const MIN_RADIUS_SCALE = 1e-6;
 
 class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
     private _controller!: DiscController;
@@ -31,7 +31,8 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
     private _propRadiusPath: string | null = null;
     private _propOffsetPath: string | null = null;
     private _curHandleType: any;
-    private _maxScale = 1;
+    private _radiusScale = 1;
+    private _dragTarget: CircleCollider2D | null = null;
 
     init() {
         this.createController();
@@ -44,6 +45,7 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
     }
 
     onHide() {
+        this.finishControl();
         this._controller.hide();
     }
 
@@ -60,26 +62,36 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
     }
 
     onControllerMouseDown() {
-        if (!this.target) {
+        this.finishControl();
+        const radiusPath = this.getCompPropPath('radius');
+        if (!this.target || !radiusPath || this.target.isValid === false || this.target.node.isValid === false || this.target.editing === false) {
             return;
         }
+        this._dragTarget = this.target;
         this._radius = this.target.radius;
         this._offset = this.target.offset.clone();
-        this._propRadiusPath = this.getCompPropPath('radius');
+        this._propRadiusPath = radiusPath;
         this._propOffsetPath = this.getCompPropPath('offset');
         const worldScale = this.target.node.getWorldScale();
-        this._maxScale = Math.max(worldScale.x, worldScale.y, worldScale.z);
+        this._radiusScale = Math.abs(worldScale.x);
+        this._curHandleType = this._controller.getCurHandleType();
     }
 
     onControllerMouseMove() {
+        if (!this._dragTarget) return;
+        if (!this.isDragTargetValid() || this.target?.editing === false) {
+            this.finishControl();
+            return;
+        }
         if (this._controller.updated) {
             const handleType = this._controller.getCurHandleType();
             this._curHandleType = handleType;
             if (handleType === HandleType.Area) {
-                this.onControlUpdate(this._propRadiusPath);
+                this.onControlUpdate(this._propOffsetPath);
                 const deltaPos = this._controller.getDeltaPos();
                 this.handleAreaMove(deltaPos);
-            } else {
+            } else if (this._radiusScale > MIN_RADIUS_SCALE) {
+                this.onControlUpdate(this._propRadiusPath);
                 const deltaRadius = this._controller.getDeltaRadius();
                 this.handleRadius(deltaRadius);
             }
@@ -87,10 +99,31 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
     }
 
     onControllerMouseUp() {
-        if (this._curHandleType === HandleType.Area) {
-            this.onControlEnd(this._propOffsetPath);
+        this.finishControl();
+    }
+
+    private isDragTargetValid(): boolean {
+        const target = this._dragTarget;
+        return !!target && this.target === target && target.isValid !== false && target.node.isValid !== false
+            && this.getCompPropPath('radius') === this._propRadiusPath;
+    }
+
+    private finishControl(commitProperty = true) {
+        const target = this._dragTarget;
+        const changed = this.isDragTargetValid() && target && (
+            target.radius !== this._radius || target.offset.x !== this._offset.x || target.offset.y !== this._offset.y
+        );
+        this._dragTarget = null;
+        if (!this._isControlBegin) {
+            return;
+        }
+        if (!commitProperty || !changed) {
+            this._isControlBegin = false;
+            void this.commitChanges();
+        } else if (this._curHandleType === HandleType.Area) {
+            void this.onControlEnd(this._propOffsetPath);
         } else {
-            this.onControlEnd(this._propRadiusPath);
+            void this.onControlEnd(this._propRadiusPath);
         }
     }
 
@@ -109,9 +142,7 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
         }
         makeVec3InPrecision(posDelta, 1);
         posDelta.z = 0;
-        tempVec2.set(this._offset);
-        tempVec2.add2f(posDelta.x, posDelta.y);
-        this.target.offset = tempVec2;
+        this.target.offset.set(this._offset.x + posDelta.x, this._offset.y + posDelta.y);
         this.onComponentChanged(node);
     }
 
@@ -119,13 +150,20 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
         if (!this.target) {
             return;
         }
-        const newRadius = toPrecision(this._radius + deltaRadius / this._maxScale, 1);
+        if (this._radiusScale <= MIN_RADIUS_SCALE) {
+            return;
+        }
+        const newRadius = toPrecision(this._radius + deltaRadius / this._radiusScale, 1);
         this.target.radius = newRadius;
         this.onComponentChanged(this.target.node);
     }
 
     updateControllerData() {
         if (!this._isInitialized || this.target === null) {
+            return;
+        }
+        if (this.target.isValid === false || this.target.node.isValid === false || !this.getCompPropPath('radius')) {
+            this._controller.hide();
             return;
         }
 
@@ -145,8 +183,8 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
             node.getWorldRotation(worldRot);
             this._controller.setPosition(center);
             this._controller.setRotation(worldRot);
-            const scale = worldScale.x;
-            this._controller.updateSize(Vec3.ZERO, radius * scale);
+            const scale = Math.abs(worldScale.x);
+            this._controller.updateSize(Vec3.ZERO, Math.abs(radius) * scale);
             this._controller.edit = circleCollider2D.editing;
         } else {
             this._controller.hide();
@@ -158,11 +196,19 @@ class CircleCollider2DGizmo extends GizmoBase<CircleCollider2D> {
     }
 
     onTargetUpdate() {
+        if (!this._isInitialized) return;
+        this.finishControl(false);
         this.updateController();
     }
 
     onNodeChanged() {
+        if (this._dragTarget && (!this.isDragTargetValid() || this.target?.editing === false)) this.finishControl();
         this.updateController();
+    }
+
+    override destroy() {
+        this.finishControl();
+        super.destroy();
     }
 }
 

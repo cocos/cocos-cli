@@ -361,6 +361,7 @@ describe('animation graph asset service', () => {
         const poseState = withPoseState.graph.layers[0].stateMachine.states.find((state) => state.name === 'Pose');
         expect(poseState?.poseGraph?.nodes.length).toBeGreaterThan(0);
         const outputNodeId = poseState!.poseGraph!.rootOutputNodeId;
+        expect(poseState!.poseGraph!.nodes.find((node) => node.id === outputNodeId)?.title).toBe('Output Pose');
         const poseInspector = await assetManager.queryAnimationGraphInspector(asset.uuid, {
             kind: 'pose-node',
             layerIndex: 0,
@@ -383,6 +384,7 @@ describe('animation graph asset service', () => {
         const blendNode = withPoseNode.graph.layers[0].stateMachine.states[poseState!.index].poseGraph!.nodes.find((node) => (
             node.id !== outputNodeId && node.type.includes('PoseNodeBlendTwoPose')
         ));
+        expect(blendNode?.title).toBe('Blend Two Pose');
         const ratioInput = blendNode!.inputs.find((input) => input.id.includes('ratio'));
         expect(ratioInput?.value).toMatchObject({ path: 'value', type: 'Number', value: 1 });
         const inputTarget = {
@@ -702,6 +704,7 @@ describe('animation graph asset service', () => {
         const stateMachineNode = updatedStash.nodes.find((node) => node.type.includes('PoseNodeStateMachine'))!;
         expect(stateMachineNode.stateMachine?.states.map((state) => state.type)).toEqual(['entry', 'exit', 'any']);
         expect(stateMachineNode.enterInfo).toEqual({ type: 'state-machine' });
+        expect(stateMachineNode.title).toBe('State Machine');
 
         snapshot = await assetManager.executeAnimationGraphCommand(asset.uuid, {
             command: {
@@ -735,6 +738,7 @@ describe('animation graph asset service', () => {
         const motionNode = snapshot.graph.layers[0].stashPoseGraphs.find((stash) => stash.name === 'Nested')!
             .poseGraph.nodes.find((node) => node.type.includes('PoseNodePlayMotion'))!;
         expect(motionNode.motion?.type).toBe('blend-1d');
+        expect(motionNode.title).toBe('Play Unnamed Animation Blend');
         snapshot = await assetManager.executeAnimationGraphCommand(asset.uuid, {
             command: { type: 'add-motion-child', target: motionNode.motion!.target, motionType: 'clip' },
             expected: snapshot,
@@ -803,6 +807,7 @@ describe('animation graph asset service', () => {
         const applyTransformNode = snapshot.graph.layers[0].stashPoseGraphs.find((stash) => stash.name === 'Nested')!
             .poseGraph.nodes.find((node) => node.id === stateMachineNode.id)!.stateMachine!.states[poseStateIndex].poseGraph!
             .nodes.find((node) => node.type.includes('PoseNodeApplyTransform'))!;
+        expect(applyTransformNode.title).toBe('Apply Transform');
         const poseNodeTarget = { kind: 'pose-node' as const, poseGraph: nestedPoseGraph.context, nodeId: applyTransformNode.id };
         let inspector = await assetManager.queryAnimationGraphInspector(asset.uuid, poseNodeTarget);
         inspector = await assetManager.setAnimationGraphInspectorProperty(asset.uuid, {

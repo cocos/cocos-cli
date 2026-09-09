@@ -156,8 +156,14 @@ class InteractivePreview extends PreviewBase implements IPreviewInstance {
         Service.Engine.repaintInEditMode();
     }
 
+    // 引擎节点名不允许包含 /\:*?"<>|，registerName（如 "scene:model-preview"）含 ':'；
+    // registerName 本身用于服务/消息注册保持不变，此处仅对实际 Scene/Node 名称脱敏，避免引擎告警。
+    private static sanitizeNodeName(name: string): string {
+        return name.replace(/[/\\:*?"<>|]/g, '-');
+    }
+
     public initScene(registerName: string, queryName: string) {
-        this.scene = new Scene(registerName);
+        this.scene = new Scene(InteractivePreview.sanitizeNodeName(registerName));
         if (this.enableSkybox) {
             this.skybox = this.scene.globals.skybox;
             this.scene.globals.skybox.enabled = true;
@@ -169,7 +175,7 @@ class InteractivePreview extends PreviewBase implements IPreviewInstance {
     }
 
     public createCamera(registerName: string) {
-        this.cameraComp = new Node(registerName + 'camera').addComponent(Camera);
+        this.cameraComp = new Node(InteractivePreview.sanitizeNodeName(registerName) + 'camera').addComponent(Camera);
         this.cameraComp.node.setParent(this.scene);
     }
 

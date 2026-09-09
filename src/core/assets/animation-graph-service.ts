@@ -33,7 +33,7 @@ import type {
     SetAnimationGraphInspectorPropertyRequest,
 } from './@types/public';
 import type { IProperty } from '../scene/@types/public';
-import { deserialize as deserializeAssetSource } from './asset-handler/utils';
+import { deserialize as deserializeAssetSource, i18nTranslate } from './asset-handler/utils';
 import assetOperation from './manager/operation';
 import assetQuery from './manager/query';
 import {
@@ -2399,19 +2399,124 @@ function isVec2Like(value: unknown): value is { x: number; y: number } {
 }
 
 function getNodeTitle(node: any): string {
-    // GetVariable 系列节点：标题固定为 `Variable {variableName}`，
-    // 引擎 getTitle 返回的是 i18n key 数组且 variableName 为空时为 undefined。
-    if (typeof node.variableName === 'string') {
-        return `Variable ${node.variableName}`.trim();
-    }
     const title = node.getTitle?.();
     if (typeof title === 'string') {
         return title;
     }
     if (Array.isArray(title) && typeof title[0] === 'string') {
-        return title[0];
+        return translatePoseNodeTitle(title[0], title[1]);
     }
-    return getClassName(node);
+    const className = getClassName(node);
+    // The CLI runs the engine with EDITOR=false, so editor-only getTitle
+    // implementations are not installed. Keep the built-in behavior aligned
+    // with the old pose-expr-graph editor before falling back to displayName.
+    const builtInTitle = getBuiltInPoseNodeTitle(node, className);
+    if (builtInTitle !== undefined) {
+        return builtInTitle;
+    }
+    if (className) {
+        const displayNameKey = `ENGINE.classes.${className}.displayName`;
+        const displayName = i18nTranslate(displayNameKey as any);
+        if (displayName !== displayNameKey) {
+            return displayName;
+        }
+    }
+    return className || node.constructor?.name || 'Unknown';
+}
+
+function getBuiltInPoseNodeTitle(node: any, className: string): string | undefined {
+    if (className.startsWith('cc.animation.PVNodeGetVariable')) {
+        const variableName = nonEmptyString(node.variableName);
+        return variableName === undefined
+            ? undefined
+            : translatePoseNodeTitle(
+                'ENGINE.classes.cc.animation.PVNodeGetVariableBase.title',
+                { variableName },
+            );
+    }
+    switch (className) {
+        case 'cc.animation.PoseNodeStateMachine':
+            return nonEmptyString(node.name);
+        case 'cc.animation.PoseNodeUseStashedPose': {
+            const stashName = nonEmptyString(node.stashName);
+            return stashName === undefined
+                ? undefined
+                : translatePoseNodeTitle(
+                    'ENGINE.classes.cc.animation.PoseNodeUseStashedPose.title',
+                    { stashName },
+                );
+        }
+        case 'cc.animation.PoseNodePlayMotion':
+            return getMotionPoseNodeTitle(node.motion, 'PoseNodePlayMotion', 'Play');
+        case 'cc.animation.PoseNodeSampleMotion':
+            return getMotionPoseNodeTitle(node.motion, 'PoseNodeSampleMotion', 'Sample');
+        case 'cc.animation.PoseNodeApplyTransform': {
+            const nodeName = nonEmptyString(node.node);
+            return nodeName === undefined
+                ? undefined
+                : translatePoseNodeTitle(
+                    'ENGINE.classes.cc.animation.PoseNodeApplyTransform.title',
+                    { nodeName },
+                );
+        }
+        case 'cc.animation.PoseNodeCopyTransform': {
+            const sourceNodeName = nonEmptyString(node.sourceNodeName);
+            const targetNodeName = nonEmptyString(node.targetNodeName);
+            return sourceNodeName === undefined || targetNodeName === undefined
+                ? undefined
+                : translatePoseNodeTitle(
+                    'ENGINE.classes.cc.animation.PoseNodeCopyTransform.title',
+                    { sourceNodeName, targetNodeName },
+                );
+        }
+        case 'cc.animation.PoseNodeSetAuxiliaryCurve': {
+            const curveName = nonEmptyString(node.curveName);
+            return curveName === undefined
+                ? undefined
+                : translatePoseNodeTitle(
+                    'ENGINE.classes.cc.animation.PoseNodeSetAuxiliaryCurve.title',
+                    { curveName },
+                );
+        }
+        case 'cc.animation.PoseNodeTwoBoneIKSolver': {
+            const endEffectorBoneName = nonEmptyString(node.endEffectorBoneName);
+            return endEffectorBoneName === undefined
+                ? undefined
+                : translatePoseNodeTitle(
+                    'ENGINE.classes.cc.animation.PoseNodeTwoBoneIKSolver.title',
+                    { endEffectorBoneName },
+                );
+        }
+        default:
+            return undefined;
+    }
+}
+
+function getMotionPoseNodeTitle(motion: any, className: string, fallbackPrefix: string): string | undefined {
+    const motionName = getPoseMotionTitleName(motion);
+    return motionName === undefined
+        ? undefined
+        : translatePoseNodeTitle(
+            `ENGINE.classes.cc.animation.${className}.title`,
+            { motionName },
+            `${fallbackPrefix} ${motionName}`,
+        );
+}
+
+function getPoseMotionTitleName(motion: any): string | undefined {
+    if (getClassName(motion) === 'cc.animation.ClipMotion') {
+        return nonEmptyString(motion?.clip?.name);
+    }
+    return 'Unnamed Animation Blend';
+}
+
+function translatePoseNodeTitle(key: string, params?: Record<string, string>, fallback?: string): string {
+    const translated = i18nTranslate(key as any, params);
+    return translated === key ? fallback ?? key : translated;
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
 function getPoseInputDisplayName(key: unknown, metadata: any): string {

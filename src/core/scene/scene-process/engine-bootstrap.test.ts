@@ -133,8 +133,12 @@ describe('scene-process engine bootstrap', () => {
             ResolutionPolicy: {
                 SHOW_ALL: 'show-all',
             },
+            macro: {
+                ORIENTATION_PORTRAIT: 1,
+            },
             view: {
                 setDesignResolutionSize: jest.fn(),
+                setOrientation: jest.fn(),
             },
             director: {
                 runSceneImmediate: jest.fn(),

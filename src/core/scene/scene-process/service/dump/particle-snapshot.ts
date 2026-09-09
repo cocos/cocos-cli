@@ -1,4 +1,5 @@
 import type { Material, ParticleSystem } from 'cc';
+import { builtinResMgr } from 'cc';
 import type { IProperty } from '../../../@types/public';
 import { COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS } from './restore-policy';
 
@@ -10,11 +11,12 @@ interface ParticleRendererState {
     _gpuMaterial: Material | null;
     useGPU: boolean;
     particleMaterial: Material | null;
+    trailMaterial: Material | null;
 }
 
 const rendererMaterialKeys = new Set([
     'cpuMaterial', '_cpuMaterial', 'gpuMaterial', '_gpuMaterial',
-    'particleMaterial', 'useGPU', '_useGPU',
+    'particleMaterial', 'trailMaterial', 'useGPU', '_useGPU',
 ]);
 
 /**
@@ -51,6 +53,22 @@ export async function restoreParticleSystemSnapshot(
     ]);
     // particleMaterial is the effective material, including the engine's default fallback.
     const activeMaterial = await material(fields.particleMaterial, targetGPU ? gpuMaterial : cpuMaterial);
+    function defaultMaterial(name: string): Material {
+        const value = builtinResMgr.get<Material>(name);
+        if (!value?.passes.length) {
+            throw new Error(`Cannot restore particle default material: ${name}`);
+        }
+        return value;
+    }
+    // A fresh component's Reset dump has null materials. Cocos 3.8's renderer
+    // destroys the live material instance when assigned null, then reuses that
+    // same destroyed instance through its _defaultMat cache. Assign the built-in
+    // asset explicitly so the renderer can create a valid instance instead.
+    const effectiveMaterial = activeMaterial ?? defaultMaterial(targetGPU ? 'default-particle-gpu-material' : 'default-particle-material');
+    const cpuFallback = targetGPU ? cpuMaterial ?? defaultMaterial('default-particle-material') : effectiveMaterial;
+    const trailMaterial = fields.trailMaterial
+        ? await material(fields.trailMaterial, null) ?? defaultMaterial('default-trail-material')
+        : undefined;
 
     // Cache both modes before switching processor. Never set _useGPU directly: its setter
     // must rebuild the processor when Undo/Redo crosses CPU/GPU modes.
@@ -58,15 +76,34 @@ export async function restoreParticleSystemSnapshot(
     renderer._gpuMaterial = gpuMaterial;
     renderer.useGPU = targetGPU;
     renderer.particleMaterial = renderer.useGPU === targetGPU
-        ? activeMaterial
-        : renderer.useGPU ? gpuMaterial : cpuMaterial;
+        ? effectiveMaterial
+        : cpuFallback;
+    // Restore the Trail asset before enabling its module. Its default instance
+    // cache has the same null-material lifetime constraint as the main renderer.
+    if (trailMaterial !== undefined) {
+        renderer.trailMaterial = trailMaterial;
+    }
 
     for (const [key, property] of Object.entries(properties)) {
         if (COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS.includes(key as typeof COMPONENT_SNAPSHOT_RESTORE_SKIP_KEYS[number])
             || key === 'renderer' || key === 'sharedMaterials' || key === '_materials') {
             continue;
         }
-        await restore(component, key, property);
+        // The private/public module aliases refer to the same live object. A
+        // private null from a fresh dump must not remove its processor binding
+        // before the public default fields are restored (notably Trail.onInit).
+        if (key.startsWith('_') && key.endsWith('Module') && properties[key.slice(1)]?.value) {
+            continue;
+        }
+        if (key.endsWith('Module') && property.value?.enable && property.value?._enable) {
+            // Writing _enable first makes the public setter skip enableModule(),
+            // leaving the processor's execution lists out of sync with the dump.
+            const value: Record<string, IProperty> = { ...property.value };
+            delete value._enable;
+            await restore(component, key, { ...property, value });
+        } else {
+            await restore(component, key, property);
+        }
     }
     for (const [key, property] of Object.entries(fields)) {
         if (!rendererMaterialKeys.has(key)) {
