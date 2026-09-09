@@ -186,11 +186,6 @@ describe('ReflectionProbeBakeHost output ownership', () => {
         await remove(tempRoot);
     });
 
-    it('reports an unavailable native tool without pretending baking is supported', async () => {
-        host.resolveCmftExecutable = () => join(tempRoot, 'missing-cmft');
-        expect(await host.getCapabilities()).toMatchObject({ bake: false, reason: expect.stringContaining('ENOENT') });
-    });
-
     it('waits for cmft to close after timeout before releasing staged output', async () => {
         const child = Object.assign(new EventEmitter(), { stderr: new EventEmitter(), kill: jest.fn() });
         const spawn = jest.spyOn(jest.requireActual('child_process'), 'spawn').mockReturnValue(child);
@@ -239,10 +234,23 @@ describe('ReflectionProbeBakeHost output ownership', () => {
         await expect(readFile(outputPath, 'utf8')).resolves.toBe('old-output');
     });
 
-    it('retains prepared output when apply acknowledgement expires', async () => {
-        const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 40 });
-        await new Promise((resolve) => setTimeout(resolve, 65));
-        await expect(readFile(outputPath, 'utf8')).resolves.toBe('new-output');
+    it('rolls back prepared output when apply acknowledgement expires', async () => {
+        jest.useFakeTimers();
+        try {
+            const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 10_000 });
+            await jest.advanceTimersByTimeAsync(10_000);
+            await host.operation?.settling;
+            await expect(readFile(outputPath, 'utf8')).resolves.toBe('old-output');
+            await expect(host.rollback({ operationId: prepared.operationId })).rejects.toThrow('Unknown');
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('rolls back prepared output when the Node host is disposed', async () => {
+        const prepared = await host.prepare({ captured: CAPTURE_RESULT, timeoutMs: 10_000 });
+        await host.dispose();
+        await expect(readFile(outputPath, 'utf8')).resolves.toBe('old-output');
         await expect(host.rollback({ operationId: prepared.operationId })).rejects.toThrow('Unknown');
     });
 
@@ -420,13 +428,6 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(await service.getTaskState()).toMatchObject({ taskId: accepted.taskId, status: 'completed', total: 2, completed: 2 });
     });
 
-    it('queries real host capabilities and keeps clear available if bake infrastructure is missing', async () => {
-        mockRpcRequest.mockResolvedValue({ bake: true });
-        expect(await service.getCapabilities()).toMatchObject({ protocolVersion: 1, bake: true, queue: true, cancel: true, clear: true });
-        mockRpcRequest.mockRejectedValue(new Error('host module unavailable'));
-        expect(await service.getCapabilities()).toEqual({ protocolVersion: 1, bake: false, queue: false, cancel: false, clear: true, reason: 'host module unavailable' });
-    });
-
     it('keeps revisions monotonic across different tasks so late snapshots cannot replace new work', async () => {
         await service.bake({ nodePath: 'A' });
         const first = await service.getTaskState();
@@ -530,6 +531,7 @@ describe('ReflectionProbeService bake output transaction', () => {
     it('rejects empty or ambiguous UUID selections before any RPC', async () => {
         await expect(service.bakeAll({ componentUuids: [] })).rejects.toThrow('non-empty');
         await expect(service.bakeAll({ componentUuids: ['Comp.2'], nodePaths: [] })).rejects.toThrow('cannot be combined');
+        await expect(service.bakeAll({ nodePaths: [] })).rejects.toThrow('non-empty');
         expect(mockRpcRequest).not.toHaveBeenCalled();
     });
 

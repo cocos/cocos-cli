@@ -7,11 +7,17 @@ import {
     SchemaReflectionProbeBakeResult,
     SchemaReflectionProbeClearOptions,
     SchemaReflectionProbeClearResult,
+    SchemaReflectionProbeCancelOptions,
+    SchemaReflectionProbeTaskQuery,
+    SchemaReflectionProbeTaskState,
 } from '../src/api/scene/reflection-probe-schema';
 
 const mockBake = jest.fn();
 const mockBakeAll = jest.fn();
 const mockClearAll = jest.fn();
+const mockStartBake = jest.fn();
+const mockGetTaskState = jest.fn();
+const mockCancelBake = jest.fn();
 
 jest.mock('../src/api/decorator/decorator.js', () => ({
     description: () => jest.fn(),
@@ -27,6 +33,9 @@ jest.mock('../src/core/scene', () => ({
             bake: (...args: unknown[]) => mockBake(...args),
             bakeAll: (...args: unknown[]) => mockBakeAll(...args),
             clearAll: (...args: unknown[]) => mockClearAll(...args),
+            startBake: (...args: unknown[]) => mockStartBake(...args),
+            getTaskState: (...args: unknown[]) => mockGetTaskState(...args),
+            cancelBake: (...args: unknown[]) => mockCancelBake(...args),
         },
     },
 }));
@@ -38,6 +47,9 @@ describe('reflection probe bake API', () => {
         mockBake.mockReset();
         mockBakeAll.mockReset();
         mockClearAll.mockReset();
+        mockStartBake.mockReset();
+        mockGetTaskState.mockReset();
+        mockCancelBake.mockReset();
     });
 
     it('applies safe defaults and rejects invalid input', () => {
@@ -72,7 +84,8 @@ describe('reflection probe bake API', () => {
             saveScene: true,
             timeoutMs: 600_000,
         });
-        expect(SchemaReflectionProbeBakeAllOptions.parse({ nodePaths: [] }).nodePaths).toEqual([]);
+        expect(() => SchemaReflectionProbeBakeAllOptions.parse({ nodePaths: [] })).toThrow();
+        expect(() => SchemaReflectionProbeBakeAllOptions.parse({ componentUuids: [] })).toThrow();
         expect(() => SchemaReflectionProbeBakeAllOptions.parse({ nodePaths: [' '] })).toThrow();
         expect(() => SchemaReflectionProbeBakeAllOptions.parse({ timeoutMs: 3_600_001 })).toThrow();
 
@@ -146,15 +159,54 @@ describe('reflection probe bake API', () => {
         mockBakeAll.mockResolvedValue(data);
 
         await expect(new ReflectionProbeApi().bakeAll({
-            nodePaths: [],
             saveScene: true,
             timeoutMs: 600_000,
         })).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data });
         expect(mockBakeAll).toHaveBeenCalledWith({
-            nodePaths: [],
             saveScene: true,
             timeoutMs: 600_000,
         });
+    });
+
+    it('validates and forwards task start, query, and cancellation', async () => {
+        const source = { runtimeId: 'runtime-a', sceneUuid: 'scene-a', generation: 1 };
+        const state = SchemaReflectionProbeTaskState.parse({
+            taskId: 'task-a',
+            source,
+            status: 'baking',
+            revision: 1,
+            remaining: [],
+            total: 1,
+            completed: 0,
+            results: [],
+            failures: [],
+            logs: [],
+        });
+        expect(SchemaReflectionProbeTaskQuery.parse({ source })).toEqual({ source });
+        expect(SchemaReflectionProbeCancelOptions.parse({ taskId: 'task-a', source })).toEqual({ taskId: 'task-a', source });
+        expect(() => SchemaReflectionProbeCancelOptions.parse({ taskId: '' })).toThrow();
+        mockStartBake.mockResolvedValue(state);
+        mockGetTaskState.mockResolvedValue(state);
+        mockCancelBake.mockResolvedValue({ ...state, status: 'cancelling' });
+
+        const api = new ReflectionProbeApi();
+        await expect(api.startBake({
+            componentUuids: ['component-a'],
+            saveScene: true,
+            timeoutMs: 600_000,
+        })).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data: state });
+        await expect(api.getTaskState({ source })).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data: state });
+        await expect(api.cancelBake({ taskId: 'task-a', source })).resolves.toEqual({
+            code: COMMON_STATUS.SUCCESS,
+            data: { ...state, status: 'cancelling' },
+        });
+        expect(mockStartBake).toHaveBeenCalledWith({
+            componentUuids: ['component-a'],
+            saveScene: true,
+            timeoutMs: 600_000,
+        });
+        expect(mockGetTaskState).toHaveBeenCalledWith(source);
+        expect(mockCancelBake).toHaveBeenCalledWith({ taskId: 'task-a', source });
     });
 
     it('applies clear-all defaults and accepts its result shape', () => {

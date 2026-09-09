@@ -6715,6 +6715,8 @@ export declare interface IReferenceImageVisibilityOptions {
     desiredVisible: boolean;
 }
 export declare interface IReflectionProbeBakeAllOptions {
+    source?: IReflectionProbeSceneIdentity;
+    componentUuids?: string[];
     nodePaths?: string[];
     saveScene?: boolean;
     timeoutMs?: number;
@@ -6734,6 +6736,7 @@ export declare interface IReflectionProbeBakeFailure {
     reason: string;
 }
 export declare interface IReflectionProbeBakeOptions {
+    source?: IReflectionProbeSceneIdentity;
     nodePath: string;
     saveScene?: boolean;
     timeoutMs?: number;
@@ -6746,11 +6749,16 @@ export declare interface IReflectionProbeBakeResult {
     cubemapUrl: string;
     fastBake: boolean;
 }
+export declare interface IReflectionProbeCancelOptions {
+    taskId: string;
+    source?: IReflectionProbeSceneIdentity;
+}
 export declare interface IReflectionProbeClearFailure {
     assetUrl: string;
     reason: string;
 }
 export declare interface IReflectionProbeClearOptions {
+    source?: IReflectionProbeSceneIdentity;
     saveScene?: boolean;
     deleteAssets?: boolean;
     timeoutMs?: number;
@@ -6763,10 +6771,44 @@ export declare interface IReflectionProbeClearResult {
     failures: IReflectionProbeClearFailure[];
     durationMs: number;
 }
+export declare interface IReflectionProbeSceneIdentity {
+    runtimeId: string;
+    sceneUuid: string;
+    generation: number;
+}
 export declare interface IReflectionProbeService extends IServiceEvents {
+    getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState>;
+    cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
+    getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
     clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;
+}
+export declare interface IReflectionProbeTaskState {
+    revision: number;
+    logs: Array<{
+        id: number;
+        timestamp: number;
+        level: 'info' | 'error';
+        message: string;
+    }>;
+    taskId: string | null;
+    source?: IReflectionProbeSceneIdentity;
+    status: 'idle' | 'baking' | 'clearing' | 'completed' | 'failed' | 'cancelling' | 'cancelled';
+    current?: {
+        nodePath: string;
+        componentUuid: string;
+    };
+    remaining: Array<{
+        nodePath: string;
+        componentUuid: string;
+    }>;
+    total: number;
+    completed: number;
+    results: IReflectionProbeBakeResult[];
+    failures: IReflectionProbeBakeFailure[];
+    error?: string;
 }
 export declare interface IRegeneratePolygon2DPointsOptions {
     path: string;

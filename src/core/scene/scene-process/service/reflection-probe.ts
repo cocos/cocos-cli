@@ -30,7 +30,6 @@ import type {
     IReflectionProbeSceneIdentity,
     IReflectionProbeTaskState,
     IReflectionProbeCancelOptions,
-    IReflectionProbeCapabilities,
 } from '../../common';
 import { NodeEventType } from '../../common';
 import { BaseService, register, Service } from './core';
@@ -128,17 +127,6 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         this.broadcast('reflection-probe:task-changed', structuredClone(this._task));
     }
 
-    public async getCapabilities(): Promise<IReflectionProbeCapabilities> {
-        try {
-            const host = await Rpc.getInstance().request('reflectionProbeBakeHost', 'getCapabilities', []) as { bake: boolean; reason?: string };
-            return { protocolVersion: 1, bake: host.bake === true, cancel: host.bake === true,
-                clear: true, queue: host.bake === true, reason: host.reason };
-        } catch (error) {
-            return { protocolVersion: 1, bake: false, cancel: false, clear: true, queue: false,
-                reason: this._errorMessage(error) };
-        }
-    }
-
     /** Accepts a task immediately; appends distinct selected probes to an active bake. */
     public async startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState> {
         options = structuredClone(options);
@@ -189,12 +177,20 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     }
 
     private _validateSelection(options: IReflectionProbeBakeAllOptions): void {
+        if (options.componentUuids !== undefined && options.nodePaths !== undefined) {
+            throw new Error('componentUuids and nodePaths cannot be combined.');
+        }
         if (options.componentUuids !== undefined && (
             !Array.isArray(options.componentUuids) || !options.componentUuids.length
             || options.componentUuids.some((uuid) => typeof uuid !== 'string' || !uuid.trim())
-            || options.nodePaths !== undefined
         )) {
-            throw new Error('A non-empty componentUuids selection is required and cannot be combined with nodePaths.');
+            throw new Error('componentUuids must be a non-empty selection.');
+        }
+        if (options.nodePaths !== undefined && (
+            !Array.isArray(options.nodePaths) || !options.nodePaths.length
+            || options.nodePaths.some((path) => typeof path !== 'string' || !path.trim())
+        )) {
+            throw new Error('nodePaths must be a non-empty selection.');
         }
     }
 

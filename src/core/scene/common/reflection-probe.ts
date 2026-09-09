@@ -27,7 +27,7 @@ export interface IReflectionProbeBakeAllOptions {
     source?: IReflectionProbeSceneIdentity;
     /** Explicit component selection. Empty selections are rejected, never expanded to all probes. */
     componentUuids?: string[];
-    /** Omit or pass an empty array to bake every active cube reflection probe. */
+    /** Explicit node-path selection. Omit both selections to bake every active cube reflection probe. */
     nodePaths?: string[];
     saveScene?: boolean;
     timeoutMs?: number;
@@ -72,15 +72,6 @@ export interface IReflectionProbeClearResult {
     durationMs: number;
 }
 
-export interface IReflectionProbeCapabilities {
-    protocolVersion: 1;
-    bake: boolean;
-    cancel: boolean;
-    clear: boolean;
-    queue: boolean;
-    reason?: string;
-}
-
 export interface IReflectionProbeCancelOptions {
     taskId: string;
     source?: IReflectionProbeSceneIdentity;
@@ -112,7 +103,6 @@ export interface IReflectionProbeEvents {
 
 export interface IReflectionProbeService extends IServiceEvents {
     getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
-    getCapabilities(): Promise<IReflectionProbeCapabilities>;
     startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState>;
     cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
     getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;

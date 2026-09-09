@@ -25,8 +25,8 @@ export const SchemaReflectionProbeBakeAllOptions = z.object({
     source: SchemaReflectionProbeSceneIdentity.optional(),
     componentUuids: z.array(z.string().trim().min(1)).nonempty().optional()
         .describe('Explicit reflection-probe component UUIDs; cannot be combined with nodePaths'),
-    nodePaths: z.array(z.string().trim().min(1)).optional()
-        .describe('Optional reflection-probe node paths; omit or pass an empty array to bake all'),
+    nodePaths: z.array(z.string().trim().min(1)).nonempty().optional()
+        .describe('Explicit reflection-probe node paths; omit both selections to bake all'),
     saveScene: z.boolean().optional().default(true)
         .describe('Save the active scene once after all successful probes are hot-applied'),
     timeoutMs: z.number().int().positive().max(3_600_000).optional().default(600_000)
@@ -96,6 +96,3 @@ export const SchemaReflectionProbeTaskState = z.object({
 });
 export const SchemaReflectionProbeCancelOptions = z.object({ taskId: z.string().min(1), source: SchemaReflectionProbeSceneIdentity.optional() });
 export const SchemaReflectionProbeTaskQuery = z.object({ source: SchemaReflectionProbeSceneIdentity.optional() });
-export const SchemaReflectionProbeCapabilities = z.object({
-    protocolVersion: z.literal(1), bake: z.boolean(), cancel: z.boolean(), clear: z.boolean(), queue: z.boolean(), reason: z.string().optional(),
-});

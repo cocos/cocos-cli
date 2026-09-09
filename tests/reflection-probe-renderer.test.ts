@@ -7,6 +7,7 @@ jest.mock('../src/server/socket', () => ({
 }));
 
 import { reflectionProbeRenderer } from '../src/core/scene/main-process/reflection-probe-renderer';
+import type { IReflectionProbeSceneIdentity } from '../src/core/scene/common/reflection-probe';
 
 interface IMockRendererOptions {
     id?: string;
@@ -15,6 +16,7 @@ interface IMockRendererOptions {
     captureError?: string;
     captureResultSceneUrl?: string;
     applyError?: string;
+    source?: IReflectionProbeSceneIdentity;
 }
 
 function captureResult(sceneUrl: string) {
@@ -49,15 +51,25 @@ function rendererSocket(options: IMockRendererOptions = {}) {
                     ? { error: options.applyError }
                     : { result: { applied: true, saved: request.saveScene } });
             } else if (event === 'scene:list-reflection-probes') {
-                reply(null, {
-                    result: {
-                        sceneUrl,
-                        probes: [
-                            { nodePath: 'Probe', componentUuid: 'Comp.1' },
-                            { nodePath: 'Probe', componentUuid: 'Comp.2' },
-                        ],
-                    },
-                });
+                const source = options.source;
+                const requestedSource = request.source as IReflectionProbeSceneIdentity | undefined;
+                if (requestedSource && (!source
+                    || source.runtimeId !== requestedSource.runtimeId
+                    || source.sceneUuid !== requestedSource.sceneUuid
+                    || source.generation !== requestedSource.generation)) {
+                    reply(null, { error: 'stale runtime or generation' });
+                } else {
+                    reply(null, {
+                        result: {
+                            sceneUrl,
+                            probes: [
+                                { nodePath: 'Probe', componentUuid: 'Comp.1' },
+                                { nodePath: 'Probe', componentUuid: 'Comp.2' },
+                            ],
+                            ...(source ? { source } : {}),
+                        },
+                    });
+                }
             } else if (event === 'scene:save-reflection-probes') {
                 reply(null, { result: { saved: true, sceneUrl } });
             } else if (event === 'scene:clear-reflection-probes') {
@@ -147,6 +159,38 @@ describe('reflection probe WebGL renderer bridge', () => {
         });
         expect(visible.emit).toHaveBeenCalledTimes(1);
         expect(hidden.emit).not.toHaveBeenCalled();
+    });
+
+    it('routes a source-bound request to its original renderer after another scene becomes visible', async () => {
+        const source = { runtimeId: 'runtime-a', sceneUuid: 'scene-a', generation: 2 };
+        const hidden = rendererSocket({
+            id: 'source-renderer',
+            sceneUrl: 'db://assets/Source.scene',
+            visible: false,
+            source,
+        });
+        const visible = rendererSocket({
+            id: 'visible-renderer',
+            sceneUrl: 'db://assets/Visible.scene',
+            visible: true,
+            source: { runtimeId: 'runtime-b', sceneUuid: 'scene-b', generation: 1 },
+        });
+        mockFetchSockets.mockResolvedValue([visible, hidden]);
+
+        await expect(reflectionProbeRenderer.captureActive('Probe', 1000, source)).resolves.toMatchObject({
+            rendererId: 'source-renderer',
+            sceneUrl: 'db://assets/Source.scene',
+        });
+        expect(hidden.emit).toHaveBeenCalledWith(
+            'scene:capture-reflection-probe',
+            expect.objectContaining({ sceneUrl: 'db://assets/Source.scene', source }),
+            expect.any(Function),
+        );
+        expect(visible.emit).not.toHaveBeenCalledWith(
+            'scene:capture-reflection-probe',
+            expect.anything(),
+            expect.any(Function),
+        );
     });
 
     it('fails safely when multiple loaded scenes have not reported visibility', async () => {

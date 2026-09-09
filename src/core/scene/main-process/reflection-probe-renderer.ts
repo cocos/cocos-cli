@@ -146,6 +146,38 @@ function selectActiveRenderer(sockets: Socket[]): { socket: Socket; sceneUrl: st
     );
 }
 
+function isSameSource(
+    actual: IReflectionProbeSceneIdentity | undefined,
+    expected: IReflectionProbeSceneIdentity,
+): boolean {
+    return actual?.runtimeId === expected.runtimeId
+        && actual.sceneUuid === expected.sceneUuid
+        && actual.generation === expected.generation;
+}
+
+async function selectSourceRenderer(
+    sockets: Socket[],
+    source: IReflectionProbeSceneIdentity,
+    timeoutMs: number,
+): Promise<{ socket: Socket; sceneUrl: string; listing: NonNullable<IListResponse['result']> }> {
+    const loaded = sockets.filter((socket) => Boolean(socket.data.sceneUrl));
+    if (!loaded.length) {
+        throw new Error('The WebGL scene renderer for the requested source scene is no longer available.');
+    }
+    try {
+        return await Promise.any(loaded.map(async (socket) => {
+            const sceneUrl = socket.data.sceneUrl!;
+            const listing = await requestProbeList(socket, sceneUrl, timeoutMs, source);
+            if (!isSameSource(listing.source, source)) {
+                throw new Error('The WebGL renderer returned a different scene identity.');
+            }
+            return { socket, sceneUrl, listing };
+        }));
+    } catch {
+        throw new Error('The WebGL scene renderer for the requested source scene is no longer available.');
+    }
+}
+
 function requestCapture(socket: Socket, request: ICaptureRequest): Promise<IReflectionProbeCaptureResult> {
     return new Promise((resolve, reject) => {
         socket.timeout(request.timeoutMs).emit(
@@ -303,12 +335,15 @@ export const reflectionProbeRenderer = {
         const sockets = await requireRendererSockets();
         requireAvailableRenderer(sockets);
 
-        const selection = selectActiveRenderer(sockets);
+        const deadline = Date.now() + timeoutMs;
+        const selection = source
+            ? await selectSourceRenderer(sockets, source, timeoutMs)
+            : selectActiveRenderer(sockets);
         try {
             const result = await requestCapture(selection.socket, {
                 sceneUrl: selection.sceneUrl,
                 nodePath,
-                timeoutMs, source,
+                timeoutMs: Math.max(1, deadline - Date.now()), source,
             });
             return { ...result, rendererId: selection.socket.id };
         } catch (error) {
@@ -343,8 +378,16 @@ export const reflectionProbeRenderer = {
     async listActive(timeoutMs = 30_000, source?: IReflectionProbeSceneIdentity): Promise<IActiveReflectionProbeListResult> {
         const sockets = await requireRendererSockets();
         requireAvailableRenderer(sockets);
-        const selection = selectActiveRenderer(sockets);
-        const listing = await requestProbeList(selection.socket, selection.sceneUrl, timeoutMs, source);
+        let selection: { socket: Socket; sceneUrl: string };
+        let listing: NonNullable<IListResponse['result']>;
+        if (source) {
+            const sourceSelection = await selectSourceRenderer(sockets, source, timeoutMs);
+            selection = sourceSelection;
+            listing = sourceSelection.listing;
+        } else {
+            selection = selectActiveRenderer(sockets);
+            listing = await requestProbeList(selection.socket, selection.sceneUrl, timeoutMs);
+        }
         const probes = listing.probes;
         if (probes.some((probe) => !probe || typeof probe.nodePath !== 'string'
             || typeof probe.componentUuid !== 'string' || !probe.componentUuid)) {
@@ -398,8 +441,17 @@ export const reflectionProbeRenderer = {
     async clearActive(saveScene: boolean, timeoutMs: number, source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeClearResult> {
         const sockets = await requireRendererSockets();
         requireAvailableRenderer(sockets);
-        const selection = selectActiveRenderer(sockets);
-        const result = await requestClear(selection.socket, selection.sceneUrl, saveScene, timeoutMs, source);
+        const deadline = Date.now() + timeoutMs;
+        const selection = source
+            ? await selectSourceRenderer(sockets, source, timeoutMs)
+            : selectActiveRenderer(sockets);
+        const result = await requestClear(
+            selection.socket,
+            selection.sceneUrl,
+            saveScene,
+            Math.max(1, deadline - Date.now()),
+            source,
+        );
         if (!result.sceneName || result.sceneName === '.' || result.sceneName === '..'
             || result.probes.some((probe) => !probe || typeof probe.nodePath !== 'string'
                 || typeof probe.componentUuid !== 'string' || !probe.componentUuid

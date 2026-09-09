@@ -1,4 +1,3 @@
-import { access, constants } from 'fs/promises';
 import { ChildProcess, spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import {
@@ -48,20 +47,6 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     private preparing = false;
     private preparingTaskId?: string;
     private cancelled = false;
-
-    public async getCapabilities(): Promise<{ bake: boolean; reason?: string }> {
-        try {
-            const executable = this.resolveCmftExecutable();
-            await access(executable, constants.X_OK);
-            const assetRoot = assetManager.queryPath('db://assets');
-            if (!assetRoot) { throw new Error('The project asset directory is unavailable.'); }
-            await access(assetRoot, constants.W_OK);
-            await import('sharp');
-            return { bake: true };
-        } catch (error) {
-            return { bake: false, reason: error instanceof Error ? error.message : String(error) };
-        }
-    }
 
     public async prepare(options: IPrepareReflectionProbeBakeOptions): Promise<IPreparedReflectionProbeBake> {
         if (this.operation || this.preparing) {
@@ -122,8 +107,8 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
             };
             operation.expiryTimer = setTimeout(() => {
                 if (this.operation === operation) {
-                    void this.finish(operation, true).catch((error) => {
-                        console.error('[ReflectionProbe] Failed to retain an unacknowledged output transaction:', error);
+                    void this.finish(operation, false).catch((error) => {
+                        console.error('[ReflectionProbe] Failed to roll back an expired output transaction:', error);
                     });
                 }
             }, remaining);
@@ -168,7 +153,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
         this.cmftProcess?.kill('SIGKILL');
         this.cmftProcess = null;
         if (this.operation) {
-            await this.finish(this.operation, true);
+            await this.finish(this.operation, false);
         }
     }
 

@@ -1,10 +1,10 @@
-import type { IReflectionProbeTaskState, IReflectionProbeCancelOptions, IReflectionProbeSceneIdentity, IReflectionProbeCapabilities } from '../../core/scene/common/reflection-probe';
+import type { IReflectionProbeTaskState, IReflectionProbeCancelOptions, IReflectionProbeSceneIdentity } from '../../core/scene/common/reflection-probe';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { Scene } from '../../core/scene';
 import {
     SchemaReflectionProbeBakeAllOptions,
-    SchemaReflectionProbeTaskState, SchemaReflectionProbeTaskQuery, SchemaReflectionProbeCancelOptions, SchemaReflectionProbeCapabilities,
+    SchemaReflectionProbeTaskState, SchemaReflectionProbeTaskQuery, SchemaReflectionProbeCancelOptions,
     SchemaReflectionProbeBakeAllResult,
     SchemaReflectionProbeBakeOptions,
     SchemaReflectionProbeBakeResult,
@@ -25,7 +25,7 @@ export class ReflectionProbeApi {
     @result(SchemaReflectionProbeTaskState)
     async startBake(@param(SchemaReflectionProbeBakeAllOptions) options: TReflectionProbeBakeAllOptions): Promise<CommonResultType<IReflectionProbeTaskState>> {
         try { return { code: COMMON_STATUS.SUCCESS, data: await Scene.ReflectionProbe.startBake(options) }; }
-        catch (error) { return { code: COMMON_STATUS.FAIL, reason: String(error) }; }
+        catch (error) { return { code: COMMON_STATUS.FAIL, reason: error instanceof Error ? error.message : String(error) }; }
     }
 
     @tool('scene-query-reflection-probe-bake')
@@ -34,7 +34,7 @@ export class ReflectionProbeApi {
     @result(SchemaReflectionProbeTaskState)
     async getTaskState(@param(SchemaReflectionProbeTaskQuery) options: { source?: IReflectionProbeSceneIdentity }): Promise<CommonResultType<IReflectionProbeTaskState>> {
         try { return { code: COMMON_STATUS.SUCCESS, data: await Scene.ReflectionProbe.getTaskState(options.source) }; }
-        catch (error) { return { code: COMMON_STATUS.FAIL, reason: String(error) }; }
+        catch (error) { return { code: COMMON_STATUS.FAIL, reason: error instanceof Error ? error.message : String(error) }; }
     }
 
     @tool('scene-cancel-reflection-probe-bake')
@@ -43,16 +43,7 @@ export class ReflectionProbeApi {
     @result(SchemaReflectionProbeTaskState)
     async cancelBake(@param(SchemaReflectionProbeCancelOptions) options: IReflectionProbeCancelOptions): Promise<CommonResultType<IReflectionProbeTaskState>> {
         try { return { code: COMMON_STATUS.SUCCESS, data: await Scene.ReflectionProbe.cancelBake(options) }; }
-        catch (error) { return { code: COMMON_STATUS.FAIL, reason: String(error) }; }
-    }
-
-    @tool('scene-query-reflection-probe-capabilities')
-    @title('Query reflection-probe capabilities')
-    @description('Check the Node bake host, native cmft executable, image processor and writable project assets before enabling bake operations.')
-    @result(SchemaReflectionProbeCapabilities)
-    async getCapabilities(): Promise<CommonResultType<IReflectionProbeCapabilities>> {
-        try { return { code: COMMON_STATUS.SUCCESS, data: await Scene.ReflectionProbe.getCapabilities() }; }
-        catch (error) { return { code: COMMON_STATUS.FAIL, reason: String(error) }; }
+        catch (error) { return { code: COMMON_STATUS.FAIL, reason: error instanceof Error ? error.message : String(error) }; }
     }
 
     @tool('scene-bake-reflection-probe')
