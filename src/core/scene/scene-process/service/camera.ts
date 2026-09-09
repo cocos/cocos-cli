@@ -19,7 +19,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     private _controller2D!: CameraController2D;
     private _controller3D!: CameraController3D;
     private _controller!: CameraControllerBase;
-    private _camera!: EditorCameraComponent;
+    private _camera?: EditorCameraComponent;
     private _controllerFirstChange = false;
     private _currentUuid = '';
     private _cameraInfos: Record<string, any> = {};
@@ -361,22 +361,23 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     }
 
     setCameraProperty(options: any, persist = true): void {
-        if (typeof options !== 'object' || !this._camera) return;
+        const camera = this._camera;
+        if (typeof options !== 'object' || !camera) return;
         Object.keys(options).forEach((key) => {
             if (options[key] == null) return;
             if (key === 'clearColor') {
-                this._camera[key] = cc.color(
+                camera[key] = cc.color(
                     options[key][0], options[key][1],
                     options[key][2], options[key][3],
                 );
             } else if (key === 'near' || key === 'far') {
                 (this._controller as any)[key] = options[key];
-                (this._camera as any)[key] = options[key];
+                (camera as any)[key] = options[key];
             } else if (key === 'fov') {
                 this.emit('camera:fov-changed', options[key]);
-                (this._camera as any)[key] = options[key];
+                (camera as any)[key] = options[key];
             } else {
-                (this._camera as any)[key] = options[key];
+                (camera as any)[key] = options[key];
             }
         });
         Service.Engine.repaintInEditMode();
@@ -465,7 +466,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
         this._controller?.refresh();
     }
 
-    getCamera() {
+    getCamera(): Camera | undefined {
         return this._camera;
     }
 

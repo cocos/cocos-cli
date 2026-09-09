@@ -53,6 +53,8 @@ export class TerrainCircleBrush extends TerrainBrush {
         if (this.type !== type) { this.type = type; this._updateMaterial(); }
     }
     public getType() { return this.type; }
+    public getFalloff() { return this.falloff; }
+    public setFalloff(value: number) { this.falloff = clamp(value, 0, 1); }
     public _updateMaterial() {
         const effect = (cc as any).EffectAsset?.get?.('internal/editor/terrain-circle-brush');
         if (effect) {
