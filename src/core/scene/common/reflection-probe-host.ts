@@ -11,6 +11,7 @@ export interface IReflectionProbeCapturedFaces {
 }
 
 export interface IPrepareReflectionProbeBakeOptions {
+    taskId?: string;
     captured: IReflectionProbeCapturedFaces;
     timeoutMs: number;
 }
@@ -27,6 +28,8 @@ export interface IReflectionProbeBakeOperationOptions {
 
 /** Node-only filesystem and native-process boundary used by every Scene runtime. */
 export interface IReflectionProbeBakeHostService {
+    getCapabilities(): Promise<{ bake: boolean; reason?: string }>;
+    cancel(options: { taskId: string }): Promise<void>;
     prepare(options: IPrepareReflectionProbeBakeOptions): Promise<IPreparedReflectionProbeBake>;
     commit(options: IReflectionProbeBakeOperationOptions): Promise<void>;
     rollback(options: IReflectionProbeBakeOperationOptions): Promise<void>;

@@ -1,6 +1,14 @@
 import type { IServiceEvents } from '../scene-process/service/core';
 
+/** Identifies one loaded scene, including close/reopen and runtime replacement. */
+export interface IReflectionProbeSceneIdentity {
+    runtimeId: string;
+    sceneUuid: string;
+    generation: number;
+}
+
 export interface IReflectionProbeBakeOptions {
+    source?: IReflectionProbeSceneIdentity;
     nodePath: string;
     saveScene?: boolean;
     timeoutMs?: number;
@@ -16,6 +24,9 @@ export interface IReflectionProbeBakeResult {
 }
 
 export interface IReflectionProbeBakeAllOptions {
+    source?: IReflectionProbeSceneIdentity;
+    /** Explicit component selection. Empty selections are rejected, never expanded to all probes. */
+    componentUuids?: string[];
     /** Omit or pass an empty array to bake every active cube reflection probe. */
     nodePaths?: string[];
     saveScene?: boolean;
@@ -39,6 +50,7 @@ export interface IReflectionProbeBakeAllResult {
 }
 
 export interface IReflectionProbeClearOptions {
+    source?: IReflectionProbeSceneIdentity;
     /** Save the active scene after all cubemap bindings are cleared. */
     saveScene?: boolean;
     /** Delete generated PNG and convolution assets after the scene no longer references them. */
@@ -60,7 +72,37 @@ export interface IReflectionProbeClearResult {
     durationMs: number;
 }
 
+export interface IReflectionProbeCapabilities {
+    protocolVersion: 1;
+    bake: boolean;
+    cancel: boolean;
+    clear: boolean;
+    queue: boolean;
+    reason?: string;
+}
+
+export interface IReflectionProbeCancelOptions {
+    taskId: string;
+    source?: IReflectionProbeSceneIdentity;
+}
+
+export interface IReflectionProbeTaskState {
+    revision: number;
+    logs: Array<{ id: number; timestamp: number; level: 'info' | 'error'; message: string }>;
+    taskId: string | null;
+    source?: IReflectionProbeSceneIdentity;
+    status: 'idle' | 'baking' | 'clearing' | 'completed' | 'failed' | 'cancelling' | 'cancelled';
+    current?: { nodePath: string; componentUuid: string };
+    remaining: Array<{ nodePath: string; componentUuid: string }>;
+    total: number;
+    completed: number;
+    results: IReflectionProbeBakeResult[];
+    failures: IReflectionProbeBakeFailure[];
+    error?: string;
+}
+
 export interface IReflectionProbeEvents {
+    'reflection-probe:task-changed': [state: IReflectionProbeTaskState];
     'reflection-probe:bake-start': [nodePath: string];
     'reflection-probe:bake-end': [nodePath: string, error?: string];
     'reflection-probe:bake-all-start': [totalCount: number];
@@ -69,6 +111,11 @@ export interface IReflectionProbeEvents {
 }
 
 export interface IReflectionProbeService extends IServiceEvents {
+    getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    getCapabilities(): Promise<IReflectionProbeCapabilities>;
+    startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState>;
+    cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
+    getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;
     bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
     bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
     clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;

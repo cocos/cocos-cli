@@ -1,3 +1,4 @@
+import { access, constants } from 'fs/promises';
 import { ChildProcess, spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import {
@@ -34,6 +35,7 @@ interface IHostOperation {
     outputUrl: string;
     transaction: IOutputTransaction;
     expiryTimer: NodeJS.Timeout | null;
+    settling?: Promise<void>;
 }
 
 /**
@@ -44,6 +46,22 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     private operation: IHostOperation | null = null;
     private cmftProcess: ChildProcess | null = null;
     private preparing = false;
+    private preparingTaskId?: string;
+    private cancelled = false;
+
+    public async getCapabilities(): Promise<{ bake: boolean; reason?: string }> {
+        try {
+            const executable = this.resolveCmftExecutable();
+            await access(executable, constants.X_OK);
+            const assetRoot = assetManager.queryPath('db://assets');
+            if (!assetRoot) { throw new Error('The project asset directory is unavailable.'); }
+            await access(assetRoot, constants.W_OK);
+            await import('sharp');
+            return { bake: true };
+        } catch (error) {
+            return { bake: false, reason: error instanceof Error ? error.message : String(error) };
+        }
+    }
 
     public async prepare(options: IPrepareReflectionProbeBakeOptions): Promise<IPreparedReflectionProbeBake> {
         if (this.operation || this.preparing) {
@@ -72,12 +90,15 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
         let transaction: IOutputTransaction | null = null;
 
         this.preparing = true;
+        this.preparingTaskId = options.taskId;
+        this.cancelled = false;
         try {
             await ensureDir(sceneDir);
             await ensureDir(workDir);
             await this.cleanupLegacyWorkingFiles(sceneDir, captured.probeId);
             const facePaths = await this.writeFaces(captured.faces, workDir, captured.resolution, deadline);
             await this.runCmft(facePaths, stagedBase, deadline);
+            this.assertBeforeDeadline(deadline, 'output preparation');
             await this.prepareMeta(stagedOutputPath, captured.fastBake, outputPath);
             transaction = await this.replaceOutput(
                 stagedOutputPath,
@@ -101,8 +122,8 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
             };
             operation.expiryTimer = setTimeout(() => {
                 if (this.operation === operation) {
-                    void this.finish(operation, false).catch((error) => {
-                        console.error('[ReflectionProbe] Failed to roll back an expired output transaction:', error);
+                    void this.finish(operation, true).catch((error) => {
+                        console.error('[ReflectionProbe] Failed to retain an unacknowledged output transaction:', error);
                     });
                 }
             }, remaining);
@@ -122,6 +143,15 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
             await this.removeWithRetry(workDir);
             this.cmftProcess = null;
             this.preparing = false;
+            this.preparingTaskId = undefined;
+        }
+    }
+
+    public async cancel(options: { taskId: string }): Promise<void> {
+        if (!options?.taskId) { throw new Error('A reflection-probe task ID is required.'); }
+        if (this.preparing && this.preparingTaskId === options.taskId) {
+            this.cancelled = true;
+            this.cmftProcess?.kill('SIGKILL');
         }
     }
 
@@ -134,10 +164,11 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     }
 
     public async dispose(): Promise<void> {
-        this.cmftProcess?.kill();
+        this.cancelled = true;
+        this.cmftProcess?.kill('SIGKILL');
         this.cmftProcess = null;
         if (this.operation) {
-            await this.finish(this.operation, false);
+            await this.finish(this.operation, true);
         }
     }
 
@@ -148,20 +179,25 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
         return this.operation;
     }
 
-    private async finish(operation: IHostOperation, commit: boolean): Promise<void> {
+    private finish(operation: IHostOperation, commit: boolean): Promise<void> {
+        if (operation.settling) { return operation.settling; }
         if (operation.expiryTimer) {
             clearTimeout(operation.expiryTimer);
             operation.expiryTimer = null;
         }
-        if (this.operation === operation) {
-            this.operation = null;
-        }
-        if (commit) {
-            await operation.transaction.commit();
-        } else {
-            await operation.transaction.rollback();
-            await assetManager.refreshAssetOnly(operation.outputUrl).catch(() => undefined);
-        }
+        operation.settling = (async () => {
+            try {
+                if (commit) {
+                    await operation.transaction.commit();
+                } else {
+                    await operation.transaction.rollback();
+                    await assetManager.refreshAssetOnly(operation.outputUrl).catch(() => undefined);
+                }
+            } finally {
+                if (this.operation === operation) { this.operation = null; }
+            }
+        })();
+        return operation.settling;
     }
 
     private validateCapturedFaces(captured: IPrepareReflectionProbeBakeOptions['captured']): void {
@@ -241,19 +277,23 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
         await new Promise<void>((resolve, reject) => {
             const child = this.cmftProcess = spawn(executable, args, { windowsHide: true });
             let stderr = '';
+            let processError: Error | undefined;
             child.stderr?.on('data', (data) => { stderr += String(data); });
             const timer = setTimeout(() => {
-                child.kill();
-                reject(new Error('Reflection probe bake timed out while running cmft.'));
+                processError = new Error('Reflection probe bake timed out while running cmft.');
+                child.kill('SIGKILL');
             }, remaining);
             child.once('error', (error) => {
                 clearTimeout(timer);
-                reject(new Error(`Failed to start cmft: ${error.message}`));
+                processError ??= new Error(`Failed to run cmft: ${error.message}`);
             });
             child.once('close', (code) => {
                 clearTimeout(timer);
-                this.cmftProcess = null;
-                if (code !== 0) {
+                if (this.cmftProcess === child) { this.cmftProcess = null; }
+                // Do not release the output lock or remove staged files while cmft can still write.
+                if (processError) {
+                    reject(processError);
+                } else if (code !== 0) {
                     reject(new Error(`cmft exited with code ${code}${stderr ? `: ${stderr.trim()}` : ''}`));
                 } else {
                     resolve();
@@ -380,6 +420,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
             await assetManager.refreshAssetOnly(outputUrl);
         }
         while (Date.now() < deadline) {
+            this.assertBeforeDeadline(deadline, 'asset import');
             if (await this.hasCompleteConvolution(convolutionDir)) {
                 return;
             }
@@ -397,6 +438,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     private async waitForTextureCubeImport(outputPath: string, fastBake: boolean, deadline: number): Promise<void> {
         const metaPath = `${outputPath}.meta`;
         while (Date.now() < deadline) {
+            this.assertBeforeDeadline(deadline, 'asset import');
             try {
                 const meta = await readJson(metaPath);
                 if (isReflectionProbeTextureCubeImported(meta, fastBake ? 1 : 2)) {
@@ -413,6 +455,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     private async waitForTextureCube(url: string, deadline: number): Promise<{ uuid: string; url: string }> {
         let lastError: unknown;
         while (Date.now() < deadline) {
+            this.assertBeforeDeadline(deadline, 'asset import');
             try {
                 const info = assetManager.queryAssetInfo(url);
                 if (info?.uuid && info.url) {
@@ -428,6 +471,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     }
 
     private assertBeforeDeadline(deadline: number, stage: string): void {
+        if (this.cancelled) { throw new Error('Reflection-probe bake cancelled.'); }
         if (Date.now() >= deadline) {
             throw new Error(`Reflection probe bake timed out during ${stage}.`);
         }

@@ -1,3 +1,4 @@
+import type { IReflectionProbeSceneIdentity } from '../common/reflection-probe';
 import type { RemoteSocket } from 'socket.io';
 import type { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { SCENE_RENDERER_ROOM, socketService } from '../../../server/socket';
@@ -23,6 +24,7 @@ export interface IReflectionProbeDescriptor {
 }
 
 export interface IActiveReflectionProbeListResult {
+    source?: IReflectionProbeSceneIdentity;
     rendererId: string;
     sceneUrl: string;
     probes: IReflectionProbeDescriptor[];
@@ -42,6 +44,7 @@ export interface IReflectionProbeClearResult {
 }
 
 export interface IReflectionProbeApplyRequest {
+    source?: IReflectionProbeSceneIdentity;
     sceneUrl: string;
     nodePath: string;
     componentUuid: string;
@@ -65,6 +68,7 @@ interface IApplyResponse {
 }
 
 interface ICaptureRequest {
+    source?: IReflectionProbeSceneIdentity;
     sceneUrl?: string;
     nodePath: string;
     componentUuid?: string;
@@ -73,6 +77,7 @@ interface ICaptureRequest {
 
 interface IListResponse {
     result?: {
+        source?: IReflectionProbeSceneIdentity;
         sceneUrl: string;
         probes: IReflectionProbeDescriptor[];
     };
@@ -192,11 +197,11 @@ function requestApply(
     });
 }
 
-function requestProbeList(socket: Socket, sceneUrl: string, timeoutMs: number): Promise<IReflectionProbeDescriptor[]> {
+function requestProbeList(socket: Socket, sceneUrl: string, timeoutMs: number, source?: IReflectionProbeSceneIdentity): Promise<NonNullable<IListResponse['result']>> {
     return new Promise((resolve, reject) => {
         socket.timeout(timeoutMs).emit(
             'scene:list-reflection-probes',
-            { sceneUrl },
+            { sceneUrl, source },
             (error: Error | null, response?: IListResponse) => {
                 if (error) {
                     reject(error);
@@ -205,18 +210,18 @@ function requestProbeList(socket: Socket, sceneUrl: string, timeoutMs: number): 
                 } else if (response?.result?.sceneUrl !== sceneUrl || !Array.isArray(response.result.probes)) {
                     reject(new Error('WebGL scene renderer returned an invalid reflection-probe list.'));
                 } else {
-                    resolve(response.result.probes);
+                    resolve(response.result);
                 }
             },
         );
     });
 }
 
-function requestSave(socket: Socket, sceneUrl: string, timeoutMs: number): Promise<void> {
+function requestSave(socket: Socket, sceneUrl: string, timeoutMs: number, source?: IReflectionProbeSceneIdentity): Promise<void> {
     return new Promise((resolve, reject) => {
         socket.timeout(timeoutMs).emit(
             'scene:save-reflection-probes',
-            { sceneUrl },
+            { sceneUrl, source },
             (error: Error | null, response?: ISaveResponse) => {
                 if (error) {
                     reject(new Error(`The reflection-probe batch save timed out. (${error.message})`));
@@ -237,11 +242,12 @@ function requestClear(
     sceneUrl: string,
     saveScene: boolean,
     timeoutMs: number,
+    source?: IReflectionProbeSceneIdentity,
 ): Promise<IReflectionProbeClearResult> {
     return new Promise((resolve, reject) => {
         socket.timeout(timeoutMs).emit(
             'scene:clear-reflection-probes',
-            { sceneUrl, saveScene, timeoutMs },
+            { sceneUrl, saveScene, timeoutMs, source },
             (error: Error | null, response?: IClearResponse) => {
                 if (error) {
                     reject(new Error(
@@ -293,7 +299,7 @@ export const reflectionProbeRenderer = {
         }
     },
 
-    async captureActive(nodePath: string, timeoutMs: number): Promise<IActiveReflectionProbeCaptureResult> {
+    async captureActive(nodePath: string, timeoutMs: number, source?: IReflectionProbeSceneIdentity): Promise<IActiveReflectionProbeCaptureResult> {
         const sockets = await requireRendererSockets();
         requireAvailableRenderer(sockets);
 
@@ -302,7 +308,7 @@ export const reflectionProbeRenderer = {
             const result = await requestCapture(selection.socket, {
                 sceneUrl: selection.sceneUrl,
                 nodePath,
-                timeoutMs,
+                timeoutMs, source,
             });
             return { ...result, rendererId: selection.socket.id };
         } catch (error) {
@@ -316,6 +322,7 @@ export const reflectionProbeRenderer = {
         nodePath: string,
         componentUuid: string,
         timeoutMs: number,
+        source?: IReflectionProbeSceneIdentity,
     ): Promise<IActiveReflectionProbeCaptureResult> {
         const sockets = await requireRendererSockets();
         const socket = sockets.find((candidate) => candidate.id === rendererId);
@@ -323,7 +330,7 @@ export const reflectionProbeRenderer = {
             throw new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.');
         }
         try {
-            const result = await requestCapture(socket, { sceneUrl, nodePath, componentUuid, timeoutMs });
+            const result = await requestCapture(socket, { sceneUrl, nodePath, componentUuid, timeoutMs, source });
             if (result.componentUuid !== componentUuid) {
                 throw new Error(`The WebGL renderer returned the wrong reflection probe: ${nodePath}.`);
             }
@@ -333,11 +340,12 @@ export const reflectionProbeRenderer = {
         }
     },
 
-    async listActive(timeoutMs = 30_000): Promise<IActiveReflectionProbeListResult> {
+    async listActive(timeoutMs = 30_000, source?: IReflectionProbeSceneIdentity): Promise<IActiveReflectionProbeListResult> {
         const sockets = await requireRendererSockets();
         requireAvailableRenderer(sockets);
         const selection = selectActiveRenderer(sockets);
-        const probes = await requestProbeList(selection.socket, selection.sceneUrl, timeoutMs);
+        const listing = await requestProbeList(selection.socket, selection.sceneUrl, timeoutMs, source);
+        const probes = listing.probes;
         if (probes.some((probe) => !probe || typeof probe.nodePath !== 'string'
             || typeof probe.componentUuid !== 'string' || !probe.componentUuid)) {
             throw new Error('WebGL scene renderer returned invalid reflection-probe descriptors.');
@@ -349,7 +357,7 @@ export const reflectionProbeRenderer = {
         return {
             rendererId: selection.socket.id,
             sceneUrl: selection.sceneUrl,
-            probes,
+            probes, source: listing.source,
         };
     },
 
@@ -378,20 +386,20 @@ export const reflectionProbeRenderer = {
         }
     },
 
-    async save(rendererId: string, sceneUrl: string, timeoutMs: number): Promise<void> {
+    async save(rendererId: string, sceneUrl: string, timeoutMs: number, source?: IReflectionProbeSceneIdentity): Promise<void> {
         const sockets = await requireRendererSockets();
         const socket = sockets.find((candidate) => candidate.id === rendererId);
         if (!socket || socket.data.sceneUrl !== sceneUrl) {
             throw new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.');
         }
-        await requestSave(socket, sceneUrl, timeoutMs);
+        await requestSave(socket, sceneUrl, timeoutMs, source);
     },
 
-    async clearActive(saveScene: boolean, timeoutMs: number): Promise<IReflectionProbeClearResult> {
+    async clearActive(saveScene: boolean, timeoutMs: number, source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeClearResult> {
         const sockets = await requireRendererSockets();
         requireAvailableRenderer(sockets);
         const selection = selectActiveRenderer(sockets);
-        const result = await requestClear(selection.socket, selection.sceneUrl, saveScene, timeoutMs);
+        const result = await requestClear(selection.socket, selection.sceneUrl, saveScene, timeoutMs, source);
         if (!result.sceneName || result.sceneName === '.' || result.sceneName === '..'
             || result.probes.some((probe) => !probe || typeof probe.nodePath !== 'string'
                 || typeof probe.componentUuid !== 'string' || !probe.componentUuid
