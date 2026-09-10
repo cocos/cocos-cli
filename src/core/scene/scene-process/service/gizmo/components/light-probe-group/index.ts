@@ -7,6 +7,7 @@ import BoxController from '../../controller/box';
 import ControllerUtils from '../../utils/controller-utils';
 import { addMeshToNode, create3DNode, getModel, setMeshColor } from '../../utils/engine-utils';
 import { registerGizmo } from '../../gizmo-defines';
+import { buildLightProbeConvex } from '../../utils/light-probe-convex';
 
 // 探针数量超过该阈值时只画包围盒/线框、不逐个建球，避免海量节点
 const MAX_PROBE_DOTS = 4096;
@@ -30,6 +31,8 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     private _controller!: BoxController;
     private _dotsRoot: Node | null = null;      // 探针球容器（跟随节点世界变换）
     private _wireframeNode: Node | null = null;  // 四面体线框（世界坐标、单位阵）
+    private _convexNode: Node | null = null;
+    private _normalNode: Node | null = null;
     private _probesRef: Vec3[] | null = null;
     private _dotsVolume = -1;                     // 上次建点用的球体积，用于失效缓存
     private _reuseMesh: any = null;
@@ -56,6 +59,8 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this._controller.hide();
         if (this._dotsRoot) this._dotsRoot.active = false;
         if (this._wireframeNode) this._wireframeNode.active = false;
+        if (this._convexNode) this._convexNode.active = false;
+        if (this._normalNode) this._normalNode.active = false;
         this._lastInfoSig = '';
     }
 
@@ -76,6 +81,12 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this._wireframeNode = create3DNode('LightProbeWireframe');
         this._wireframeNode.parent = gizmoRoot;
         this._wireframeNode.active = false;
+        this._convexNode = create3DNode('LightProbeConvex');
+        this._convexNode.parent = gizmoRoot;
+        this._convexNode.active = false;
+        this._normalNode = create3DNode('LightProbeConvexNormals');
+        this._normalNode.parent = gizmoRoot;
+        this._normalNode.active = false;
     }
 
     onControllerMouseDown() {
@@ -97,6 +108,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             this.target.generateLightProbes();
             this._rebuildDots(true);
             this._rebuildWireframe();
+            this._rebuildConvex();
             this.onComponentChanged(this.target.node);
             // 引擎重剖分四面体是延迟的，稍后补刷一次线框，避免与球错位（对齐 Creator debounce）
             const target = this.target;
@@ -104,6 +116,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
                 if (this.target === target) {
                     this._rebuildDots(true);
                     this._rebuildWireframe();
+                    this._rebuildConvex();
                 }
             }, 250);
         }
@@ -148,6 +161,8 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             this._controller.hide();
             if (this._dotsRoot) this._dotsRoot.active = false;
             if (this._wireframeNode) this._wireframeNode.active = false;
+            if (this._convexNode) this._convexNode.active = false;
+            if (this._normalNode) this._normalNode.active = false;
             return;
         }
 
@@ -177,6 +192,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         }
         this._rebuildDots(false);
         this._rebuildWireframe();
+        this._rebuildConvex();
     }
 
     private _getLightProbeInfo(): any {
@@ -261,6 +277,29 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         ControllerUtils.drawLines(this._wireframeNode, positions, indices, WIREFRAME_COLOR);
     }
 
+    private _rebuildConvex() {
+        if (!this._convexNode || !this._normalNode) return;
+        const info = this._getLightProbeInfo();
+        const data = info?.data;
+        this._convexNode.active = false;
+        this._normalNode.active = false;
+        if (!this.target || !info?.showConvex || !data || data.empty?.()) return;
+        const geometry = buildLightProbeConvex(data.probes ?? [], data.tetrahedrons ?? []);
+        for (const node of [this._convexNode, this._normalNode]) {
+            node.setWorldPosition(0, 0, 0);
+            node.setRotationFromEuler(0, 0, 0);
+            node.setWorldScale(1, 1, 1);
+        }
+        if (geometry.indices.length) {
+            ControllerUtils.drawLines(this._convexNode, geometry.positions, geometry.indices, WIREFRAME_COLOR);
+            this._convexNode.active = true;
+        }
+        if (geometry.normalIndices.length) {
+            ControllerUtils.drawLines(this._normalNode, geometry.normalPositions, geometry.normalIndices, PROBE_COLOR);
+            this._normalNode.active = true;
+        }
+    }
+
     onTargetUpdate() {
         this.updateControllerData();
     }
@@ -296,12 +335,17 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             info ? (info.lightProbeSphereVolume ?? 1) : 1,
             info ? (info.showProbe ?? true) : true,
             info ? (info.showWireframe ?? true) : true,
+            info ? (info.showConvex ?? false) : false,
             data?.tetrahedrons?.length ?? 0,
             data?.probes?.length ?? 0,
         ].join('|');
     }
 
     onDestroy() {
+        this._convexNode?.destroy();
+        this._convexNode = null;
+        this._normalNode?.destroy();
+        this._normalNode = null;
         if (this._dotsRoot) {
             this._dotsRoot.destroy();
             this._dotsRoot = null;
