@@ -39,9 +39,15 @@ const capabilities = await cli.Scene.LightmapBake.queryCapabilities();
 // { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1, busy: false }
 ```
 
-这里的 `resultLifecycleVersion: 1` 包含 Mesh／Terrain 的结果录制目标、空纹理引用、TerrainBlock 恢复刷新及保存基线；`assetVersion: 1` 必须由实际 Node host 的 `lightmapAssetVersion: 1` 确认，保证新 Bake 不覆盖旧纹理版本。旧 host 即使支持 Probe 事务，也可能缺少资产版本保护，此时 Lightmap 查询拒绝返回支持。该能力只覆盖保留资产的 Clear，不承诺 deleteAssets 删除归属、资产 GC 或有归属取消。
+这里的 `resultLifecycleVersion: 1` 包含 Mesh／Terrain 的结果录制目标、空纹理引用、TerrainBlock 恢复刷新及保存基线；`assetVersion: 1` 必须由实际 Node host 的 `lightmapAssetVersion: 1` 确认，保证新 Bake 不覆盖旧纹理版本。旧 host 即使支持 Probe 事务，也可能缺少资产版本保护，此时 Lightmap 查询拒绝返回支持。该能力只覆盖保留资产的 Clear，不承诺 deleteAssets 删除归属或资产 GC；有归属取消另通过 `cancelVersion`／`cancellable` 声明，见下文。
 
-`busy` 仅为共享宿主的瞬时占用提示，包含导出前预留、原生操作、提交后场景回写及失败恢复；查询不占锁、不释放锁、不返回内部凭据。即使 busy=false，执行入口仍需原子预留，调用方必须处理查询之后发生的并发拒绝。该接口不检查原生 LightFX 可执行文件、场景输入合法性或渲染质量，也不是可恢复的任务状态／百分比／有归属取消接口。新旧 renderer 混用的限制仍见下文。
+`busy` 仅为共享宿主的瞬时占用提示，包含导出前预留、原生操作、提交后场景回写及失败恢复；查询不占锁、不释放锁、不返回内部凭据。即使 busy=false，执行入口仍需原子预留，调用方必须处理查询之后发生的并发拒绝。该接口不检查原生 LightFX 可执行文件、场景输入合法性或渲染质量，也不是持久任务／统一百分比协议。上方示例仅列基础字段；可选取消能力和原生诊断见下文。新旧 renderer 混用的限制仍见下文。
+
+### 原生诊断
+
+Probe／Lightmap 的 `queryCapabilities()` 和成功 Bake 结果可带 `diagnostics`：`{ version: 1, stage, logs, progress? }`。Scene 只返回本运行实例、对应烘焙类型的当前或最近原生操作，内部 Host 查询校验 operation ID、target 与 transaction ID；不会返回其他场景的日志。没有可用诊断或查询失败时字段可缺省，集成方应降级显示，不能因此把烘焙成功改为失败。
+
+Host 最多记住 32 个操作；每个操作保留最近 128 条日志，每条与进度文本上限为 2048 字符，隐藏该操作工作目录和目标资产目录的绝对路径。`progress` 保留 LightFX 原始文本（例如 `Build lighting 25%`），不是统一数值百分比；`stage` 是最近采样的原生阶段，不代替上层 Scene 的成功／取消／恢复状态。进程重启后诊断不保留，不提供持久任务身份或失联事务恢复。
 
 ## MCP 工具
 
@@ -51,7 +57,7 @@ Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事�
 
 宿主校验事务凭据、目标和动作；错误或已过期的凭据不能开始新的原生烘焙／清理，重复释放旧事务不能释放新持有者。没有场景预留的旧原生 begin 入口仍独占原生操作；旧资产删除入口也会在删除及 Asset DB 刷新期间临时预留。旧 renderer 若完全绕过新增协议执行内存 Clear，并不受此机制保护，集成时必须统一运行产物版本。
 
-运行实例失联或释放失败时采用 fail-closed：宿主不自动超时放开场景预留，以免暂停的旧实例恢复后与新任务同时写回。此时不要自动重试烘焙；先处理原实例并重启其 Scene host。原生回滚失败时保留恢复备份，不得手工删除以“解除忙状态”。自动失联回收、公开任务状态和按任务归属取消尚未包含在这层协议中；现有 Cancel 仍是共享操作，不应直接当作某个面板私有任务的取消按钮。
+运行实例失联或释放失败时采用 fail-closed：宿主不自动超时放开场景预留，以免暂停的旧实例恢复后与新任务同时写回。此时不要自动重试烘焙；先处理原实例并重启其 Scene host。原生回滚失败时保留恢复备份，不得手工删除以“解除忙状态”。自动失联回收与公共持久任务仍未实现；当前 Cancel 已按本 Scene、烘焙类型和内部操作归属核对，具体契约见“取消烘焙”。
 
 ### 烘焙 Light Probe
 
@@ -91,7 +97,17 @@ Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事�
 
 编辑已启用探针组或其父节点的位置时，CLI 会同步全局采样点和四面体。只有实际采样位置改变才清空旧 SH，避免把旧位置的烘焙结果用于新位置；不会重新生成组件内手工编辑过的采样点。普通节点属性操作和 Gizmo recording 会把受影响的 Scene 数据纳入同一次撤销记录：Undo 恢复旧位置与旧 SH，Redo 恢复新位置与失效状态。保存仍由调用方决定，移动后需要重新烘焙。
 
-此同步沿用当前引擎的 `localProbe + worldPosition` 约定；完整旋转／缩放与 Gizmo 的 TRS 一致性、重设父级和增删采样点的结构事务仍需独立验收，不等同于所有探针编辑操作已完成。
+此同步沿用当前引擎的 `localProbe + worldPosition` 约定，探针球、范围盒与框选投影也采用相同约定，不额外给局部采样点乘旋转／缩放。祖先旋转／缩放若改变子组世界位置，采样位置同步并使旧 SH 失效；改父级将受影响 Scene 的结果快照放在节点恢复之后，Scene 自身不参与重挂。组件 Undo 替换 probes 数组后重新同步引擎注册引用，避免后续变换再次使用旧数组。
+
+### 探针组编辑与显示
+
+`Scene.Gizmo` 提供探针 vertex／box 模式查询与切换、生成、全选／取消全选、选中数量、复制／删除以及区域选择接口。选择按实际可见、有效、启用的组统计；隐藏或池化实例换目标时清空旧选择。支持空白或探针球起手框选，Shift／Ctrl／Cmd 追加，追加框选缩小时按按下时的选择基线重新计算。
+
+`duplicateSelectedLightProbes()`／`deleteSelectedLightProbes()` 返回 `Promise<number>`，等待 CLI 的 Undo 录制结束后给出实际变更点数；复制副本位于原位置并选中新点。`generateLightProbes()` 只生成采样点，调用方需要为它建立一次 Undo recording，不能把生成当作 GI 烘焙。键盘操作应在场景焦点与正确编辑模式下路由，避免删除节点或修改其他组。
+
+凸包外边界、边界法线与内部四面体线框分别绘制，读取 `showConvex`／`showWireframe`；缓存失效覆盖显示参数、采样数据和变换变化。范围逐坐标、复杂拖动／焦点组合、编辑结果保存重开及最终材质显示仍需按场景扩展验收。
+
+### Light Probe 烘焙返回结果
 
 成功返回示例：
 
@@ -234,6 +250,12 @@ Probe Bake／Clear 的 `saveScene` 默认是 `true`：完整成功后，当前�
 
 Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面板。缩略图加载、RGBA 通道切换和时间格式化由 Pink 根据资源 URL/UUID 实现，CLI 不传输图片像素。
 
+#### 下次烘焙对象检查
+
+`queryBakeInfo()` 另返回可选 `readiness: { version: 1, objects }`，与既有绑定结果独立。每项包含组件 UUID、节点名称、mesh／terrain 类型、是否接收贴图／投射阴影、贴图大小以及 `issues`。查询只读，跳过 DontSave 编辑器辅助子树，报告 inactive／Movable 祖先、禁用组件、未参与、缺 mesh、无效 UV1 等条件。
+
+接收贴图的 Mesh 在查询及实际导出时检查 UV1 长度是否等于顶点数的两倍、所有值是否有限；检查不包含 UV 重叠或自动展开。蒙皮输出静态网格顶点，不代表当前动画姿态；材质只导出支持的属性；Terrain 基于高度场和世界位置，不额外导出旋转／缩放。调用方可复用 Inspector 的 Bake Settings 修改参与配置，不应把警告、参与标记或查询成功当作画质保证。
+
 ### 清理 Lightmap
 
 工具名：`scene-clear-lightmap`
@@ -373,3 +395,5 @@ Bake 和 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与�
 随后版本隔离专项补验：三次真实 Mesh Bake 使用不同 URL／UUID，标准／高精度 PNG 的 SHA256 随 Undo／Redo 精确对应旧／新结果，关闭重开保留；未保存新 Bake 时磁盘 Scene 仍引用未变更的旧 PNG。旧平铺资产保持。真实文件事务测试覆盖同名场景多次输出互不覆盖、本次回滚／导入失败不影响旧版本；取消故障不作为新增实机验收，资产删除与历史 GC 仍待专门的归属协议。
 
 Terrain 专项补验：快照恢复数组后，对已有 TerrainBlock 重新绑定对应 lightmap info（无元素时解绑）并让材质失效，避免 Terrain.onRestore 的 valid 快路径保留旧引用。实际单块和持久化 `.terrain` 双块＋Mesh 混合场景，Bake／Clear、Undo／Redo、自动／显式保存、关闭重开通过；每个 block 的实际 texture／UV 与序列化结果一致，43 点探针 SH 不变。`bake().terrainCount` 当前是原生输出 block 条目数，`queryBakeInfo().terrainCount` 是拥有绑定的 Terrain 组件数，两者不应直接比较。地形尺寸／高度保存在 `.terrain` 资产，夹具通过 Terrain.saveManage／saveAssetDialog 正式写入，不靠修改内存后只保存 Scene 冒充持久化。
+
+编辑与诊断专项补验（同为 macOS arm64／隔离 PinK）：两组 16／27 点切组全选、真实复制／删除按钮、空白／球起手及 Shift 追加框选通过；复制→Undo→改父节点保持组件与全局表一致的 43 点，Undo 恢复原 SH、Redo 恢复新位置与失效状态。自身旋转／非均匀缩放的探针球与采样位置一致，祖先变换同步和 Undo 通过。真实 Probe Bake 显示 `Build lighting 100%`；Mesh＋双块 Terrain Bake 观察到 `Build lighting 25%` 后取消，前后结果、历史以及 83 个资产／元数据文件哈希一致。另一场景不接收任务日志。上述不包含持久恢复、安全资产回收、跨磁盘失败原子性或其他 OS 的验收。
