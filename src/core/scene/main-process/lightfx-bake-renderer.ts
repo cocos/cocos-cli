@@ -3,7 +3,7 @@ import type { DefaultEventsMap } from 'socket.io/dist/typed-events';
 import { SCENE_RENDERER_ROOM, socketService } from '../../../server/socket';
 
 type LightFXModule = 'LightProbeBake' | 'LightmapBake';
-type LightFXMethod = 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel';
+type LightFXMethod = 'bake' | 'queryBakeInfo' | 'queryCapabilities' | 'clearBake' | 'cancel';
 
 interface RendererSocketData {
     sceneUrl?: string;

@@ -2,6 +2,7 @@ const mockGetScene = jest.fn();
 jest.mock('cc', () => ({ director: { getScene: mockGetScene } }));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: {} }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
+    queryCapabilities: jest.fn(),
     reserveSceneOperation: jest.fn(async () => ({ transactionId: 'test-owner' })),
     releaseSceneOperation: jest.fn(async () => undefined),
 } }));
@@ -12,8 +13,30 @@ jest.mock('../scene-process/rpc', () => ({ Rpc: { getInstance: jest.fn() } }));
 import { LightProbeBakeService } from '../scene-process/service/light-probe-bake';
 import { LightmapBakeService } from '../scene-process/service/lightmap-bake';
 import { lightFXSceneOperation } from '../scene-process/service/baking/lightfx/scene-operation';
+import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
 
 describe('LightFX service entrance ownership', () => {
+    it.each([false, true])('queries the actual host without taking a reservation (busy=%s)', async (busy) => {
+        const query = jest.mocked(lightFXBakeHost.queryCapabilities);
+        query.mockResolvedValueOnce({ sceneTransactionVersion: 1, busy });
+        const reserveCalls = jest.mocked(lightFXBakeHost.reserveSceneOperation).mock.calls.length;
+        await expect(new LightProbeBakeService().queryCapabilities()).resolves.toEqual({
+            version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, busy,
+        });
+        expect(lightFXBakeHost.reserveSceneOperation).toHaveBeenCalledTimes(reserveCalls);
+        expect(mockGetScene).not.toHaveBeenCalled();
+    });
+
+    it('does not advertise support when the host query fails or returns an incompatible protocol', async () => {
+        const query = jest.mocked(lightFXBakeHost.queryCapabilities);
+        query.mockRejectedValueOnce(new Error('Method queryCapabilities is not available'));
+        await expect(new LightProbeBakeService().queryCapabilities()).rejects.toThrow('not available');
+        for (const value of [null, {}, { sceneTransactionVersion: 2, busy: false }, { sceneTransactionVersion: 1 }]) {
+            query.mockResolvedValueOnce(value as Awaited<ReturnType<typeof query>>);
+            await expect(new LightProbeBakeService().queryCapabilities()).rejects.toThrow('protocol version 1');
+        }
+    });
+
     it('rejects all four entrances before querying scene, snapshotting or rolling back another owner', async () => {
         const probe = new LightProbeBakeService();
         const lightmap = new LightmapBakeService();

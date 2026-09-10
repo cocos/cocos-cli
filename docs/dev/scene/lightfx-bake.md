@@ -21,6 +21,19 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
 4. 同一 Scene host 下，Light Probe／Lightmap 的 Bake／Clear 共享事务预留；导出、结果应用、保存、Undo、失败恢复与可选资产清理期间拒绝新的冲突操作。
 5. 在 Pink 中调用时，目标场景必须已在当前可见的场景视图中加载完成；不需要额外调用 `scene-open`。同时存在多个可见场景视图时，应先激活目标场景标签并关闭重复视图。
 
+## 运行能力识别
+
+公开 CLI API `Scene.LightProbeBake.queryCapabilities()` 会向实际 Scene renderer（没有 Webview 时为 worker）及其 Node host 查询：
+
+```ts
+const capabilities = await cli.Scene.LightProbeBake.queryCapabilities();
+// { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, busy: false }
+```
+
+`resultLifecycleVersion: 1` 表明本 Scene 实现包含 SH Undo／Redo 与多组重开结果保留修复；`sceneTransactionVersion: 1` 表明 Scene 与实际 host 均使用完整 Bake／Clear 事务预留协议。旧 host 缺少查询或协议不匹配时拒绝返回能力，调用方不能只检测 bake 方法存在或只检查包版本。集成方遇到方法缺失／查询失败应显示不支持或连接错误，不得自动尝试烘焙。
+
+`busy` 仅为共享宿主的瞬时占用提示，包含导出前预留、原生操作、提交后场景回写及失败恢复；查询不占锁、不释放锁、不返回内部凭据。即使 busy=false，执行入口仍需原子预留，调用方必须处理查询之后发生的并发拒绝。该接口不检查原生 LightFX 可执行文件、场景输入合法性或渲染质量，也不是可恢复的任务状态／百分比／有归属取消接口。新旧 renderer 混用的限制仍见下文。
+
 ## MCP 工具
 
 ### 并发与故障边界

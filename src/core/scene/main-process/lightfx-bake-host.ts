@@ -17,6 +17,7 @@ import type {
     IBeginLightFXBakeOptions,
     IBeginLightFXBakeResult,
     ILightFXBakeHostService,
+    ILightFXHostCapabilities,
     ILightFXOperationOptions,
     ILightFXTextureSource,
     IQueryLightmapTextureInfoOptions,
@@ -78,6 +79,10 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private readonly completedOperations = new Map<string, OperationTerminalState>();
     private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & { nativeStarted: boolean; removingAssets: boolean }) | null = null;
     private readonly releasedSceneOperations = new Set<string>();
+
+    public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
+        return { sceneTransactionVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+    }
 
     public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {
         if (!options || !['light-probe', 'lightmap'].includes(options.target) || !['bake', 'clear'].includes(options.action)) {

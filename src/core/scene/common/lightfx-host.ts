@@ -11,6 +11,12 @@ export interface ILightFXSceneOperationToken {
     transactionId: string;
 }
 
+/** Read-only host protocol snapshot. Busy is advisory, not permission to start a transaction. */
+export interface ILightFXHostCapabilities {
+    sceneTransactionVersion: 1;
+    busy: boolean;
+}
+
 /** JSON-safe reference to a texture needed by a LightFX input file. */
 export interface ILightFXTextureSource {
     uuid: string;
@@ -112,6 +118,7 @@ export interface IQueryLightmapTextureInfoResult {
  * return value in this contract must remain JSON serializable and must not expose host file paths.
  */
 export interface ILightFXBakeHostService {
+    queryCapabilities(): Promise<ILightFXHostCapabilities>;
     reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken>;
     releaseSceneOperation(options: ILightFXSceneOperationToken): Promise<void>;
     resolveTextureSource(options: IResolveLightFXTextureSourceOptions): Promise<IResolvedLightFXTextureSource | null>;

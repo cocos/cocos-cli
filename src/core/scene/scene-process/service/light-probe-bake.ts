@@ -3,12 +3,14 @@ import type {
     ILightFXBakeEvents,
     ILightFXCancelResult,
     ILightProbeBakeOptions,
+    ILightProbeBakeCapabilities,
     ILightProbeBakeResult,
     ILightProbeBakeService,
 } from '../../common';
 import { lightFXCoordinator, LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
+import { lightFXBakeHost } from './baking/lightfx/host';
 import { BaseService, register, Service } from './core';
 
 interface ProbeSnapshot {
@@ -28,6 +30,14 @@ interface LightProbeSettings {
 
 @register('LightProbeBake')
 export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> implements ILightProbeBakeService {
+    async queryCapabilities(): Promise<ILightProbeBakeCapabilities> {
+        const host = await lightFXBakeHost.queryCapabilities();
+        if (host?.sceneTransactionVersion !== 1 || typeof host.busy !== 'boolean') {
+            throw new Error('The LightFX host does not support scene transaction protocol version 1.');
+        }
+        return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, busy: host.busy };
+    }
+
     async bake(options: ILightProbeBakeOptions = {}): Promise<ILightProbeBakeResult> {
         return lightFXSceneOperation.run('light-probe', 'bake', () => this.bakeExclusive(options));
     }

@@ -13,6 +13,17 @@ export interface ILightProbeBakeOptions {
     timeoutMs?: number;
 }
 
+/** Versioned implementation support, not native executable readiness or a recoverable task. */
+export interface ILightProbeBakeCapabilities {
+    version: 1;
+    /** SH Undo/Redo and multi-group scene reopening preserve baked results. */
+    resultLifecycleVersion: 1;
+    /** Both Scene and host participate in the full Bake/Clear transaction reservation. */
+    sceneTransactionVersion: 1;
+    /** Instantaneous shared host occupancy; execution still acquires its own reservation. */
+    busy: boolean;
+}
+
 export interface ILightProbeBakeResult {
     sceneUrl: string;
     probeCount: number;
@@ -73,6 +84,8 @@ export interface ILightFXBakeEvents {
 }
 
 export interface ILightProbeBakeService extends IServiceEvents {
+    /** Queries this Scene implementation and its actual host without modifying scene or task state. */
+    queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
     bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
     clearBake(options?: { saveScene?: boolean }): Promise<{ probeCount: number }>;
     cancel(): Promise<ILightFXCancelResult>;
@@ -85,5 +98,5 @@ export interface ILightmapBakeService extends IServiceEvents {
     cancel(): Promise<ILightFXCancelResult>;
 }
 
-export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'bake' | 'clearBake' | 'cancel'>;
+export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'queryCapabilities' | 'bake' | 'clearBake' | 'cancel'>;
 export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;

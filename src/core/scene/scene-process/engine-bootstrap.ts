@@ -281,14 +281,14 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             msg: {
                 sceneUrl?: string;
                 module?: 'LightProbeBake' | 'LightmapBake';
-                method?: 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel';
+                method?: 'bake' | 'queryBakeInfo' | 'queryCapabilities' | 'clearBake' | 'cancel';
                 args?: unknown[];
             },
             reply: (response: { result?: unknown; sceneUrl?: string; error?: string }) => void,
         ) => {
             try {
                 const methods = msg?.module === 'LightProbeBake'
-                    ? new Set(['bake', 'clearBake', 'cancel'])
+                    ? new Set(['bake', 'queryCapabilities', 'clearBake', 'cancel'])
                     : msg?.module === 'LightmapBake'
                         ? new Set(['bake', 'queryBakeInfo', 'clearBake', 'cancel'])
                         : null;
