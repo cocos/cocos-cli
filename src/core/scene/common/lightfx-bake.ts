@@ -44,6 +44,8 @@ export interface ILightProbeBakeResult {
 }
 
 export interface ILightmapBakeOptions {
+    /** Existing assets directory URL. Each bake publishes an immutable child directory; omitted uses the scene's default. */
+    outputUrl?: string;
     msaa?: 1 | 2 | 4 | 8;
     resolution?: 128 | 256 | 512 | 1024 | 2048;
     filter?: boolean;
@@ -62,6 +64,8 @@ export interface ILightmapBakeOptions {
 
 /** Implementation support, not native executable readiness, task recovery or safe asset deletion. */
 export interface ILightmapBakeCapabilities {
+    /** The actual host accepts a selected assets output directory. */
+    outputDirectory?: true;
     diagnostics?: ILightFXDiagnostics;
     version: 1;
     /** Mesh/Terrain bindings, null references and live blocks are restored with the result history. */

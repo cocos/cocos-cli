@@ -7,10 +7,11 @@ import {
     pathExists,
     readFile,
     readdir,
+    realpath,
     remove,
     stat,
 } from 'fs-extra';
-import { basename, dirname, join } from 'path';
+import { basename, dirname, isAbsolute, join, relative, sep } from 'path';
 import Utils from '../../base/utils';
 import type {
     IAppendLightFXInputOptions,
@@ -84,7 +85,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async queryDiagnostics(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined> {
@@ -208,8 +209,10 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         // Published textures are immutable: existing saved scenes and Undo
         // records may still refer to any earlier bake, including legacy files.
         const version = `bake-${operationId}`;
-        const targetDir = join(assetRoot, options.sceneName, 'lightmap', version);
-        const targetUrl = `db://assets/${options.sceneName}/lightmap/${version}`;
+        const parentUrl = options.outputUrl ?? `db://assets/${options.sceneName}/lightmap`;
+        const parentDir = join(assetRoot, parentUrl.slice('db://assets'.length));
+        const targetDir = join(parentDir, version);
+        const targetUrl = `${parentUrl}/${version}`;
         const operation: LightFXHostOperation = {
             id: operationId,
             target: options.target,
@@ -220,7 +223,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             outputDir,
             targetDir,
             targetUrl,
-            refreshUrl: `db://assets/${options.sceneName}`,
+            refreshUrl: options.outputUrl ?? `db://assets/${options.sceneName}`,
             inputBytes: 0,
             inputWritePromise: Promise.resolve(),
             state: 'accepting-input',
@@ -238,6 +241,12 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         if (this.diagnostics.size > MAX_REMEMBERED_OPERATIONS) { this.diagnostics.delete(this.diagnostics.keys().next().value!); }
         if (this.sceneOperation) this.sceneOperation.nativeStarted = true;
         try {
+            if (options.outputUrl !== undefined) {
+                const path = relative(await realpath(assetRoot), await realpath(parentDir));
+                if (path === '..' || path.startsWith(`..${sep}`) || isAbsolute(path) || !(await stat(parentDir)).isDirectory()) {
+                    throw new Error('Lightmap output directory must be an existing folder inside assets.');
+                }
+            }
             await ensureDir(tmpDir);
             await ensureDir(outputDir);
             await outputFile(operation.inputPath, Buffer.alloc(0));
@@ -449,6 +458,16 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             throw new Error('Invalid LightFX bake target.');
         }
         this.validateSceneName(options.sceneName);
+        if (options.outputUrl !== undefined) {
+            const url = options.outputUrl;
+            if (options.target !== 'lightmap' || typeof url !== 'string'
+                || (url !== 'db://assets' && !url.startsWith('db://assets/'))
+                || (url !== 'db://assets' && url.slice('db://assets/'.length).split('/').some(part =>
+                    !part || part === '.' || part === '..' || /[<>:"\\|?*#%]/.test(part)
+                    || [...part].some(char => char.charCodeAt(0) < 32) || /[. ]$/.test(part)))) {
+                throw new Error('Invalid Lightmap output directory URL; choose an existing folder under db://assets.');
+            }
+        }
         if (!Number.isInteger(options.timeoutMs) || options.timeoutMs < 1_000 || options.timeoutMs > 3_600_000) {
             throw new Error('LightFX timeout must be an integer between 1000 and 3600000 milliseconds.');
         }

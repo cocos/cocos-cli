@@ -189,6 +189,7 @@ Bake 按「确认原生产物提交 → 应用场景结果 → 提交结果状�
 
 | 参数 | 范围 | CLI 默认值 |
 | --- | --- | --- |
+| `outputUrl` | 已存在的 `db://assets` 内目录 URL，仅 Lightmap 支持 | `db://assets/<sceneName>/lightmap` |
 | `msaa` | 1、2、4、8 | 4 |
 | `resolution` | 128、256、512、1024、2048 | 1024 |
 | `filter` | boolean | `true` |
@@ -331,11 +332,13 @@ Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 rende
 
 ## Lightmap 资产规则
 
-Lightmap 按每次烘焙的 operation UUID 输出到独立版本目录（以下为路径模板）：
+Lightmap 按每次烘焙的 operation UUID 输出到独立版本目录（以下为默认路径模板）：
 
 ```text
 db://assets/<scene-name>/lightmap/bake-<operation-uuid>/
 ```
+
+指定 `outputUrl` 时改为 `<outputUrl>/bake-<operation-uuid>/`，例如 `db://assets/烘焙结果 Room A`。目录必须已存在且真实路径位于当前项目 assets 内；不接受任意磁盘路径、路径穿越或指向 assets 外的符号链接。参数仅改变本次输出位置，不自动保存为场景设置。Scene 的 `queryCapabilities().outputDirectory === true` 来自实际 Host 的 `lightmapOutputDirectory` 支持位；旧 Host 不支持时明确报错，不忽略选择后写入默认目录。省略参数仍沿用原路径。
 
 典型文件包括：
 

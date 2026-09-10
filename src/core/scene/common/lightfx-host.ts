@@ -16,6 +16,8 @@ export interface ILightFXHostCapabilities {
     sceneTransactionVersion: 1;
     /** Absent on legacy hosts; version 1 publishes immutable per-operation Lightmap assets. */
     lightmapAssetVersion?: 1;
+    /** Accepts an existing assets directory as the Lightmap output parent. */
+    lightmapOutputDirectory?: true;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
     diagnosticsVersion?: 1;
@@ -47,6 +49,7 @@ export interface IResolvedLightFXTextureSource {
 }
 
 export interface IBeginLightFXBakeOptions {
+    outputUrl?: string;
     transactionId?: string;
     target: LightFXBakeTarget;
     sceneName: string;

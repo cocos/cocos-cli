@@ -28,6 +28,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             throw new Error('The LightFX host does not support scene transaction and immutable Lightmap asset protocol version 1.');
         }
         return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1,
+            ...(host.lightmapOutputDirectory === true ? { outputDirectory: true as const } : {}),
             ...(host.diagnosticsVersion === 1 ? { diagnostics: await lightFXCoordinator.queryDiagnostics('lightmap') } : {}),
             ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('lightmap') } : {}), busy: host.busy };
     }
@@ -63,7 +64,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         let nativeCommitted = false;
         this.broadcast('lightfx:bake-start', 'lightmap');
         try {
-            output = await lightFXCoordinator.bake(scene, 'lightmap', settings, timeoutMs);
+            output = await lightFXCoordinator.bake(scene, 'lightmap', settings, timeoutMs, options.outputUrl);
             if (!output.models.length && !output.terrains.length) {
                 throw new Error('No bakeable meshes or terrains were found.');
             }

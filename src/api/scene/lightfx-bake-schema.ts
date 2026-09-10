@@ -24,6 +24,7 @@ export const SchemaLightProbeBakeResult = z.object({
 });
 
 export const SchemaLightmapBakeOptions = z.object({
+    outputUrl: z.string().optional().describe('Existing output directory under db://assets; each bake creates an immutable child directory. Defaults to the scene lightmap directory.'),
     msaa: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(8)]).optional(),
     resolution: z.union([z.literal(128), z.literal(256), z.literal(512), z.literal(1024), z.literal(2048)]).optional(),
     filter: z.boolean().optional(), highp: z.boolean().optional(),

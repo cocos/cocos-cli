@@ -17,6 +17,12 @@ import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
 import { lightFXCoordinator } from '../scene-process/service/baking/lightfx/baker';
 
 describe('LightFX service entrance ownership', () => {
+    it('advertises directory selection only when the actual host supports it', async () => {
+        for (const supported of [false, true]) {
+            jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy: false, ...(supported ? { lightmapOutputDirectory: true as const } : {}) });
+            expect((await new LightmapBakeService().queryCapabilities()).outputDirectory).toBe(supported ? true : undefined);
+        }
+    });
     it.each([false, true])('advertises actual Lightmap cancellation readiness (%s)', async cancellable => {
         jest.mocked(lightFXCoordinator.canCancel).mockReturnValueOnce(cancellable);
         jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: true });

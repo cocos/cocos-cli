@@ -73,7 +73,7 @@ describe('LightFXBakeHost', () => {
     }
 
     it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
-        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
+        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
         const busy = { ...idle, busy: true };
         await expect(host.queryCapabilities()).resolves.toEqual(idle);
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });

@@ -33,12 +33,15 @@ export class LightFXCoordinator {
 
     canCancel(target: LightFXBakeTarget): boolean { return this.operation?.target === target; }
 
-    async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number): Promise<LightFXBakeOutput> {
+    async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number, outputUrl?: string): Promise<LightFXBakeOutput> {
         if (this.target) throw new Error(`A ${this.target} LightFX bake is already in progress.`);
         this.target = target;
         this.lastOperation = null;
         let operationId: string | undefined;
         try {
+            if (outputUrl !== undefined && (await lightFXBakeHost.queryCapabilities())?.lightmapOutputDirectory !== true) {
+                throw new Error('The LightFX host does not support choosing a Lightmap output directory.');
+            }
             const exported = await new LightFXExporter().export(scene, target, settings);
             const transactionId = lightFXSceneOperation.hostTransactionId;
             ({ operationId } = await lightFXBakeHost.begin({
@@ -47,6 +50,7 @@ export class LightFXCoordinator {
                 sceneName: scene.name,
                 textureSources: exported.textureSources,
                 timeoutMs,
+                ...(outputUrl !== undefined ? { outputUrl } : {}),
             }));
             this.operation = { operationId, transactionId, target };
             this.lastOperation = this.operation;
