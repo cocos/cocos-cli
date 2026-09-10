@@ -35,9 +35,13 @@ describe('LightFX cancellation ownership', () => {
         let finish!: (value: object) => void;
         mockExport.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
         const bake = owner.bake(scene, 'light-probe', settings, 1000);
+        expect(owner.canCancel('light-probe')).toBe(false);
         await expect(owner.cancel('light-probe')).resolves.toEqual({ cancelled: false, target: null });
         finish({ textureSources: [], world: {} });
         await bake;
+        expect(owner.canCancel('light-probe')).toBe(true);
+        expect(owner.canCancel('lightmap')).toBe(false);
+        expect(other.canCancel('light-probe')).toBe(false);
         await expect(other.cancel('light-probe')).resolves.toEqual({ cancelled: false, target: null });
         await expect(owner.cancel('lightmap')).resolves.toEqual({ cancelled: false, target: null });
         expect(host.queryCapabilities).not.toHaveBeenCalled();
@@ -61,6 +65,7 @@ describe('LightFX cancellation ownership', () => {
         jest.mocked(host.queryCapabilities).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
         const cancel = owner.cancel('light-probe');
         await owner.commit('first');
+        expect(owner.canCancel('light-probe')).toBe(false);
         await expect(owner.cancel('light-probe')).resolves.toEqual({ cancelled: false, target: null });
         jest.mocked(host.begin).mockResolvedValueOnce({ operationId: 'second' });
         await owner.bake(scene, 'light-probe', settings, 1000);

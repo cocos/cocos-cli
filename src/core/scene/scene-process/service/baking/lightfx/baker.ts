@@ -21,6 +21,8 @@ export class LightFXCoordinator {
 
     get activeTarget(): LightFXBakeTarget | null { return this.target; }
 
+    canCancel(target: LightFXBakeTarget): boolean { return this.operation?.target === target; }
+
     async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number): Promise<LightFXBakeOutput> {
         if (this.target) throw new Error(`A ${this.target} LightFX bake is already in progress.`);
         this.target = target;

@@ -36,7 +36,8 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         if (host?.sceneTransactionVersion !== 1 || typeof host.busy !== 'boolean') {
             throw new Error('The LightFX host does not support scene transaction protocol version 1.');
         }
-        return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, busy: host.busy };
+        return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1,
+            ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('light-probe') } : {}), busy: host.busy };
     }
 
     async bake(options: ILightProbeBakeOptions = {}): Promise<ILightProbeBakeResult> {

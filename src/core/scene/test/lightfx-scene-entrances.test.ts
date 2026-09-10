@@ -1,6 +1,6 @@
 const mockGetScene = jest.fn();
 jest.mock('cc', () => ({ director: { getScene: mockGetScene } }));
-jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { cancel: jest.fn() } }));
+jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { cancel: jest.fn(), canCancel: jest.fn(() => false) } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     queryCapabilities: jest.fn(),
     reserveSceneOperation: jest.fn(async () => ({ transactionId: 'test-owner' })),
@@ -17,6 +17,13 @@ import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
 import { lightFXCoordinator } from '../scene-process/service/baking/lightfx/baker';
 
 describe('LightFX service entrance ownership', () => {
+    it.each([false, true])('advertises actual probe cancellation readiness (%s)', async cancellable => {
+        jest.mocked(lightFXCoordinator.canCancel).mockReturnValueOnce(cancellable);
+        jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, cancelOwnershipVersion: 1, busy: true });
+        await expect(new LightProbeBakeService().queryCapabilities()).resolves.toEqual({
+            version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, cancelVersion: 1, cancellable, busy: true,
+        });
+    });
     it('passes the actual service target to cancellation', async () => {
         await new LightProbeBakeService().cancel();
         expect(lightFXCoordinator.cancel).toHaveBeenLastCalledWith('light-probe');

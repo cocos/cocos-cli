@@ -16,6 +16,10 @@ export interface ILightProbeBakeOptions {
 /** Versioned implementation support, not native executable readiness or a recoverable task. */
 export interface ILightProbeBakeCapabilities {
     version: 1;
+    /** Same-Scene probe cancellation verifies the actual host's native operation ownership. */
+    cancelVersion?: 1;
+    /** Advisory readiness of this Scene's native probe operation; absent on older implementations. */
+    cancellable?: boolean;
     /** SH Undo/Redo and multi-group scene reopening preserve baked results. */
     resultLifecycleVersion: 1;
     /** Both Scene and host participate in the full Bake/Clear transaction reservation. */
