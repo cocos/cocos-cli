@@ -69,6 +69,35 @@ describe('restoreComponentSnapshotDump', () => {
         mockRestoreComponentSnapshotProperties.mockReset();
     });
 
+    it.each(['cc.LightProbeGroup', 'CustomProbeGroup'])('rebinds restored %s probe arrays without rebuilding global data', async type => {
+        const old = [1, 2, 3, 4, 5];
+        const restored = [1, 2, 3, 4];
+        const info = { syncData: jest.fn(), update: jest.fn() };
+        const component = { isValid: true, enabledInHierarchy: true, probes: old, node: { scene: { globals: { lightProbeInfo: info } } } };
+        mockRestoreComponentSnapshotProperties.mockImplementationOnce(async () => { component.probes = restored; });
+        await restoreComponentSnapshotDump(component as any, { type, extends: ['cc.LightProbeGroup'], value: { _probes: {} } });
+        expect(info.syncData).toHaveBeenCalledWith(component.node, restored);
+        expect(info.update).not.toHaveBeenCalled();
+    });
+
+    it('refreshes Terrain block bindings after properties and the engine lifecycle have restored', async () => {
+        const events: string[] = [];
+        const restoredInfo = { texture: 'restored-texture' };
+        const block = { _updateLightmap: jest.fn(() => events.push('bind')) };
+        const component = {
+            _lightmapInfos: [] as unknown[],
+            onRestore: () => { events.push('lifecycle'); },
+            getBlocks: () => [block],
+        };
+        mockRestoreComponentSnapshotProperties.mockImplementationOnce(async () => {
+            events.push('properties');
+            component._lightmapInfos = [restoredInfo];
+        });
+        await restoreComponentSnapshotDump(component as any, { type: 'cc.Terrain', value: { _lightmapInfos: {} } });
+        expect(events).toEqual(['properties', 'lifecycle', 'bind']);
+        expect(block._updateLightmap).toHaveBeenCalledWith(restoredInfo);
+    });
+
     it('delegates property restoration to dump and calls onRestore lifecycle', async () => {
         const component = {
             onRestore: jest.fn(),

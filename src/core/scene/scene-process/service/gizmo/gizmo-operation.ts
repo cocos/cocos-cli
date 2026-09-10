@@ -8,6 +8,7 @@ import { getRaycastResults, raycast, RaycastResults } from './utils/engine-utils
 import { getRaycastResultNodes, getRegionNodes } from './utils/node-utils';
 import { getSelectNode } from './utils/selection-utils';
 import { getEditorNodeByPath, getEditorNodePath } from './utils/editor-node';
+import { probeSelectionEvents } from './components/light-probe-group/selection';
 
 function getService(): any {
     try {
@@ -81,6 +82,26 @@ class GizmoOperation {
     private _noGizmoMouseDownEvent: GizmoMouseEvent | null = null;
     private _mouseDownRaycastGizmos: RaycastResults | null = null;
     private _anyKeyDown = false;
+    private _probeRegionDown: GizmoMouseEvent | undefined;
+    private _probeRegionDragged = false;
+
+    private beginProbeRegion(event: GizmoMouseEvent): boolean {
+        if (!event.leftButton || event.altKey || (event.propagationStopped && !probeSelectionEvents.has(event)) || !getServiceProp('Gizmo')?.queryLightProbeEditMode?.()
+            || getServiceProp('Camera')?.controller?.isMoving?.()) { return false; }
+        this._probeRegionDown = event;
+        this._probeRegionDragged = false;
+        return true;
+    }
+
+    private endProbeRegion(): void {
+        this._probeRegionDown = undefined;
+        this._probeRegionDragged = false;
+        this._curMouseDownInfos.length = 0;
+        this._gizmoMouseDownEvent = null;
+        this._noGizmoMouseDownEvent = null;
+        getServiceProp('Gizmo')?.execGizmoMethods('cc.LightProbeGroup', 'endRegion');
+        this._hideSelectionRegion();
+    }
 
     /**
      * Raycast against gizmo nodes
@@ -225,6 +246,10 @@ class GizmoOperation {
         this._anyKeyDown = event.altKey || event.ctrlKey || event.shiftKey || event.metaKey;
 
         const customEvent = createGizmoMouseEvent('mouseDown', event);
+        // Snapshot before point-click selection changes, not after; modifiers belong to mouse-down.
+        if (customEvent.leftButton && !customEvent.altKey && getServiceProp('Gizmo')?.queryLightProbeEditMode?.()) {
+            getServiceProp('Gizmo')?.execGizmoMethods('cc.LightProbeGroup', 'beginRegion');
+        }
 
         // 与 cocos-editor 一致：不区分按键，始终做 raycast
         const results = this.raycastGizmos(customEvent.x, customEvent.y);
@@ -232,9 +257,12 @@ class GizmoOperation {
 
         if (results.length > 0) {
             this._gizmoMouseDownEvent = customEvent;
-            return this._onGizmoMouseDown(customEvent, results);
+            const result = this._onGizmoMouseDown(customEvent, results);
+            if (!this.beginProbeRegion(customEvent)) { getServiceProp('Gizmo')?.execGizmoMethods('cc.LightProbeGroup', 'endRegion'); }
+            return result;
         }
 
+        if (this.beginProbeRegion(customEvent)) { return false; }
         this._noGizmoMouseDownEvent = customEvent;
         this._onNotGizmoMouseDown(customEvent);
     }
@@ -242,6 +270,14 @@ class GizmoOperation {
     public onMouseUp(event: ISceneMouseEvent): boolean | void {
         this._anyKeyDown = false;
         const customEvent = createGizmoMouseEvent('mouseUp', event);
+
+        if (this._probeRegionDown) {
+            if (!this._probeRegionDragged && !probeSelectionEvents.has(this._probeRegionDown) && !this._probeRegionDown.ctrlKey && !this._probeRegionDown.metaKey && !this._probeRegionDown.shiftKey) {
+                getServiceProp('Gizmo')?.unselectAllLightProbes?.();
+            }
+            this.endProbeRegion();
+            return false;
+        }
 
         if (this._mouseDownRaycastGizmos && this._mouseDownRaycastGizmos.length > 0) {
             if (!this._gizmoMouseDownEvent) return true;
@@ -257,6 +293,19 @@ class GizmoOperation {
     public onMouseMove(event: ISceneMouseEvent): boolean | void {
         this._gizmoMoved = true;
         const customEvent = createGizmoMouseEvent('mouseMove', event);
+        const probeDown = this._probeRegionDown;
+        if (probeDown) {
+            if (!getServiceProp('Gizmo')?.queryLightProbeEditMode?.()) { this.endProbeRegion(); return false; }
+            if (Math.hypot(customEvent.x - probeDown.x, customEvent.y - probeDown.y) < 10 && !this._probeRegionDragged) { return false; }
+            this._probeRegionDragged = true;
+            const left = Math.min(probeDown.x, customEvent.x);
+            const right = Math.max(probeDown.x, customEvent.x);
+            const bottom = Math.min(probeDown.y, customEvent.y);
+            const top = Math.max(probeDown.y, customEvent.y);
+            this._showSelectionRegion(left, right, top, bottom);
+            getServiceProp('Gizmo')?.regionSelectLightProbes?.(left, right, top, bottom, probeDown.ctrlKey || probeDown.metaKey || probeDown.shiftKey);
+            return false;
+        }
         const results = this.raycastGizmos(customEvent.x, customEvent.y);
 
         if (this._mouseDownRaycastGizmos && this._mouseDownRaycastGizmos.length > 0) {

@@ -80,6 +80,25 @@ describe('LightFX active scene renderer routing', () => {
         expect(fallback).toHaveBeenCalledTimes(1);
     });
 
+    it.each(['LightProbeBake', 'LightmapBake'] as const)('routes %s capability queries to the actual renderer, with worker fallback only when absent', async module => {
+        const result = { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, ...(module === 'LightmapBake' ? { assetVersion: 1 } : {}), busy: true };
+        const visible = createSocket({ id: 'visible', sceneUrl: 'db://assets/Probe.scene', visible: true, result });
+        useSockets([visible]);
+        const fallback = jest.fn(async () => result);
+        await expect(lightFXBakeRenderer.invoke(
+            module, 'queryCapabilities', [], 30_000, fallback,
+        )).resolves.toEqual(result);
+        expect(fallback).not.toHaveBeenCalled();
+        expect(visible.emit).toHaveBeenCalledWith('scene:invoke-lightfx', expect.objectContaining({
+            module, method: 'queryCapabilities', sceneUrl: 'db://assets/Probe.scene',
+        }), expect.any(Function));
+        useSockets([]);
+        await expect(lightFXBakeRenderer.invoke(
+            module, 'queryCapabilities', [], 30_000, fallback,
+        )).resolves.toEqual(result);
+        expect(fallback).toHaveBeenCalledTimes(1);
+    });
+
     it('routes a lightmap bake-info query to the active renderer', async () => {
         const visible = createSocket({
             id: 'visible',
@@ -110,5 +129,17 @@ describe('LightFX active scene renderer routing', () => {
             'LightProbeBake', 'bake', [{}], 600_000, fallback, true,
         )).rejects.toThrow('visible scene renderer has not finished loading');
         expect(fallback).not.toHaveBeenCalled();
+    });
+
+    it.each(['LightProbeBake', 'LightmapBake'] as const)('preserves the %s module when routing cancellation', async module => {
+        const visible = createSocket({ id: 'visible', sceneUrl: 'db://assets/Test.scene', visible: true });
+        useSockets([visible]);
+        const fallback = jest.fn();
+        await lightFXBakeRenderer.cancel(module, fallback);
+        expect(visible.emit).toHaveBeenCalledWith('scene:invoke-lightfx', expect.objectContaining({ module, method: 'cancel' }), expect.any(Function));
+        expect(fallback).not.toHaveBeenCalled();
+        useSockets([]);
+        await lightFXBakeRenderer.cancel(module, fallback);
+        expect(fallback).toHaveBeenCalledTimes(1);
     });
 });

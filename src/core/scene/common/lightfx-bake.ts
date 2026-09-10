@@ -1,5 +1,5 @@
 import type { IServiceEvents } from '../scene-process/service/core';
-import type { ILightmapTextureInfo } from './lightfx-host';
+import type { ILightmapTextureInfo, ILightFXDiagnostics } from './lightfx-host';
 
 export interface ILightProbeBakeOptions {
     giScale?: number;
@@ -13,7 +13,24 @@ export interface ILightProbeBakeOptions {
     timeoutMs?: number;
 }
 
+/** Versioned implementation support, not native executable readiness or a recoverable task. */
+export interface ILightProbeBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
+    version: 1;
+    /** Same-Scene probe cancellation verifies the actual host's native operation ownership. */
+    cancelVersion?: 1;
+    /** Advisory readiness of this Scene's native probe operation; absent on older implementations. */
+    cancellable?: boolean;
+    /** SH Undo/Redo and multi-group scene reopening preserve baked results. */
+    resultLifecycleVersion: 1;
+    /** Both Scene and host participate in the full Bake/Clear transaction reservation. */
+    sceneTransactionVersion: 1;
+    /** Instantaneous shared host occupancy; execution still acquires its own reservation. */
+    busy: boolean;
+}
+
 export interface ILightProbeBakeResult {
+    diagnostics?: ILightFXDiagnostics;
     sceneUrl: string;
     probeCount: number;
     giScale: number;
@@ -43,7 +60,24 @@ export interface ILightmapBakeOptions {
     timeoutMs?: number;
 }
 
+/** Implementation support, not native executable readiness, task recovery or safe asset deletion. */
+export interface ILightmapBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
+    version: 1;
+    /** Mesh/Terrain bindings, null references and live blocks are restored with the result history. */
+    resultLifecycleVersion: 1;
+    sceneTransactionVersion: 1;
+    /** The actual host preserves previous textures in immutable per-operation directories. */
+    assetVersion: 1;
+    /** Same-Scene cancellation requires the actual host ownership protocol. */
+    cancelVersion?: 1;
+    /** Advisory: this Scene has obtained a native Lightmap operation ID. */
+    cancellable?: boolean;
+    busy: boolean;
+}
+
 export interface ILightmapBakeResult {
+    diagnostics?: ILightFXDiagnostics;
     sceneUrl: string;
     textureUrls: string[];
     meshCount: number;
@@ -52,6 +86,8 @@ export interface ILightmapBakeResult {
 }
 
 export interface ILightmapBakeInfo {
+    /** Read-only next-bake diagnostics; absent on older runtimes. Does not guarantee image quality. */
+    readiness?: ILightmapReadiness;
     sceneUrl: string;
     baked: boolean;
     meshCount: number;
@@ -60,6 +96,22 @@ export interface ILightmapBakeInfo {
     stationaryMainLight: boolean;
     textures: ILightmapTextureInfo[];
     missingTextureUuids: string[];
+}
+
+export type LightmapObjectIssue = 'inactive' | 'movable' | 'editor-only' | 'disabled' | 'not-participating'
+    | 'missing-mesh' | 'invalid-uv1' | 'skinned-static-pose' | 'material-approximation' | 'terrain-translation-only';
+
+export interface ILightmapReadiness {
+    version: 1;
+    objects: {
+        componentUuid: string;
+        nodeName: string;
+        kind: 'mesh' | 'terrain';
+        receivesLightmap: boolean;
+        castsShadow: boolean;
+        lightmapSize: number;
+        issues: LightmapObjectIssue[];
+    }[];
 }
 
 export interface ILightFXCancelResult {
@@ -73,17 +125,23 @@ export interface ILightFXBakeEvents {
 }
 
 export interface ILightProbeBakeService extends IServiceEvents {
+    /** Queries this Scene implementation and its actual host without modifying scene or task state. */
+    queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
     bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
     clearBake(options?: { saveScene?: boolean }): Promise<{ probeCount: number }>;
+    /** Cancels only this Scene's probe bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;
 }
 
 export interface ILightmapBakeService extends IServiceEvents {
+    /** Queries this Scene and its actual host without modifying scene or task state. */
+    queryCapabilities(): Promise<ILightmapBakeCapabilities>;
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
     clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }>;
+    /** Cancels only this Scene's lightmap bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;
 }
 
-export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'bake' | 'clearBake' | 'cancel'>;
-export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;
+export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'queryCapabilities' | 'bake' | 'clearBake' | 'cancel'>;
+export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'queryCapabilities' | 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;

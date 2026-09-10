@@ -1,15 +1,18 @@
 import { director, MeshRenderer, Scene, Terrain, Texture2D } from 'cc';
 import type {
     ILightFXBakeEvents, ILightFXCancelResult, ILightmapBakeOptions,
-    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService,
+    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService, ILightmapBakeCapabilities,
 } from '../../common';
 import { Rpc } from '../rpc';
 import { lightFXCoordinator } from './baking/lightfx/baker';
 import type { LightFXBakeOutput } from './baking/lightfx/baker';
 import { lightFXBakeHost } from './baking/lightfx/host';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
+import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
+import { finishSavedLightFXRecording } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
+import { queryLightmapReadiness } from './baking/lightfx/readiness';
 
 interface LightmapBinding {
     target: any;
@@ -20,7 +23,21 @@ interface LightmapBinding {
 
 @register('LightmapBake')
 export class LightmapBakeService extends BaseService<ILightFXBakeEvents> implements ILightmapBakeService {
+    async queryCapabilities(): Promise<ILightmapBakeCapabilities> {
+        const host = await lightFXBakeHost.queryCapabilities();
+        if (host?.sceneTransactionVersion !== 1 || host.lightmapAssetVersion !== 1 || typeof host.busy !== 'boolean') {
+            throw new Error('The LightFX host does not support scene transaction and immutable Lightmap asset protocol version 1.');
+        }
+        return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1,
+            ...(host.diagnosticsVersion === 1 ? { diagnostics: await lightFXCoordinator.queryDiagnostics('lightmap') } : {}),
+            ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('lightmap') } : {}), busy: host.busy };
+    }
+
     async bake(options: ILightmapBakeOptions = {}): Promise<ILightmapBakeResult> {
+        return lightFXSceneOperation.run('lightmap', 'bake', () => this.bakeExclusive(options));
+    }
+
+    private async bakeExclusive(options: ILightmapBakeOptions): Promise<ILightmapBakeResult> {
         const started = Date.now();
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
@@ -56,15 +73,18 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             const previousBindings = this.snapshotBindings(output);
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
             const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
-            const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Bake lightmap' });
+            // Scene recordings do not recursively capture child components.
+            // Keep the flags last, after restoring each affected result binding.
+            const targets = [...new Set([...output.models, ...output.terrains].map(component => component.uuid)), scene.uuid];
+            const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
             try {
                 this.applyBakeResult(output, textures);
                 (scene.globals as any).bakedWithHighpLightmap = settings.highp;
                 (scene.globals as any).bakedWithStationaryMainLight = output.stationaryMainLight;
                 await Service.Engine.repaintInEditMode();
-                if (options.saveScene !== false) await Service.Editor.save({});
-                await Service.Undo.endRecording(undo);
-                await lightFXCoordinator.commit(output.operationId);
+                await finishSavedLightFXRecording(Service.Undo, undo,
+                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined,
+                    () => lightFXCoordinator.commit(output!.operationId));
             } catch (error) {
                 this.restoreBindings(previousBindings);
                 (scene.globals as any).bakedWithHighpLightmap = previousHighp;
@@ -80,6 +100,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 meshCount: output.result.meshes.length,
                 terrainCount: output.result.terrains.length,
                 durationMs: Date.now() - started,
+                diagnostics: await lightFXCoordinator.queryDiagnostics?.('lightmap'),
             };
         } catch (error) {
             if (output) await lightFXCoordinator.rollback(output.operationId).catch((rollbackError) => {
@@ -123,6 +144,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         });
         return {
             sceneUrl: await this.querySceneUrl(),
+            readiness: queryLightmapReadiness(scene),
             baked: meshCount > 0 || terrainCount > 0,
             meshCount,
             terrainCount,
@@ -133,20 +155,25 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     }
 
     async clearBake(options: { saveScene?: boolean; deleteAssets?: boolean } = {}): Promise<{ clearedCount: number }> {
+        return lightFXSceneOperation.run('lightmap', 'clear', () => this.clearBakeExclusive(options));
+    }
+
+    private async clearBakeExclusive(options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }> {
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
 
         const bindings = this.snapshotSceneBindings(scene);
         const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
         const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
-        const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Clear lightmap' });
+        const targets = [...new Set(bindings.map(binding => binding.target.uuid as string)), scene.uuid];
+        const undo = Service.Undo.beginRecording(targets, { label: 'Clear lightmap' });
         try {
             this.clearBindings(bindings);
             (scene.globals as any).bakedWithHighpLightmap = false;
             (scene.globals as any).bakedWithStationaryMainLight = false;
             await Service.Engine.repaintInEditMode();
-            if (options.saveScene !== false) await Service.Editor.save({});
-            await Service.Undo.endRecording(undo);
+            await finishSavedLightFXRecording(Service.Undo, undo,
+                options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
         } catch (error) {
             Service.Undo.cancelRecording(undo);
             this.restoreBindings(bindings);
@@ -163,7 +190,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     }
 
     cancel(): Promise<ILightFXCancelResult> {
-        return lightFXCoordinator.cancel();
+        return lightFXCoordinator.cancel('lightmap');
     }
 
     private async querySceneUrl(): Promise<string> {

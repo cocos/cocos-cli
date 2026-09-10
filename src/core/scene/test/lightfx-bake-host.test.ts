@@ -56,11 +56,12 @@ describe('LightFXBakeHost', () => {
         await remove(root);
     });
 
-    async function finishLightProbe(): Promise<string> {
+    async function finishLightProbe(transactionId?: string): Promise<string> {
         mockRunnerRun.mockImplementationOnce(async ({ cwd }: { cwd: string }) => {
             await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
         });
         const { operationId } = await host.begin({
+            transactionId,
             target: 'light-probe',
             sceneName: 'LightProbe',
             textureSources: [],
@@ -70,6 +71,124 @@ describe('LightFXBakeHost', () => {
         await expect(host.run({ operationId })).resolves.toEqual({ result: mockDecodedResult, textureUrls: [] });
         return operationId;
     }
+
+    it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
+        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
+        const busy = { ...idle, busy: true };
+        await expect(host.queryCapabilities()).resolves.toEqual(idle);
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        await expect(host.queryCapabilities()).resolves.toEqual(busy);
+        await expect(host.queryCapabilities()).resolves.toEqual(busy);
+        const operationId = await finishLightProbe(token.transactionId);
+        await expect(host.queryCapabilities()).resolves.toEqual(busy);
+        await host.commit({ operationId });
+        await expect(host.queryCapabilities()).resolves.toEqual(busy);
+        await host.releaseSceneOperation(token);
+        await expect(host.queryCapabilities()).resolves.toEqual(idle);
+        const legacyId = await finishLightProbe();
+        await expect(host.queryCapabilities()).resolves.toEqual(busy);
+        await host.rollback({ operationId: legacyId });
+        await expect(host.queryCapabilities()).resolves.toEqual(idle);
+    });
+
+    it('bounds native diagnostics, checks exact ownership and retains terminal logs without accepting late callbacks', async () => {
+        let lateLog!: (message: string) => void;
+        mockRunnerRun.mockImplementationOnce(async ({ cwd, onLog, onProgress }: {
+            cwd: string; onLog: (message: string) => void; onProgress: (value: unknown) => void;
+        }) => {
+            lateLog = onLog;
+            for (let index = 0; index < 150; index++) { onLog(`line ${index}`); }
+            onProgress({ native: [1, 4], file: cwd });
+            await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
+        });
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const { operationId } = await host.begin({ ...token, target: 'light-probe', sceneName: 'Probe', textureSources: [], timeoutMs: 120_000 });
+        const owner = { ...token, operationId, target: 'light-probe' as const };
+        await host.appendInput({ operationId, chunkBase64: Buffer.from('input').toString('base64') });
+        await host.run({ operationId });
+        const diagnostic = (await host.queryDiagnostics(owner))!;
+        expect([diagnostic.stage, diagnostic.logs.length, diagnostic.logs[0], diagnostic.logs.at(-1), diagnostic.progress])
+            .toEqual(['awaiting-commit', 128, 'line 22', 'line 149', '{"native":[1,4],"file":"<bake workspace>"}']);
+        diagnostic.logs.length = 0;
+        await expect(host.queryDiagnostics({ ...owner, target: 'lightmap' })).resolves.toBeUndefined();
+        await expect(host.queryDiagnostics({ ...owner, transactionId: undefined })).resolves.toBeUndefined();
+        await expect(host.queryDiagnostics({ ...owner, operationId: 'old' })).resolves.toBeUndefined();
+        await host.commit({ operationId });
+        lateLog('late callback');
+        const completed = (await host.queryDiagnostics(owner))!;
+        expect([completed.stage, completed.logs.length, completed.logs.at(-1)]).toEqual(['committed', 128, 'line 149']);
+        await host.releaseSceneOperation(token);
+    });
+
+    it('reserves before export, rejects missing/wrong ownership and keeps the lease past native commit', async () => {
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const opts = { target: 'light-probe' as const, sceneName: 'LightProbe', textureSources: [], timeoutMs: 120_000 };
+        await expect(host.reserveSceneOperation({ target: 'lightmap', action: 'clear' })).rejects.toThrow('already in progress');
+        await expect(host.begin(opts)).rejects.toThrow('ownership');
+        await expect(host.begin({ ...opts, transactionId: 'other' })).rejects.toThrow('ownership');
+        await expect(host.begin({ ...opts, ...token, target: 'lightmap' })).rejects.toThrow('ownership');
+        await expect(host.releaseSceneOperation({ transactionId: 'other' })).rejects.toThrow('Unknown');
+        const operationId = await finishLightProbe(token.transactionId);
+        await expect(host.releaseSceneOperation(token)).rejects.toThrow('cleanup has not finished');
+        await host.commit({ operationId });
+        await expect(host.reserveSceneOperation({ target: 'lightmap', action: 'clear' })).rejects.toThrow('already in progress');
+        await expect(host.begin({ ...opts, ...token })).rejects.toThrow('already started');
+        await host.releaseSceneOperation(token);
+        const next = await host.reserveSceneOperation({ target: 'lightmap', action: 'clear' });
+        await host.releaseSceneOperation(token); // A repeated release cannot unlock next.
+        await expect(host.reserveSceneOperation({ target: 'light-probe', action: 'bake' })).rejects.toThrow('already in progress');
+        await host.releaseSceneOperation(next);
+        await expect(host.begin({ ...opts, ...token })).rejects.toThrow('ownership');
+    });
+
+    it('keeps a reservation after native rollback until scene recovery has finished', async () => {
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const operationId = await finishLightProbe(token.transactionId);
+        await host.rollback({ operationId });
+        await expect(host.reserveSceneOperation({ target: 'lightmap', action: 'clear' })).rejects.toThrow('already in progress');
+        await host.releaseSceneOperation(token);
+        await expect(host.reserveSceneOperation({ target: 'lightmap', action: 'clear' })).resolves.toHaveProperty('transactionId');
+    });
+
+    it('rejects invalid reservation and clear credentials without deleting assets', async () => {
+        await expect(host.reserveSceneOperation({ target: 'invalid' as any, action: 'clear' })).rejects.toThrow('Invalid');
+        await expect(host.releaseSceneOperation({ transactionId: '' })).rejects.toThrow('Invalid');
+        const file = join(assetRoot, 'Fixture', 'lightmap', 'owned.png');
+        await outputFile(file, 'preserve');
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'clear' });
+        await expect(host.removeLightmapAssets({ sceneName: 'Fixture', ...token })).rejects.toThrow('ownership');
+        await expect(host.removeLightmapAssets({ sceneName: 'Fixture' })).rejects.toThrow('ownership');
+        await expect(readFile(file, 'utf8')).resolves.toBe('preserve');
+        await host.releaseSceneOperation(token);
+    });
+
+    it.each([false, true])('keeps deletion and asset refresh locked (legacy=%s)', async (legacy) => {
+        let finish!: () => void;
+        let entered!: () => void;
+        const enteredRefresh = new Promise<void>(resolve => { entered = resolve; });
+        mockAssetManager.refreshAsset.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; entered(); }));
+        const token = legacy ? undefined : await host.reserveSceneOperation({ target: 'lightmap', action: 'clear' });
+        const removing = host.removeLightmapAssets({ sceneName: 'Fixture', ...token });
+        await enteredRefresh;
+        await expect(host.reserveSceneOperation({ target: 'light-probe', action: 'bake' })).rejects.toThrow('already in progress');
+        if (token) {
+            await expect(host.releaseSceneOperation(token)).rejects.toThrow('cleanup has not finished');
+            await expect(host.removeLightmapAssets({ sceneName: 'Fixture', ...token })).rejects.toThrow('already being removed');
+        }
+        finish(); await removing;
+        if (token) await host.releaseSceneOperation(token);
+        await expect(host.reserveSceneOperation({ target: 'light-probe', action: 'bake' })).resolves.toHaveProperty('transactionId');
+    });
+
+    it('reserves against legacy native operations and keeps ownership after begin validation failure', async () => {
+        const operationId = await finishLightProbe();
+        await expect(host.reserveSceneOperation({ target: 'lightmap', action: 'clear' })).rejects.toThrow('already in progress');
+        await host.rollback({ operationId });
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        await expect(host.begin({ ...token, target: 'light-probe', sceneName: 'Scene', textureSources: [], timeoutMs: 1 })).rejects.toThrow('timeout');
+        await expect(host.reserveSceneOperation({ target: 'lightmap', action: 'clear' })).rejects.toThrow('already in progress');
+        await host.releaseSceneOperation(token);
+    });
 
     it('accepts chunked input, reserves one operation, and rolls it back idempotently', async () => {
         const { operationId } = await host.begin({
@@ -166,6 +285,26 @@ describe('LightFXBakeHost', () => {
         expect(mockAssetManager.queryAssetInfo).toHaveBeenCalledTimes(2);
     });
 
+    it('rejects unowned and stale cancellation without stopping the current reserved bake', async () => {
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const operationId = await finishLightProbe(token.transactionId);
+        const current = { operationId, ...token, target: 'light-probe' as const };
+        for (const request of [undefined, { ...current, operationId: 'old' }, { ...current, transactionId: undefined },
+            { ...current, transactionId: 'other' }, { ...current, target: 'lightmap' as const }]) {
+            await expect(host.cancel(request)).resolves.toEqual({ cancelled: false, target: null });
+        }
+        expect(mockRunnerCancel).not.toHaveBeenCalled();
+        await expect(host.cancel(current)).resolves.toEqual({ cancelled: true, target: 'light-probe' });
+        await host.releaseSceneOperation(token);
+        const nextToken = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const nextId = await finishLightProbe(nextToken.transactionId);
+        await expect(host.cancel(current)).resolves.toEqual({ cancelled: false, target: null });
+        await expect(host.cancel({ ...current, ...nextToken })).resolves.toEqual({ cancelled: false, target: null });
+        expect(mockRunnerCancel).toHaveBeenCalledTimes(1);
+        await host.commit({ operationId: nextId });
+        await host.releaseSceneOperation(nextToken);
+    });
+
     it('reports cancellation instead of an unknown operation when upload continues after cancel', async () => {
         const { operationId } = await host.begin({
             target: 'light-probe',
@@ -174,7 +313,7 @@ describe('LightFXBakeHost', () => {
             timeoutMs: 120_000,
         });
 
-        await expect(host.cancel()).resolves.toEqual({ cancelled: true, target: 'light-probe' });
+        await expect(host.cancel({ operationId, target: 'light-probe' })).resolves.toEqual({ cancelled: true, target: 'light-probe' });
         await expect(host.appendInput({
             operationId,
             chunkBase64: Buffer.from('late chunk').toString('base64'),
@@ -225,7 +364,7 @@ describe('LightFXBakeHost', () => {
 
     it('lets cancel win atomically after run and prevents a stale scene result from committing', async () => {
         const operationId = await finishLightProbe();
-        const cancelling = host.cancel();
+        const cancelling = host.cancel({ operationId, target: 'light-probe' });
 
         await expect(host.commit({ operationId }))
             .rejects.toThrow('LightFX bake was cancelled and cannot be committed.');
@@ -238,13 +377,15 @@ describe('LightFXBakeHost', () => {
         const operationId = await finishLightProbe();
         const committing = host.commit({ operationId });
 
-        await expect(host.cancel()).resolves.toEqual({ cancelled: false, target: null });
+        await expect(host.cancel({ operationId, target: 'light-probe' })).resolves.toEqual({ cancelled: false, target: null });
         await expect(committing).resolves.toBeUndefined();
         await expect(host.commit({ operationId })).resolves.toBeUndefined();
     });
 
     it('preserves a rollback backup and the active operation when restoration fails', async () => {
+        const token = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
         const { operationId } = await host.begin({
+            ...token,
             target: 'lightmap',
             sceneName: 'LightProbe',
             textureSources: [],
@@ -260,12 +401,15 @@ describe('LightFXBakeHost', () => {
         await expect(pathExists(operation.workspace)).resolves.toBe(true);
         expect((host as any).completedOperations.has(operationId)).toBe(false);
         expect((host as any).operation).toBe(operation);
+        await expect(host.releaseSceneOperation(token)).rejects.toThrow('cleanup has not finished');
+        await expect(host.reserveSceneOperation({ target: 'light-probe', action: 'clear' })).rejects.toThrow('already in progress');
 
         await expect(host.rollback({ operationId })).resolves.toBeUndefined();
         expect(rollbackAssets).toHaveBeenCalledTimes(2);
         await expect(pathExists(operation.workspace)).resolves.toBe(false);
         await expect(host.commit({ operationId }))
             .rejects.toThrow('LightFX bake was rolled-back and cannot be committed.');
+        await host.releaseSceneOperation(token);
     });
 
     it('marks an awaiting commit as expired before asynchronous cleanup starts', async () => {

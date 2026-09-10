@@ -174,6 +174,10 @@ class DumpUtil {
                     for (const [globalKey, globalPropertyDump] of Object.entries(propertyDump)) {
                         if (globalPropertyDump) {
                             await this.restoreProperty(node, `_globals.${globalKey}`, globalPropertyDump);
+                            if (globalKey === 'lightProbeInfo' && node instanceof Scene) {
+                                // Restoring SH must also invalidate the models' cached lighting.
+                                node.globals.lightProbeInfo.onProbeBakeFinished();
+                            }
                         }
                     }
                 }

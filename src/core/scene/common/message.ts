@@ -15,6 +15,8 @@ import type { IReferenceImageEvents } from './reference-image';
  * messageManager 不在已有接口中的补充事件
  */
 export interface ISceneEvents {
+    'scene:light-probe-edit-mode-changed': [enabled: boolean];
+    'scene:light-probe-bounding-box-edit-mode-changed': [enabled: boolean];
     'scene:dimension-changed': [is2D: boolean];
 }
 

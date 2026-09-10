@@ -5,6 +5,7 @@ import dumpUtil from '../dump';
 import { encodePrefab } from '../dump/encode';
 import type { INode, IPrefab, INodeDumpOptions } from '../../../common';
 import type { IScene } from '../../../common/editor/scene';
+import { preserveLightProbeCoefficients } from './light-probe-data';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -15,6 +16,8 @@ class SceneUtil {
      * @param sceneAsset
      */
     runScene(sceneAsset: cc.SceneAsset | cc.Scene): Promise<cc.Scene> {
+        const scene = sceneAsset instanceof cc.SceneAsset ? sceneAsset.scene : sceneAsset;
+        const restoreProbeCoefficients = scene ? preserveLightProbeCoefficients(scene) : undefined;
         // 重要：清空节点与组件的 path 缓存，否则会出现数据重复的问题
         EditorExtends.Node.clear();
         EditorExtends.Component.clear();
@@ -29,7 +32,12 @@ class SceneUtil {
                         reject(err ?? new Error('Unknown scene run error'));
                         return;
                     }
-                    resolve(instance);
+                    try {
+                        restoreProbeCoefficients?.(instance);
+                        resolve(instance);
+                    } catch (error) {
+                        reject(error);
+                    }
                 }
             );
         });

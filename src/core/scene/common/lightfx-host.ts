@@ -1,6 +1,35 @@
 /** A bake target supported by the native LightFX process. */
 export type LightFXBakeTarget = 'light-probe' | 'lightmap';
 
+/** Internal scene transaction ownership; not a public task or authentication token. */
+export interface IReserveLightFXSceneOperationOptions {
+    target: LightFXBakeTarget;
+    action: 'bake' | 'clear';
+}
+
+export interface ILightFXSceneOperationToken {
+    transactionId: string;
+}
+
+/** Read-only host protocol snapshot. Busy is advisory, not permission to start a transaction. */
+export interface ILightFXHostCapabilities {
+    sceneTransactionVersion: 1;
+    /** Absent on legacy hosts; version 1 publishes immutable per-operation Lightmap assets. */
+    lightmapAssetVersion?: 1;
+    /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
+    cancelOwnershipVersion?: 1;
+    diagnosticsVersion?: 1;
+    busy: boolean;
+}
+
+/** Native diagnostic text is informational, never a progress percentage or an instruction. */
+export interface ILightFXDiagnostics {
+    version: 1;
+    stage: string;
+    logs: string[];
+    progress?: string;
+}
+
 /** JSON-safe reference to a texture needed by a LightFX input file. */
 export interface ILightFXTextureSource {
     uuid: string;
@@ -18,6 +47,7 @@ export interface IResolvedLightFXTextureSource {
 }
 
 export interface IBeginLightFXBakeOptions {
+    transactionId?: string;
     target: LightFXBakeTarget;
     sceneName: string;
     textureSources: ILightFXTextureSource[];
@@ -71,7 +101,13 @@ export interface ILightFXOperationOptions {
     operationId: string;
 }
 
+export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions {
+    target: LightFXBakeTarget;
+    transactionId?: string;
+}
+
 export interface IRemoveLightmapAssetsOptions {
+    transactionId?: string;
     sceneName: string;
 }
 
@@ -100,13 +136,17 @@ export interface IQueryLightmapTextureInfoResult {
  * return value in this contract must remain JSON serializable and must not expose host file paths.
  */
 export interface ILightFXBakeHostService {
+    queryDiagnostics?(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined>;
+    queryCapabilities(): Promise<ILightFXHostCapabilities>;
+    reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken>;
+    releaseSceneOperation(options: ILightFXSceneOperationToken): Promise<void>;
     resolveTextureSource(options: IResolveLightFXTextureSourceOptions): Promise<IResolvedLightFXTextureSource | null>;
     begin(options: IBeginLightFXBakeOptions): Promise<IBeginLightFXBakeResult>;
     appendInput(options: IAppendLightFXInputOptions): Promise<void>;
     run(options: IRunLightFXBakeOptions): Promise<IRunLightFXBakeResult>;
     commit(options: ILightFXOperationOptions): Promise<void>;
     rollback(options: ILightFXOperationOptions): Promise<void>;
-    cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
+    cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
     removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<void>;
     queryLightmapTextureInfo(options: IQueryLightmapTextureInfoOptions): Promise<IQueryLightmapTextureInfoResult>;
 }

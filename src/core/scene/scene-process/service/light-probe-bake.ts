@@ -3,11 +3,15 @@ import type {
     ILightFXBakeEvents,
     ILightFXCancelResult,
     ILightProbeBakeOptions,
+    ILightProbeBakeCapabilities,
     ILightProbeBakeResult,
     ILightProbeBakeService,
 } from '../../common';
 import { lightFXCoordinator, LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
+import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
+import { lightFXBakeHost } from './baking/lightfx/host';
+import { finishSavedLightFXRecording } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
 
 interface ProbeSnapshot {
@@ -27,7 +31,21 @@ interface LightProbeSettings {
 
 @register('LightProbeBake')
 export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> implements ILightProbeBakeService {
+    async queryCapabilities(): Promise<ILightProbeBakeCapabilities> {
+        const host = await lightFXBakeHost.queryCapabilities();
+        if (host?.sceneTransactionVersion !== 1 || typeof host.busy !== 'boolean') {
+            throw new Error('The LightFX host does not support scene transaction protocol version 1.');
+        }
+        return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1,
+            ...(host.diagnosticsVersion === 1 ? { diagnostics: await lightFXCoordinator.queryDiagnostics('light-probe') } : {}),
+            ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('light-probe') } : {}), busy: host.busy };
+    }
+
     async bake(options: ILightProbeBakeOptions = {}): Promise<ILightProbeBakeResult> {
+        return lightFXSceneOperation.run('light-probe', 'bake', () => this.bakeExclusive(options));
+    }
+
+    private async bakeExclusive(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult> {
         const started = Date.now();
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
@@ -65,9 +83,9 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
                 this.applyResult(probes, output);
                 info.onProbeBakeFinished();
                 await Service.Engine.repaintInEditMode();
-                if (options.saveScene !== false) await Service.Editor.save({});
-                await Service.Undo.endRecording(undo);
-                await lightFXCoordinator.commit(output.operationId);
+                await finishSavedLightFXRecording(Service.Undo, undo,
+                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined,
+                    () => lightFXCoordinator.commit(output!.operationId));
             } catch (error) {
                 Service.Undo.cancelRecording(undo);
                 throw error;
@@ -79,6 +97,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
                 probeCount: probes.length,
                 ...settingsToApply,
                 durationMs: Date.now() - started,
+                diagnostics: await lightFXCoordinator.queryDiagnostics?.('light-probe'),
             };
         } catch (error) {
             if (output) await lightFXCoordinator.rollback(output.operationId).catch(() => undefined);
@@ -92,6 +111,10 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     }
 
     async clearBake(options: { saveScene?: boolean } = {}): Promise<{ probeCount: number }> {
+        return lightFXSceneOperation.run('light-probe', 'clear', () => this.clearBakeExclusive(options));
+    }
+
+    private async clearBakeExclusive(options: { saveScene?: boolean }): Promise<{ probeCount: number }> {
         const scene = director.getScene();
         if (!scene) throw new Error('No scene is currently open.');
         const info: any = scene.globals.lightProbeInfo;
@@ -101,8 +124,8 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         try {
             info.onProbeBakeCleared();
             await Service.Engine.repaintInEditMode();
-            if (options.saveScene !== false) await Service.Editor.save({});
-            await Service.Undo.endRecording(undo);
+            await finishSavedLightFXRecording(Service.Undo, undo,
+                options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
             return { probeCount: probes.length };
         } catch (error) {
             Service.Undo.cancelRecording(undo);
@@ -114,7 +137,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     }
 
     cancel(): Promise<ILightFXCancelResult> {
-        return lightFXCoordinator.cancel();
+        return lightFXCoordinator.cancel('light-probe');
     }
 
     private async querySceneUrl(): Promise<string> {
