@@ -1,6 +1,14 @@
 import type { Scene } from 'cc';
+import type { IUndoCommand } from '../common';
 import { SceneUndoManager } from '../scene-process/service/undo/scene-undo-manager';
-import { LightProbeClearCommand } from '../scene-process/service/undo/commands/light-probe-clear-command';
+import { LightFXResultCommand } from '../scene-process/service/undo/commands/lightfx-result-command';
+
+function protectClear(command: IUndoCommand, uuid: string, getScene: () => Scene) {
+    return LightFXResultCommand.protect(command, 'light-probe', () => {
+        const scene = getScene();
+        if (scene.isValid && scene.uuid === uuid) scene.globals.lightProbeInfo.onProbeBakeCleared();
+    });
+}
 
 function fixture() {
     const state = { gi: 1, coefficients: [1, 2, 3] };
@@ -16,8 +24,7 @@ function fixture() {
         await manager.endRecording(id);
     };
     const clear = () => {
-        manager.commitNonUndoableChange(command => command instanceof LightProbeClearCommand
-            ? command : new LightProbeClearCommand(command, scene.uuid, () => scene as unknown as Scene));
+        manager.commitNonUndoableChange(command => protectClear(command, scene.uuid, () => scene as unknown as Scene));
         scene.globals.lightProbeInfo.onProbeBakeCleared();
     };
     return { state, scene, manager, edit, clear };
@@ -106,7 +113,7 @@ describe('non-Undo probe Clear', () => {
         await f.edit(2);
         const clear = jest.fn();
         let current = { ...f.scene, globals: { lightProbeInfo: { onProbeBakeCleared: clear } } };
-        const command = new LightProbeClearCommand(f.manager.getHistoryForTesting()[0], f.scene.uuid, () => current as unknown as Scene);
+        const command = protectClear(f.manager.getHistoryForTesting()[0], f.scene.uuid, () => current as unknown as Scene);
         await command.undo();
         expect(clear).toHaveBeenCalledTimes(1);
         current = { ...current, uuid: 'other-scene' };
@@ -116,12 +123,23 @@ describe('non-Undo probe Clear', () => {
 
     it('clears SH even when an old command partially applies and then fails', async () => {
         const f = fixture();
-        const command = new LightProbeClearCommand({
+        const command = protectClear({
             meta: { id: 'failed-edit', label: 'Failed edit', type: 'test', scope: {}, timestamp: 0 },
             async undo() { f.state.coefficients = [9]; throw new Error('partial failure'); },
             async redo() { return { success: true }; },
         }, f.scene.uuid, () => f.scene as unknown as Scene);
         await expect(command.undo()).rejects.toThrow('partial failure');
+        expect(f.state.coefficients).toEqual([]);
+    });
+
+    it('still protects cleared SH when an independent Lightmap restore fails', async () => {
+        const f = fixture();
+        await f.edit(2);
+        const command = LightFXResultCommand.protect(f.manager.getHistoryForTesting()[0], 'lightmap', async () => {
+            throw new Error('texture unavailable');
+        });
+        protectClear(command, f.scene.uuid, () => f.scene as unknown as Scene);
+        await expect(command.undo()).rejects.toThrow('texture unavailable');
         expect(f.state.coefficients).toEqual([]);
     });
 });

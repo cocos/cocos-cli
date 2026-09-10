@@ -10,7 +10,7 @@ class MockVec3 {
 }
 const mockBake = jest.fn(), mockCommit = jest.fn(), mockRollback = jest.fn();
 const mockSave = jest.fn(), mockRepaint = jest.fn();
-const mockUndo = { beginRecording: jest.fn(), endRecording: jest.fn(), cancelRecording: jest.fn(), createCheckpoint: jest.fn(), commitLightProbeClear: jest.fn() };
+const mockUndo = { beginRecording: jest.fn(), endRecording: jest.fn(), cancelRecording: jest.fn(), createCheckpoint: jest.fn(), commitLightProbeClear: jest.fn(), commitLightmapRebake: jest.fn() };
 jest.mock('cc', () => ({ director: { getScene: mockGetScene }, MeshRenderer: mockMeshRenderer, Terrain: mockTerrain,
     Vec3: MockVec3, SH: { getBasisCount: () => 9 } }));
 jest.mock('../scene-process/service/core', () => ({
@@ -30,11 +30,11 @@ jest.mock('../scene-process/rpc', () => ({ Rpc: { getInstance: jest.fn() } }));
 import { LightmapBakeService } from '../scene-process/service/lightmap-bake';
 import { LightProbeBakeService } from '../scene-process/service/light-probe-bake';
 import { SceneUndoManager } from '../scene-process/service/undo/scene-undo-manager';
-import { LightProbeClearCommand } from '../scene-process/service/undo/commands/light-probe-clear-command';
+import { LightFXResultCommand } from '../scene-process/service/undo/commands/lightfx-result-command';
 
 function fixture(target: 'probe' | 'lightmap') {
     const events: string[] = [];
-    const oldTexture = { uuid: 'old' }, texture = { uuid: 'new' };
+    const oldTexture = { uuid: 'old', isValid: true }, texture = { uuid: 'new', isValid: true };
     let assets = ['old', 'new'];
     let committed = false;
     const model = { uuid: 'mesh', node: {}, bakeSettings: { texture: oldTexture as { uuid: string } | null,
@@ -70,7 +70,11 @@ function fixture(target: 'probe' | 'lightmap') {
     mockUndo.cancelRecording.mockImplementation(id => manager.cancelRecording(id));
     mockUndo.createCheckpoint.mockImplementation(() => manager.createCheckpoint());
     mockUndo.commitLightProbeClear.mockImplementation(() => manager.commitNonUndoableChange(command =>
-        new LightProbeClearCommand(command, scene.uuid, () => scene as unknown as import('cc').Scene)));
+        LightFXResultCommand.protect(command, 'light-probe', () => info.onProbeBakeCleared())));
+    mockUndo.commitLightmapRebake.mockImplementation(restore => {
+        events.push('retain');
+        manager.commitNonUndoableChange(command => LightFXResultCommand.protect(command, 'lightmap', restore));
+    });
     const save = async () => { events.push('save'); disk = read(); manager.markSaved(); };
     mockSave.mockImplementation(save);
     mockCommit.mockImplementation(async () => { events.push('commit'); committed = true; });
@@ -83,7 +87,8 @@ function fixture(target: 'probe' | 'lightmap') {
     const service = target === 'probe' ? new LightProbeBakeService() : new LightmapBakeService();
     jest.spyOn(service as any, 'querySceneUrl').mockResolvedValue('db://assets/test.scene');
     if (service instanceof LightmapBakeService) jest.spyOn(service as any, 'loadOutputTextures').mockResolvedValue(new Map([['mesh:0', texture]]));
-    return { service, manager, read, disk: () => disk, assets: () => assets, events, save,
+    return { service, manager, read, disk: () => disk, assets: () => assets, events, save, model, scene,
+        editGi: async () => { const id = manager.beginRecording(['scene']); info.giScale = 7; await manager.endRecording(id); },
         commit: async () => { committed = true; }, bake: () => service.bake({ giScale: 2, highp: true }), old: read() };
 }
 
@@ -92,7 +97,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
     it('confirms asset retention before recording or saving', async () => {
         const f = fixture(target);
         await f.bake();
-        expect({ events: f.events, disk: f.disk(), dirty: f.manager.isDirty() }).toEqual({ events: ['commit', 'record', 'save'], disk: f.read(), dirty: false });
+        expect({ events: f.events, disk: f.disk(), dirty: f.manager.isDirty() }).toEqual({ events: ['commit', target === 'probe' ? 'record' : 'retain', 'save'], disk: f.read(), dirty: false });
     });
 
     it.each([false, true])('does not mutate scene, disk or history on commit failure (host committed=%s)', async committed => {
@@ -116,7 +121,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
         expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
         expect(mockRollback).not.toHaveBeenCalled();
         await f.manager.undo();
-        expect(f.read()).toEqual(target === 'probe' && action === 'clear' ? result : f.old);
+        expect(f.read()).toEqual((target === 'probe' && action === 'clear') || (target === 'lightmap' && action === 'bake') ? result : f.old);
         await f.manager.redo();
         expect(f.read()).toEqual(result);
         await f.save();
@@ -132,7 +137,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
         expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
         expect(mockRollback).not.toHaveBeenCalled();
         await f.manager.undo();
-        const nonUndoable = target === 'probe' && action === 'clear';
+        const nonUndoable = (target === 'probe' && action === 'clear') || (target === 'lightmap' && action === 'bake');
         expect(f.read()).toEqual(nonUndoable ? result : f.old);
         expect(f.manager.isDirty()).toBe(!nonUndoable);
         await f.manager.redo();
@@ -158,5 +163,37 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
         await expect(f.service.clearBake({ saveScene: false })).rejects.toThrow('clear repaint failed');
         expect({ memory: f.read(), dirty: f.manager.isDirty(), undo: f.manager.canUndo() }).toEqual({ memory: f.old, dirty: false, undo: false });
         expect(mockSave).not.toHaveBeenCalled();
+    });
+});
+
+describe('Lightmap rebake history', () => {
+    beforeEach(() => jest.resetAllMocks());
+    it('keeps new texture, UV and flags while older GI edits still undo and redo', async () => {
+        const f = fixture('lightmap');
+        await f.editGi();
+        await f.service.bake({ saveScene: false, highp: true });
+        const latest = f.read();
+        await f.manager.undo();
+        expect(f.read()).toEqual({ ...latest, giScale: 1 });
+        expect(f.manager.isDirty()).toBe(true);
+        await f.manager.redo();
+        expect(f.read()).toEqual(latest);
+        await f.save();
+        expect(f.manager.isDirty()).toBe(false);
+    });
+    it('leaves first Bake and later Lightmap Clear undoable', async () => {
+        const f = fixture('lightmap');
+        f.model.bakeSettings.texture = null;
+        await f.service.bake({ saveScene: false });
+        expect(mockUndo.beginRecording).toHaveBeenCalled();
+        await f.manager.undo();
+        expect(f.read().texture).toBeNull();
+        await f.manager.redo();
+        await f.service.bake({ saveScene: false });
+        const latest = f.read();
+        await f.service.clearBake({ saveScene: false });
+        expect(f.read().texture).toBeNull();
+        await f.manager.undo();
+        expect(f.read()).toEqual(latest);
     });
 });

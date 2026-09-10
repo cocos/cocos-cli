@@ -8,7 +8,7 @@ import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
 import { restoreComponentSnapshotDump, restoreNodeSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
 import { withLightProbeTransformScenes } from './scene/light-probe-transform';
-import { LightProbeClearCommand } from './undo/commands/light-probe-clear-command';
+import { LightFXResultCommand } from './undo/commands/lightfx-result-command';
 
 interface IRecordingComponentSnapshot {
     uuid: string;
@@ -211,9 +211,20 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     commitLightProbeClear(): void {
         const scene = cc.director.getScene();
         if (!scene) throw new Error('No scene is currently open.');
+        const uuid = scene.uuid;
+        this._commitLightFXResult('light-probe', () => {
+            const current = cc.director.getScene();
+            if (current?.isValid && current.uuid === uuid) current.globals.lightProbeInfo.onProbeBakeCleared();
+        });
+    }
+
+    commitLightmapRebake(restore: () => Promise<void>): void {
+        this._commitLightFXResult('lightmap', restore);
+    }
+
+    private _commitLightFXResult(target: 'light-probe' | 'lightmap', restore: () => void | Promise<void>): void {
         const wasDirty = this._undoMgr.isDirty();
-        this._undoMgr.commitNonUndoableChange(command => command instanceof LightProbeClearCommand
-            ? command : new LightProbeClearCommand(command, scene.uuid, () => cc.director.getScene()));
+        this._undoMgr.commitNonUndoableChange(command => LightFXResultCommand.protect(command, target, restore));
         this._emitDirtyIfChanged(wasDirty);
     }
 
