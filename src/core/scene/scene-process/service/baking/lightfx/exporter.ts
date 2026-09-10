@@ -2,6 +2,7 @@ import { DirectionalLight, director, gfx, Light, MeshRenderer, MobilityMode, ren
 import type { ILightFXTextureSource } from '../../../../common/lightfx-host';
 import { lightFXBakeHost } from './host';
 import { LightFXBakeTarget, LightFXLight, LightFXMaterial, LightFXMesh, LightFXSettings, LightFXTerrain, LightFXWorld } from './types';
+import { validLightmapUV } from './readiness';
 
 export interface LightFXExport {
     world: LightFXWorld;
@@ -54,7 +55,7 @@ export class LightFXExporter {
             const positions: any = mesh.readAttribute(primitive, gfx.AttributeName.ATTR_POSITION); const normals: any = mesh.readAttribute(primitive, gfx.AttributeName.ATTR_NORMAL); const indices: any = mesh.readIndices(primitive);
             const uvs: any = mesh.readAttribute(primitive, gfx.AttributeName.ATTR_TEX_COORD); const luvs: any = mesh.readAttribute(primitive, gfx.AttributeName.ATTR_TEX_COORD1);
             if (!positions || !normals || !indices || positions.length !== normals.length) throw new Error(`Mesh has invalid position, normal or index data: ${model.node.name}`);
-            if (target === 'lightmap' && out.lightmapSize > 0 && !luvs) throw new Error(`Mesh is missing lightmap UV: ${model.node.name}`);
+            if (target === 'lightmap' && out.lightmapSize > 0 && !validLightmapUV(luvs, positions.length / 3)) throw new Error(`Mesh has missing or invalid lightmap UV: ${model.node.name}`);
             for (let i = 0; i < positions.length / 3; i++) {
                 const p = new Vec3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]); const n = new Vec3(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]);
                 Vec3.transformMat4(p, p, matrix); Vec3.transformMat4Normal(n, n, matrix).normalize();

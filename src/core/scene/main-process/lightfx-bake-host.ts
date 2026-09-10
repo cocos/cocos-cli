@@ -31,6 +31,7 @@ import type {
     IReserveLightFXSceneOperationOptions,
     ILightFXSceneOperationToken,
     ICancelLightFXOperationOptions,
+    ILightFXDiagnostics,
 } from '../common/lightfx-host';
 import { assetManager } from '../../assets';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
@@ -78,11 +79,29 @@ const MAX_TEXTURE_SOURCES = 10_000;
 export class LightFXBakeHost implements ILightFXBakeHostService {
     private operation: LightFXHostOperation | null = null;
     private readonly completedOperations = new Map<string, OperationTerminalState>();
+    private readonly diagnostics = new Map<string, { owner: ICancelLightFXOperationOptions; value: ILightFXDiagnostics }>();
     private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & { nativeStarted: boolean; removingAssets: boolean }) | null = null;
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+    }
+
+    public async queryDiagnostics(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined> {
+        const entry = this.diagnostics.get(options?.operationId);
+        if (!entry || entry.owner.target !== options.target || entry.owner.transactionId !== options.transactionId) { return undefined; }
+        return structuredClone(entry.value);
+    }
+
+    private diagnosticText(operation: LightFXHostOperation, value: unknown): string {
+        let text: string;
+        try { text = typeof value === 'string' ? value : JSON.stringify(value) ?? ''; } catch { return ''; }
+        for (const [path, label] of [[operation.workspace, '<bake workspace>'], [operation.targetDir, '<lightmap assets>']]) {
+            if (!path) continue;
+            // Object payloads have JSON-escaped Windows paths; plain logs do not.
+            text = text.split(JSON.stringify(path).slice(1, -1)).join(label).split(path).join(label);
+        }
+        return text.slice(0, 2048);
     }
 
     public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {
@@ -215,6 +234,8 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
 
         // Reserve the global operation before the first asynchronous filesystem call.
         this.operation = operation;
+        this.diagnostics.set(operationId, { owner: { operationId, target: options.target, transactionId: options.transactionId }, value: { version: 1, stage: 'accepting-input', logs: [] } });
+        if (this.diagnostics.size > MAX_REMEMBERED_OPERATIONS) { this.diagnostics.delete(this.diagnostics.keys().next().value!); }
         if (this.sceneOperation) this.sceneOperation.nativeStarted = true;
         try {
             await ensureDir(tmpDir);
@@ -259,6 +280,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             throw new Error('LightFX bake has already started.');
         }
         operation.state = 'running';
+        this.diagnostics.get(operation.id)!.value.stage = 'running';
 
         try {
             await operation.inputWritePromise;
@@ -270,7 +292,17 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 cwd: operation.workspace,
                 timeoutMs: operation.timeoutMs,
                 signal: operation.controller.signal,
-                onLog: (line) => console.log(`[LightFX] ${line}`),
+                onLog: message => {
+                    if (this.operation !== operation || operation.terminalState) { return; }
+                    console.log(`[LightFX] ${message}`);
+                    const logs = this.diagnostics.get(operation.id)!.value.logs;
+                    logs.push(this.diagnosticText(operation, message));
+                    if (logs.length > 128) { logs.shift(); }
+                },
+                onProgress: progress => {
+                    if (this.operation !== operation || operation.terminalState) { return; }
+                    this.diagnostics.get(operation.id)!.value.progress = this.diagnosticText(operation, progress);
+                },
             });
             this.throwIfTerminated(operation);
             const result = decodeLightFXOutput(await readFile(join(operation.outputDir, 'lfx.out')));
@@ -279,6 +311,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 : [];
             this.throwIfTerminated(operation);
             operation.state = 'awaiting-commit';
+            this.diagnostics.get(operation.id)!.value.stage = 'awaiting-commit';
             return { result, textureUrls };
         } catch (error) {
             const terminalError = operation.terminalState === 'cancelled' || operation.terminalState === 'expired'
@@ -616,6 +649,8 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     }
 
     private decideTerminalState(operation: LightFXHostOperation, state: OperationTerminalState): void {
+        const diagnostic = this.diagnostics.get(operation.id);
+        if (diagnostic && !operation.terminalState) { diagnostic.value.stage = state; }
         if (operation.terminalState) {
             if (operation.terminalState === state) {
                 return;

@@ -1,5 +1,5 @@
 import type { IServiceEvents } from '../scene-process/service/core';
-import type { ILightmapTextureInfo } from './lightfx-host';
+import type { ILightmapTextureInfo, ILightFXDiagnostics } from './lightfx-host';
 
 export interface ILightProbeBakeOptions {
     giScale?: number;
@@ -15,6 +15,7 @@ export interface ILightProbeBakeOptions {
 
 /** Versioned implementation support, not native executable readiness or a recoverable task. */
 export interface ILightProbeBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
     version: 1;
     /** Same-Scene probe cancellation verifies the actual host's native operation ownership. */
     cancelVersion?: 1;
@@ -29,6 +30,7 @@ export interface ILightProbeBakeCapabilities {
 }
 
 export interface ILightProbeBakeResult {
+    diagnostics?: ILightFXDiagnostics;
     sceneUrl: string;
     probeCount: number;
     giScale: number;
@@ -60,6 +62,7 @@ export interface ILightmapBakeOptions {
 
 /** Implementation support, not native executable readiness, task recovery or safe asset deletion. */
 export interface ILightmapBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
     version: 1;
     /** Mesh/Terrain bindings, null references and live blocks are restored with the result history. */
     resultLifecycleVersion: 1;
@@ -74,6 +77,7 @@ export interface ILightmapBakeCapabilities {
 }
 
 export interface ILightmapBakeResult {
+    diagnostics?: ILightFXDiagnostics;
     sceneUrl: string;
     textureUrls: string[];
     meshCount: number;
@@ -82,6 +86,8 @@ export interface ILightmapBakeResult {
 }
 
 export interface ILightmapBakeInfo {
+    /** Read-only next-bake diagnostics; absent on older runtimes. Does not guarantee image quality. */
+    readiness?: ILightmapReadiness;
     sceneUrl: string;
     baked: boolean;
     meshCount: number;
@@ -90,6 +96,22 @@ export interface ILightmapBakeInfo {
     stationaryMainLight: boolean;
     textures: ILightmapTextureInfo[];
     missingTextureUuids: string[];
+}
+
+export type LightmapObjectIssue = 'inactive' | 'movable' | 'editor-only' | 'disabled' | 'not-participating'
+    | 'missing-mesh' | 'invalid-uv1' | 'skinned-static-pose' | 'material-approximation' | 'terrain-translation-only';
+
+export interface ILightmapReadiness {
+    version: 1;
+    objects: {
+        componentUuid: string;
+        nodeName: string;
+        kind: 'mesh' | 'terrain';
+        receivesLightmap: boolean;
+        castsShadow: boolean;
+        lightmapSize: number;
+        issues: LightmapObjectIssue[];
+    }[];
 }
 
 export interface ILightFXCancelResult {

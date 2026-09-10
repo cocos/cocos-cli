@@ -17,6 +17,7 @@ import { Rpc } from '../../../rpc';
 
 /** JSON-only bridge from either a child scene process or a browser scene Webview to the Node host. */
 export const lightFXBakeHost: ILightFXBakeHostService = {
+    queryDiagnostics: options => Rpc.getInstance().request('lightFXBakeHost', 'queryDiagnostics', [options]),
     queryCapabilities: () => Rpc.getInstance().request('lightFXBakeHost', 'queryCapabilities'),
     reserveSceneOperation: (options) => Rpc.getInstance().request('lightFXBakeHost', 'reserveSceneOperation', [options]),
     releaseSceneOperation: (options) => Rpc.getInstance().request('lightFXBakeHost', 'releaseSceneOperation', [options]),

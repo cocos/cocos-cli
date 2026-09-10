@@ -2,6 +2,9 @@ const mockGetScene = jest.fn();
 const mockQueryLightmapTextureInfo = jest.fn();
 const mockMeshRenderer = class MeshRenderer {};
 const mockTerrain = class Terrain {};
+jest.mock('../scene-process/service/baking/lightfx/readiness', () => ({
+    queryLightmapReadiness: () => ({ version: 1, objects: [] }),
+}));
 
 jest.mock('cc', () => ({
     director: { getScene: mockGetScene },
@@ -81,6 +84,7 @@ describe('LightmapBakeService bake information', () => {
 
         await expect(service.queryBakeInfo()).resolves.toEqual({
             sceneUrl: 'db://assets/Lightmap.scene',
+            readiness: { version: 1, objects: [] },
             baked: true,
             meshCount: 2,
             terrainCount: 1,

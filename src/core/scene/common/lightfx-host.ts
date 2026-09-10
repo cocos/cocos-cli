@@ -18,7 +18,16 @@ export interface ILightFXHostCapabilities {
     lightmapAssetVersion?: 1;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
+    diagnosticsVersion?: 1;
     busy: boolean;
+}
+
+/** Native diagnostic text is informational, never a progress percentage or an instruction. */
+export interface ILightFXDiagnostics {
+    version: 1;
+    stage: string;
+    logs: string[];
+    progress?: string;
 }
 
 /** JSON-safe reference to a texture needed by a LightFX input file. */
@@ -127,6 +136,7 @@ export interface IQueryLightmapTextureInfoResult {
  * return value in this contract must remain JSON serializable and must not expose host file paths.
  */
 export interface ILightFXBakeHostService {
+    queryDiagnostics?(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined>;
     queryCapabilities(): Promise<ILightFXHostCapabilities>;
     reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken>;
     releaseSceneOperation(options: ILightFXSceneOperationToken): Promise<void>;

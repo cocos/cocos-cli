@@ -73,7 +73,7 @@ describe('LightFXBakeHost', () => {
     }
 
     it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
-        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: false };
+        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
         const busy = { ...idle, busy: true };
         await expect(host.queryCapabilities()).resolves.toEqual(idle);
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
@@ -89,6 +89,35 @@ describe('LightFXBakeHost', () => {
         await expect(host.queryCapabilities()).resolves.toEqual(busy);
         await host.rollback({ operationId: legacyId });
         await expect(host.queryCapabilities()).resolves.toEqual(idle);
+    });
+
+    it('bounds native diagnostics, checks exact ownership and retains terminal logs without accepting late callbacks', async () => {
+        let lateLog!: (message: string) => void;
+        mockRunnerRun.mockImplementationOnce(async ({ cwd, onLog, onProgress }: {
+            cwd: string; onLog: (message: string) => void; onProgress: (value: unknown) => void;
+        }) => {
+            lateLog = onLog;
+            for (let index = 0; index < 150; index++) { onLog(`line ${index}`); }
+            onProgress({ native: [1, 4], file: cwd });
+            await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
+        });
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const { operationId } = await host.begin({ ...token, target: 'light-probe', sceneName: 'Probe', textureSources: [], timeoutMs: 120_000 });
+        const owner = { ...token, operationId, target: 'light-probe' as const };
+        await host.appendInput({ operationId, chunkBase64: Buffer.from('input').toString('base64') });
+        await host.run({ operationId });
+        const diagnostic = (await host.queryDiagnostics(owner))!;
+        expect([diagnostic.stage, diagnostic.logs.length, diagnostic.logs[0], diagnostic.logs.at(-1), diagnostic.progress])
+            .toEqual(['awaiting-commit', 128, 'line 22', 'line 149', '{"native":[1,4],"file":"<bake workspace>"}']);
+        diagnostic.logs.length = 0;
+        await expect(host.queryDiagnostics({ ...owner, target: 'lightmap' })).resolves.toBeUndefined();
+        await expect(host.queryDiagnostics({ ...owner, transactionId: undefined })).resolves.toBeUndefined();
+        await expect(host.queryDiagnostics({ ...owner, operationId: 'old' })).resolves.toBeUndefined();
+        await host.commit({ operationId });
+        lateLog('late callback');
+        const completed = (await host.queryDiagnostics(owner))!;
+        expect([completed.stage, completed.logs.length, completed.logs.at(-1)]).toEqual(['committed', 128, 'line 149']);
+        await host.releaseSceneOperation(token);
     });
 
     it('reserves before export, rejects missing/wrong ownership and keeps the lease past native commit', async () => {

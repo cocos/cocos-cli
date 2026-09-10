@@ -5,7 +5,7 @@ import { LightFXExporter, LightFXExport } from './exporter';
 import { lightFXBakeHost } from './host';
 import { lightFXSceneOperation } from './scene-operation';
 import { LightFXBakeTarget, LightFXResult, LightFXSettings } from './types';
-import type { ICancelLightFXOperationOptions } from '../../../../common/lightfx-host';
+import type { ICancelLightFXOperationOptions, ILightFXDiagnostics } from '../../../../common/lightfx-host';
 
 const INPUT_CHUNK_SIZE = 512 * 1024;
 
@@ -18,6 +18,16 @@ export interface LightFXBakeOutput extends LightFXExport {
 export class LightFXCoordinator {
     private target: LightFXBakeTarget | null = null;
     private operation: ICancelLightFXOperationOptions | null = null;
+    private lastOperation: ICancelLightFXOperationOptions | null = null;
+
+    async queryDiagnostics(target: LightFXBakeTarget): Promise<ILightFXDiagnostics | undefined> {
+        const owner = this.operation ?? this.lastOperation;
+        if (owner?.target !== target) { return undefined; }
+        try {
+            const value = await lightFXBakeHost.queryDiagnostics?.(owner);
+            return owner === (this.operation ?? this.lastOperation) ? value : undefined;
+        } catch { return undefined; }
+    }
 
     get activeTarget(): LightFXBakeTarget | null { return this.target; }
 
@@ -26,6 +36,7 @@ export class LightFXCoordinator {
     async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number): Promise<LightFXBakeOutput> {
         if (this.target) throw new Error(`A ${this.target} LightFX bake is already in progress.`);
         this.target = target;
+        this.lastOperation = null;
         let operationId: string | undefined;
         try {
             const exported = await new LightFXExporter().export(scene, target, settings);
@@ -38,6 +49,7 @@ export class LightFXCoordinator {
                 timeoutMs,
             }));
             this.operation = { operationId, transactionId, target };
+            this.lastOperation = this.operation;
             const input = encodeLightFXInput(exported.world);
             for (let offset = 0; offset < input.length; offset += INPUT_CHUNK_SIZE) {
                 await lightFXBakeHost.appendInput({

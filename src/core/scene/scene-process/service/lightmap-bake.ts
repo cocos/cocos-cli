@@ -12,6 +12,7 @@ import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { finishSavedLightFXRecording } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
+import { queryLightmapReadiness } from './baking/lightfx/readiness';
 
 interface LightmapBinding {
     target: any;
@@ -28,6 +29,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             throw new Error('The LightFX host does not support scene transaction and immutable Lightmap asset protocol version 1.');
         }
         return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1,
+            ...(host.diagnosticsVersion === 1 ? { diagnostics: await lightFXCoordinator.queryDiagnostics('lightmap') } : {}),
             ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('lightmap') } : {}), busy: host.busy };
     }
 
@@ -98,6 +100,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 meshCount: output.result.meshes.length,
                 terrainCount: output.result.terrains.length,
                 durationMs: Date.now() - started,
+                diagnostics: await lightFXCoordinator.queryDiagnostics?.('lightmap'),
             };
         } catch (error) {
             if (output) await lightFXCoordinator.rollback(output.operationId).catch((rollbackError) => {
@@ -141,6 +144,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         });
         return {
             sceneUrl: await this.querySceneUrl(),
+            readiness: queryLightmapReadiness(scene),
             baked: meshCount > 0 || terrainCount > 0,
             meshCount,
             terrainCount,

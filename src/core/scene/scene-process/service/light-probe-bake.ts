@@ -37,6 +37,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             throw new Error('The LightFX host does not support scene transaction protocol version 1.');
         }
         return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1,
+            ...(host.diagnosticsVersion === 1 ? { diagnostics: await lightFXCoordinator.queryDiagnostics('light-probe') } : {}),
             ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('light-probe') } : {}), busy: host.busy };
     }
 
@@ -96,6 +97,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
                 probeCount: probes.length,
                 ...settingsToApply,
                 durationMs: Date.now() - started,
+                diagnostics: await lightFXCoordinator.queryDiagnostics?.('light-probe'),
             };
         } catch (error) {
             if (output) await lightFXCoordinator.rollback(output.operationId).catch(() => undefined);
