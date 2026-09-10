@@ -32,6 +32,15 @@ const capabilities = await cli.Scene.LightProbeBake.queryCapabilities();
 
 `resultLifecycleVersion: 1` 表明本 Scene 实现包含 SH Undo／Redo 与多组重开结果保留修复；`sceneTransactionVersion: 1` 表明 Scene 与实际 host 均使用完整 Bake／Clear 事务预留协议。旧 host 缺少查询或协议不匹配时拒绝返回能力，调用方不能只检测 bake 方法存在或只检查包版本。集成方遇到方法缺失／查询失败应显示不支持或连接错误，不得自动尝试烘焙。
 
+Lightmap 使用独立能力查询，不能复用 Probe 的生命周期判断：
+
+```ts
+const capabilities = await cli.Scene.LightmapBake.queryCapabilities();
+// { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1, busy: false }
+```
+
+这里的 `resultLifecycleVersion: 1` 包含 Mesh／Terrain 的结果录制目标、空纹理引用、TerrainBlock 恢复刷新及保存基线；`assetVersion: 1` 必须由实际 Node host 的 `lightmapAssetVersion: 1` 确认，保证新 Bake 不覆盖旧纹理版本。旧 host 即使支持 Probe 事务，也可能缺少资产版本保护，此时 Lightmap 查询拒绝返回支持。该能力只覆盖保留资产的 Clear，不承诺 deleteAssets 删除归属、资产 GC 或有归属取消。
+
 `busy` 仅为共享宿主的瞬时占用提示，包含导出前预留、原生操作、提交后场景回写及失败恢复；查询不占锁、不释放锁、不返回内部凭据。即使 busy=false，执行入口仍需原子预留，调用方必须处理查询之后发生的并发拒绝。该接口不检查原生 LightFX 可执行文件、场景输入合法性或渲染质量，也不是可恢复的任务状态／百分比／有归属取消接口。新旧 renderer 混用的限制仍见下文。
 
 ## MCP 工具

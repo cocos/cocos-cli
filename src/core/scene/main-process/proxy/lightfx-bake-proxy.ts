@@ -21,6 +21,10 @@ export const LightProbeBakeProxy: IPublicLightProbeBakeService = {
 };
 
 export const LightmapBakeProxy: IPublicLightmapBakeService = {
+    queryCapabilities: () => lightFXBakeRenderer.invoke(
+        'LightmapBake', 'queryCapabilities', [], 30_000,
+        () => Rpc.getInstance().request('LightmapBake', 'queryCapabilities'),
+    ),
     bake: (options) => lightFXBakeRenderer.invoke(
         'LightmapBake', 'bake', [options], (options.timeoutMs ?? 600_000) + 30_000,
         () => Rpc.getInstance().request('LightmapBake', 'bake', [options]), true,

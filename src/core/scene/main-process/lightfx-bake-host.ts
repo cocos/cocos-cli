@@ -81,7 +81,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {

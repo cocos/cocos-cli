@@ -1,7 +1,7 @@
 import { director, MeshRenderer, Scene, Terrain, Texture2D } from 'cc';
 import type {
     ILightFXBakeEvents, ILightFXCancelResult, ILightmapBakeOptions,
-    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService,
+    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService, ILightmapBakeCapabilities,
 } from '../../common';
 import { Rpc } from '../rpc';
 import { lightFXCoordinator } from './baking/lightfx/baker';
@@ -22,6 +22,14 @@ interface LightmapBinding {
 
 @register('LightmapBake')
 export class LightmapBakeService extends BaseService<ILightFXBakeEvents> implements ILightmapBakeService {
+    async queryCapabilities(): Promise<ILightmapBakeCapabilities> {
+        const host = await lightFXBakeHost.queryCapabilities();
+        if (host?.sceneTransactionVersion !== 1 || host.lightmapAssetVersion !== 1 || typeof host.busy !== 'boolean') {
+            throw new Error('The LightFX host does not support scene transaction and immutable Lightmap asset protocol version 1.');
+        }
+        return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1, busy: host.busy };
+    }
+
     async bake(options: ILightmapBakeOptions = {}): Promise<ILightmapBakeResult> {
         return lightFXSceneOperation.run('lightmap', 'bake', () => this.bakeExclusive(options));
     }

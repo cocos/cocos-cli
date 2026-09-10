@@ -80,21 +80,21 @@ describe('LightFX active scene renderer routing', () => {
         expect(fallback).toHaveBeenCalledTimes(1);
     });
 
-    it('routes a probe capability query to the actual active renderer, with worker fallback only when absent', async () => {
-        const result = { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, busy: true };
+    it.each(['LightProbeBake', 'LightmapBake'] as const)('routes %s capability queries to the actual renderer, with worker fallback only when absent', async module => {
+        const result = { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, ...(module === 'LightmapBake' ? { assetVersion: 1 } : {}), busy: true };
         const visible = createSocket({ id: 'visible', sceneUrl: 'db://assets/Probe.scene', visible: true, result });
         useSockets([visible]);
         const fallback = jest.fn(async () => result);
         await expect(lightFXBakeRenderer.invoke(
-            'LightProbeBake', 'queryCapabilities', [], 30_000, fallback,
+            module, 'queryCapabilities', [], 30_000, fallback,
         )).resolves.toEqual(result);
         expect(fallback).not.toHaveBeenCalled();
         expect(visible.emit).toHaveBeenCalledWith('scene:invoke-lightfx', expect.objectContaining({
-            module: 'LightProbeBake', method: 'queryCapabilities', sceneUrl: 'db://assets/Probe.scene',
+            module, method: 'queryCapabilities', sceneUrl: 'db://assets/Probe.scene',
         }), expect.any(Function));
         useSockets([]);
         await expect(lightFXBakeRenderer.invoke(
-            'LightProbeBake', 'queryCapabilities', [], 30_000, fallback,
+            module, 'queryCapabilities', [], 30_000, fallback,
         )).resolves.toEqual(result);
         expect(fallback).toHaveBeenCalledTimes(1);
     });

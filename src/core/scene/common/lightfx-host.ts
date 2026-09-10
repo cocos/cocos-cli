@@ -14,6 +14,8 @@ export interface ILightFXSceneOperationToken {
 /** Read-only host protocol snapshot. Busy is advisory, not permission to start a transaction. */
 export interface ILightFXHostCapabilities {
     sceneTransactionVersion: 1;
+    /** Absent on legacy hosts; version 1 publishes immutable per-operation Lightmap assets. */
+    lightmapAssetVersion?: 1;
     busy: boolean;
 }
 

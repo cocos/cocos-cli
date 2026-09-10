@@ -54,6 +54,17 @@ export interface ILightmapBakeOptions {
     timeoutMs?: number;
 }
 
+/** Implementation support, not native executable readiness, task recovery or safe asset deletion. */
+export interface ILightmapBakeCapabilities {
+    version: 1;
+    /** Mesh/Terrain bindings, null references and live blocks are restored with the result history. */
+    resultLifecycleVersion: 1;
+    sceneTransactionVersion: 1;
+    /** The actual host preserves previous textures in immutable per-operation directories. */
+    assetVersion: 1;
+    busy: boolean;
+}
+
 export interface ILightmapBakeResult {
     sceneUrl: string;
     textureUrls: string[];
@@ -92,6 +103,8 @@ export interface ILightProbeBakeService extends IServiceEvents {
 }
 
 export interface ILightmapBakeService extends IServiceEvents {
+    /** Queries this Scene and its actual host without modifying scene or task state. */
+    queryCapabilities(): Promise<ILightmapBakeCapabilities>;
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
     clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }>;
@@ -99,4 +112,4 @@ export interface ILightmapBakeService extends IServiceEvents {
 }
 
 export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'queryCapabilities' | 'bake' | 'clearBake' | 'cancel'>;
-export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;
+export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'queryCapabilities' | 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;

@@ -16,6 +16,27 @@ import { lightFXSceneOperation } from '../scene-process/service/baking/lightfx/s
 import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
 
 describe('LightFX service entrance ownership', () => {
+    it.each([false, true])('queries Lightmap lifecycle and actual host asset support without reserving (busy=%s)', async busy => {
+        jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy });
+        const reserveCalls = jest.mocked(lightFXBakeHost.reserveSceneOperation).mock.calls.length;
+        await expect(new LightmapBakeService().queryCapabilities()).resolves.toEqual({
+            version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1, busy,
+        });
+        expect(lightFXBakeHost.reserveSceneOperation).toHaveBeenCalledTimes(reserveCalls);
+        expect(mockGetScene).not.toHaveBeenCalled();
+    });
+
+    it('rejects Lightmap capability on a legacy, mismatched or unreachable host', async () => {
+        const query = jest.mocked(lightFXBakeHost.queryCapabilities);
+        for (const value of [null, {}, { sceneTransactionVersion: 1, busy: false }, { sceneTransactionVersion: 1, lightmapAssetVersion: 2, busy: false }, { sceneTransactionVersion: 2, lightmapAssetVersion: 1, busy: false }, { sceneTransactionVersion: 1, lightmapAssetVersion: 1 }]) {
+            query.mockResolvedValueOnce(value as Awaited<ReturnType<typeof query>>);
+            await expect(new LightmapBakeService().queryCapabilities()).rejects.toThrow('protocol version 1');
+        }
+        query.mockRejectedValueOnce(new Error('Disconnected'));
+        await expect(new LightmapBakeService().queryCapabilities()).rejects.toThrow('Disconnected');
+        expect(mockGetScene).not.toHaveBeenCalled();
+    });
+
     it.each([false, true])('queries the actual host without taking a reservation (busy=%s)', async (busy) => {
         const query = jest.mocked(lightFXBakeHost.queryCapabilities);
         query.mockResolvedValueOnce({ sceneTransactionVersion: 1, busy });
