@@ -16,6 +16,8 @@ export interface ILightFXHostCapabilities {
     sceneTransactionVersion: 1;
     /** Absent on legacy hosts; version 1 publishes immutable per-operation Lightmap assets. */
     lightmapAssetVersion?: 1;
+    /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
+    cancelOwnershipVersion?: 1;
     busy: boolean;
 }
 
@@ -90,6 +92,11 @@ export interface ILightFXOperationOptions {
     operationId: string;
 }
 
+export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions {
+    target: LightFXBakeTarget;
+    transactionId?: string;
+}
+
 export interface IRemoveLightmapAssetsOptions {
     transactionId?: string;
     sceneName: string;
@@ -129,7 +136,7 @@ export interface ILightFXBakeHostService {
     run(options: IRunLightFXBakeOptions): Promise<IRunLightFXBakeResult>;
     commit(options: ILightFXOperationOptions): Promise<void>;
     rollback(options: ILightFXOperationOptions): Promise<void>;
-    cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
+    cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
     removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<void>;
     queryLightmapTextureInfo(options: IQueryLightmapTextureInfoOptions): Promise<IQueryLightmapTextureInfoResult>;
 }

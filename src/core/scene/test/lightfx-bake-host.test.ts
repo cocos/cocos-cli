@@ -73,7 +73,7 @@ describe('LightFXBakeHost', () => {
     }
 
     it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
-        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy: false };
+        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: false };
         const busy = { ...idle, busy: true };
         await expect(host.queryCapabilities()).resolves.toEqual(idle);
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
@@ -256,6 +256,26 @@ describe('LightFXBakeHost', () => {
         expect(mockAssetManager.queryAssetInfo).toHaveBeenCalledTimes(2);
     });
 
+    it('rejects unowned and stale cancellation without stopping the current reserved bake', async () => {
+        const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const operationId = await finishLightProbe(token.transactionId);
+        const current = { operationId, ...token, target: 'light-probe' as const };
+        for (const request of [undefined, { ...current, operationId: 'old' }, { ...current, transactionId: undefined },
+            { ...current, transactionId: 'other' }, { ...current, target: 'lightmap' as const }]) {
+            await expect(host.cancel(request)).resolves.toEqual({ cancelled: false, target: null });
+        }
+        expect(mockRunnerCancel).not.toHaveBeenCalled();
+        await expect(host.cancel(current)).resolves.toEqual({ cancelled: true, target: 'light-probe' });
+        await host.releaseSceneOperation(token);
+        const nextToken = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
+        const nextId = await finishLightProbe(nextToken.transactionId);
+        await expect(host.cancel(current)).resolves.toEqual({ cancelled: false, target: null });
+        await expect(host.cancel({ ...current, ...nextToken })).resolves.toEqual({ cancelled: false, target: null });
+        expect(mockRunnerCancel).toHaveBeenCalledTimes(1);
+        await host.commit({ operationId: nextId });
+        await host.releaseSceneOperation(nextToken);
+    });
+
     it('reports cancellation instead of an unknown operation when upload continues after cancel', async () => {
         const { operationId } = await host.begin({
             target: 'light-probe',
@@ -264,7 +284,7 @@ describe('LightFXBakeHost', () => {
             timeoutMs: 120_000,
         });
 
-        await expect(host.cancel()).resolves.toEqual({ cancelled: true, target: 'light-probe' });
+        await expect(host.cancel({ operationId, target: 'light-probe' })).resolves.toEqual({ cancelled: true, target: 'light-probe' });
         await expect(host.appendInput({
             operationId,
             chunkBase64: Buffer.from('late chunk').toString('base64'),
@@ -315,7 +335,7 @@ describe('LightFXBakeHost', () => {
 
     it('lets cancel win atomically after run and prevents a stale scene result from committing', async () => {
         const operationId = await finishLightProbe();
-        const cancelling = host.cancel();
+        const cancelling = host.cancel({ operationId, target: 'light-probe' });
 
         await expect(host.commit({ operationId }))
             .rejects.toThrow('LightFX bake was cancelled and cannot be committed.');
@@ -328,7 +348,7 @@ describe('LightFXBakeHost', () => {
         const operationId = await finishLightProbe();
         const committing = host.commit({ operationId });
 
-        await expect(host.cancel()).resolves.toEqual({ cancelled: false, target: null });
+        await expect(host.cancel({ operationId, target: 'light-probe' })).resolves.toEqual({ cancelled: false, target: null });
         await expect(committing).resolves.toBeUndefined();
         await expect(host.commit({ operationId })).resolves.toBeUndefined();
     });

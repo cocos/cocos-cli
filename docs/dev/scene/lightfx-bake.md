@@ -288,6 +288,10 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 
 没有任务运行时，返回 `cancelled: false` 和 `target: null`。
 
+Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 renderer 内对应类型的 Bake，不再取消共享 host 上其他场景／其他类型的任务。内部请求须带精确 operation ID、目标和 scene transaction ID；缺失／过期归属返回 `cancelled:false`，旧 host 缺少取消归属协议时拒绝请求，不回退到全局取消。导出阶段或 native begin 尚未返回 ID 时也返回 false；因此 false 不一定表示没有烘焙，而是这次请求没有取消任务。
+
+通用 MCP 工具保留按 Probe／Lightmap 依次尝试的行为，主进程已跟踪的 Bake 仍路由到原 renderer，不因切标签改投另一个场景。它不是跨客户端认证或公共持久任务句柄；需要严格防止客户端旧消息取消后续任务的 UI，仍须先接入独立任务身份契约。
+
 取消成功后，取消工具本身返回 `code: 200`；原烘焙请求结束并返回 `code: 500`、`reason: "LightFX bake was cancelled."`。这是被取消任务的预期终态。
 
 ## Lightmap 资产规则

@@ -7,12 +7,26 @@ import {
 } from '../src/api/scene/lightfx-bake-schema';
 
 const probeBake = jest.fn(); const lightmapBake = jest.fn(); const queryLightmapBakeInfo = jest.fn();
+const probeCancel = jest.fn(); const lightmapCancel = jest.fn();
 jest.mock('../src/api/decorator/decorator', () => ({ description: () => jest.fn(), param: () => jest.fn(), result: () => jest.fn(), title: () => jest.fn(), tool: () => jest.fn() }));
-jest.mock('../src/core/scene', () => ({ Scene: { LightProbeBake: { bake: (...args: unknown[]) => probeBake(...args), clearBake: jest.fn(), cancel: jest.fn() }, LightmapBake: { bake: (...args: unknown[]) => lightmapBake(...args), queryBakeInfo: (...args: unknown[]) => queryLightmapBakeInfo(...args), clearBake: jest.fn(), cancel: jest.fn() } } }));
+jest.mock('../src/core/scene', () => ({ Scene: { LightProbeBake: { bake: (...args: unknown[]) => probeBake(...args), clearBake: jest.fn(), cancel: () => probeCancel() }, LightmapBake: { bake: (...args: unknown[]) => lightmapBake(...args), queryBakeInfo: (...args: unknown[]) => queryLightmapBakeInfo(...args), clearBake: jest.fn(), cancel: () => lightmapCancel() } } }));
 import { LightFXBakeApi } from '../src/api/scene/lightfx-bake';
 
 describe('LightFX bake API', () => {
-    beforeEach(() => { probeBake.mockReset(); lightmapBake.mockReset(); queryLightmapBakeInfo.mockReset(); });
+    beforeEach(() => { probeBake.mockReset(); lightmapBake.mockReset(); queryLightmapBakeInfo.mockReset(); probeCancel.mockReset(); lightmapCancel.mockReset(); });
+    it.each([true, false])('tries Lightmap cancel only when Probe did not cancel (probe=%s)', async cancelled => {
+        const probe = { cancelled, target: cancelled ? 'light-probe' : null };
+        const lightmap = { cancelled: true, target: 'lightmap' };
+        probeCancel.mockResolvedValue(probe);
+        lightmapCancel.mockResolvedValue(lightmap);
+        await expect(new LightFXBakeApi().cancel()).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data: cancelled ? probe : lightmap });
+        expect(lightmapCancel).toHaveBeenCalledTimes(cancelled ? 0 : 1);
+    });
+    it('does not cancel another type after an uncertain cancellation error', async () => {
+        probeCancel.mockRejectedValue(new Error('Disconnected'));
+        await expect(new LightFXBakeApi().cancel()).resolves.toEqual({ code: COMMON_STATUS.FAIL, reason: 'Disconnected' });
+        expect(lightmapCancel).not.toHaveBeenCalled();
+    });
     it('validates all Creator light-probe panel parameters', () => {
         const options = {
             giScale: 8, giSamples: 4096, bounces: 1, reduceRinging: 0.02,

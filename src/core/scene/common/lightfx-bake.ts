@@ -99,6 +99,7 @@ export interface ILightProbeBakeService extends IServiceEvents {
     queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
     bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
     clearBake(options?: { saveScene?: boolean }): Promise<{ probeCount: number }>;
+    /** Cancels only this Scene's probe bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;
 }
 
@@ -108,6 +109,7 @@ export interface ILightmapBakeService extends IServiceEvents {
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
     clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }>;
+    /** Cancels only this Scene's lightmap bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;
 }
 

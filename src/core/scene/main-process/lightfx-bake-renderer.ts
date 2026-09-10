@@ -99,7 +99,7 @@ class LightFXBakeRenderer {
         }
     }
 
-    async cancel<T>(fallback: () => Promise<T>, timeoutMs = 30_000): Promise<T> {
+    async cancel<T>(module: LightFXModule, fallback: () => Promise<T>, timeoutMs = 30_000): Promise<T> {
         const io = socketService.io;
         if (!io) return fallback();
         const sockets = await io.in(SCENE_RENDERER_ROOM).fetchSockets() as RendererSocket[];
@@ -111,7 +111,7 @@ class LightFXBakeRenderer {
         if (!renderer) {
             throw new Error('The scene renderer running the LightFX bake is no longer connected.');
         }
-        return requestRenderer<T>(renderer, 'LightProbeBake', 'cancel', [], timeoutMs);
+        return requestRenderer<T>(renderer, module, 'cancel', [], timeoutMs);
     }
 }
 

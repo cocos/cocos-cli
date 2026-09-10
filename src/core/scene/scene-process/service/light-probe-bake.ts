@@ -134,7 +134,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     }
 
     cancel(): Promise<ILightFXCancelResult> {
-        return lightFXCoordinator.cancel();
+        return lightFXCoordinator.cancel('light-probe');
     }
 
     private async querySceneUrl(): Promise<string> {

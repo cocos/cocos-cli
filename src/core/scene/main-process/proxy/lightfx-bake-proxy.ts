@@ -16,6 +16,7 @@ export const LightProbeBakeProxy: IPublicLightProbeBakeService = {
         () => Rpc.getInstance().request('LightProbeBake', 'clearBake', [options]),
     ),
     cancel: () => lightFXBakeRenderer.cancel(
+        'LightProbeBake',
         () => Rpc.getInstance().request('LightProbeBake', 'cancel'),
     ),
 };
@@ -38,6 +39,7 @@ export const LightmapBakeProxy: IPublicLightmapBakeService = {
         () => Rpc.getInstance().request('LightmapBake', 'clearBake', [options]),
     ),
     cancel: () => lightFXBakeRenderer.cancel(
+        'LightmapBake',
         () => Rpc.getInstance().request('LightmapBake', 'cancel'),
     ),
 };

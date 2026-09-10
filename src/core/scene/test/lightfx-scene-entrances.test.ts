@@ -1,6 +1,6 @@
 const mockGetScene = jest.fn();
 jest.mock('cc', () => ({ director: { getScene: mockGetScene } }));
-jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: {} }));
+jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { cancel: jest.fn() } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     queryCapabilities: jest.fn(),
     reserveSceneOperation: jest.fn(async () => ({ transactionId: 'test-owner' })),
@@ -14,8 +14,15 @@ import { LightProbeBakeService } from '../scene-process/service/light-probe-bake
 import { LightmapBakeService } from '../scene-process/service/lightmap-bake';
 import { lightFXSceneOperation } from '../scene-process/service/baking/lightfx/scene-operation';
 import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
+import { lightFXCoordinator } from '../scene-process/service/baking/lightfx/baker';
 
 describe('LightFX service entrance ownership', () => {
+    it('passes the actual service target to cancellation', async () => {
+        await new LightProbeBakeService().cancel();
+        expect(lightFXCoordinator.cancel).toHaveBeenLastCalledWith('light-probe');
+        await new LightmapBakeService().cancel();
+        expect(lightFXCoordinator.cancel).toHaveBeenLastCalledWith('lightmap');
+    });
     it.each([false, true])('queries Lightmap lifecycle and actual host asset support without reserving (busy=%s)', async busy => {
         jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy });
         const reserveCalls = jest.mocked(lightFXBakeHost.reserveSceneOperation).mock.calls.length;

@@ -130,4 +130,16 @@ describe('LightFX active scene renderer routing', () => {
         )).rejects.toThrow('visible scene renderer has not finished loading');
         expect(fallback).not.toHaveBeenCalled();
     });
+
+    it.each(['LightProbeBake', 'LightmapBake'] as const)('preserves the %s module when routing cancellation', async module => {
+        const visible = createSocket({ id: 'visible', sceneUrl: 'db://assets/Test.scene', visible: true });
+        useSockets([visible]);
+        const fallback = jest.fn();
+        await lightFXBakeRenderer.cancel(module, fallback);
+        expect(visible.emit).toHaveBeenCalledWith('scene:invoke-lightfx', expect.objectContaining({ module, method: 'cancel' }), expect.any(Function));
+        expect(fallback).not.toHaveBeenCalled();
+        useSockets([]);
+        await lightFXBakeRenderer.cancel(module, fallback);
+        expect(fallback).toHaveBeenCalledTimes(1);
+    });
 });

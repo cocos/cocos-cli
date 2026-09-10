@@ -185,7 +185,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     }
 
     cancel(): Promise<ILightFXCancelResult> {
-        return lightFXCoordinator.cancel();
+        return lightFXCoordinator.cancel('lightmap');
     }
 
     private async querySceneUrl(): Promise<string> {

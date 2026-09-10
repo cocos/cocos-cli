@@ -30,6 +30,7 @@ import type {
     LightFXBakeTarget,
     IReserveLightFXSceneOperationOptions,
     ILightFXSceneOperationToken,
+    ICancelLightFXOperationOptions,
 } from '../common/lightfx-host';
 import { assetManager } from '../../assets';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
@@ -81,7 +82,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {
@@ -349,9 +350,12 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         await this.cleanup(operation, true);
     }
 
-    public async cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {
+    public async cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {
         const operation = this.operation;
-        if (!operation) {
+        // Missing/late credentials are a no-op, never a request to cancel whoever is now active.
+        // Legacy native callers without a scene reservation must still name their operation.
+        if (!operation || !options || options.operationId !== operation.id || options.target !== operation.target
+            || options.transactionId !== this.sceneOperation?.transactionId) {
             return { cancelled: false, target: null };
         }
         if (operation.terminalState) {
