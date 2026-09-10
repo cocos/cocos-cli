@@ -4,7 +4,14 @@ import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult, SerializedNodeDat
 import { EventSourceType, NodeEventType } from '../../../../common';
 import { Service } from '../../core';
 import nodeMgr from '../../node/index';
-import { deserializeNodes, disposeSerializedNodes, serializeNodes } from '../../node/serialized-node-data';
+import {
+    deserializeNodes,
+    disposeSerializedNodes,
+    serializeNodes,
+    visitSerializedComponentReferences
+} from '../../node/serialized-node-data';
+import { nodeOperation } from '../../prefab/node';
+import { prefabUtils } from '../../prefab/utils';
 import { createUndoId, failure, success } from './command-utils-shared';
 
 /**
@@ -14,17 +21,16 @@ import { createUndoId, failure, success } from './command-utils-shared';
 function captureParentPrefabState(parent: Node): () => void {
     const snapshots = new Map<Node, Node['_prefab']>();
     for (let node: Node | null = parent; node; node = node.parent) {
-        if (node['_prefab']) {
-            snapshots.set(node, cloneDeepWith(node['_prefab'], value => {
-                // 只复制 Prefab 数据，保留其中的引擎对象引用，避免复制出额外的节点或资源
-                const isEngineObject =
-                    value instanceof Node ||
-                    value instanceof Component ||
-                    value instanceof Asset;
+        // _prefab 为空时也保存快照，回滚时清除本次创建过程中新增的 Prefab 信息
+        snapshots.set(node, cloneDeepWith(node['_prefab'], value => {
+            // 节点、组件和资源沿用原对象，只复制 Prefab 信息本身
+            const isEngineObject =
+                value instanceof Node ||
+                value instanceof Component ||
+                value instanceof Asset;
 
-                return isEngineObject ? value : undefined;
-            }));
-        }
+            return isEngineObject ? value : undefined;
+        }));
     }
 
     return () => {
@@ -96,6 +102,8 @@ function rollbackSerializedNodes(nodes: Node[], restorePrefabState: () => void):
 interface MountSerializedNodesOptions {
     nodes: Node[];
     parent: Node;
+    /** 场景或 Prefab 的根节点，组件的 Prefab 引用记录保存在这里 */
+    editorRoot: Node;
     siblingIndex: number;
     data: SerializedNodeData;
     keepWorldTransform: boolean;
@@ -108,7 +116,15 @@ interface MountSerializedNodesOptions {
  * 挂载或提交回调失败时，移除本次创建的节点并恢复父节点及祖先的 Prefab 信息
  */
 export function mountSerializedNodes(options: MountSerializedNodesOptions): void {
-    const { nodes, parent, siblingIndex, data, keepWorldTransform, onMounted } = options;
+    const {
+        nodes,
+        parent,
+        editorRoot,
+        siblingIndex,
+        data,
+        keepWorldTransform,
+        onMounted
+    } = options;
     const restorePrefabState = captureParentPrefabState(parent);
 
     try {
@@ -129,6 +145,12 @@ export function mountSerializedNodes(options: MountSerializedNodesOptions): void
         });
 
         nodeMgr.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });
+
+        // 记录组件的哪个属性引用了 Prefab 中的哪个节点或组件
+        // 重新加载场景时，通过这些记录（targetOverrides）恢复引用
+        visitSerializedComponentReferences(nodes, (component, pathKeys, value) => {
+            nodeOperation.checkToAddTargetOverride(component, { pathKeys, value }, editorRoot);
+        });
 
         // 生成撤销快照等后续步骤失败时，也要回滚已经挂载的节点
         onMounted();
@@ -185,6 +207,11 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
             return failure(this.meta, 'A created node or its parent is no longer available.');
         }
 
+        // 只删除本次创建的组件对应的引用记录，避免影响原有节点
+        visitSerializedComponentReferences(nodes as Node[], (component, path) => {
+            prefabUtils.removeTargetOverride(this.editorRoot['_prefab'], component, path);
+        });
+
         removeNodes(nodes as Node[]);
         return success(this.meta);
     }
@@ -228,6 +255,7 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
             mountSerializedNodes({
                 nodes,
                 parent: parent!,
+                editorRoot: this.editorRoot,
                 siblingIndex: Math.min(this.siblingIndex, parent!.children.length),
                 data: this.data,
                 keepWorldTransform: false,

@@ -51,6 +51,13 @@ jest.mock('../scene-process/service/node/index', () => ({
 }));
 jest.mock('../scene-process/service/node/serialized-node-data', () => ({
     disposeSerializedNodes: mockDispose,
+    visitSerializedComponentReferences: jest.fn(),
+}));
+jest.mock('../scene-process/service/prefab/node', () => ({
+    nodeOperation: { checkToAddTargetOverride: jest.fn() },
+}));
+jest.mock('../scene-process/service/prefab/utils', () => ({
+    prefabUtils: { removeTargetOverride: jest.fn() },
 }));
 
 import { mountSerializedNodes } from '../scene-process/service/undo/commands/create-serialized-nodes-command';
@@ -89,6 +96,7 @@ describe('Serialized node batch mounting', () => {
         expect(() => mountSerializedNodes({
             nodes: nodes as unknown as Node[],
             parent: parent as unknown as Node,
+            editorRoot: parent as unknown as Node,
             siblingIndex: 0,
             data,
             keepWorldTransform: false,
@@ -109,6 +117,7 @@ describe('Serialized node batch mounting', () => {
         expect(() => mountSerializedNodes({
             nodes: nodes as unknown as Node[],
             parent: parent as unknown as Node,
+            editorRoot: parent as unknown as Node,
             siblingIndex: 0,
             data,
             keepWorldTransform: false,
@@ -131,6 +140,7 @@ describe('Serialized node batch mounting', () => {
         expect(() => mountSerializedNodes({
             nodes: nodes as unknown as Node[],
             parent: parent as unknown as Node,
+            editorRoot: parent as unknown as Node,
             siblingIndex: 0,
             data,
             keepWorldTransform: false,
@@ -153,6 +163,7 @@ describe('Serialized node batch mounting', () => {
         mountSerializedNodes({
             nodes: nodes as unknown as Node[],
             parent: parent as unknown as Node,
+            editorRoot: parent as unknown as Node,
             siblingIndex: 0,
             data,
             keepWorldTransform: false,

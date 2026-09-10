@@ -216,6 +216,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             mountSerializedNodes({
                 nodes,
                 parent: parent!,
+                editorRoot: root!,
                 siblingIndex,
                 data: params.data,
                 keepWorldTransform: !!params.keepWorldTransform,

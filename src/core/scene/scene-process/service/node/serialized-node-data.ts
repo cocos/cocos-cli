@@ -24,6 +24,72 @@ export function collectSerializedNodes(roots: Node[]): Set<Node> {
     return nodes;
 }
 
+/** 递归查找属性值中的节点和组件引用，遇到引用目标时交给回调处理 */
+function visitPropertyReferences(
+    value: unknown,
+    path: string[],
+    visit: (path: string[], target: Node | Component) => void,
+    ancestors: Set<object>,
+): void {
+    if (value instanceof Node || value instanceof Component) {
+        visit(path, value);
+        return;
+    }
+
+    if (
+        !value ||
+        typeof value !== 'object' ||
+        value instanceof Asset ||
+        ArrayBuffer.isView(value) ||
+        ancestors.has(value)
+    ) {
+        return;
+    }
+
+    // 记录正在检查的对象，防止循环引用导致无限递归
+    ancestors.add(value);
+
+    // 优先检查类型声明的可序列化属性，否则检查对象属性或数组元素
+    const keys =
+        (value.constructor as { __values__?: string[] } | undefined)?.__values__ ??
+        Object.keys(value);
+    for (const key of keys) {
+        visitPropertyReferences((value as Record<string, unknown>)[key], [...path, key], visit, ancestors);
+    }
+
+    // 检查完后移出集合，让其他属性也能检查到同一个对象中的引用
+    ancestors.delete(value);
+}
+
+/**
+ * 查找组件属性中引用的节点和组件，将引用及属性路径传给回调
+ * 只检查会被保存的属性，不进入被引用的节点、组件或资源内部
+ */
+export function visitSerializedComponentReferences(
+    roots: Node[],
+    visit: (component: Component, path: string[], target: Node | Component) => void,
+): void {
+    for (const node of collectSerializedNodes(roots)) {
+        for (const component of node.components) {
+            const ancestors = new Set<object>();
+            const onReference = (path: string[], target: Node | Component) => visit(component, path, target);
+
+            // 跳过组件自带的 node、Prefab 信息和编辑器扩展数据
+            const properties = (component.constructor as { __values__?: string[] }).__values__ ?? [];
+            for (const property of properties) {
+                if (property !== 'node' && property !== '__prefab' && property !== editorExtrasTag) {
+                    visitPropertyReferences(
+                        (component as unknown as Record<string, unknown>)[property],
+                        [property],
+                        onReference,
+                        ancestors,
+                    );
+                }
+            }
+        }
+    }
+}
+
 /**
  * 将节点及其子节点序列化，并保留它们之间的引用
  * @param preservePrefab 是否保留完整 Prefab 信息，生成撤销快照时启用
@@ -207,10 +273,14 @@ export async function deserializeNodes(
 
     // 由引擎还原节点、组件及内部引用，details 记录需要回填的资源引用
     const details = new deserialize.Details();
-    const graph = deserialize(json, details) as { roots?: Node[] } | null;
-
     let roots: Node[] = [];
     try {
+        const graph = deserialize(json, details) as { roots?: Node[] } | null;
+
+        // 先记录已创建的节点，后续校验失败时才能连同组件一起销毁
+        const restoredRoots = Array.isArray(graph?.roots) ? graph.roots : [graph?.roots];
+        roots = restoredRoots.filter((node): node is Node => node instanceof Node);
+
         // 根节点需与保存的变换一一对应，且尚未挂载，才能交给后续流程统一插入
         if (
             !graph ||

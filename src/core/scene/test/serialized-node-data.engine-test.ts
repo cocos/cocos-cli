@@ -77,6 +77,42 @@ describe('Serialized node data with the real engine', () => {
         expect(firstComponent.target).toBe(second);
     });
 
+    it('visits every path through shared component data without following cycles', () => {
+        class SharedReferences extends engine.Component {
+            first: Record<string, unknown> | null = null;
+            second: Record<string, unknown> | null = null;
+        }
+        engine._decorator.property({ serializable: true })(SharedReferences.prototype, 'first');
+        engine._decorator.property({ serializable: true })(SharedReferences.prototype, 'second');
+        engine._decorator.ccclass('SerializedSharedReferences')(SharedReferences);
+
+        const root = new engine.Node('Root');
+        const target = new engine.Node('Target');
+        const component = root.addComponent(SharedReferences);
+
+        // 两个属性指向同一个对象，该对象还引用自身；两条属性路径都应被检查
+        const shared: Record<string, unknown> = { target, component };
+        shared.self = shared;
+        component.first = shared;
+        component.second = shared;
+        const visit = jest.fn();
+
+        try {
+            helpers.visitSerializedComponentReferences([root], visit);
+
+            expect(visit.mock.calls).toEqual([
+                [component, ['first', 'target'], target],
+                [component, ['first', 'component'], component],
+                [component, ['second', 'target'], target],
+                [component, ['second', 'component'], component],
+            ]);
+        } finally {
+            root.destroy();
+            target.destroy();
+            engine.CCObject._deferredDestroy();
+        }
+    });
+
     it('records external node and component references without serializing their subtrees', async () => {
         const parent = new engine.Node('UnselectedParent');
         const root = new engine.Node('Selected');
@@ -234,6 +270,7 @@ describe('Serialized node data with the real engine', () => {
             expect(() => mountSerializedNodes({
                 nodes: roots,
                 parent,
+                editorRoot: parent,
                 siblingIndex: 0,
                 data,
                 keepWorldTransform: false,
@@ -312,6 +349,267 @@ describe('Serialized node data with the real engine', () => {
         const data = helpers.serializeNodes([new engine.Node('Root')]);
         await expect(helpers.deserializeNodes({ ...data, serialized: '[{"__id__":999}]' }, 'clear')).rejects.toThrow('Invalid serialized object reference');
         await expect(helpers.deserializeNodes({ ...data, serialized: '{"__type__":"MissingComponent"}' }, 'clear')).rejects.toThrow('class is unavailable');
+    });
+
+    it.each(['count', 'mixed roots', 'non-array roots'])('destroys allocated components when root validation rejects %s', async invalidShape => {
+        // 记录创建出的组件，检查反序列化失败后是否将它们销毁
+        const instances: Component[] = [];
+        class TrackedComponent extends engine.Component {
+            constructor() {
+                super();
+                instances.push(this);
+            }
+        }
+        engine._decorator.ccclass(`SerializedInvalidRoots${invalidShape}`)(TrackedComponent);
+
+        const source = new engine.Node('Root');
+        source.addComponent(TrackedComponent);
+        const data = helpers.serializeNodes([source]);
+        instances.length = 0;
+
+        // 故意破坏根节点数据，让反序列化在创建组件后校验失败
+        if (invalidShape === 'count') {
+            data.rootTransforms.push(data.rootTransforms[0]);
+        } else {
+            const graph = JSON.parse(data.serialized);
+            if (invalidShape === 'mixed roots') {
+                graph[0].roots.push(null);
+                data.rootTransforms.push(data.rootTransforms[0]);
+            } else {
+                graph[0].roots = graph[0].roots[0];
+            }
+            data.serialized = JSON.stringify(graph);
+        }
+
+        await expect(helpers.deserializeNodes(data, 'clear')).rejects.toThrow('Invalid serialized node roots');
+
+        // 执行引擎的延迟销毁，确认新组件已销毁，源节点仍然有效
+        engine.CCObject._deferredDestroy();
+
+        expect(instances).toHaveLength(1);
+        expect(instances[0].isValid).toBe(false);
+        expect(source.isValid).toBe(true);
+
+        source.destroy();
+    });
+
+    describe('Prefab reference persistence', () => {
+        let scene: import('cc').Scene;
+        let asset: import('cc').Prefab;
+        let prefabNodes: typeof import('../scene-process/service/prefab/node')['nodeOperation'];
+        let services: typeof import('../scene-process/service/core');
+        let sceneUtils: typeof import('../scene-process/service/scene/utils')['sceneUtils'];
+        let addTree: (node: Node) => void;
+        let removeTree: (node: Node) => void;
+        let onChange: (node: Node, options: object) => void;
+
+        beforeEach(async () => {
+            services = await import('../scene-process/service/core');
+            prefabNodes = (await import('../scene-process/service/prefab/node')).nodeOperation;
+            sceneUtils = (await import('../scene-process/service/scene/utils')).sceneUtils;
+            await import('../scene-process/service/undo');
+            await import('../scene-process/service/node');
+
+            // 让创建和 Undo/Redo 都操作这个测试场景
+            scene = new engine.Scene('Target');
+            services.register('Editor')(class TestEditor {
+                getRootNode() {
+                    return scene;
+                }
+
+                getCurrentEditorType() {
+                    return 'scene';
+                }
+
+                async lock() {}
+
+                unlock() {}
+            });
+
+            // 给 Prefab 中的节点和组件设置 fileId，重新加载时用它们找到引用目标
+            asset = new engine.Prefab();
+            asset._uuid = 'serialized-reference-prefab';
+            asset.data = new engine.Node('Template');
+            const child = new engine.Node('Child');
+            child.parent = asset.data;
+            for (const [node, fileId] of [[asset.data, 'root'], [child, 'child']] as const) {
+                const info = new engine.Prefab._utils.PrefabInfo();
+                info.root = asset.data;
+                info.asset = asset;
+                info.fileId = fileId;
+                node['_prefab'] = info;
+            }
+            const component = child.addComponent(References);
+            component.__prefab = new engine.Prefab._utils.CompPrefabInfo();
+            component.__prefab.fileId = 'child-component';
+            engine.assetManager.assets.add(asset._uuid, asset);
+
+            // 节点增删时同步更新注册表和 Prefab 信息，模拟场景编辑流程
+            addTree = node => {
+                node.walk(child => {
+                    EditorExtends.Node.add(child.uuid, child);
+                    child.components.forEach(component => EditorExtends.Component.add(component.uuid, component));
+                    prefabNodes.onNodeAdded(child);
+                });
+                prefabNodes.onAddNode(node);
+            };
+
+            removeTree = node => node.walk(child => {
+                child.components.forEach(component => EditorExtends.Component.remove(component.uuid));
+                EditorExtends.Node.remove(child.uuid);
+                prefabNodes.onNodeRemoved(child);
+            });
+
+            onChange = (node, options) => prefabNodes.onNodeChangedInGeneralMode(node, options, scene);
+
+            EditorExtends.Node.add(scene.uuid, scene);
+            services.ServiceEvents.on('node:add', addTree);
+            services.ServiceEvents.on('node:remove', removeTree);
+            services.ServiceEvents.on('node:change', onChange);
+            services.Service.Undo.clearHistory();
+        });
+
+        afterEach(() => {
+            services.ServiceEvents.off('node:add', addTree);
+            services.ServiceEvents.off('node:remove', removeTree);
+            services.ServiceEvents.off('node:change', onChange);
+
+            removeTree(scene);
+            services.Service.Undo.clearHistory();
+            scene.destroy();
+            asset.data.destroy();
+            engine.assetManager.assets.remove(asset._uuid);
+            engine.CCObject._deferredDestroy();
+        });
+
+        /** 创建已有节点及其 Prefab 引用记录，检查 Undo 和回滚是否误删这些记录 */
+        const addExistingReference = () => {
+            const existing = new engine.Node('Existing');
+            const prefab = engine.instantiate(asset);
+            prefab.name = 'ExistingPrefab';
+            existing.parent = scene;
+            prefab.parent = scene;
+            const component = existing.addComponent(References);
+            component.target = prefab.children[0];
+
+            addTree(existing);
+            addTree(prefab);
+            prefabNodes.checkToAddTargetOverride(component, { pathKeys: ['target'], value: component.target }, scene);
+            return scene['_prefab']!.targetOverrides![0];
+        };
+
+        /**
+         * 序列化 A、B 两个节点，A 的组件引用 B 内的子节点和组件
+         * 随后销毁源场景，确认还原时不依赖源对象
+         */
+        const createData = (prefabSource = false) => {
+            const source = new engine.Scene('Source');
+            const a = prefabSource ? engine.instantiate(asset) : new engine.Node('A');
+            a.name = 'A';
+            a.parent = source;
+            const b = engine.instantiate(asset);
+            b.name = 'B';
+            b.parent = source;
+
+            const component = prefabSource
+                ? a.children[0].getComponent(References)!
+                : a.addComponent(References);
+            component.target = b.children[0];
+            component.component = b.children[0].getComponent(References)!;
+            component.nodes = [b.children[0], b.children[0]];
+
+            // 数组中两项引用同一个节点，也要分别保存两个位置的引用记录
+            for (const [pathKeys, value] of [
+                [['target'], component.target],
+                [['component'], component.component],
+                [['nodes', '0'], component.nodes[0]],
+                [['nodes', '1'], component.nodes[1]],
+            ] as const) {
+                prefabNodes.checkToAddTargetOverride(component, { pathKeys: [...pathKeys], value }, source);
+            }
+
+            const data = helpers.serializeNodes([a, b]);
+            source.destroy();
+            return data;
+        };
+
+        /** 保存并重新加载场景，检查节点和组件引用是否保留 */
+        const expectSavedReferences = (prefabSource: boolean) => {
+            const details = new engine.deserialize.Details();
+            const saved = sceneUtils.serialize(scene);
+            const restored = engine.deserialize(saved, details) as import('cc').SceneAsset;
+            details.assignAssetsBy(uuid => engine.assetManager.assets.get(uuid)!);
+
+            // 先还原 Prefab 内部节点，再根据引用记录恢复组件属性
+            engine.Prefab._utils.expandNestedPrefabInstanceNode(restored.scene!);
+            engine.Prefab._utils.applyTargetOverrides(restored.scene!);
+
+            const a = restored.scene!.getChildByName('A')!;
+            const b = restored.scene!.getChildByName('B')!;
+            const component = (prefabSource ? a.children[0] : a).getComponent(References)!;
+            expect(component.target).toBe(b.children[0]);
+            expect(component.component).toBe(b.children[0].getComponent(References));
+            expect(component.nodes).toEqual([b.children[0], b.children[0]]);
+
+            restored.scene!.destroy();
+            details.reset();
+        };
+
+        it.each([false, true])('preserves saved references and removes only batch mappings on Undo (prefab source: %s)', async prefabSource => {
+            const existing = addExistingReference();
+            const data = createData(prefabSource);
+
+            await services.Service.Node.createBySerializedData({ data, parentPath: '/' });
+            const ids = scene.children.slice(2).map(node => node.uuid);
+
+            // 重复 Undo/Redo，检查引用记录没有重复添加或误删，节点 UUID 不变
+            for (let cycle = 0; cycle < 2; cycle++) {
+                expectSavedReferences(prefabSource);
+                expect(scene['_prefab']!.targetOverrides).toHaveLength(5);
+
+                expect((await services.Service.Undo.undo()).success).toBe(true);
+                expect(scene.children).toHaveLength(2);
+                expect(scene['_prefab']!.targetOverrides).toEqual([existing]);
+
+                expect((await services.Service.Undo.redo()).success).toBe(true);
+                expect(scene.children.slice(2).map(node => node.uuid)).toEqual(ids);
+            }
+
+            expectSavedReferences(prefabSource);
+        });
+
+        it.each([false, true])('rolls back reference mappings when the Undo snapshot fails (existing mappings: %s)', async hasExisting => {
+            const existing = hasExisting ? addExistingReference() : null;
+            const beforePrefab = scene['_prefab'];
+            const data = createData();
+
+            // 写入引用记录后，让撤销快照生成失败，检查新增节点和记录能否一起清理
+            let createdComponent: Component | undefined;
+            const serialize = jest.spyOn(helpers, 'serializeNodes').mockImplementationOnce(nodes => {
+                createdComponent = nodes[0].getComponent(References)!;
+                expect(scene['_prefab']!.targetOverrides).toHaveLength(hasExisting ? 5 : 4);
+                throw new Error('snapshot failure after reference mapping');
+            });
+
+            try {
+                await expect(services.Service.Node.createBySerializedData({ data, parentPath: '/' }))
+                    .rejects.toThrow('snapshot failure after reference mapping');
+            } finally {
+                serialize.mockRestore();
+            }
+
+            engine.CCObject._deferredDestroy();
+            expect(createdComponent!.isValid).toBe(false);
+            expect(scene.children).toHaveLength(hasExisting ? 2 : 0);
+            if (existing) {
+                expect(scene['_prefab']!.targetOverrides).toEqual([existing]);
+            } else {
+                expect(scene['_prefab']).toBe(beforePrefab);
+            }
+
+            expect(services.Service.Undo.canUndo()).toBe(false);
+            expect(services.Service.Undo.isDirty()).toBe(false);
+        });
     });
 
     it('stops before deserialization when a resource cannot be loaded', async () => {
