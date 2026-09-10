@@ -9,7 +9,7 @@ import type { LightFXBakeOutput } from './baking/lightfx/baker';
 import { lightFXBakeHost } from './baking/lightfx/host';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
-import { finishSavedLightFXRecording } from './baking/lightfx/saved-recording';
+import { finishSavedLightFXRecording, LightFXResultRetainedError } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
 import { queryLightmapReadiness } from './baking/lightfx/readiness';
@@ -61,6 +61,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
 
         const timeoutMs = options.timeoutMs ?? 600_000;
         let output: LightFXBakeOutput | undefined;
+        let nativeCommitted = false;
         this.broadcast('lightfx:bake-start', 'lightmap');
         try {
             output = await lightFXCoordinator.bake(scene, 'lightmap', settings, timeoutMs);
@@ -70,6 +71,10 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
 
             const targetUrl = `db://assets/${scene.name}/lightmap`;
             const textures = await this.loadOutputTextures(output, targetUrl, timeoutMs);
+            // No scene/history/disk reference may precede the host's decision to retain assets.
+            // An unconfirmed commit can leave an orphan version, never a dangling scene binding.
+            await lightFXCoordinator.commit(output.operationId);
+            nativeCommitted = true;
             const previousBindings = this.snapshotBindings(output);
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
             const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
@@ -83,9 +88,9 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 (scene.globals as any).bakedWithStationaryMainLight = output.stationaryMainLight;
                 await Service.Engine.repaintInEditMode();
                 await finishSavedLightFXRecording(Service.Undo, undo,
-                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined,
-                    () => lightFXCoordinator.commit(output!.operationId));
+                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
             } catch (error) {
+                if (error instanceof LightFXResultRetainedError) throw error;
                 this.restoreBindings(previousBindings);
                 (scene.globals as any).bakedWithHighpLightmap = previousHighp;
                 (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
@@ -103,7 +108,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 diagnostics: await lightFXCoordinator.queryDiagnostics?.('lightmap'),
             };
         } catch (error) {
-            if (output) await lightFXCoordinator.rollback(output.operationId).catch((rollbackError) => {
+            if (output && !nativeCommitted) await lightFXCoordinator.rollback(output.operationId).catch((rollbackError) => {
                 console.error('[LightFX] Failed to roll back lightmap assets:', rollbackError);
             });
             this.broadcast('lightfx:bake-end', 'lightmap', this.errorMessage(error));
@@ -175,6 +180,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             await finishSavedLightFXRecording(Service.Undo, undo,
                 options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
         } catch (error) {
+            if (error instanceof LightFXResultRetainedError) throw error;
             Service.Undo.cancelRecording(undo);
             this.restoreBindings(bindings);
             (scene.globals as any).bakedWithHighpLightmap = previousHighp;

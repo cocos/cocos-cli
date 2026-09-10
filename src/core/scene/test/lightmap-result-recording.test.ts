@@ -59,7 +59,7 @@ describe('Lightmap result recording targets', () => {
         expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
         expect(mockCommit).toHaveBeenCalledWith('operation');
         expect(mockSave).toHaveBeenCalledTimes(saveScene ? 1 : 0);
-        expect(mockUndo.markSaved).toHaveBeenCalledTimes(saveScene ? 1 : 0);
+        expect(mockUndo.markSaved).not.toHaveBeenCalled();
     });
     it.each([false, true])('deduplicates multiple Terrain blocks and records all cleared bindings (save=%s)', async saveScene => {
         const f = fixture();
@@ -70,16 +70,16 @@ describe('Lightmap result recording targets', () => {
         expect(f.terrain._updateLightmap).toHaveBeenCalledWith(1, null, 0, 0, 0, 0);
         expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
         expect(mockSave).toHaveBeenCalledTimes(saveScene ? 1 : 0);
-        expect(mockUndo.markSaved).toHaveBeenCalledTimes(saveScene ? 1 : 0);
+        expect(mockUndo.markSaved).not.toHaveBeenCalled();
     });
-    it('restores bindings and cancels the recording if saving fails', async () => {
+    it('retains cleared bindings and history if saving fails', async () => {
         const f = fixture();
         mockSave.mockRejectedValueOnce(new Error('disk unavailable'));
         await expect(f.service.clearBake()).rejects.toThrow('disk unavailable');
-        expect(mockUndo.cancelRecording).toHaveBeenCalledWith('recording');
-        expect(mockUndo.endRecording).not.toHaveBeenCalled();
+        expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
+        expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
         expect(mockUndo.markSaved).not.toHaveBeenCalled();
-        expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.oldTexture, 1, 2, 3, 4);
-        expect(f.terrain._updateLightmap).toHaveBeenLastCalledWith(1, f.oldTexture, 5, 6, 7, 8);
+        expect(f.model._updateLightmap).toHaveBeenLastCalledWith(null, 0, 0, 0, 0);
+        expect(f.terrain._updateLightmap).toHaveBeenLastCalledWith(1, null, 0, 0, 0, 0);
     });
 });
