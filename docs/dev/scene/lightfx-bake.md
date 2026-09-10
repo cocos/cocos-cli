@@ -80,6 +80,10 @@ Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事�
 
 所有参数均可选，未传入时使用场景当前值。`giScale`、`giSamples` 和 `bounces` 参与 LightFX 计算；`reduceRinging`、`showWireframe`、`showConvex` 和 `lightProbeSphereVolume` 用于烘焙结果后处理或编辑器显示。烘焙成功后，本次的有效参数与 SH 结果作为同一次 Undo 操作写回 `LightProbeInfo`；烘焙失败或取消时保留原场景配置。
 
+编辑已启用探针组或其父节点的位置时，CLI 会同步全局采样点和四面体。只有实际采样位置改变才清空旧 SH，避免把旧位置的烘焙结果用于新位置；不会重新生成组件内手工编辑过的采样点。普通节点属性操作和 Gizmo recording 会把受影响的 Scene 数据纳入同一次撤销记录：Undo 恢复旧位置与旧 SH，Redo 恢复新位置与失效状态。保存仍由调用方决定，移动后需要重新烘焙。
+
+此同步沿用当前引擎的 `localProbe + worldPosition` 约定；完整旋转／缩放与 Gizmo 的 TRS 一致性、重设父级和增删采样点的结构事务仍需独立验收，不等同于所有探针编辑操作已完成。
+
 成功返回示例：
 
 ```json

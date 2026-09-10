@@ -8,6 +8,7 @@ import { SnapshotCommand, type ISnapshotAdapter } from '../undo/commands/snapsho
 import type { INodeStructureCaptureTarget } from '../undo/commands/node-structure-command-utils';
 import { createUndoId, restoreNodeSnapshotDump, snapshotMapsEqual } from '../undo/commands/command-utils-shared';
 import { isRootNodePath } from '../../../../engine/editor-extends/manager/path-utils';
+import { withLightProbeTransformScenes } from '../scene/light-probe-transform';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -91,7 +92,7 @@ export class NodeUndoHelper {
             return mutate();
         }
 
-        const before = this.captureNodeSnapshots([node]);
+        const before = this.captureNodeSnapshots(withLightProbeTransformScenes([node]));
         const result = await mutate();
         if (!result) {
             return result;
@@ -102,7 +103,7 @@ export class NodeUndoHelper {
             return result;
         }
 
-        const after = this.captureNodeSnapshots([latestNode]);
+        const after = this.captureNodeSnapshots(this.findSnapshotNodes(before));
         this.pushNodeSnapshotCommand(options.type, options.label, before, after, options.scope);
         return result;
     }

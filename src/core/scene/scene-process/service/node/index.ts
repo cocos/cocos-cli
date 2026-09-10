@@ -47,6 +47,7 @@ import { type IScene } from '../../../common/editor/scene';
 import { loadAny } from './node-create';
 import compMgr from '../component/index';
 import { Rpc } from '../../rpc';
+import { synchronizeLightProbeTransform } from '../scene/light-probe-transform';
 
 const creatableAssetTypes = [
     'cc.AnimationClip',
@@ -219,6 +220,7 @@ export class NodeManager {
     }
 
     onNodeTransformChanged(node: Node, transformBit: any) {
+        synchronizeLightProbeTransform(node);
         const changeOpts: IChangeNodeOptions = { type: NodeEventType.TRANSFORM_CHANGED, source: EventSourceType.ENGINE };
 
         switch (transformBit) {
