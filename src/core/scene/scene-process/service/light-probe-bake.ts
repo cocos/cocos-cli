@@ -11,6 +11,7 @@ import { lightFXCoordinator, LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { lightFXBakeHost } from './baking/lightfx/host';
+import { finishSavedLightFXRecording } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
 
 interface ProbeSnapshot {
@@ -80,9 +81,9 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
                 this.applyResult(probes, output);
                 info.onProbeBakeFinished();
                 await Service.Engine.repaintInEditMode();
-                if (options.saveScene !== false) await Service.Editor.save({});
-                await Service.Undo.endRecording(undo);
-                await lightFXCoordinator.commit(output.operationId);
+                await finishSavedLightFXRecording(Service.Undo, undo,
+                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined,
+                    () => lightFXCoordinator.commit(output!.operationId));
             } catch (error) {
                 Service.Undo.cancelRecording(undo);
                 throw error;
@@ -120,8 +121,8 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         try {
             info.onProbeBakeCleared();
             await Service.Engine.repaintInEditMode();
-            if (options.saveScene !== false) await Service.Editor.save({});
-            await Service.Undo.endRecording(undo);
+            await finishSavedLightFXRecording(Service.Undo, undo,
+                options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
             return { probeCount: probes.length };
         } catch (error) {
             Service.Undo.cancelRecording(undo);

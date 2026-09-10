@@ -120,6 +120,8 @@ Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事�
 
 该操作清除当前场景全部探针的烘焙结果，通知引擎刷新，并作为一次 Undo 操作记录。成功结果中的 `probeCount` 表示处理的探针数量。
 
+Probe Bake／Clear 的 `saveScene` 默认是 `true`：完整成功后，当前结果作为 Undo 的已保存基线；Undo 回到旧结果会变脏，Redo 回到已保存结果恢复干净。显式传 `false` 时只修改内存并保留 dirty，调用方需要另行保存。保存失败不提交新录制；原生提交失败、提交期间发生其他编辑或历史重置时，不额外把当前历史标成已保存。这不代表跨磁盘与原生资产提交的失败回滚已经具备完整原子性。
+
 ### 烘焙 Lightmap
 
 工具名：`scene-bake-lightmap`
