@@ -8,6 +8,7 @@ import type {
 } from '../../common';
 import { lightFXCoordinator, LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
+import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { BaseService, register, Service } from './core';
 
 interface ProbeSnapshot {
@@ -28,6 +29,10 @@ interface LightProbeSettings {
 @register('LightProbeBake')
 export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> implements ILightProbeBakeService {
     async bake(options: ILightProbeBakeOptions = {}): Promise<ILightProbeBakeResult> {
+        return lightFXSceneOperation.run('light-probe', 'bake', () => this.bakeExclusive(options));
+    }
+
+    private async bakeExclusive(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult> {
         const started = Date.now();
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
@@ -92,6 +97,10 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     }
 
     async clearBake(options: { saveScene?: boolean } = {}): Promise<{ probeCount: number }> {
+        return lightFXSceneOperation.run('light-probe', 'clear', () => this.clearBakeExclusive(options));
+    }
+
+    private async clearBakeExclusive(options: { saveScene?: boolean }): Promise<{ probeCount: number }> {
         const scene = director.getScene();
         if (!scene) throw new Error('No scene is currently open.');
         const info: any = scene.globals.lightProbeInfo;

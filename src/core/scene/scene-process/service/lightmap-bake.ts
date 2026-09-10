@@ -8,6 +8,7 @@ import { lightFXCoordinator } from './baking/lightfx/baker';
 import type { LightFXBakeOutput } from './baking/lightfx/baker';
 import { lightFXBakeHost } from './baking/lightfx/host';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
+import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
 
@@ -21,6 +22,10 @@ interface LightmapBinding {
 @register('LightmapBake')
 export class LightmapBakeService extends BaseService<ILightFXBakeEvents> implements ILightmapBakeService {
     async bake(options: ILightmapBakeOptions = {}): Promise<ILightmapBakeResult> {
+        return lightFXSceneOperation.run('lightmap', 'bake', () => this.bakeExclusive(options));
+    }
+
+    private async bakeExclusive(options: ILightmapBakeOptions): Promise<ILightmapBakeResult> {
         const started = Date.now();
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
@@ -133,6 +138,10 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     }
 
     async clearBake(options: { saveScene?: boolean; deleteAssets?: boolean } = {}): Promise<{ clearedCount: number }> {
+        return lightFXSceneOperation.run('lightmap', 'clear', () => this.clearBakeExclusive(options));
+    }
+
+    private async clearBakeExclusive(options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }> {
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
 
