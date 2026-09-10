@@ -14,6 +14,8 @@ type EventMap = {
 
 // 仅需 messageManager 转发、无服务方法扇出的事件
 const MESSAGE_ONLY_EVENTS = [
+    'scene:light-probe-edit-mode-changed',
+    'scene:light-probe-bounding-box-edit-mode-changed',
     'dirty:changed',
     'animation:state-changed',
     'animation:time-changed',

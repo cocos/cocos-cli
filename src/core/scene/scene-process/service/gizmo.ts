@@ -1164,6 +1164,34 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         return methods[funcName](...params);
     }
 
+    toggleLightProbeEditMode(enabled: boolean): boolean {
+        this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', [enabled && !this.queryLightProbeEditMode() ? 'vertex' : 'none']);
+        return this.queryLightProbeEditMode();
+    }
+
+    queryLightProbeEditMode(): boolean {
+        return this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode') === 'vertex';
+    }
+
+    toggleLightProbeBoundingBoxEditMode(enabled: boolean): boolean {
+        this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', [enabled && !this.queryLightProbeBoundingBoxEditMode() ? 'box' : 'none']);
+        return this.queryLightProbeBoundingBoxEditMode();
+    }
+
+    queryLightProbeBoundingBoxEditMode(): boolean {
+        return this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode') === 'box';
+    }
+
+    selectAllLightProbes(): void { this.execGizmoMethods('cc.LightProbeGroup', 'selectAllProbes'); }
+    unselectAllLightProbes(): void { this.execGizmoMethods('cc.LightProbeGroup', 'unselectAllProbes'); }
+    queryLightProbeSelectedCount(): number { return this.execGizmoMethods('cc.LightProbeGroup', 'getSelectedProbeCount') ?? 0; }
+    async duplicateSelectedLightProbes(): Promise<number> { return await this.execGizmoMethods('cc.LightProbeGroup', 'duplicateSelectedProbes') ?? 0; }
+    async deleteSelectedLightProbes(): Promise<number> { return await this.execGizmoMethods('cc.LightProbeGroup', 'deleteSelectedProbes') ?? 0; }
+    generateLightProbes(): number { return this.execGizmoMethods('cc.LightProbeGroup', 'generateLightProbes') ?? 0; }
+    regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number {
+        return this.execGizmoMethods('cc.LightProbeGroup', 'regionSelectProbes', [left, right, top, bottom, additive]) ?? 0;
+    }
+
     _changeRegionSelectMode(mode: number): void {
         (GizmoOperation as any).changeRegionSelectMode?.(mode);
     }

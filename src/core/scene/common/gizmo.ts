@@ -63,6 +63,18 @@ export interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
+    /** Toggles the current selected probe groups' vertex mode. */
+    toggleLightProbeEditMode(enabled: boolean): boolean;
+    queryLightProbeEditMode(): boolean;
+    toggleLightProbeBoundingBoxEditMode(enabled: boolean): boolean;
+    queryLightProbeBoundingBoxEditMode(): boolean;
+    selectAllLightProbes(): void;
+    unselectAllLightProbes(): void;
+    queryLightProbeSelectedCount(): number;
+    duplicateSelectedLightProbes(): Promise<number>;
+    deleteSelectedLightProbes(): Promise<number>;
+    generateLightProbes(): number;
+    regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
 }
 
 export type IPublicGizmoService = Pick<IGizmoService,
@@ -75,7 +87,11 @@ export type IPublicGizmoService = Pick<IGizmoService,
     'queryOriginAxes2D' | 'setOriginAxes2D' |
     'queryOriginAxes3D' | 'setOriginAxes3D' |
     'queryTransformSnapConfigs' | 'setTransformSnapConfigs' |
-    'queryRectSnapConfig' | 'setRectSnapConfig'
+    'queryRectSnapConfig' | 'setRectSnapConfig' |
+    'toggleLightProbeEditMode' | 'queryLightProbeEditMode' |
+    'toggleLightProbeBoundingBoxEditMode' | 'queryLightProbeBoundingBoxEditMode' |
+    'selectAllLightProbes' | 'unselectAllLightProbes' | 'queryLightProbeSelectedCount' |
+    'duplicateSelectedLightProbes' | 'deleteSelectedLightProbes' | 'generateLightProbes' | 'regionSelectLightProbes'
 >;
 
 export interface IGizmoEvents {
