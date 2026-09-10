@@ -6692,6 +6692,17 @@ export declare interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
+    toggleLightProbeEditMode(enabled: boolean): boolean;
+    queryLightProbeEditMode(): boolean;
+    toggleLightProbeBoundingBoxEditMode(enabled: boolean): boolean;
+    queryLightProbeBoundingBoxEditMode(): boolean;
+    selectAllLightProbes(): void;
+    unselectAllLightProbes(): void;
+    queryLightProbeSelectedCount(): number;
+    duplicateSelectedLightProbes(): Promise<number>;
+    deleteSelectedLightProbes(): Promise<number>;
+    generateLightProbes(): number;
+    regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
 }
 export declare interface IInsertLODOptions {
     path: string;
@@ -6706,7 +6717,24 @@ export declare interface ILightFXCancelResult {
     cancelled: boolean;
     target: 'light-probe' | 'lightmap' | null;
 }
+export declare interface ILightFXDiagnostics {
+    version: 1;
+    stage: string;
+    logs: string[];
+    progress?: string;
+}
+export declare interface ILightmapBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
+    version: 1;
+    resultLifecycleVersion: 1;
+    sceneTransactionVersion: 1;
+    assetVersion: 1;
+    cancelVersion?: 1;
+    cancellable?: boolean;
+    busy: boolean;
+}
 export declare interface ILightmapBakeInfo {
+    readiness?: ILightmapReadiness;
     sceneUrl: string;
     baked: boolean;
     meshCount: number;
@@ -6733,6 +6761,7 @@ export declare interface ILightmapBakeOptions {
     timeoutMs?: number;
 }
 export declare interface ILightmapBakeResult {
+    diagnostics?: ILightFXDiagnostics;
     sceneUrl: string;
     textureUrls: string[];
     meshCount: number;
@@ -6740,6 +6769,7 @@ export declare interface ILightmapBakeResult {
     durationMs: number;
 }
 export declare interface ILightmapBakeService extends IServiceEvents {
+    queryCapabilities(): Promise<ILightmapBakeCapabilities>;
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
     clearBake(options?: {
@@ -6750,6 +6780,18 @@ export declare interface ILightmapBakeService extends IServiceEvents {
     }>;
     cancel(): Promise<ILightFXCancelResult>;
 }
+export declare interface ILightmapReadiness {
+    version: 1;
+    objects: {
+        componentUuid: string;
+        nodeName: string;
+        kind: 'mesh' | 'terrain';
+        receivesLightmap: boolean;
+        castsShadow: boolean;
+        lightmapSize: number;
+        issues: LightmapObjectIssue[];
+    }[];
+}
 export declare interface ILightmapTextureInfo {
     uuid: string;
     url: string;
@@ -6757,6 +6799,15 @@ export declare interface ILightmapTextureInfo {
     size: number;
     createdAt: number;
     modifiedAt: number;
+}
+export declare interface ILightProbeBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
+    version: 1;
+    cancelVersion?: 1;
+    cancellable?: boolean;
+    resultLifecycleVersion: 1;
+    sceneTransactionVersion: 1;
+    busy: boolean;
 }
 export declare interface ILightProbeBakeOptions {
     giScale?: number;
@@ -6770,6 +6821,7 @@ export declare interface ILightProbeBakeOptions {
     timeoutMs?: number;
 }
 export declare interface ILightProbeBakeResult {
+    diagnostics?: ILightFXDiagnostics;
     sceneUrl: string;
     probeCount: number;
     giScale: number;
@@ -6782,6 +6834,7 @@ export declare interface ILightProbeBakeResult {
     durationMs: number;
 }
 export declare interface ILightProbeBakeService extends IServiceEvents {
+    queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
     bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
     clearBake(options?: {
         saveScene?: boolean;
@@ -7677,6 +7730,7 @@ export declare interface LabelAtlasAssetUserData {
     spriteFrameUuid: string;
     _fntConfig: FntData;
 }
+export declare type LightmapObjectIssue = 'inactive' | 'movable' | 'editor-only' | 'disabled' | 'not-participating' | 'missing-mesh' | 'invalid-uv1' | 'skinned-static-pose' | 'material-approximation' | 'terrain-translation-only';
 export declare interface LODsOption {
     screenRatio: number;
     faceCount: number;
