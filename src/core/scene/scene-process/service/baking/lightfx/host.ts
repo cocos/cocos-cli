@@ -16,6 +16,8 @@ import { Rpc } from '../../../rpc';
 
 /** JSON-only bridge from either a child scene process or a browser scene Webview to the Node host. */
 export const lightFXBakeHost: ILightFXBakeHostService = {
+    reserveSceneOperation: (options) => Rpc.getInstance().request('lightFXBakeHost', 'reserveSceneOperation', [options]),
+    releaseSceneOperation: (options) => Rpc.getInstance().request('lightFXBakeHost', 'releaseSceneOperation', [options]),
     resolveTextureSource: (options: IResolveLightFXTextureSourceOptions): Promise<IResolvedLightFXTextureSource | null> => Rpc.getInstance().request('lightFXBakeHost', 'resolveTextureSource', [options]),
     begin: (options: IBeginLightFXBakeOptions): Promise<IBeginLightFXBakeResult> => Rpc.getInstance().request('lightFXBakeHost', 'begin', [options]),
     appendInput: (options: IAppendLightFXInputOptions): Promise<void> => Rpc.getInstance().request('lightFXBakeHost', 'appendInput', [options]),

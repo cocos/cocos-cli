@@ -27,6 +27,8 @@ import type {
     IRunLightFXBakeOptions,
     IRunLightFXBakeResult,
     LightFXBakeTarget,
+    IReserveLightFXSceneOperationOptions,
+    ILightFXSceneOperationToken,
 } from '../common/lightfx-host';
 import { assetManager } from '../../assets';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
@@ -74,6 +76,41 @@ const MAX_TEXTURE_SOURCES = 10_000;
 export class LightFXBakeHost implements ILightFXBakeHostService {
     private operation: LightFXHostOperation | null = null;
     private readonly completedOperations = new Map<string, OperationTerminalState>();
+    private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & { nativeStarted: boolean; removingAssets: boolean }) | null = null;
+    private readonly releasedSceneOperations = new Set<string>();
+
+    public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {
+        if (!options || !['light-probe', 'lightmap'].includes(options.target) || !['bake', 'clear'].includes(options.action)) {
+            throw new Error('Invalid LightFX scene operation.');
+        }
+        if (this.sceneOperation || this.operation) throw new Error('A LightFX scene transaction is already in progress on the host.');
+        const transactionId = randomUUID();
+        // No await before reservation. A lost renderer keeps this locked rather than admitting
+        // another writer while its old scene transaction might still resume.
+        this.sceneOperation = { target: options.target, action: options.action, transactionId, nativeStarted: false, removingAssets: false };
+        return { transactionId };
+    }
+
+    public async releaseSceneOperation(options: ILightFXSceneOperationToken): Promise<void> {
+        const id = options?.transactionId;
+        if (typeof id !== 'string' || !id) throw new Error('Invalid LightFX scene transaction id.');
+        if (this.releasedSceneOperations.has(id)) return;
+        if (this.sceneOperation?.transactionId !== id) throw new Error('Unknown LightFX scene transaction.');
+        if (this.operation || this.sceneOperation.removingAssets) throw new Error('LightFX host cleanup has not finished; scene transaction remains reserved.');
+        this.sceneOperation = null;
+        this.releasedSceneOperations.add(id);
+        if (this.releasedSceneOperations.size > MAX_REMEMBERED_OPERATIONS) {
+            this.releasedSceneOperations.delete(this.releasedSceneOperations.values().next().value!);
+        }
+    }
+
+    private validateSceneOperation(transactionId: string | undefined, target: LightFXBakeTarget, action: 'bake' | 'clear'): void {
+        if (!this.sceneOperation && transactionId === undefined) return; // Legacy native callers still reserve this.operation.
+        const current = this.sceneOperation;
+        if (!current || current.transactionId !== transactionId || current.target !== target || current.action !== action) {
+            throw new Error('LightFX scene transaction ownership does not match.');
+        }
+    }
 
     public async resolveTextureSource(
         options: IResolveLightFXTextureSourceOptions,
@@ -129,6 +166,8 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             throw new Error(`A ${this.operation.target} LightFX bake is already in progress.`);
         }
         this.validateBeginOptions(options);
+        this.validateSceneOperation(options.transactionId, options.target, 'bake');
+        if (this.sceneOperation?.nativeStarted) throw new Error('This LightFX scene transaction has already started a bake.');
 
         const assetRoot = this.queryAssetRoot();
         const projectRoot = dirname(assetRoot);
@@ -167,6 +206,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
 
         // Reserve the global operation before the first asynchronous filesystem call.
         this.operation = operation;
+        if (this.sceneOperation) this.sceneOperation.nativeStarted = true;
         try {
             await ensureDir(tmpDir);
             await ensureDir(outputDir);
@@ -325,9 +365,20 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             throw new Error(`A ${this.operation.target} LightFX bake is already in progress.`);
         }
         this.validateSceneName(options.sceneName);
-        const targetDir = join(this.queryAssetRoot(), options.sceneName, 'lightmap');
-        await remove(targetDir);
-        await assetManager.refreshAsset(`db://assets/${options.sceneName}`);
+        this.validateSceneOperation(options.transactionId, 'lightmap', 'clear');
+        const legacy = options.transactionId === undefined;
+        const token = legacy ? await this.reserveSceneOperation({ target: 'lightmap', action: 'clear' }) : { transactionId: options.transactionId! };
+        const owner = this.sceneOperation!;
+        if (owner.removingAssets) throw new Error('Lightmap assets are already being removed.');
+        owner.removingAssets = true;
+        try {
+            const targetDir = join(this.queryAssetRoot(), options.sceneName, 'lightmap');
+            await remove(targetDir);
+            await assetManager.refreshAsset(`db://assets/${options.sceneName}`);
+        } finally {
+            owner.removingAssets = false;
+            if (legacy) await this.releaseSceneOperation(token);
+        }
     }
 
     /** Releases an abandoned operation when its owning Scene host shuts down. */

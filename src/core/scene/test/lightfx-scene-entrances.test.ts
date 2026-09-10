@@ -1,7 +1,10 @@
 const mockGetScene = jest.fn();
 jest.mock('cc', () => ({ director: { getScene: mockGetScene } }));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: {} }));
-jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {} }));
+jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
+    reserveSceneOperation: jest.fn(async () => ({ transactionId: 'test-owner' })),
+    releaseSceneOperation: jest.fn(async () => undefined),
+} }));
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({ createDefaultLightFXSettings: jest.fn() }));
 jest.mock('../scene-process/service/preview/asset-reload', () => ({ loadPreviewAsset: jest.fn() }));
 jest.mock('../scene-process/rpc', () => ({ Rpc: { getInstance: jest.fn() } }));

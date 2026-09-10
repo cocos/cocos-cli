@@ -1,8 +1,18 @@
 import type { LightFXBakeTarget } from './types';
+import type { ILightFXBakeHostService } from '../../../../common/lightfx-host';
+import { lightFXBakeHost } from './host';
 
-/** Scene-local transaction guard. This does not replace the shared Node-host operation lease. */
+/** Local serialization plus a host reservation covering export through final scene rollback. */
 export class LightFXSceneOperation {
     private active: { target: LightFXBakeTarget; action: 'bake' | 'clear' } | null = null;
+    private transactionId: string | undefined;
+
+    constructor(private readonly host: Pick<ILightFXBakeHostService, 'reserveSceneOperation' | 'releaseSceneOperation'> = lightFXBakeHost) {}
+
+    get hostTransactionId(): string {
+        if (!this.transactionId) throw new Error('No LightFX scene transaction is reserved.');
+        return this.transactionId;
+    }
 
     async run<T>(target: LightFXBakeTarget, action: 'bake' | 'clear', operation: () => Promise<T>): Promise<T> {
         if (this.active) {
@@ -13,8 +23,23 @@ export class LightFXSceneOperation {
         const owner = { target, action };
         this.active = owner;
         try {
-            return await operation();
+            const token = await this.host.reserveSceneOperation(owner);
+            this.transactionId = token.transactionId;
+            let result: T;
+            try {
+                result = await operation();
+            } catch (error) {
+                // Preserve the scene failure if host cleanup must remain locked and retryable.
+                await this.host.releaseSceneOperation(token).catch((releaseError) => {
+                    console.error('[LightFX] Scene reservation remains locked after failure:', releaseError);
+                });
+                throw error;
+            }
+            // A failed release must not be reported as successful completion.
+            await this.host.releaseSceneOperation(token);
+            return result;
         } finally {
+            this.transactionId = undefined;
             if (this.active === owner) this.active = null;
         }
     }

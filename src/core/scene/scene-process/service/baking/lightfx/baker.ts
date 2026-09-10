@@ -3,6 +3,7 @@ import { encodeLightFXBase64 } from './buffer';
 import { encodeLightFXInput } from './format';
 import { LightFXExporter, LightFXExport } from './exporter';
 import { lightFXBakeHost } from './host';
+import { lightFXSceneOperation } from './scene-operation';
 import { LightFXBakeTarget, LightFXResult, LightFXSettings } from './types';
 
 const INPUT_CHUNK_SIZE = 512 * 1024;
@@ -25,6 +26,7 @@ class LightFXCoordinator {
         try {
             const exported = await new LightFXExporter().export(scene, target, settings);
             ({ operationId } = await lightFXBakeHost.begin({
+                transactionId: lightFXSceneOperation.hostTransactionId,
                 target,
                 sceneName: scene.name,
                 textureSources: exported.textureSources,
@@ -63,7 +65,7 @@ class LightFXCoordinator {
     }
 
     removeLightmapAssets(sceneName: string): Promise<void> {
-        return lightFXBakeHost.removeLightmapAssets({ sceneName });
+        return lightFXBakeHost.removeLightmapAssets({ sceneName, transactionId: lightFXSceneOperation.hostTransactionId });
     }
 
     async cancel(): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {

@@ -18,10 +18,18 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
 1. 当前场景必须是已保存的 `.scene` 资产；不支持未保存场景和 prefab。
 2. Light Probe 烘焙前，场景中需要至少 4 个已生成的有效探针。
 3. Lightmap 烘焙前，需要在 MeshRenderer、SkinnedMeshRenderer 或 Terrain 上配置有效的烘焙设置。
-4. 同一时间只允许运行一个 LightFX 烘焙任务。
+4. 同一 Scene host 下，Light Probe／Lightmap 的 Bake／Clear 共享事务预留；导出、结果应用、保存、Undo、失败恢复与可选资产清理期间拒绝新的冲突操作。
 5. 在 Pink 中调用时，目标场景必须已在当前可见的场景视图中加载完成；不需要额外调用 `scene-open`。同时存在多个可见场景视图时，应先激活目标场景标签并关闭重复视图。
 
 ## MCP 工具
+
+### 并发与故障边界
+
+Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事务凭据，业务结束后通过 `releaseSceneOperation` 释放。多个 Webview／worker 共用同一宿主预留；本地锁仍防止同一 runtime 重入。原生任务的 `operationId` 与场景事务的 `transactionId` 不同，原生 commit／rollback 结束不代表上层场景回写已经结束。内部凭据不是公开任务查询接口，也不是用户认证机制。
+
+宿主校验事务凭据、目标和动作；错误或已过期的凭据不能开始新的原生烘焙／清理，重复释放旧事务不能释放新持有者。没有场景预留的旧原生 begin 入口仍独占原生操作；旧资产删除入口也会在删除及 Asset DB 刷新期间临时预留。旧 renderer 若完全绕过新增协议执行内存 Clear，并不受此机制保护，集成时必须统一运行产物版本。
+
+运行实例失联或释放失败时采用 fail-closed：宿主不自动超时放开场景预留，以免暂停的旧实例恢复后与新任务同时写回。此时不要自动重试烘焙；先处理原实例并重启其 Scene host。原生回滚失败时保留恢复备份，不得手工删除以“解除忙状态”。自动失联回收、公开任务状态和按任务归属取消尚未包含在这层协议中；现有 Cancel 仍是共享操作，不应直接当作某个面板私有任务的取消按钮。
 
 ### 烘焙 Light Probe
 

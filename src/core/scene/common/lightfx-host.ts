@@ -1,6 +1,16 @@
 /** A bake target supported by the native LightFX process. */
 export type LightFXBakeTarget = 'light-probe' | 'lightmap';
 
+/** Internal scene transaction ownership; not a public task or authentication token. */
+export interface IReserveLightFXSceneOperationOptions {
+    target: LightFXBakeTarget;
+    action: 'bake' | 'clear';
+}
+
+export interface ILightFXSceneOperationToken {
+    transactionId: string;
+}
+
 /** JSON-safe reference to a texture needed by a LightFX input file. */
 export interface ILightFXTextureSource {
     uuid: string;
@@ -18,6 +28,7 @@ export interface IResolvedLightFXTextureSource {
 }
 
 export interface IBeginLightFXBakeOptions {
+    transactionId?: string;
     target: LightFXBakeTarget;
     sceneName: string;
     textureSources: ILightFXTextureSource[];
@@ -72,6 +83,7 @@ export interface ILightFXOperationOptions {
 }
 
 export interface IRemoveLightmapAssetsOptions {
+    transactionId?: string;
     sceneName: string;
 }
 
@@ -100,6 +112,8 @@ export interface IQueryLightmapTextureInfoResult {
  * return value in this contract must remain JSON serializable and must not expose host file paths.
  */
 export interface ILightFXBakeHostService {
+    reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken>;
+    releaseSceneOperation(options: ILightFXSceneOperationToken): Promise<void>;
     resolveTextureSource(options: IResolveLightFXTextureSourceOptions): Promise<IResolvedLightFXTextureSource | null>;
     begin(options: IBeginLightFXBakeOptions): Promise<IBeginLightFXBakeResult>;
     appendInput(options: IAppendLightFXInputOptions): Promise<void>;
