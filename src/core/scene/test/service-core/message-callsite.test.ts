@@ -277,6 +277,57 @@ describe('ServiceEvents 事件发射集成测试', () => {
 
             expect(listener).toHaveBeenCalledWith(true);
         });
+
+        it('generateLightProbes forwards to the LightProbeGroup gizmo method', () => {
+            gizmoService.execGizmoMethods = jest.fn(() => 2);
+
+            expect(gizmoService.generateLightProbes()).toBe(2);
+            expect(gizmoService.execGizmoMethods).toHaveBeenCalledWith(
+                'cc.LightProbeGroup',
+                'generateLightProbes',
+                [],
+            );
+        });
+
+        it('forwards all LightProbe facade operations with the expected method names and parameters', () => {
+            const exec = jest.fn((name: string, method: string) => {
+                if (method === 'getEditMode') return 'none';
+                if (method === 'getSelectedProbeCount') return 3;
+                if (method === 'deleteSelectedProbes') return 1;
+                if (method === 'duplicateSelectedProbes') return 2;
+                if (method === 'regionSelectProbes') return 4;
+                if (method === 'generateLightProbes') return 2;
+                return undefined;
+            });
+            gizmoService.execGizmoMethods = exec;
+
+            gizmoService.toggleLightProbeEditMode(true);
+            gizmoService.queryLightProbeEditMode();
+            gizmoService.toggleLightProbeBoundingBoxEditMode(true);
+            gizmoService.queryLightProbeBoundingBoxEditMode();
+            gizmoService.selectAllLightProbes();
+            gizmoService.unselectAllLightProbes();
+            expect(gizmoService.queryLightProbeSelectedCount()).toBe(3);
+            expect(gizmoService.deleteSelectedLightProbes()).toBe(1);
+            expect(gizmoService.duplicateSelectedLightProbes()).toBe(2);
+            expect(gizmoService.regionSelectLightProbes(1, 2, 3, 4, true)).toBe(4);
+            expect(gizmoService.generateLightProbes()).toBe(2);
+
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'changeEditMode', ['vertex']);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'changeEditMode', ['box']);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'getEditMode', []);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'selectAllProbes', []);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'unselectAllProbes', []);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'getSelectedProbeCount', []);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'deleteSelectedProbes', []);
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'duplicateSelectedProbes', []);
+            expect(exec).toHaveBeenCalledWith(
+                'cc.LightProbeGroup',
+                'regionSelectProbes',
+                [1, 2, 3, 4, true],
+            );
+            expect(exec).toHaveBeenCalledWith('cc.LightProbeGroup', 'generateLightProbes', []);
+        });
     });
 
     // ── NodeManager: add / remove / change → ServiceEvents ──
