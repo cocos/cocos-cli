@@ -356,3 +356,5 @@ Bake 和 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与�
 2026-09-10 结果历史专项：macOS arm64／隔离 PinK，真实带第二套 UV 的 Mesh 烘焙 128px 标准／高精度贴图；Bake、保留资产的 Clear、独立 Undo／Redo、渲染模型 UV、显式／自动保存、真正关闭重开通过，旁侧 43 点探针全部 SH 保持。Terrain 多 block 录制目标及失败恢复由服务测试覆盖，未在本次专项重做 Terrain 原生场景实测；也没有验收旧 PNG 像素版本撤销、资产删除撤销或最终画面质量。
 
 随后版本隔离专项补验：三次真实 Mesh Bake 使用不同 URL／UUID，标准／高精度 PNG 的 SHA256 随 Undo／Redo 精确对应旧／新结果，关闭重开保留；未保存新 Bake 时磁盘 Scene 仍引用未变更的旧 PNG。旧平铺资产保持。真实文件事务测试覆盖同名场景多次输出互不覆盖、本次回滚／导入失败不影响旧版本；取消故障不作为新增实机验收，资产删除与历史 GC 仍待专门的归属协议。
+
+Terrain 专项补验：快照恢复数组后，对已有 TerrainBlock 重新绑定对应 lightmap info（无元素时解绑）并让材质失效，避免 Terrain.onRestore 的 valid 快路径保留旧引用。实际单块和持久化 `.terrain` 双块＋Mesh 混合场景，Bake／Clear、Undo／Redo、自动／显式保存、关闭重开通过；每个 block 的实际 texture／UV 与序列化结果一致，43 点探针 SH 不变。`bake().terrainCount` 当前是原生输出 block 条目数，`queryBakeInfo().terrainCount` 是拥有绑定的 Terrain 组件数，两者不应直接比较。地形尺寸／高度保存在 `.terrain` 资产，夹具通过 Terrain.saveManage／saveAssetDialog 正式写入，不靠修改内存后只保存 Scene 冒充持久化。

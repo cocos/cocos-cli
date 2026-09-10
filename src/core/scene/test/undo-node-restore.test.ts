@@ -69,6 +69,24 @@ describe('restoreComponentSnapshotDump', () => {
         mockRestoreComponentSnapshotProperties.mockReset();
     });
 
+    it('refreshes Terrain block bindings after properties and the engine lifecycle have restored', async () => {
+        const events: string[] = [];
+        const restoredInfo = { texture: 'restored-texture' };
+        const block = { _updateLightmap: jest.fn(() => events.push('bind')) };
+        const component = {
+            _lightmapInfos: [] as unknown[],
+            onRestore: () => { events.push('lifecycle'); },
+            getBlocks: () => [block],
+        };
+        mockRestoreComponentSnapshotProperties.mockImplementationOnce(async () => {
+            events.push('properties');
+            component._lightmapInfos = [restoredInfo];
+        });
+        await restoreComponentSnapshotDump(component as any, { type: 'cc.Terrain', value: { _lightmapInfos: {} } });
+        expect(events).toEqual(['properties', 'lifecycle', 'bind']);
+        expect(block._updateLightmap).toHaveBeenCalledWith(restoredInfo);
+    });
+
     it('delegates property restoration to dump and calls onRestore lifecycle', async () => {
         const component = {
             onRestore: jest.fn(),
