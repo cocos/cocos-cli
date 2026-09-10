@@ -177,8 +177,8 @@ Probe Bake／Clear 的 `saveScene` 默认是 `true`：完整成功后，当前�
     "data": {
       "sceneUrl": "db://assets/LightProbe.scene",
       "textureUrls": [
-        "db://assets/LightProbe/lightmap/LFX_Mesh_0000.png",
-        "db://assets/LightProbe/lightmap/LFX_Terrain_0000.png"
+        "db://assets/LightProbe/lightmap/bake-<operation-uuid>/LFX_Mesh_0000.png",
+        "db://assets/LightProbe/lightmap/bake-<operation-uuid>/LFX_Terrain_0000.png"
       ],
       "meshCount": 7,
       "terrainCount": 1,
@@ -283,10 +283,10 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 
 ## Lightmap 资产规则
 
-Lightmap 统一输出到：
+Lightmap 按每次烘焙的 operation UUID 输出到独立版本目录（以下为路径模板）：
 
 ```text
-db://assets/<scene-name>/lightmap/
+db://assets/<scene-name>/lightmap/bake-<operation-uuid>/
 ```
 
 典型文件包括：
@@ -297,9 +297,11 @@ LFX_Terrain_0000.png
 ```
 
 - Mesh 与 Terrain 使用独立的类型和索引映射，避免两者均从索引 0 开始时串绑贴图。
-- 重复烘焙会保留同名贴图的 `.meta`，从而复用 Asset UUID。
+- 每次成功烘焙创建新的 URL／Asset UUID，不覆盖任何已发布版本。Undo 恢复旧纹理引用时，旧 PNG 像素仍可用；saveScene:false 的新结果也不会改写磁盘旧场景依赖的贴图。
+- 旧版平铺目录中的 PNG／`.meta` 原样保留，不自动迁移、不复用其 UUID。调用方必须使用返回的 textureUrls 或真实绑定查询，不拼接固定文件路径。
+- 历史版本暂不自动回收，因此磁盘占用随烘焙次数增加。不能只按“当前场景没绑定”删除旧版本，Undo、其他场景或磁盘已保存版本可能仍在引用。
 - 导入后将 `fixAlphaTransparencyArtifacts` 设置为 `false`，再加载 Texture2D 子资源并绑定。
-- 资产导入、组件绑定或场景保存失败时，恢复原贴图目录、组件绑定和场景全局标记。
+- 资产导入、组件绑定或场景保存失败时，回滚本次新目录并尝试恢复组件绑定和场景全局标记，旧版本目录不受影响。
 - 成功、失败、取消和超时都会清理本次 LightFX workspace。
 
 ## Creator 互操作说明
@@ -335,7 +337,7 @@ LightFX 当前可能输出 Creator 历史协议版本。解析器只接受已知
 
 Bake 和 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与结果修改的 MeshRenderer／Terrain 组件（同一 Terrain 多 block 去重）及 Scene 标记，不能只录制不递归的 Scene 根节点；旧引擎缺类型的空纹理引用也会保留在快照中。成功自动保存后以该记录作为保存点；saveScene:false 不隐式保存场景。场景结果提交失败时尝试恢复原组件数据和全局标记；Lightmap 资产提交失败时还会恢复原 PNG 与 `.meta`。
 
-注意绑定历史与资产版本是两件事：以上 Undo 恢复纹理引用、UV 和场景标记，不承诺重复 Bake 覆盖同一 PNG 后能恢复上一版像素。`deleteAssets:true` 还涉及目录删除，不属于可恢复绑定的保留资产验证范围，调用方不可据此假定删除可撤销。
+绑定历史与资产版本分别保留：新版本输出不会覆盖旧 PNG，Undo 通过旧 UUID 恢复旧纹理／UV／场景标记。此前旧版本 CLI 已覆盖丢失的像素无法靠此修复找回。`deleteAssets:true` 仍会删除同 sceneName 的整个 lightmap 目录，包括所有版本；不属于可恢复绑定的保留资产验证范围，调用方不可据此假定删除可撤销或跨同名场景安全。
 
 ## 验证范围
 
@@ -345,10 +347,12 @@ Bake 和 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与�
 - Mesh Lightmap Bake/Clear。
 - Terrain Lightmap Bake/Clear。
 - Mesh 与 Terrain 混合场景的独立贴图绑定。
-- 重复烘焙的 `.meta` 与 UUID 复用。
+- 重复烘焙的独立版本目录／UUID、旧像素保留及旧平铺资产兼容。
 - Pink 当前可见场景中的即时结果应用、清理和取消。
 - TypeScript 编译、ESLint、API、协议和资产事务测试。
 
 新增材质类型、灯光类型、LightFX 版本或目标平台时，应补充对应真实场景回归。
 
 2026-09-10 结果历史专项：macOS arm64／隔离 PinK，真实带第二套 UV 的 Mesh 烘焙 128px 标准／高精度贴图；Bake、保留资产的 Clear、独立 Undo／Redo、渲染模型 UV、显式／自动保存、真正关闭重开通过，旁侧 43 点探针全部 SH 保持。Terrain 多 block 录制目标及失败恢复由服务测试覆盖，未在本次专项重做 Terrain 原生场景实测；也没有验收旧 PNG 像素版本撤销、资产删除撤销或最终画面质量。
+
+随后版本隔离专项补验：三次真实 Mesh Bake 使用不同 URL／UUID，标准／高精度 PNG 的 SHA256 随 Undo／Redo 精确对应旧／新结果，关闭重开保留；未保存新 Bake 时磁盘 Scene 仍引用未变更的旧 PNG。旧平铺资产保持。真实文件事务测试覆盖同名场景多次输出互不覆盖、本次回滚／导入失败不影响旧版本；取消故障不作为新增实机验收，资产删除与历史 GC 仍待专门的归属协议。

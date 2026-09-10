@@ -185,8 +185,11 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         );
         const tmpDir = join(workspace, 'tmp');
         const outputDir = join(workspace, 'output');
-        const targetDir = join(assetRoot, options.sceneName, 'lightmap');
-        const targetUrl = `db://assets/${options.sceneName}/lightmap`;
+        // Published textures are immutable: existing saved scenes and Undo
+        // records may still refer to any earlier bake, including legacy files.
+        const version = `bake-${operationId}`;
+        const targetDir = join(assetRoot, options.sceneName, 'lightmap', version);
+        const targetUrl = `db://assets/${options.sceneName}/lightmap/${version}`;
         const operation: LightFXHostOperation = {
             id: operationId,
             target: options.target,
