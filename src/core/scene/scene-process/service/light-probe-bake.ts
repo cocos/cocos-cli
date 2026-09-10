@@ -127,26 +127,21 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         const info: any = scene.globals.lightProbeInfo;
         const probes: any[] = info.data?.probes ?? [];
         const previous = this.snapshot(probes);
+        const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Clear light probes' });
         try {
             info.onProbeBakeCleared();
             await Service.Engine.repaintInEditMode();
-            Service.Undo.commitLightProbeClear();
+            await finishSavedLightFXRecording(Service.Undo, undo,
+                options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
+            return { probeCount: probes.length };
         } catch (error) {
+            if (error instanceof LightFXResultRetainedError) throw error;
+            Service.Undo.cancelRecording(undo);
             this.restore(probes, previous);
             info.onProbeBakeFinished();
             await Service.Engine.repaintInEditMode();
             throw error;
         }
-        // A rejected save may already have written the scene. Keep the clear result
-        // and its dirty marker; it is no longer an operation that Undo can revert.
-        if (options.saveScene !== false) {
-            try {
-                await Service.Editor.save({});
-            } catch (error) {
-                throw new Error(`LightFX result retained in the scene; save was not confirmed. Check the scene before saving again. ${this.errorMessage(error)}`);
-            }
-        }
-        return { probeCount: probes.length };
     }
 
     cancel(): Promise<ILightFXCancelResult> {

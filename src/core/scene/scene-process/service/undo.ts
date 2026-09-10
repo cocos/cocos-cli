@@ -8,7 +8,6 @@ import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
 import { restoreComponentSnapshotDump, restoreNodeSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
 import { withLightProbeTransformScenes } from './scene/light-probe-transform';
-import { LightFXResultCommand } from './undo/commands/lightfx-result-command';
 
 interface IRecordingComponentSnapshot {
     uuid: string;
@@ -106,22 +105,17 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     reset(): void {
-        this._clearHistory(true);
+        this.clearHistory();
     }
 
     clearHistory(): void {
-        this._clearHistory(false);
-    }
-
-    private _clearHistory(reset: boolean): void {
         const wasDirty = this._undoMgr.isDirty();
         const hadUndoState =
             this._undoMgr.canUndo() ||
             this._undoMgr.canRedo() ||
             this._undoMgr.isGroupActive() ||
             this._undoMgr.hasActiveRecording();
-        if (reset) this._undoMgr.reset();
-        else this._undoMgr.clearHistory();
+        this._undoMgr.reset();
         this._emitDirtyIfChanged(wasDirty);
         if (hadUndoState) {
             this.broadcast('undo:changed');
@@ -205,26 +199,6 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     markSaved(): void {
         const wasDirty = this._undoMgr.isDirty();
         this._undoMgr.markSaved();
-        this._emitDirtyIfChanged(wasDirty);
-    }
-
-    commitLightProbeClear(): void {
-        const scene = cc.director.getScene();
-        if (!scene) throw new Error('No scene is currently open.');
-        const uuid = scene.uuid;
-        this._commitLightFXResult('light-probe', () => {
-            const current = cc.director.getScene();
-            if (current?.isValid && current.uuid === uuid) current.globals.lightProbeInfo.onProbeBakeCleared();
-        });
-    }
-
-    commitLightmapRebake(restore: () => Promise<void>): void {
-        this._commitLightFXResult('lightmap', restore);
-    }
-
-    private _commitLightFXResult(target: 'light-probe' | 'lightmap', restore: () => void | Promise<void>): void {
-        const wasDirty = this._undoMgr.isDirty();
-        this._undoMgr.commitNonUndoableChange(command => LightFXResultCommand.protect(command, target, restore));
         this._emitDirtyIfChanged(wasDirty);
     }
 

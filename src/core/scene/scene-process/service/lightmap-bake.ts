@@ -78,36 +78,24 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             const previousBindings = this.snapshotBindings(output);
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
             const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
-            const rebake = previousBindings.some(binding => binding.texture);
             // Scene recordings do not recursively capture child components.
             // Keep the flags last, after restoring each affected result binding.
             const targets = [...new Set([...output.models, ...output.terrains].map(component => component.uuid)), scene.uuid];
-            const undo = rebake ? undefined : Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
+            const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
             try {
                 this.applyBakeResult(output, textures);
                 (scene.globals as any).bakedWithHighpLightmap = settings.highp;
                 (scene.globals as any).bakedWithStationaryMainLight = output.stationaryMainLight;
                 await Service.Engine.repaintInEditMode();
-                if (rebake) {
-                    Service.Undo.commitLightmapRebake(this.retainBakeResult(scene, output));
-                } else {
-                    await finishSavedLightFXRecording(Service.Undo, undo!,
-                        options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
-                }
+                await finishSavedLightFXRecording(Service.Undo, undo,
+                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
             } catch (error) {
                 if (error instanceof LightFXResultRetainedError) throw error;
                 this.restoreBindings(previousBindings);
                 (scene.globals as any).bakedWithHighpLightmap = previousHighp;
                 (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
-                if (undo) Service.Undo.cancelRecording(undo);
+                Service.Undo.cancelRecording(undo);
                 throw error;
-            }
-            if (rebake && options.saveScene !== false) {
-                try {
-                    await Service.Editor.save({});
-                } catch (error) {
-                    throw new Error(`LightFX result retained in the scene; save was not confirmed. Check the scene before saving again. ${this.errorMessage(error)}`);
-                }
             }
 
             this.broadcast('lightfx:bake-end', 'lightmap');
@@ -278,42 +266,6 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             })),
             ...this.snapshotTerrainBindings(output.terrains),
         ];
-    }
-
-    /** Resolve component identities again after Undo/reload; never resurrect removed objects. */
-    private retainBakeResult(scene: Scene, output: LightFXBakeOutput): () => Promise<void> {
-        const sceneUuid = scene.uuid;
-        const bindings = this.snapshotBindings(output).map(binding => ({
-            uuid: binding.target.uuid as string, blockId: binding.blockId, texture: binding.texture, uv: binding.uv,
-        }));
-        const targets = new Set([...output.models, ...output.terrains].map(component => component.uuid));
-        const highp = scene.globals.bakedWithHighpLightmap;
-        const stationary = scene.globals.bakedWithStationaryMainLight;
-        return async () => {
-            const current = director.getScene();
-            if (!current || current.uuid !== sceneUuid) return;
-            const components = new Map<string, MeshRenderer | Terrain>();
-            const visit = (node: any): void => {
-                for (const component of [...node.getComponents(MeshRenderer), ...node.getComponents(Terrain)]) {
-                    if (targets.has(component.uuid)) components.set(component.uuid, component);
-                }
-                node.children.forEach(visit);
-            };
-            visit(current);
-            const restored: LightmapBinding[] = [];
-            for (const binding of bindings) {
-                const target = components.get(binding.uuid);
-                if (!target) continue;
-                if (binding.texture && !binding.texture.isValid) {
-                    binding.texture = await this.loadTexture(binding.texture.uuid, 60_000);
-                }
-                restored.push({ ...binding, target });
-            }
-            this.clearBindings(this.snapshotSceneBindings(current).filter(binding => targets.has(binding.target.uuid)));
-            this.restoreBindings(restored);
-            current.globals.bakedWithHighpLightmap = highp;
-            current.globals.bakedWithStationaryMainLight = stationary;
-        };
     }
 
     private snapshotSceneBindings(scene: Scene): LightmapBinding[] {

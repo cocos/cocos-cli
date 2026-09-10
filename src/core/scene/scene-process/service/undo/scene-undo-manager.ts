@@ -36,7 +36,6 @@ class SceneUndoManager {
     private _commandArray: IUndoCommand[] = [];
     private _index = -1;
     private _lastSavedCommandId: string | null = null;
-    private _nonUndoableDirty = false;
     private _checkpointGeneration = 0;
     private _autoCommands: SceneUndoCommand[] = [];
     private _manualCommands: SceneUndoCommand[] = [];
@@ -143,7 +142,6 @@ class SceneUndoManager {
         this._commandArray.length = 0;
         this._index = -1;
         this._lastSavedCommandId = null;
-        this._nonUndoableDirty = false;
         this._checkpointGeneration++;
         this._autoCommands.length = 0;
         this._manualCommands.length = 0;
@@ -152,29 +150,17 @@ class SceneUndoManager {
         this._activeGroup = null;
     }
 
-    // Clearing history is not saving or discarding a non-Undo scene result.
+    // reset 的对外别名（IUndoService 同时暴露 reset/clearHistory）。
     clearHistory(): void {
-        const nonUndoableDirty = this._nonUndoableDirty;
         this.reset();
-        this._nonUndoableDirty = nonUndoableDirty;
     }
 
     markSaved(): void {
         this._lastSavedCommandId = this._currentCommandId();
-        this._nonUndoableDirty = false;
     }
 
     isDirty(): boolean {
-        return this._nonUndoableDirty || this._lastSavedCommandId !== this._currentCommandId();
-    }
-
-    /** Keep existing edits, but prevent their snapshots from reverting a non-Undo result. */
-    commitNonUndoableChange(protect: (command: IUndoCommand) => IUndoCommand): void {
-        if (this.hasActiveRecording() || this.isGroupActive() || this.isApplying()) {
-            throw new Error('Cannot commit a non-Undo result while an edit is active.');
-        }
-        this._commandArray = this._commandArray.map(protect);
-        this._nonUndoableDirty = true;
+        return this._lastSavedCommandId !== this._currentCommandId();
     }
 
     createCheckpoint(): IUndoCheckpoint {

@@ -107,7 +107,7 @@ export interface IUndoService {
     /** 清空整个 undo/redo 栈，内部生命周期 API。 */
     reset(): void;
 
-    /** 清空整个 undo/redo 栈，但不丢弃非撤销修改的未保存标记。 */
+    /** 清空整个 undo/redo 栈。 */
     clearHistory(): void;
 
     /** 当前场景有未保存变更时返回 true。 */
@@ -140,12 +140,6 @@ export interface IUndoService {
      */
     markSaved(): void;
 
-    /** 内部：提交不可撤销的探针清空，保留普通编辑历史与未保存状态。 */
-    commitLightProbeClear(): void;
-
-    /** 内部：提交不可撤销的重烘焙，旧历史执行后重新应用最新绑定。 */
-    commitLightmapRebake(restore: () => Promise<void>): void;
-
     /**
      * 当前存在进行中的录制时返回 true。
      * 传入 uuid 时，只有该 uuid 被某个录制覆盖才返回 true。
@@ -177,8 +171,6 @@ export type IPublicUndoService = Omit<
     | 'endRecording'
     | 'cancelRecording'
     | 'hasActiveRecording'
-    | 'commitLightProbeClear'
-    | 'commitLightmapRebake'
 >;
 
 /** 给外部代理过滤层使用的公开 redo 命名空间。 */
