@@ -1917,7 +1917,10 @@ export declare interface ChokidarOptions {
     	useFsEvents?: boolean;
     	usePolling?: boolean;
 }
-export declare function clearCache(scope: BuildCacheScope): Promise<ClearCacheResult>;
+export declare function clearCache(options: ClearCacheOptions): Promise<ClearCacheResult>;
+export declare interface ClearCacheOptions {
+    scope: BuildCacheScope;
+}
 export declare interface ClearCacheResult {
     scope: BuildCacheScope;
     cleared: string[];
@@ -6692,15 +6695,15 @@ export declare interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
-    toggleLightProbeEditMode(enabled: boolean): boolean;
+    toggleLightProbeEditMode(mode: boolean | undefined): boolean;
     queryLightProbeEditMode(): boolean;
-    toggleLightProbeBoundingBoxEditMode(enabled: boolean): boolean;
+    toggleLightProbeBoundingBoxEditMode(mode: boolean | undefined): boolean;
     queryLightProbeBoundingBoxEditMode(): boolean;
     selectAllLightProbes(): void;
     unselectAllLightProbes(): void;
     queryLightProbeSelectedCount(): number;
-    duplicateSelectedLightProbes(): Promise<number>;
     deleteSelectedLightProbes(): Promise<number>;
+    duplicateSelectedLightProbes(): Promise<number>;
     generateLightProbes(): number;
     regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
 }

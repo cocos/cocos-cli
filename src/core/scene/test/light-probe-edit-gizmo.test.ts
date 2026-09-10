@@ -13,7 +13,20 @@ jest.mock('../scene-process/service/core/decorator', () => ({ Service: mockServi
 jest.mock('../scene-process/service/core/global-events', () => ({ ServiceEvents: { broadcast: jest.fn() } }));
 jest.mock('cc', () => {
     class Vec3 {
-        constructor(public x = 0, public y = 0, public z = 0) {}
+        public x: number;
+        public y: number;
+        public z: number;
+        constructor(x: number | Vec3 = 0, y = 0, z = 0) {
+            if (typeof x === 'object') {
+                this.x = x.x;
+                this.y = x.y;
+                this.z = x.z;
+            } else {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+            }
+        }
         static clone(point: Vec3) { return new Vec3(point.x, point.y, point.z); }
     }
     return { Vec3, Quat: class {}, Color: class {}, LightProbeGroup: class {}, js: { getClassName: () => 'cc.LightProbeGroup' } };
@@ -25,6 +38,8 @@ jest.mock('../scene-process/service/gizmo/base/gizmo-base', () => ({
         constructor(value: unknown) { this.value = value; }
         get target() { return this.value; }
         set target(value: unknown) { this.value = value; }
+        visible() { return (this as any)._shown === true; }
+        onComponentChanged() {}
     },
 }));
 jest.mock('../scene-process/service/gizmo/base/gizmo-icon', () => ({ __esModule: true, default: class {} }));
@@ -45,14 +60,24 @@ function target(uuid: string, count: number): LightProbeGroup {
 const created: InstanceType<typeof SelectGizmo>[] = [];
 function group(uuid: string, count: number) {
     const gizmo = new SelectGizmo(target(uuid, count));
+    const refreshTargetState = () => {
+        const state = gizmo as any;
+        if (state._boundTarget !== gizmo.target) {
+            state._selected.clear();
+            state._boundTarget = gizmo.target;
+        }
+        state._probeIndexByName.clear();
+        for (let index = 0; index < (gizmo.target?.probes.length ?? 0); index++) {
+            state._probeIndexByName.set(`LightProbeSphere_${index}`, index);
+        }
+    };
     jest.spyOn(gizmo, 'createController').mockImplementation(() => {
         Object.assign(gizmo, { _controller: { hide: jest.fn(), shape: { destroy: jest.fn() } } });
     });
-    jest.spyOn(gizmo, 'updateControllerData').mockImplementation(() => {
-        gizmo.selection.bind(gizmo.target, gizmo.target?.probes.length ?? 0);
-    });
-    jest.spyOn(gizmo, 'refreshSelection').mockImplementation(() => {});
-    jest.spyOn(gizmo, 'probesChanged').mockImplementation(() => gizmo.updateControllerData());
+    jest.spyOn(gizmo, 'updateControllerData').mockImplementation(refreshTargetState);
+    jest.spyOn(gizmo as any, '_rebuildDots').mockImplementation(refreshTargetState);
+    jest.spyOn(gizmo as any, '_rebuildWireframe').mockImplementation(() => {});
+    jest.spyOn(gizmo as any, '_updateProbeControllerTransform').mockImplementation(() => {});
     gizmo.init();
     gizmo.onShow();
     created.push(gizmo);
@@ -121,13 +146,13 @@ describe('Probe editing pooled Gizmos', () => {
         expect(methods.getSelectedProbeCount()).toBe(64);
         first.onHide();
         methods.selectAllProbes();
-        expect([methods.getSelectedProbeCount(), first.selection.indices.size]).toEqual([32, 0]);
+        expect([methods.getSelectedProbeCount(), (first as any)._selected.size]).toEqual([32, 0]);
         first.target = target('c', 32);
         first.onShow();
         expect(methods.getSelectedProbeCount()).toBe(32);
         second.onHide();
         methods.selectAllProbes();
-        expect([methods.getSelectedProbeCount(), second.selection.indices.size]).toEqual([32, 0]);
+        expect([methods.getSelectedProbeCount(), (second as any)._selected.size]).toEqual([32, 0]);
     });
 
     it('does not count disabled targets and returns to normal tools after the last group hides', () => {
@@ -155,7 +180,12 @@ describe('Probe editing pooled Gizmos', () => {
         expect(mockService.Undo.beginRecording).toHaveBeenCalledWith(['active']);
         settle();
         expect(await operation).toBe(4);
-        expect([...active.selection.indices]).toEqual([4, 5, 6, 7]);
+        expect([...(active as any)._selected]).toEqual([
+            'LightProbeSphere_4',
+            'LightProbeSphere_5',
+            'LightProbeSphere_6',
+            'LightProbeSphere_7',
+        ]);
         expect(await methods.deleteSelectedProbes()).toBe(4);
         expect([active.target!.probes.length, methods.getSelectedProbeCount()]).toEqual([4, 0]);
     });

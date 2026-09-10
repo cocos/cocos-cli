@@ -1164,32 +1164,81 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         return methods[funcName](...params);
     }
 
-    toggleLightProbeEditMode(enabled: boolean): boolean {
-        this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', [enabled && !this.queryLightProbeEditMode() ? 'vertex' : 'none']);
+    // ── Light Probe 编辑模式 facade（对齐 Creator general-scene-facade.ts L1438-1467）──
+
+    // 切换逐探针（vertex）编辑模式：非 vertex 时按 mode 进入 vertex，已在 vertex 则退回 none。
+    toggleLightProbeEditMode(mode: boolean | undefined): boolean {
+        mode = Boolean(mode);
+        const currentMode = this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode', []);
+        if (currentMode !== 'vertex') {
+            if (mode) this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', ['vertex']);
+        } else {
+            this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', ['none']);
+        }
         return this.queryLightProbeEditMode();
     }
 
     queryLightProbeEditMode(): boolean {
-        return this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode') === 'vertex';
+        return this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode', []) === 'vertex';
     }
 
-    toggleLightProbeBoundingBoxEditMode(enabled: boolean): boolean {
-        this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', [enabled && !this.queryLightProbeBoundingBoxEditMode() ? 'box' : 'none']);
+    // 切换包围盒（box / Edit Area Box）编辑模式：非 box 时按 mode 进入 box，已在 box 则退回 none。
+    toggleLightProbeBoundingBoxEditMode(mode: boolean | undefined): boolean {
+        mode = Boolean(mode);
+        const currentMode = this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode', []);
+        if (currentMode !== 'box') {
+            if (mode) this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', ['box']);
+        } else {
+            this.execGizmoMethods('cc.LightProbeGroup', 'changeEditMode', ['none']);
+        }
         return this.queryLightProbeBoundingBoxEditMode();
     }
 
     queryLightProbeBoundingBoxEditMode(): boolean {
-        return this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode') === 'box';
+        return this.execGizmoMethods('cc.LightProbeGroup', 'getEditMode', []) === 'box';
     }
 
-    selectAllLightProbes(): void { this.execGizmoMethods('cc.LightProbeGroup', 'selectAllProbes'); }
-    unselectAllLightProbes(): void { this.execGizmoMethods('cc.LightProbeGroup', 'unselectAllProbes'); }
-    queryLightProbeSelectedCount(): number { return this.execGizmoMethods('cc.LightProbeGroup', 'getSelectedProbeCount') ?? 0; }
-    async duplicateSelectedLightProbes(): Promise<number> { return await this.execGizmoMethods('cc.LightProbeGroup', 'duplicateSelectedProbes') ?? 0; }
-    async deleteSelectedLightProbes(): Promise<number> { return await this.execGizmoMethods('cc.LightProbeGroup', 'deleteSelectedProbes') ?? 0; }
-    generateLightProbes(): number { return this.execGizmoMethods('cc.LightProbeGroup', 'generateLightProbes') ?? 0; }
+    // 全选 / 取消全选 vertex 模式下的探针（点选/增选在探针球鼠标事件里处理）。
+    selectAllLightProbes(): void {
+        this.execGizmoMethods('cc.LightProbeGroup', 'selectAllProbes', []);
+    }
+
+    unselectAllLightProbes(): void {
+        this.execGizmoMethods('cc.LightProbeGroup', 'unselectAllProbes', []);
+    }
+
+    queryLightProbeSelectedCount(): number {
+        return this.execGizmoMethods('cc.LightProbeGroup', 'getSelectedProbeCount', []) ?? 0;
+    }
+
+    // 删除 / 复制 vertex 模式下选中的探针（也可由 gizmo onKeyDown 直接触发）。
+    async deleteSelectedLightProbes(): Promise<number> {
+        return await this.execGizmoMethods('cc.LightProbeGroup', 'deleteSelectedProbes', []) ?? 0;
+    }
+
+    async duplicateSelectedLightProbes(): Promise<number> {
+        return await this.execGizmoMethods('cc.LightProbeGroup', 'duplicateSelectedProbes', []) ?? 0;
+    }
+
+    // 框选探针（方案 A）：上层框选时主动调用，把屏幕矩形交给 light-probe gizmo 自行投影判定。
+    // rect 为规整后的屏幕坐标（left<right、bottom<top）；additive=true 并入现有选中集合。
+    // 返回当前选中探针总数；仅 vertex 模式生效，其它模式返回 0。
     regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number {
         return this.execGizmoMethods('cc.LightProbeGroup', 'regionSelectProbes', [left, right, top, bottom, additive]) ?? 0;
+    }
+
+    /** 为当前选中的一个或多个 LightProbeGroup 重新生成探针。 */
+    generateLightProbes(): number {
+        return this.execGizmoMethods('cc.LightProbeGroup', 'generateLightProbes', []) ?? 0;
+    }
+
+    // 绘制/清除框选选区矩形（复用 gizmo-operation 的实现，供探针框选保持视觉一致）。
+    showRegionBox(left: number, right: number, top: number, bottom: number): void {
+        (this._gizmoOperation as any)?.showRegionBox?.(left, right, top, bottom);
+    }
+
+    hideRegionBox(): void {
+        (this._gizmoOperation as any)?.hideRegionBox?.();
     }
 
     _changeRegionSelectMode(mode: number): void {
