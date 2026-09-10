@@ -31,6 +31,7 @@ import './editor-lifecycle-real.testcase';
 import './node-proxy.testcase';
 import './node-for-editor.testcase';
 import './node-hierarchy.testcase';
+import './node-serialized-data.testcase';
 import './component-proxy.testcase';
 import './component-for-editor.testcase';
 import './prefab-proxy.testcase';

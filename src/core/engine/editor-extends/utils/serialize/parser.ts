@@ -65,6 +65,8 @@ export interface IObjParsingInfo { }
 // export type IObjParsingInfo = Object | null;
 
 export interface IParserOptions {
+    /** 在处理共享引用前替换属性值，不修改原对象 */
+    valueReplacer?: (owner: object, key: string | number, value: unknown) => unknown;
     // 是否压缩 uuid
     compressUuid?: boolean;
     discardInvalid?: boolean;
@@ -139,6 +141,7 @@ function isMountedChild(node: CCNode) {
 }
 
 export class Parser {
+    private readonly valueReplacer: IParserOptions['valueReplacer'];
     exporting: boolean;
     mustCompresseUuid: boolean;
     discardInvalid: boolean;
@@ -162,6 +165,7 @@ export class Parser {
 
     constructor(builder: Builder, options: IParserOptions) {
         options = options || {};
+        this.valueReplacer = options.valueReplacer;
         this.exporting = !!options._exporting;
         this.mustCompresseUuid = !!options.compressUuid;
         this.discardInvalid = 'discardInvalid' in options ? !!options.discardInvalid : true;
@@ -351,7 +355,7 @@ export class Parser {
         const props = customProps || ccclass.__values__;
         for (let p = 0; p < props.length; p++) {
             const propName = props[p];
-            let val = owner[propName];
+            let val = this.replaceValue(owner, propName, owner[propName]);
             if (this.isObjRemoved(val)) {
                 continue;
             }
@@ -542,6 +546,7 @@ export class Parser {
 
                 const serializationOutput: cc.SerializationOutput = {
                     writeProperty: (propertyName: string, propertyValue: unknown) => {
+                        propertyValue = this.replaceValue(val, propertyName, propertyValue);
                         if (this.isObjRemoved(propertyValue)) {
                             return;
                         } else if (this.setParsedObj(valueInfo, propertyName, propertyValue, null)) {
@@ -653,7 +658,7 @@ export class Parser {
                 this.parsingInfos.set(val, valueInfo);
                 // enumerateArray
                 for (let i = 0; i < filteredArray.length; ++i) {
-                    let element = filteredArray[i];
+                    let element = this.replaceValue(val, i, filteredArray[i]);
                     if (this.setParsedObj(valueInfo, i, element, null)) {
                         continue;
                     }
@@ -680,7 +685,7 @@ export class Parser {
             ) {
                 continue;
             }
-            let val = obj[key];
+            let val = this.replaceValue(obj, key, obj[key]);
             if (this.isObjRemoved(val)) {
                 val = null;
             }
@@ -703,7 +708,7 @@ export class Parser {
             ) {
                 continue;
             }
-            let val = obj[key];
+            let val = this.replaceValue(obj, key, obj[key]);
             if (typeof val === 'function') {
                 continue;
             }
@@ -719,6 +724,10 @@ export class Parser {
             }
             this.parseField(obj, objInfo, key, val, null);
         }
+    }
+
+    private replaceValue(owner: object, key: string | number, value: any): any {
+        return this.valueReplacer ? this.valueReplacer(owner, key, value) : value;
     }
 }
 
