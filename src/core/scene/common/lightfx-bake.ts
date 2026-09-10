@@ -66,6 +66,10 @@ export interface ILightmapBakeCapabilities {
     sceneTransactionVersion: 1;
     /** The actual host preserves previous textures in immutable per-operation directories. */
     assetVersion: 1;
+    /** Same-Scene cancellation requires the actual host ownership protocol. */
+    cancelVersion?: 1;
+    /** Advisory: this Scene has obtained a native Lightmap operation ID. */
+    cancellable?: boolean;
     busy: boolean;
 }
 

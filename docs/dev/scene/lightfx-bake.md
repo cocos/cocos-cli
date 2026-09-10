@@ -290,7 +290,7 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 
 Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 renderer 内对应类型的 Bake，不再取消共享 host 上其他场景／其他类型的任务。内部请求须带精确 operation ID、目标和 scene transaction ID；缺失／过期归属返回 `cancelled:false`，旧 host 缺少取消归属协议时拒绝请求，不回退到全局取消。导出阶段或 native begin 尚未返回 ID 时也返回 false；因此 false 不一定表示没有烘焙，而是这次请求没有取消任务。
 
-`LightProbeBake.queryCapabilities()` 仅在实际 host 支持上述归属协议时额外返回 `cancelVersion:1` 和 `cancellable`，不支持时省略。`cancellable` 仅在本 Scene 的原生 Probe operation 已取得 ID 时为 true；准备阶段为 false，供 UI 据实启用按钮，执行时仍核对精确归属。该能力不代表持久任务快照；UI 可用自身的 renderer 会话 ID 保护取消消息，再调用该 Scene 的取消入口，任务结束仍以原 Bake Promise 完成回滚为准。
+`LightProbeBake.queryCapabilities()`／`LightmapBake.queryCapabilities()` 仅在实际 host 支持上述归属协议时额外返回 `cancelVersion:1` 和 `cancellable`，不支持时省略。`cancellable` 仅在本 Scene 对应类型的原生 operation 已取得 ID 时为 true；准备阶段为 false，供 UI 据实启用按钮，执行时仍核对精确归属。就绪快照不保证取消一定先于 commit，已提交的任务仍返回 false。该能力不代表持久任务快照；UI 可用自身的 renderer 会话 ID 保护取消消息，再调用该 Scene 的取消入口，任务结束仍以原 Bake Promise 完成回滚为准。
 
 通用 MCP 工具保留按 Probe／Lightmap 依次尝试的行为，主进程已跟踪的 Bake 仍路由到原 renderer，不因切标签改投另一个场景。它不是跨客户端认证或公共持久任务句柄；需要严格防止客户端旧消息取消后续任务的 UI，仍须先接入独立任务身份契约。
 

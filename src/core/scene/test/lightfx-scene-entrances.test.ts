@@ -17,6 +17,14 @@ import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
 import { lightFXCoordinator } from '../scene-process/service/baking/lightfx/baker';
 
 describe('LightFX service entrance ownership', () => {
+    it.each([false, true])('advertises actual Lightmap cancellation readiness (%s)', async cancellable => {
+        jest.mocked(lightFXCoordinator.canCancel).mockReturnValueOnce(cancellable);
+        jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: true });
+        await expect(new LightmapBakeService().queryCapabilities()).resolves.toEqual({
+            version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1, cancelVersion: 1, cancellable, busy: true,
+        });
+        expect(lightFXCoordinator.canCancel).toHaveBeenLastCalledWith('lightmap');
+    });
     it.each([false, true])('advertises actual probe cancellation readiness (%s)', async cancellable => {
         jest.mocked(lightFXCoordinator.canCancel).mockReturnValueOnce(cancellable);
         jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, cancelOwnershipVersion: 1, busy: true });
