@@ -1,4 +1,4 @@
-import { Asset, assetManager, CCObject, Component, deserialize, editorExtrasTag, js, Node, Scene } from 'cc';
+import { Asset, assetManager, CCObject, Component, deserialize, editorExtrasTag, js, Node, Prefab, Scene } from 'cc';
 import type { SerializedNodeData } from '../../../common/node';
 import { sceneUtils } from '../scene/utils';
 
@@ -91,6 +91,69 @@ export function visitSerializedComponentReferences(
 }
 
 /**
+ * 外层 Prefab 根节点未一起复制时，迁移该子树的属性覆盖并调整嵌套关系
+ * 只修改用于序列化的元数据副本，避免影响源实例
+ */
+function prepareCopiedPrefabInstances(nodes: Set<Node>): Map<Prefab._utils.PrefabInstance, Prefab._utils.PrefabInstance> {
+    const copies = new Map<Prefab._utils.PrefabInstance, Prefab._utils.PrefabInstance>();
+    for (const node of nodes) {
+        const instance = node['_prefab']?.instance;
+        if (!instance?.prefabRootNode || nodes.has(instance.prefabRootNode)) {
+            continue;
+        }
+
+        const copy = Object.assign(new Prefab._utils.PrefabInstance(), instance);
+        copy.prefabRootNode = undefined;
+        copies.set(instance, copy);
+
+        // 用目标路径和属性路径区分覆盖记录
+        // 从内向外合并，同一目标属性以最外层实例的覆盖值为准
+        const overrideKey = (override: Prefab._utils.PropertyOverrideInfo) =>
+            JSON.stringify([override.targetInfo?.localID, override.propertyPath]);
+        const overrides = new Map(instance.propertyOverrides.map(override => [overrideKey(override), override]));
+        const instancePath: string[] = [];
+
+        for (let child = node; child.parent; child = child.parent) {
+            const childInstance = child['_prefab']?.instance;
+            if (childInstance) {
+                instancePath.unshift(childInstance.fileId);
+            }
+            const parent = child.parent;
+            const parentInstance = parent['_prefab']?.instance;
+            if (!parentInstance) {
+                continue;
+            }
+
+            // 祖先实例也在复制范围内时，保留与它的嵌套关系
+            // 外层覆盖记录随祖先实例迁移，不在当前实例重复处理
+            if (nodes.has(parent)) {
+                copy.prefabRootNode = parent;
+                break;
+            }
+
+            // 筛选外层实例中属于当前子树的属性覆盖
+            for (const override of parentInstance.propertyOverrides) {
+                const localID = override.targetInfo?.localID;
+                if (!localID || localID.length <= instancePath.length ||
+                    !instancePath.every((fileId, index) => localID[index] === fileId)) {
+                    continue;
+                }
+
+                // 去掉 instancePath 前缀，让 localID 相对当前实例定位
+                const migrated = new Prefab._utils.PropertyOverrideInfo();
+                migrated.targetInfo = new Prefab._utils.TargetInfo();
+                migrated.targetInfo.localID = localID.slice(instancePath.length);
+                migrated.propertyPath = override.propertyPath.slice();
+                migrated.value = override.value;
+                overrides.set(overrideKey(migrated), migrated);
+            }
+        }
+        copy.propertyOverrides = [...overrides.values()];
+    }
+    return copies;
+}
+
+/**
  * 将节点及其子节点序列化，并保留它们之间的引用
  * @param preservePrefab 是否保留完整 Prefab 信息，生成撤销快照时启用
  */
@@ -102,6 +165,7 @@ export function serializeNodes(roots: Node[], preservePrefab = false): Serialize
 
     const rootSet = new Set(roots);
     const references = new Map<Node | Component, SerializedNodeData['externalReferences'][number]>();
+    const copiedPrefabInstances = preservePrefab ? null : prepareCopiedPrefabInstances(nodes);
 
     // 判断所属 Prefab 实例的根节点是否在复制范围内
     // 只有包含实例根节点，才能保留 Prefab 关联，避免单独复制的子节点仍关联原实例
@@ -113,6 +177,10 @@ export function serializeNodes(roots: Node[], preservePrefab = false): Serialize
     const serialized = EditorExtends.serialize({ roots }, {
         reserveContentsForSyncablePrefab: true,
         valueReplacer: (owner: object, key: string | number, value: unknown) => {
+            if (value instanceof Prefab._utils.PrefabInstance && copiedPrefabInstances?.has(value)) {
+                return copiedPrefabInstances.get(value);
+            }
+
             if (owner instanceof Node) {
                 // 清空所选根节点的父引用，避免序列化时带入原父节点及其他节点
                 // 子节点保留父引用，用于还原复制范围内的父子关系

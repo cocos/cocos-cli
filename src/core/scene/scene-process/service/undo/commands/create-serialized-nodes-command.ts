@@ -2,7 +2,8 @@ import { Asset, Component, Node, Quat, Vec3 } from 'cc';
 import cloneDeepWith from 'lodash/cloneDeepWith';
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult, SerializedNodeData } from '../../../../common';
 import { EventSourceType, NodeEventType } from '../../../../common';
-import { Service } from '../../core';
+import { queryRegisteredService, Service } from '../../core';
+import type { IEditorSessionService, IEditorSessionSnapshot } from '../../core/editor-session';
 import nodeMgr from '../../node/index';
 import {
     deserializeNodes,
@@ -183,7 +184,7 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
     private readonly rootUuids: string[];
     private readonly siblingIndex: number;
     private readonly parentUuid: string;
-    private readonly editorRoot: Node;
+    private readonly editorSession: IEditorSessionSnapshot;
 
     constructor(nodes: Node[], parent: Node) {
         // 撤销快照保留完整 Prefab 信息，供 Redo 还原创建后的关联
@@ -192,12 +193,21 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
         this.rootUuids = nodes.map(node => node.uuid);
         this.parentUuid = parent.uuid;
         this.siblingIndex = nodes[0].getSiblingIndex();
-        this.editorRoot = Service.Editor.getRootNode()!;
+        this.editorSession = queryRegisteredService<IEditorSessionService>('Editor')!.getEditorSession();
+    }
+
+    /**
+     * 校验命令是否属于当前编辑会话，不匹配时返回 null
+     * 重载会替换根节点，因此每次都从编辑器重新获取
+     */
+    private getEditorRoot(): Node | null {
+        const editor = queryRegisteredService<IEditorSessionService>('Editor');
+        return editor?.isCurrentEditorSession(this.editorSession) ? Service.Editor.getRootNode() : null;
     }
 
     async undo(): Promise<IUndoRedoResult> {
-        // 撤销记录只适用于创建时的编辑根节点，切换场景或 Prefab 后不能继续移除节点
-        if (Service.Editor.getRootNode() !== this.editorRoot) {
+        const editorRoot = this.getEditorRoot();
+        if (!editorRoot) {
             return failure(this.meta, 'The target editor has changed.');
         }
 
@@ -209,7 +219,7 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
 
         // 只删除本次创建的组件对应的引用记录，避免影响原有节点
         visitSerializedComponentReferences(nodes as Node[], (component, path) => {
-            prefabUtils.removeTargetOverride(this.editorRoot['_prefab'], component, path);
+            prefabUtils.removeTargetOverride(editorRoot['_prefab'], component, path);
         });
 
         removeNodes(nodes as Node[]);
@@ -219,13 +229,16 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
     async redo(): Promise<IUndoRedoResult> {
         let nodes: Node[] = [];
         try {
+            const editorRoot = this.getEditorRoot();
             const parent = EditorExtends.Node.getNode(this.parentUuid) as Node | null;
 
-            // 资源加载前后都检查原编辑根节点和父节点，避免等待期间目标发生变化
+            // 资源加载前后确认编辑会话和根节点未变化
+            // 父节点还需有效，并且仍属于该根节点
             const isCurrentTarget = () =>
-                Service.Editor.getRootNode() === this.editorRoot &&
+                editorRoot &&
+                this.getEditorRoot() === editorRoot &&
                 parent?.isValid &&
-                (parent === this.editorRoot || parent.isChildOf(this.editorRoot));
+                (parent === editorRoot || parent.isChildOf(editorRoot));
 
             if (!isCurrentTarget()) {
                 return failure(this.meta, 'The target parent is no longer available.');
@@ -255,7 +268,7 @@ export class CreateSerializedNodesCommand implements IUndoCommand {
             mountSerializedNodes({
                 nodes,
                 parent: parent!,
-                editorRoot: this.editorRoot,
+                editorRoot: editorRoot!,
                 siblingIndex: Math.min(this.siblingIndex, parent!.children.length),
                 data: this.data,
                 keepWorldTransform: false,

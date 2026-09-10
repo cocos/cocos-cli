@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import type { Component, Node } from 'cc';
 import { TestGlobalEnv } from '../../../tests/global-env';
+import type { IEditorSessionSnapshot } from '../scene-process/service/core/editor-session';
 
 const engineModules = [
     'cc', 'cc/editor/populate-internal-constants', 'cc/editor/serialization',
@@ -300,6 +301,10 @@ describe('Serialized node data with the real engine', () => {
         register('Editor')(class TestEditor {
             getRootNode() { return parent; }
             getCurrentEditorType() { return 'scene'; }
+            getEditorSession() { return { uuid: parent.uuid, generation: 0 }; }
+            isCurrentEditorSession(session: IEditorSessionSnapshot) {
+                return session.uuid === parent.uuid && session.generation === 0;
+            }
             async lock() {}
             unlock() {}
         });
@@ -402,6 +407,8 @@ describe('Serialized node data with the real engine', () => {
         let addTree: (node: Node) => void;
         let removeTree: (node: Node) => void;
         let onChange: (node: Node, options: object) => void;
+        let editorGeneration: number;
+        let editorUuid: string;
 
         beforeEach(async () => {
             services = await import('../scene-process/service/core');
@@ -412,6 +419,8 @@ describe('Serialized node data with the real engine', () => {
 
             // 让创建和 Undo/Redo 都操作这个测试场景
             scene = new engine.Scene('Target');
+            editorGeneration = 0;
+            editorUuid = scene.uuid;
             services.register('Editor')(class TestEditor {
                 getRootNode() {
                     return scene;
@@ -419,6 +428,14 @@ describe('Serialized node data with the real engine', () => {
 
                 getCurrentEditorType() {
                     return 'scene';
+                }
+
+                getEditorSession() {
+                    return { uuid: editorUuid, generation: editorGeneration };
+                }
+
+                isCurrentEditorSession(session: IEditorSessionSnapshot) {
+                    return session.uuid === editorUuid && session.generation === editorGeneration;
                 }
 
                 async lock() {}
@@ -473,6 +490,7 @@ describe('Serialized node data with the real engine', () => {
             services.ServiceEvents.off('node:add', addTree);
             services.ServiceEvents.off('node:remove', removeTree);
             services.ServiceEvents.off('node:change', onChange);
+            prefabNodes._timerUtil.clear();
 
             removeTree(scene);
             services.Service.Undo.clearHistory();
@@ -554,6 +572,177 @@ describe('Serialized node data with the real engine', () => {
             restored.scene!.destroy();
             details.reset();
         };
+
+        /** 按保存数据重建场景，保留编辑会话和撤销历史 */
+        const reloadScene = () => {
+            const details = new engine.deserialize.Details();
+            const restored = engine.deserialize(sceneUtils.serialize(scene), details) as import('cc').SceneAsset;
+            details.assignAssetsBy(uuid => engine.assetManager.assets.get(uuid)!);
+            engine.Prefab._utils.expandNestedPrefabInstanceNode(restored.scene!);
+            engine.Prefab._utils.applyTargetOverrides(restored.scene!);
+
+            removeTree(scene);
+            scene.destroy();
+            scene = restored.scene!;
+            addTree(scene);
+            details.reset();
+        };
+
+        it.each(['undo', 'redo'] as const)('keeps serialized creation %s usable after a scene reload', async direction => {
+            const first = new engine.Node('First');
+            const second = new engine.Node('Second');
+            first.addComponent(References).target = second;
+            const data = helpers.serializeNodes([first, second]);
+            first.destroy();
+            second.destroy();
+            await services.Service.Node.createBySerializedData({ data, parentPath: '/' });
+            const ids = scene.children.map(node => node.uuid);
+
+            if (direction === 'redo') {
+                expect((await services.Service.Undo.undo()).success).toBe(true);
+            }
+            reloadScene();
+
+            expect((await services.Service.Undo[direction]()).success).toBe(true);
+            if (direction === 'undo') {
+                expect(scene.children).toHaveLength(0);
+                expect((await services.Service.Undo.redo()).success).toBe(true);
+            }
+            expect(scene.children.map(node => node.uuid)).toEqual(ids);
+            expect(scene.children[0].getComponent(References)!.target).toBe(scene.children[1]);
+        });
+
+        it.each(['undo', 'redo'] as const)('rejects serialized creation %s from an earlier editor session', async direction => {
+            await services.Service.Node.createBySerializedData({ data: createData(), parentPath: '/' });
+            if (direction === 'redo') {
+                expect((await services.Service.Undo.undo()).success).toBe(true);
+            }
+            const before = [...scene.children];
+
+            // 同一资源重新打开也属于新会话，不能继续应用旧命令
+            editorGeneration++;
+            expect((await services.Service.Undo[direction]()).success).toBe(false);
+            expect(scene.children).toEqual(before);
+        });
+
+        /** 创建 Outer 和嵌套实例 Inner，供复制测试使用 */
+        const createNestedSource = () => {
+            const outer = new engine.Node('Outer');
+            outer.parent = scene;
+            const outerInfo = new engine.Prefab._utils.PrefabInfo();
+            outerInfo.root = outer;
+            outerInfo.fileId = 'outer-root';
+            outerInfo.instance = new engine.Prefab._utils.PrefabInstance();
+            outerInfo.instance.fileId = 'outer-instance';
+            outer['_prefab'] = outerInfo;
+
+            const inner = engine.instantiate(asset);
+            inner.name = 'Inner';
+            inner.parent = outer;
+            inner['_prefab']!.instance!.prefabRootNode = outer;
+            addTree(outer);
+            return { outer, inner, outerInstance: outerInfo.instance };
+        };
+
+        it.each(['clear', 'resolve'] as const)('preserves nested prefab overrides after copying with %s and saving', async externalReferences => {
+            const { outer, inner, outerInstance } = createNestedSource();
+            inner.children[0].name = 'ChangedChild';
+            const override = new engine.Prefab._utils.PropertyOverrideInfo();
+            override.targetInfo = new engine.Prefab._utils.TargetInfo();
+            override.targetInfo.localID = [inner['_prefab']!.instance!.fileId, 'child'];
+            override.propertyPath = ['_name'];
+            override.value = 'ChangedChild';
+            outerInstance.propertyOverrides.push(override);
+            const sourceData = helpers.serializeNodes([outer], true);
+            const sceneSpy = jest.spyOn(engine.director, 'getScene').mockImplementation(() => scene);
+
+            try {
+                const data = await services.Service.Node.serialize({ paths: [EditorExtends.Node.getNodePath(inner)] });
+                await services.Service.Node.createBySerializedData({ data, parentPath: '/', externalReferences });
+                const copy = scene.children[1];
+                expect(copy['_prefab']!.asset).toBe(asset);
+                expect(copy.children[0].name).toBe('ChangedChild');
+                expect(helpers.serializeNodes([outer], true)).toEqual(sourceData);
+
+                // 移除原 Outer 后再保存和重做，验证副本不再依赖原实例
+                removeTree(outer);
+                outer.setParent(null);
+                outer.destroy();
+
+                for (let cycle = 0; cycle < 2; cycle++) {
+                    reloadScene();
+                    expect(scene.children[0].children[0].name).toBe('ChangedChild');
+                    expect((await services.Service.Undo.undo()).success).toBe(true);
+                    expect(scene.children).toHaveLength(0);
+                    expect((await services.Service.Undo.redo()).success).toBe(true);
+                }
+            } finally {
+                sceneSpy.mockRestore();
+            }
+        });
+
+        it('detaches a copied nested prefab from its previous owner in resolve mode', async () => {
+            const { prefabUtils } = await import('../scene-process/service/prefab/utils');
+            const { outer, inner } = createNestedSource();
+            const sceneSpy = jest.spyOn(engine.director, 'getScene').mockReturnValue(scene);
+
+            try {
+                await services.Service.Node.createBySerializedData({
+                    data: helpers.serializeNodes([inner]),
+                    parentPath: '/',
+                    externalReferences: 'resolve',
+                });
+                const copy = scene.children[1];
+                expect(copy['_prefab']!.instance!.prefabRootNode).toBeFalsy();
+                expect(prefabUtils.getOutMostPrefabInstanceInfo(copy).outMostPrefabInstanceNode).toBe(copy);
+                expect(inner['_prefab']!.instance!.prefabRootNode).toBe(outer);
+            } finally {
+                sceneSpy.mockRestore();
+            }
+        });
+
+        it('uses the outermost matching override when exporting a deeply nested instance', async () => {
+            const { outer, inner, outerInstance } = createNestedSource();
+            const top = new engine.Node('Top');
+            top.parent = scene;
+            outer.parent = top;
+            const topInfo = new engine.Prefab._utils.PrefabInfo();
+            topInfo.root = top;
+            topInfo.instance = new engine.Prefab._utils.PrefabInstance();
+            topInfo.instance.fileId = 'top-instance';
+            top['_prefab'] = topInfo;
+            outerInstance.prefabRootNode = top;
+
+            const innerInstance = inner['_prefab']!.instance!;
+            const addOverride = (instance: import('cc').Prefab._utils.PrefabInstance, localID: string[], name: string) => {
+                const override = new engine.Prefab._utils.PropertyOverrideInfo();
+                override.targetInfo = new engine.Prefab._utils.TargetInfo();
+                override.targetInfo.localID = localID;
+                override.propertyPath = ['_name'];
+                override.value = name;
+                instance.propertyOverrides.push(override);
+            };
+            addOverride(innerInstance, ['child'], 'InnerOverride');
+            addOverride(outerInstance, [innerInstance.fileId, 'child'], 'OuterOverride');
+            addOverride(topInfo.instance, [outerInstance.fileId, innerInstance.fileId, 'child'], 'TopOverride');
+            addOverride(topInfo.instance, ['unselected-instance', 'child'], 'UnrelatedOverride');
+            inner.children[0].name = 'TopOverride';
+            addTree(top);
+            const before = helpers.serializeNodes([top], true);
+
+            await services.Service.Node.createBySerializedData({ data: helpers.serializeNodes([inner]), parentPath: '/' });
+            const copy = scene.children[1];
+            const nameOverrides = copy['_prefab']!.instance!.propertyOverrides.filter(override =>
+                override.targetInfo?.localID.join('/') === 'child' && override.propertyPath.join('.') === '_name');
+            expect(nameOverrides.map(override => override.value)).toEqual(['TopOverride']);
+            expect(helpers.serializeNodes([top], true)).toEqual(before);
+
+            removeTree(top);
+            top.setParent(null);
+            top.destroy();
+            reloadScene();
+            expect(scene.children[0].children[0].name).toBe('TopOverride');
+        });
 
         it.each([false, true])('preserves saved references and removes only batch mappings on Undo (prefab source: %s)', async prefabSource => {
             const existing = addExistingReference();
