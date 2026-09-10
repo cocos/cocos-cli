@@ -271,6 +271,7 @@ export class NodeManager {
         const childAdded = child.parent === parent;
         if (childAdded) {
             NodeMgr.updateNodeParent(child.uuid, parent.uuid);
+            synchronizeLightProbeTransform(child);
         }
 
         this.emit('node:change', parent, { type: NodeEventType.CHILD_CHANGED });

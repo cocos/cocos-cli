@@ -31,6 +31,8 @@ export interface IComponentOrderSnapshot {
 }
 
 export interface INodeReparentSnapshot extends INodeSnapshot {
+    /** Affected probe globals restore last; the scene itself must never be reparented. */
+    probeScene?: true;
     parentUuid: string | null;
     parentPath: string;
     siblingIndex: number;
@@ -155,7 +157,7 @@ export class NodeUndoHelper {
 
     captureReparentSnapshots(nodes: Node[]): Map<string, INodeReparentSnapshot> {
         const snapshots = new Map<string, INodeReparentSnapshot>();
-        for (const node of nodes) {
+        for (const node of withLightProbeTransformScenes(nodes)) {
             if (!node?.isValid) {
                 continue;
             }
@@ -167,6 +169,7 @@ export class NodeUndoHelper {
                 parentUuid: parent?.uuid ?? null,
                 parentPath: parent ? (NodeMgr.getNodePath(parent) ?? '/') : '/',
                 siblingIndex: node.getSiblingIndex(),
+                ...(node === node.scene ? { probeScene: true as const } : {}),
             });
         }
         return snapshots;
@@ -181,9 +184,7 @@ export class NodeUndoHelper {
         if (!before || changedUuids.length === 0) {
             return;
         }
-        const afterNodes = changedUuids
-            .map(uuid => NodeMgr.getNode(uuid) as Node | null)
-            .filter((node): node is Node => !!node?.isValid);
+        const afterNodes = this.findSnapshotNodes(before);
         const after = this.captureReparentSnapshots(afterNodes);
         if (this.snapshotMapsEqual(before, after)) {
             return;
@@ -535,7 +536,7 @@ export class NodeUndoHelper {
     }
 
     private async _applyReparentSnapshots(data: Map<string, INodeReparentSnapshot>): Promise<IUndoRedoResult> {
-        const snapshots = [...data.values()].sort((a, b) => a.siblingIndex - b.siblingIndex);
+        const snapshots = [...data.values()].sort((a, b) => Number(!!a.probeScene) - Number(!!b.probeScene) || a.siblingIndex - b.siblingIndex);
         for (const snapshot of snapshots) {
             const result = await this._applyReparentSnapshot(snapshot);
             if (!result.success) {
@@ -549,6 +550,16 @@ export class NodeUndoHelper {
         const node = this._findSnapshotNode(snapshot);
         if (!node) {
             return { success: false, reason: `Node not found: ${snapshot.path || snapshot.uuid}` };
+        }
+        if (snapshot.probeScene) {
+            if (node !== node.scene) { return { success: false, reason: 'Probe scene snapshot target is not the current scene.' }; }
+            try {
+                await this._restoreNodeSnapshotDump(node, snapshot.dump);
+                this._emit('node:change', node, { source: 'undo', type: NodeEventType.COMPONENT_CHANGED });
+                return { success: true };
+            } catch (error) {
+                return { success: false, reason: error instanceof Error ? error.message : String(error) };
+            }
         }
         const parent = this._findReparentParent(snapshot);
         if (!parent) {
