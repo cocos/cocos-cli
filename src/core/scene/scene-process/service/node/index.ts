@@ -220,7 +220,7 @@ export class NodeManager {
     }
 
     onNodeTransformChanged(node: Node, transformBit: any) {
-        synchronizeLightProbeTransform(node);
+        synchronizeLightProbeTransform(node, transformBit === Node.TransformBit.POSITION);
         const changeOpts: IChangeNodeOptions = { type: NodeEventType.TRANSFORM_CHANGED, source: EventSourceType.ENGINE };
 
         switch (transformBit) {

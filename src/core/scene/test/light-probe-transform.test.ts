@@ -24,6 +24,7 @@ function fixture() {
             probes.forEach((probe, i) => Object.assign(probe.position, nextPositions[i]));
         }),
         onProbeBakeCleared: jest.fn(() => { events.push('clear'); probes.forEach(probe => { probe.coefficients = []; }); }),
+        onProbeBakeFinished: jest.fn(() => { events.push('refresh'); }),
     };
     const scene = { isValid: true, globals: { lightProbeInfo: info }, getComponentsInChildren: () => [group] } as unknown as Scene;
     Object.defineProperty(scene, 'scene', { value: scene });
@@ -32,6 +33,21 @@ function fixture() {
 }
 
 describe('Light probe position synchronization', () => {
+    it('retains moved and stationary groups coefficients when translating a group', () => {
+        const { node, nextPositions, info, events } = fixture();
+        // First two samples belong to A, last two to the stationary group B.
+        info.data.probes.forEach((probe, index) => { probe.coefficients = [new Vec3(index + 1, 2, 3)]; });
+        const coefficients = info.data.probes.map(probe => probe.coefficients.map(value => Vec3.clone(value)));
+        nextPositions.slice(0, 2).forEach(point => { point.x += 7; });
+        synchronizeLightProbeTransform(node, true);
+        expect({ events, positions: info.data.probes.map(probe => probe.position), coefficients: info.data.probes.map(probe => probe.coefficients) })
+            .toEqual({ events: ['positions', 'tetrahedrons', 'refresh'], positions: nextPositions, coefficients });
+        synchronizeLightProbeTransform(node, true);
+        expect(info.onProbeBakeCleared).not.toHaveBeenCalled();
+        expect(info.onProbeBakeFinished).toHaveBeenCalledTimes(1);
+        expect(info.update.mock.calls).toEqual([[false], [true], [false]]);
+    });
+
     it('updates positions, rebuilds once and invalidates SH only when samples actually moved', () => {
         const { node, nextPositions, info, events } = fixture();
         nextPositions.forEach(point => { point.x += 7; });
@@ -77,6 +93,6 @@ describe('Light probe position synchronization', () => {
     it('ignores detached or invalid nodes without a scene', () => {
         const nodes = [{ isValid: true }, { isValid: false }] as Node[];
         expect(withLightProbeTransformScenes(nodes)).toEqual(nodes);
-        nodes.forEach(synchronizeLightProbeTransform);
+        nodes.forEach(node => synchronizeLightProbeTransform(node));
     });
 });

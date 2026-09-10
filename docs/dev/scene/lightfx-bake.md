@@ -95,7 +95,7 @@ Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事�
 
 所有参数均可选，未传入时使用场景当前值。`giScale`、`giSamples` 和 `bounces` 参与 LightFX 计算；`reduceRinging`、`showWireframe`、`showConvex` 和 `lightProbeSphereVolume` 用于烘焙结果后处理或编辑器显示。烘焙成功后，本次的有效参数与 SH 结果作为同一次 Undo 操作写回 `LightProbeInfo`；计算失败、提交未确认或取消胜出时不应用结果。结果已录制后的保存失败保留新结果，详见下文。
 
-编辑已启用探针组或其父节点的位置时，CLI 会同步全局采样点和四面体。只有实际采样位置改变才清空旧 SH，避免把旧位置的烘焙结果用于新位置；不会重新生成组件内手工编辑过的采样点。普通节点属性操作和 Gizmo recording 会把受影响的 Scene 数据纳入同一次撤销记录：Undo 恢复旧位置与旧 SH，Redo 恢复新位置与失效状态。保存仍由调用方决定，移动后需要重新烘焙。
+平移已启用探针组或其父节点时，CLI 同步全局采样点和四面体，并保留所有组的原 SH 系数，刷新光照缓存；对齐 Creator 3.8.8 移动 A 组后 A／B 组系数都保留的行为。不重新生成组件内手工编辑过的采样点，也不自动重新烘焙。普通节点属性操作和 Gizmo recording 仍记录位置编辑的 Undo／Redo，保存仍由调用方决定；保留系数不代表已按新位置重烘焙。
 
 此同步沿用当前引擎的 `localProbe + worldPosition` 约定，探针球、范围盒与框选投影也采用相同约定，不额外给局部采样点乘旋转／缩放。祖先旋转／缩放若改变子组世界位置，采样位置同步并使旧 SH 失效；改父级将受影响 Scene 的结果快照放在节点恢复之后，Scene 自身不参与重挂。组件 Undo 替换 probes 数组后重新同步引擎注册引用，避免后续变换再次使用旧数组。
 
