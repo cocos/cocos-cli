@@ -738,6 +738,38 @@ describe('TerrainService target-safe public capability', () => {
         consoleError.mockRestore();
     });
 
+    it.each(['saveAsset', 'saveAssetDialog'] as const)('%s preserves an earlier failure when a later terrain saves', async method => {
+        const failed = createFixture('failed', 'failed-terrain');
+        const saved = createFixture('saved', 'saved-terrain');
+        for (const f of [failed, saved]) {
+            (f.terrain as any)._asset = { _uuid: f.target.componentUuid };
+            (f.terrain as any).isTerrainChange = true;
+        }
+        mockAssetBinarySave.mockResolvedValueOnce(null).mockResolvedValueOnce({ uuid: saved.target.componentUuid });
+        const service = new TerrainService();
+        service.editedComponents.push(failed.terrain, saved.terrain);
+        jest.spyOn(service, 'serialize').mockReturnValue(new Uint8Array([1]));
+        await expect(service[method]()).resolves.toBe(2);
+        expect({ failedDirty: (failed.terrain as any).isTerrainChange, savedDirty: (saved.terrain as any).isTerrainChange }).toEqual({ failedDirty: true, savedDirty: false });
+    });
+
+    it('does not hide a failed existing terrain when a later unsaved terrain is created', async () => {
+        const failed = createFixture('failed', 'failed-terrain');
+        const created = createFixture('created', 'created-terrain');
+        (failed.terrain as any)._asset = { _uuid: 'failed' };
+        (created.terrain as any)._asset = null;
+        (failed.terrain as any).isTerrainChange = true;
+        (created.terrain as any).isTerrainChange = true;
+        mockAssetBinarySave.mockResolvedValue(null);
+        mockAssetBinaryCreate.mockResolvedValue({ uuid: 'created' });
+        mockLoadAny.mockResolvedValue({ _uuid: 'created' });
+        const service = new TerrainService();
+        service.editedComponents.push(failed.terrain, created.terrain);
+        jest.spyOn(service, 'serialize').mockReturnValue(new Uint8Array([1]));
+        await expect(service.saveAssetDialog('db://assets/created.terrain')).resolves.toBe(2);
+        expect({ failedDirty: (failed.terrain as any).isTerrainChange, createdDirty: (created.terrain as any).isTerrainChange }).toEqual({ failedDirty: true, createdDirty: false });
+    });
+
     it('creates a Terrain asset through the binary client using the requested db:// target', async () => {
         const fixture = createFixture();
         (fixture.terrain as any)._asset = null;

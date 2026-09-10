@@ -685,7 +685,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
                     continue;
                 }
                 this.setDirty(terrain, false);
-                result = 0;
+                if (result !== 2) result = 0;
             } catch (error) {
                 console.error('[Terrain] saveAsset failed:', error);
                 result = 2;
@@ -702,7 +702,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
             if (uuid) {
                 const code = await this.saveAsset(isClose, terrain);
                 if (code === 2) result = 2;
-                else if (code === 0) result = 0;
+                else if (code === 0 && result !== 2) result = 0;
                 continue;
             }
 
@@ -721,7 +721,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
                 if (created) {
                     (terrain as any)._asset = await loadAny<TerrainAsset>(created.uuid ?? created);
                     this.setDirty(terrain, false);
-                    result = 0;
+                    if (result !== 2) result = 0;
                 } else {
                     result = 2;
                 }
