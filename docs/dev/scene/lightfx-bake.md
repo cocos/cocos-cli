@@ -333,7 +333,9 @@ LightFX 当前可能输出 Creator 历史协议版本。解析器只接受已知
 - 已有另一个 LightFX 任务运行。
 - 当前可见场景尚未加载完成，或同时存在多个可见的场景渲染器。
 
-Bake 和 Clear 都记录为单次 Undo 操作。场景结果提交失败时恢复原组件数据和全局标记；Lightmap 资产提交失败时还会恢复原 PNG 与 `.meta`。
+Bake 和 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与结果修改的 MeshRenderer／Terrain 组件（同一 Terrain 多 block 去重）及 Scene 标记，不能只录制不递归的 Scene 根节点；旧引擎缺类型的空纹理引用也会保留在快照中。成功自动保存后以该记录作为保存点；saveScene:false 不隐式保存场景。场景结果提交失败时尝试恢复原组件数据和全局标记；Lightmap 资产提交失败时还会恢复原 PNG 与 `.meta`。
+
+注意绑定历史与资产版本是两件事：以上 Undo 恢复纹理引用、UV 和场景标记，不承诺重复 Bake 覆盖同一 PNG 后能恢复上一版像素。`deleteAssets:true` 还涉及目录删除，不属于可恢复绑定的保留资产验证范围，调用方不可据此假定删除可撤销。
 
 ## 验证范围
 
@@ -348,3 +350,5 @@ Bake 和 Clear 都记录为单次 Undo 操作。场景结果提交失败时恢�
 - TypeScript 编译、ESLint、API、协议和资产事务测试。
 
 新增材质类型、灯光类型、LightFX 版本或目标平台时，应补充对应真实场景回归。
+
+2026-09-10 结果历史专项：macOS arm64／隔离 PinK，真实带第二套 UV 的 Mesh 烘焙 128px 标准／高精度贴图；Bake、保留资产的 Clear、独立 Undo／Redo、渲染模型 UV、显式／自动保存、真正关闭重开通过，旁侧 43 点探针全部 SH 保持。Terrain 多 block 录制目标及失败恢复由服务测试覆盖，未在本次专项重做 Terrain 原生场景实测；也没有验收旧 PNG 像素版本撤销、资产删除撤销或最终画面质量。

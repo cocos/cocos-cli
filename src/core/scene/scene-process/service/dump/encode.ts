@@ -7,6 +7,7 @@ import dumpUtil from './utils';
 import { getDumpComponentAccess } from './service-access';
 import { applyParticleInspectorMetadata } from './particle-inspector-metadata';
 import { withLightProbeCoefficientType } from './light-probe-metadata';
+import { withLightmapTextureType } from './lightmap-metadata';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
@@ -622,6 +623,7 @@ function _checkObjFlags(node: any, data: INode) {
  */
 export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean): IProperty {
     attributes = withLightProbeCoefficientType(attributes, owner, objectKey);
+    attributes = withLightmapTextureType(attributes, owner, objectKey);
     const ctor = dumpUtil.getConstructor(object, attributes);
     let defValue = dumpUtil.getDefault(attributes);
 
