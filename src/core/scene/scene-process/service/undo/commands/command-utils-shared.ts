@@ -1,6 +1,7 @@
 import { Component, Node } from 'cc';
 import type { IUndoCommandMeta, IUndoRedoResult } from '../../../../common';
 import { restoreTerrainLightmapBindings } from '../../dump/terrain-lightmap-restore';
+import { restoreLightProbeGroupCache } from '../../dump/light-probe-group-restore';
 
 export function createUndoId(prefix: string): string {
     try {
@@ -140,4 +141,5 @@ export async function restoreComponentSnapshotDump(
     await dumpUtil.restoreComponentSnapshotProperties(component, dump);
     (component as any).onRestore?.();
     restoreTerrainLightmapBindings(component, dump);
+    restoreLightProbeGroupCache(component, dump);
 }
