@@ -206,7 +206,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
             const encode = await editor.open(assetInfo, params);
 
-            this._clearUndoHistory();
+            this._clearUndoHistory(true);
 
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
@@ -257,7 +257,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             const result = await editor.close({ save: params.save ?? true });
 
             if (editor === this.editorMap.get(currentEditorUuid)) {
-                this._clearUndoHistory();
+                this._clearUndoHistory(true);
                 this.currentEditorUuid = null;
             }
             for (const [uuid, candidate] of this.editorMap) {
@@ -506,9 +506,10 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         Service.Script.suspend(Promise.resolve(this.reload({})));
     }
 
-    private _clearUndoHistory(): void {
+    private _clearUndoHistory(resetSession = false): void {
         try {
-            Service.Undo?.clearHistory();
+            if (resetSession) Service.Undo?.reset();
+            else Service.Undo?.clearHistory();
         } catch (_e) {
             // UndoService may not be registered during early editor setup.
         }

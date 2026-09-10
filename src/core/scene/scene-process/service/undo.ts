@@ -8,6 +8,7 @@ import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
 import { restoreComponentSnapshotDump, restoreNodeSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
 import { withLightProbeTransformScenes } from './scene/light-probe-transform';
+import { LightProbeClearCommand } from './undo/commands/light-probe-clear-command';
 
 interface IRecordingComponentSnapshot {
     uuid: string;
@@ -105,17 +106,22 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     reset(): void {
-        this.clearHistory();
+        this._clearHistory(true);
     }
 
     clearHistory(): void {
+        this._clearHistory(false);
+    }
+
+    private _clearHistory(reset: boolean): void {
         const wasDirty = this._undoMgr.isDirty();
         const hadUndoState =
             this._undoMgr.canUndo() ||
             this._undoMgr.canRedo() ||
             this._undoMgr.isGroupActive() ||
             this._undoMgr.hasActiveRecording();
-        this._undoMgr.reset();
+        if (reset) this._undoMgr.reset();
+        else this._undoMgr.clearHistory();
         this._emitDirtyIfChanged(wasDirty);
         if (hadUndoState) {
             this.broadcast('undo:changed');
@@ -199,6 +205,15 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     markSaved(): void {
         const wasDirty = this._undoMgr.isDirty();
         this._undoMgr.markSaved();
+        this._emitDirtyIfChanged(wasDirty);
+    }
+
+    commitLightProbeClear(): void {
+        const scene = cc.director.getScene();
+        if (!scene) throw new Error('No scene is currently open.');
+        const wasDirty = this._undoMgr.isDirty();
+        this._undoMgr.commitNonUndoableChange(command => command instanceof LightProbeClearCommand
+            ? command : new LightProbeClearCommand(command, scene.uuid, () => cc.director.getScene()));
         this._emitDirtyIfChanged(wasDirty);
     }
 

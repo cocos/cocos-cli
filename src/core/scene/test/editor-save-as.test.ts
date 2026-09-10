@@ -18,9 +18,11 @@ jest.mock('../scene-process/service/core', () => ({
         protected broadcast() { }
     },
     register: () => (target: unknown) => target,
+    queryRegisteredService: () => undefined,
     Service: {
         Undo: {
             clearHistory: jest.fn(),
+            reset: jest.fn(),
             markSaved: jest.fn(),
         },
     },
@@ -48,6 +50,17 @@ describe('EditorService Save As', () => {
 
     afterEach(() => {
         globalEventEmitter.removeAllListeners();
+    });
+
+    it('distinguishes a new scene session from history reset during in-memory reload', () => {
+        const { Service } = require('../scene-process/service/core');
+        Service.Undo.reset.mockClear();
+        Service.Undo.clearHistory.mockClear();
+        editorService._clearUndoHistory(true);
+        expect(Service.Undo.reset).toHaveBeenCalledTimes(1);
+        expect(Service.Undo.clearHistory).not.toHaveBeenCalled();
+        editorService._clearUndoHistory();
+        expect(Service.Undo.clearHistory).toHaveBeenCalledTimes(1);
     });
 
     it('requires Save As for a target other than the existing source asset', async () => {

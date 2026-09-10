@@ -21,7 +21,7 @@ export interface ILightProbeBakeCapabilities {
     cancelVersion?: 1;
     /** Advisory readiness of this Scene's native probe operation; absent on older implementations. */
     cancellable?: boolean;
-    /** SH Undo/Redo and multi-group scene reopening preserve baked results. */
+    /** Probe Bake/ordinary edits support SH history and multi-group reopening; Clear does not restore old SH. */
     resultLifecycleVersion: 1;
     /** Both Scene and host participate in the full Bake/Clear transaction reservation. */
     sceneTransactionVersion: 1;
