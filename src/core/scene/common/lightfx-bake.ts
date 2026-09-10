@@ -86,8 +86,6 @@ export interface ILightmapBakeResult {
 }
 
 export interface ILightmapBakeInfo {
-    /** Read-only next-bake diagnostics; absent on older runtimes. Does not guarantee image quality. */
-    readiness?: ILightmapReadiness;
     sceneUrl: string;
     baked: boolean;
     meshCount: number;
@@ -96,22 +94,6 @@ export interface ILightmapBakeInfo {
     stationaryMainLight: boolean;
     textures: ILightmapTextureInfo[];
     missingTextureUuids: string[];
-}
-
-export type LightmapObjectIssue = 'inactive' | 'movable' | 'editor-only' | 'disabled' | 'not-participating'
-    | 'missing-mesh' | 'invalid-uv1' | 'skinned-static-pose' | 'material-approximation' | 'terrain-translation-only';
-
-export interface ILightmapReadiness {
-    version: 1;
-    objects: {
-        componentUuid: string;
-        nodeName: string;
-        kind: 'mesh' | 'terrain';
-        receivesLightmap: boolean;
-        castsShadow: boolean;
-        lightmapSize: number;
-        issues: LightmapObjectIssue[];
-    }[];
 }
 
 export interface ILightFXCancelResult {

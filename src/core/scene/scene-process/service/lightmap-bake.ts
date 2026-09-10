@@ -12,7 +12,6 @@ import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { finishSavedLightFXRecording, LightFXResultRetainedError } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
-import { queryLightmapReadiness } from './baking/lightfx/readiness';
 
 interface LightmapBinding {
     target: any;
@@ -149,7 +148,6 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         });
         return {
             sceneUrl: await this.querySceneUrl(),
-            readiness: queryLightmapReadiness(scene),
             baked: meshCount > 0 || terrainCount > 0,
             meshCount,
             terrainCount,

@@ -2,7 +2,7 @@ import { DirectionalLight, director, gfx, Light, MeshRenderer, MobilityMode, ren
 import type { ILightFXTextureSource } from '../../../../common/lightfx-host';
 import { lightFXBakeHost } from './host';
 import { LightFXBakeTarget, LightFXLight, LightFXMaterial, LightFXMesh, LightFXSettings, LightFXTerrain, LightFXWorld } from './types';
-import { validLightmapUV } from './readiness';
+import { validLightmapUV } from './lightmap-uv';
 
 export interface LightFXExport {
     world: LightFXWorld;
