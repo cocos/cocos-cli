@@ -1,5 +1,11 @@
+import { TransformToolData, type TransformToolDataToolNameType, type TransformToolDataViewMode } from '../scene-process/service/gizmo/transform-tool';
+
 const mockService = {
-    Gizmo: { transformToolName: 'position', transformToolData: { viewMode: 'select' } },
+    Gizmo: {
+        transformToolData: new TransformToolData(),
+        get transformToolName() { return this.transformToolData.toolName; },
+        set transformToolName(value: TransformToolDataToolNameType) { this.transformToolData.toolName = value; },
+    },
     Engine: { repaintInEditMode: jest.fn() },
     Undo: { beginRecording: jest.fn(() => 'record'), endRecording: jest.fn(async (_id: string) => {}) },
 };
@@ -53,12 +59,60 @@ function group(uuid: string, count: number) {
     return gizmo;
 }
 
+beforeEach(() => {
+    mockService.Gizmo.transformToolData = new TransformToolData();
+});
+
 afterEach(() => {
     for (const gizmo of created.splice(0)) { gizmo.onHide(); gizmo.onDestroy(); }
+    methods.changeEditMode('none');
     jest.clearAllMocks();
 });
 
 describe('Probe editing pooled Gizmos', () => {
+    it.each<[TransformToolDataToolNameType, TransformToolDataViewMode]>([
+        ['position', 'select'],
+        ['rotation', 'select'],
+        ['scale', 'select'],
+        ['rect', 'select'],
+        ['view', 'select'],
+        ['view', 'view'],
+    ])('uses probe selection and restores the original %s/%s tool state', (toolName, viewMode) => {
+        group('a', 4);
+        const tool = mockService.Gizmo.transformToolData;
+        tool.toolName = toolName;
+        tool.viewMode = viewMode;
+
+        methods.changeEditMode('vertex');
+        const during = { toolName: tool.toolName, viewMode: tool.viewMode };
+        // Repeating the current mode must not replace the original tool snapshot.
+        methods.changeEditMode('vertex');
+        methods.changeEditMode('none');
+
+        expect({ during, after: { toolName: tool.toolName, viewMode: tool.viewMode } }).toEqual({
+            during: { toolName: 'view', viewMode: 'select' },
+            after: { toolName, viewMode },
+        });
+    });
+
+    it('restores browsing when switching to box mode and when the last probe group hides', () => {
+        const gizmo = group('a', 4);
+        const tool = mockService.Gizmo.transformToolData;
+        tool.toolName = 'view';
+        tool.viewMode = 'view';
+
+        methods.changeEditMode('vertex');
+        methods.changeEditMode('box');
+        const box = { mode: methods.getEditMode(), toolName: tool.toolName, viewMode: tool.viewMode };
+        methods.changeEditMode('vertex');
+        gizmo.onHide();
+
+        expect({ box, hidden: { mode: methods.getEditMode(), toolName: tool.toolName, viewMode: tool.viewMode } }).toEqual({
+            box: { mode: 'box', toolName: 'view', viewMode: 'view' },
+            hidden: { mode: 'none', toolName: 'view', viewMode: 'view' },
+        });
+    });
+
     it('counts only visible valid groups and clears a reused target with the same probe count', () => {
         const first = group('a', 32);
         const second = group('b', 32);

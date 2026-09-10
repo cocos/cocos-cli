@@ -14,6 +14,7 @@ import { ServiceEvents } from '../../../core/global-events';
 import { ProbeSelection, probeSelectionEvents } from './selection';
 import type { GizmoMouseEvent } from '../../utils/defines';
 import type { CameraService } from '../../../camera';
+import type { TransformToolDataViewMode } from '../../transform-tool';
 
 // 探针数量超过该阈值时只画包围盒/线框、不逐个建球，避免海量节点
 const MAX_PROBE_DOTS = 4096;
@@ -30,7 +31,7 @@ const tempDelta = new Vec3();
 
 type EditMode = 'none' | 'vertex' | 'box';
 let editMode: EditMode = 'none';
-let previousTool: string | undefined;
+let previousTool: { name: string; viewMode: TransformToolDataViewMode } | undefined;
 const instances = new Set<LightProbeGroupComponentGizmo>();
 
 function activeGroups(): LightProbeGroupComponentGizmo[] {
@@ -43,13 +44,15 @@ function changeEditMode(mode: EditMode): void {
     editMode = mode;
     const gizmo = Service.Gizmo;
     if (mode === 'vertex') {
-        previousTool = gizmo.transformToolName;
-        gizmo.transformToolData.viewMode = 'select';
+        previousTool = { name: gizmo.transformToolName, viewMode: gizmo.transformToolData.viewMode };
         gizmo.transformToolName = 'view';
+        // Changing the tool toggles its view mode, so apply the intended mode last.
+        gizmo.transformToolData.viewMode = 'select';
     } else if (previousTool !== undefined) {
         const restore = previousTool;
         previousTool = undefined;
-        gizmo.transformToolName = restore;
+        gizmo.transformToolName = restore.name;
+        gizmo.transformToolData.viewMode = restore.viewMode;
     }
     for (const instance of instances) { instance.modeChanged(); }
     ServiceEvents.broadcast('scene:light-probe-edit-mode-changed', mode === 'vertex');
