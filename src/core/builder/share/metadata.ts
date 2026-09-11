@@ -42,24 +42,18 @@ const PLATFORM_HIDDEN_SCHEMA_OPTIONS: Record<string, string[]> = {
         'packAutoAtlas',
     ],
     android: [
-        // Example: 'inputSDK',
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
     ],
 };
-
-function shouldHidePlatformSchemaOption(platform: string, key: string): boolean {
-    return PLATFORM_HIDDEN_SCHEMA_OPTIONS[platform]?.includes(key) ?? false;
-}
 
 function convertBuilderConfigItem(
     item: IConfigurationItem,
     key: string,
     platform?: string
-): ICocosConfigurationPropertySchema {
-    const schema = convertConfigItem(item, key);
-    if (platform && shouldHidePlatformSchemaOption(platform, key)) {
-        schema.hidden = true;
-    }
-    return schema;
+): ICocosConfigurationPropertySchema | undefined {
+    const hiddenKeys = platform ? PLATFORM_HIDDEN_SCHEMA_OPTIONS[platform] : undefined;
+    return convertConfigItem(item, key, hiddenKeys);
 }
 
 export function createBuilderCoreMetadataNodes(
@@ -114,9 +108,12 @@ export function createBuilderRenderSchema(
         }
 
         const schema = convertBuilderConfigItem(item, key, platform);
+        if (!schema) {
+            continue;
+        }
         properties[key] = schema;
 
-        if (!schema.hidden && item.verifyRules?.includes('required')) {
+        if (item.verifyRules?.includes('required')) {
             required.push(key);
         }
     }
@@ -132,11 +129,14 @@ function createBuilderCommonNode(
     commonOptionConfigs: Record<string, IConfigurationItem>,
     order: number
 ): ICocosConfigurationNode {
-    const properties: Record<string, ReturnType<typeof convertConfigItem>> = {};
+    const properties: Record<string, ReturnType<typeof objectSchema> | Exclude<ReturnType<typeof convertBuilderConfigItem>, undefined>> = {};
 
     for (const [key, item] of Object.entries(commonOptionConfigs)) {
         if (hasConfigItemShape(item)) {
-            properties[`builder.common.${key}`] = convertBuilderConfigItem(item, key);
+            const schema = convertBuilderConfigItem(item, key);
+            if (schema) {
+                properties[`builder.common.${key}`] = schema;
+            }
         }
     }
 
@@ -212,7 +212,7 @@ function createBuilderPlatformNode(
         return undefined;
     }
 
-    const properties: Record<string, ReturnType<typeof objectSchema> | ReturnType<typeof convertConfigItem>> = {
+    const properties: Record<string, ReturnType<typeof objectSchema>> = {
         [`builder.platforms.${platform}.outputName`]: {
             type: 'string',
             default: platform,
@@ -221,10 +221,13 @@ function createBuilderPlatformNode(
     };
 
     for (const [pkgName, config] of Object.entries(configs)) {
-        const packageProperties: Record<string, ReturnType<typeof convertConfigItem>> = {};
+        const packageProperties: Record<string, ReturnType<typeof objectSchema> | Exclude<ReturnType<typeof convertBuilderConfigItem>, undefined>> = {};
         for (const [key, item] of Object.entries(config.options ?? {})) {
             if (hasConfigItemShape(item)) {
-                packageProperties[key] = convertBuilderConfigItem(item, key, platform);
+                const schema = convertBuilderConfigItem(item, key, platform);
+                if (schema) {
+                    packageProperties[key] = schema;
+                }
             }
         }
 

@@ -324,7 +324,23 @@ export function inferSchemaFromValue(value: unknown, key: string): ICocosConfigu
 
 export function convertConfigItem(
     item: IConfigurationItem,
-    key: string
+    key: string,
+    hiddenKeys?: string[]
+): ICocosConfigurationPropertySchema | undefined {
+    // Drop (delete) any option whose key is listed for the current platform.
+    // Returning undefined lets the caller skip this key entirely; the check
+    // applies at every depth because the recursive calls below thread
+    // `hiddenKeys` through `convertConfigItem` itself.
+    if (hiddenKeys?.length && hiddenKeys.includes(key)) {
+        return undefined;
+    }
+    return convertConfigItemSchema(item, key, hiddenKeys);
+}
+
+function convertConfigItemSchema(
+    item: IConfigurationItem,
+    key: string,
+    hiddenKeys?: string[]
 ): ICocosConfigurationPropertySchema {
     const title = normalizeDisplayText(item.label, createTitleFromKey(key));
     const description = translateMetadataText(item.description);
@@ -375,13 +391,16 @@ export function convertConfigItem(
     }
 
     case 'array': {
-        const inferredItem = Array.isArray(item.items)
-            ? item.items.filter(hasConfigItemShape).map((subItem, index) => convertConfigItem(subItem, `${key}[${index}]`))
-            : hasConfigItemShape(item.items)
-                ? convertConfigItem(item.items, `${key}.item`)
-                : Array.isArray(item.default) && item.default.length
-                    ? inferSchemaFromValue(item.default[0], `${key}.item`)
-                    : undefined;
+        const inferredItem: ICocosConfigurationPropertySchema | ICocosConfigurationPropertySchema[] | undefined =
+            Array.isArray(item.items)
+                ? item.items.filter(hasConfigItemShape)
+                    .map((subItem, index) => convertConfigItem(subItem, `${key}[${index}]`, hiddenKeys))
+                    .filter((subSchema): subSchema is ICocosConfigurationPropertySchema => !!subSchema)
+                : hasConfigItemShape(item.items)
+                    ? convertConfigItem(item.items, `${key}.item`, hiddenKeys)
+                    : Array.isArray(item.default) && item.default.length
+                        ? inferSchemaFromValue(item.default[0], `${key}.item`)
+                        : undefined;
 
         return arraySchema(inferredItem, {
             default: Array.isArray(item.default) ? item.default : [],
@@ -396,7 +415,10 @@ export function convertConfigItem(
 
         for (const [childKey, childItem] of Object.entries(item.properties ?? {})) {
             if (hasConfigItemShape(childItem)) {
-                declaredProperties[childKey] = convertConfigItem(childItem, childKey);
+                const childSchema = convertConfigItem(childItem, childKey, hiddenKeys);
+                if (childSchema) {
+                    declaredProperties[childKey] = childSchema;
+                }
             }
         }
 
