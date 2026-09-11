@@ -30,11 +30,29 @@ jobs:
         shell: pwsh
         run: npm run generate:dts:ci
 
+      - name: Verify generated DTS snapshot matches HEAD
+        shell: bash
+        run: |
+          SNAP_FILE="packages/cocos-cli-types/__tests__/__snapshots__/dts-snapshot.test.ts.snap"
+
+          # Regenerate the snapshot from the DTS files produced for this PR.
+          # A clean checkout alone is not sufficient: it may contain a snapshot
+          # committed before the latest API change.
+          npx jest --roots packages/cocos-cli-types --testPathPattern dts-snapshot --no-cache -u
+
+          if git diff --quiet HEAD -- "$SNAP_FILE"; then
+            echo "Generated DTS snapshot matches HEAD."
+            exit 0
+          fi
+
+          echo "::error file=$SNAP_FILE::Generated DTS snapshot differs from the latest committed snapshot. Run npm run generate:dts and commit the snapshot update."
+          git diff -- "$SNAP_FILE"
+          exit 1
+
       - name: Run DTS tests
         shell: bash
         run: |
           cp packages/engine/bin/.declarations/cc.d.ts packages/cocos-cli-types/cc.d.ts
-          npx jest --roots packages/cocos-cli-types --testPathPattern dts-snapshot --no-cache
           npx eslint --fix "./packages/cocos-cli-types/*.d.ts"
           npx jest packages/cocos-cli-types --roots="<rootDir>/packages/cocos-cli-types" --testPathIgnorePatterns dts-snapshot
 
