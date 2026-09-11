@@ -70,7 +70,13 @@ export const SchemaLightFXCancelResult = z.object({
 
 export const SchemaLightProbeClearOptions = z.object({ saveScene: z.boolean().optional() });
 export const SchemaLightmapClearOptions = z.object({ saveScene: z.boolean().optional(), deleteAssets: z.boolean().optional() });
-export const SchemaClearCountResult = z.object({ probeCount: z.number().int().nonnegative().optional(), clearedCount: z.number().int().nonnegative().optional() });
+export const SchemaClearCountResult = z.object({
+    probeCount: z.number().int().nonnegative().optional(),
+    clearedCount: z.number().int().nonnegative().optional(),
+    deletedAssetCount: z.number().int().nonnegative().optional(),
+    retainedAssetCount: z.number().int().nonnegative().optional(),
+    failedAssetCount: z.number().int().nonnegative().optional(),
+});
 
 export type TLightProbeBakeOptions = z.infer<typeof SchemaLightProbeBakeOptions>;
 export type TLightProbeBakeResult = z.infer<typeof SchemaLightProbeBakeResult>;

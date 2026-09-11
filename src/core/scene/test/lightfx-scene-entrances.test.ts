@@ -23,6 +23,12 @@ describe('LightFX service entrance ownership', () => {
             expect((await new LightmapBakeService().queryCapabilities()).outputDirectory).toBe(supported ? true : undefined);
         }
     });
+    it('advertises exact asset cleanup only when the actual host supports it', async () => {
+        for (const supported of [false, true]) {
+            jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy: false, ...(supported ? { lightmapAssetCleanupVersion: 1 as const } : {}) });
+            expect((await new LightmapBakeService().queryCapabilities()).assetCleanupVersion).toBe(supported ? 1 : undefined);
+        }
+    });
     it.each([false, true])('advertises actual Lightmap cancellation readiness (%s)', async cancellable => {
         jest.mocked(lightFXCoordinator.canCancel).mockReturnValueOnce(cancellable);
         jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, busy: true });

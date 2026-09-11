@@ -4,6 +4,7 @@ const mockTerrain = class Terrain {};
 const mockBake = jest.fn();
 const mockCommit = jest.fn();
 const mockRollback = jest.fn();
+const mockRemoveLightmapAssets = jest.fn();
 const mockUndo = {
     beginRecording: jest.fn(() => 'recording'),
     endRecording: jest.fn(async () => undefined),
@@ -17,7 +18,7 @@ jest.mock('../scene-process/service/core', () => ({
     BaseService: class { broadcast() {} }, register: () => () => undefined,
     Service: { Undo: mockUndo, Editor: { save: mockSave }, Engine: { repaintInEditMode: async () => undefined } },
 }));
-jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { bake: mockBake, commit: mockCommit, rollback: mockRollback } }));
+jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     reserveSceneOperation: async () => ({ transactionId: 'owner' }), releaseSceneOperation: async () => undefined,
 } }));
@@ -49,7 +50,10 @@ function fixture() {
 }
 
 describe('Lightmap result recording targets', () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRemoveLightmapAssets.mockResolvedValue({ deletedTextureUuids: [], retainedTextureUuids: [], failures: [] });
+    });
     it.each([false, true])('records Mesh and Terrain components before scene flags for Bake (save=%s)', async saveScene => {
         const f = fixture();
         await f.service.bake({ saveScene });
@@ -63,7 +67,9 @@ describe('Lightmap result recording targets', () => {
     });
     it.each([false, true])('deduplicates multiple Terrain blocks and records all cleared bindings (save=%s)', async saveScene => {
         const f = fixture();
-        await expect(f.service.clearBake({ saveScene })).resolves.toEqual({ clearedCount: 3 });
+        await expect(f.service.clearBake({ saveScene })).resolves.toEqual({
+            clearedCount: 3, deletedAssetCount: 0, retainedAssetCount: 0, failedAssetCount: 0,
+        });
         expect(mockUndo.beginRecording).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Clear lightmap' });
         expect(f.model._updateLightmap).toHaveBeenCalledWith(null, 0, 0, 0, 0);
         expect(f.terrain._updateLightmap).toHaveBeenCalledWith(0, null, 0, 0, 0, 0);
@@ -71,6 +77,35 @@ describe('Lightmap result recording targets', () => {
         expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
         expect(mockSave).toHaveBeenCalledTimes(saveScene ? 1 : 0);
         expect(mockUndo.markSaved).not.toHaveBeenCalled();
+    });
+    it('saves before exact deletion and discards only the Clear recording', async () => {
+        const f = fixture();
+        mockRemoveLightmapAssets.mockResolvedValueOnce({
+            deletedTextureUuids: ['old-texture'], retainedTextureUuids: ['shared'], failures: [{ uuid: 'failed', reason: 'busy' }],
+        });
+        await expect(f.service.clearBake({ deleteAssets: true })).resolves.toEqual({
+            clearedCount: 3, deletedAssetCount: 1, retainedAssetCount: 1, failedAssetCount: 1,
+        });
+        expect(mockSave).toHaveBeenCalledTimes(1);
+        expect(mockUndo.cancelRecording).toHaveBeenCalledWith('recording');
+        expect(mockUndo.endRecording).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).toHaveBeenCalledWith('scene', ['old-texture']);
+        expect(mockSave.mock.invocationCallOrder[0]).toBeLessThan(mockRemoveLightmapAssets.mock.invocationCallOrder[0]);
+    });
+    it('rejects deletion without saving before changing the scene', async () => {
+        const f = fixture();
+        await expect(f.service.clearBake({ saveScene: false, deleteAssets: true })).rejects.toThrow('deleteAssets requires saveScene');
+        expect(f.model._updateLightmap).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+    });
+    it('does not delete assets when the required save is unconfirmed', async () => {
+        const f = fixture();
+        mockSave.mockRejectedValueOnce(new Error('save response lost'));
+        await expect(f.service.clearBake({ deleteAssets: true })).rejects.toThrow('result retained');
+        expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
+        expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
     });
     it('retains cleared bindings and history if saving fails', async () => {
         const f = fixture();

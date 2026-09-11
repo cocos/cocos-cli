@@ -5,7 +5,7 @@ import { LightFXExporter, LightFXExport } from './exporter';
 import { lightFXBakeHost } from './host';
 import { lightFXSceneOperation } from './scene-operation';
 import { LightFXBakeTarget, LightFXResult, LightFXSettings } from './types';
-import type { ICancelLightFXOperationOptions, ILightFXDiagnostics } from '../../../../common/lightfx-host';
+import type { ICancelLightFXOperationOptions, ILightFXDiagnostics, IRemoveLightmapAssetsResult } from '../../../../common/lightfx-host';
 
 const INPUT_CHUNK_SIZE = 512 * 1024;
 
@@ -89,8 +89,8 @@ export class LightFXCoordinator {
         }
     }
 
-    removeLightmapAssets(sceneName: string): Promise<void> {
-        return lightFXBakeHost.removeLightmapAssets({ sceneName, transactionId: lightFXSceneOperation.hostTransactionId });
+    removeLightmapAssets(sceneUuid: string, textureUuids: string[]): Promise<IRemoveLightmapAssetsResult> {
+        return lightFXBakeHost.removeLightmapAssets({ sceneUuid, textureUuids, transactionId: lightFXSceneOperation.hostTransactionId });
     }
 
     async cancel(target: LightFXBakeTarget): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {

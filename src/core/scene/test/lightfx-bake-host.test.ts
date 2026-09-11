@@ -7,6 +7,8 @@ const mockAssetManager = {
     refreshAsset: jest.fn(),
     queryUUID: jest.fn(),
     queryAssetInfo: jest.fn(),
+    queryAssetUsers: jest.fn(),
+    removeAsset: jest.fn(),
     queryAssetMeta: jest.fn(),
     saveAssetMeta: jest.fn(),
 };
@@ -31,6 +33,7 @@ jest.mock('../main-process/lightfx/output', () => ({
 import { LightFXBakeHost, parseLightFXProgressRate } from '../main-process/lightfx-bake-host';
 
 describe('LightFXBakeHost', () => {
+    const sceneUuid = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     let root: string;
     let assetRoot: string;
     let host: LightFXBakeHost;
@@ -44,6 +47,8 @@ describe('LightFXBakeHost', () => {
         mockAssetManager.refreshAsset.mockReset().mockResolvedValue(undefined);
         mockAssetManager.queryUUID.mockReset();
         mockAssetManager.queryAssetInfo.mockReset();
+        mockAssetManager.queryAssetUsers.mockReset().mockResolvedValue([]);
+        mockAssetManager.removeAsset.mockReset().mockResolvedValue({});
         mockAssetManager.queryAssetMeta.mockReset();
         mockAssetManager.saveAssetMeta.mockReset();
         mockRunnerRun.mockReset();
@@ -85,7 +90,7 @@ describe('LightFXBakeHost', () => {
     });
 
     it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
-        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
+        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
         const busy = { ...idle, busy: true };
         await expect(host.queryCapabilities()).resolves.toEqual(idle);
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
@@ -166,31 +171,79 @@ describe('LightFXBakeHost', () => {
     it('rejects invalid reservation and clear credentials without deleting assets', async () => {
         await expect(host.reserveSceneOperation({ target: 'invalid' as any, action: 'clear' })).rejects.toThrow('Invalid');
         await expect(host.releaseSceneOperation({ transactionId: '' })).rejects.toThrow('Invalid');
-        const file = join(assetRoot, 'Fixture', 'lightmap', 'owned.png');
-        await outputFile(file, 'preserve');
+        const uuid = '11111111-1111-4111-8111-111111111111';
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'clear' });
-        await expect(host.removeLightmapAssets({ sceneName: 'Fixture', ...token })).rejects.toThrow('ownership');
-        await expect(host.removeLightmapAssets({ sceneName: 'Fixture' })).rejects.toThrow('ownership');
-        await expect(readFile(file, 'utf8')).resolves.toBe('preserve');
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid], ...token })).rejects.toThrow('ownership');
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid] })).rejects.toThrow('ownership');
+        expect(mockAssetManager.removeAsset).not.toHaveBeenCalled();
         await host.releaseSceneOperation(token);
     });
 
-    it.each([false, true])('keeps deletion and asset refresh locked (legacy=%s)', async (legacy) => {
+    it.each([false, true])('keeps exact asset deletion locked (legacy=%s)', async (legacy) => {
         let finish!: () => void;
         let entered!: () => void;
-        const enteredRefresh = new Promise<void>(resolve => { entered = resolve; });
-        mockAssetManager.refreshAsset.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; entered(); }));
+        const enteredRemoval = new Promise<void>(resolve => { entered = resolve; });
+        const uuid = '11111111-1111-4111-8111-111111111111';
+        mockAssetManager.queryAssetInfo.mockReturnValue({ uuid, url: `db://assets/Maps/bake-22222222-2222-4222-8222-222222222222/LFX_Mesh_0000.png` });
+        mockAssetManager.removeAsset.mockImplementationOnce(() => new Promise(resolve => { finish = () => resolve({}); entered(); }));
         const token = legacy ? undefined : await host.reserveSceneOperation({ target: 'lightmap', action: 'clear' });
-        const removing = host.removeLightmapAssets({ sceneName: 'Fixture', ...token });
-        await enteredRefresh;
+        const removing = host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid], ...token });
+        await enteredRemoval;
         await expect(host.reserveSceneOperation({ target: 'light-probe', action: 'bake' })).rejects.toThrow('already in progress');
         if (token) {
             await expect(host.releaseSceneOperation(token)).rejects.toThrow('cleanup has not finished');
-            await expect(host.removeLightmapAssets({ sceneName: 'Fixture', ...token })).rejects.toThrow('already being removed');
+            await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid], ...token })).rejects.toThrow('already being removed');
         }
         finish(); await removing;
         if (token) await host.releaseSceneOperation(token);
         await expect(host.reserveSceneOperation({ target: 'light-probe', action: 'bake' })).resolves.toHaveProperty('transactionId');
+    });
+
+    it('deletes only exact unreferenced immutable LightFX textures', async () => {
+        const deleted = '11111111-1111-4111-8111-111111111111';
+        const retained = '22222222-2222-4222-8222-222222222222';
+        const invalid = '33333333-3333-4333-8333-333333333333';
+        const failed = '44444444-4444-4444-8444-444444444444';
+        mockAssetManager.queryAssetInfo.mockImplementation((uuid: string) => ({
+            uuid,
+            url: uuid === invalid
+                ? 'db://assets/User/texture.png'
+                : `db://assets/Maps/bake-55555555-5555-4555-8555-555555555555/LFX_Terrain_0000.png`,
+        }));
+        mockAssetManager.queryAssetUsers.mockImplementation(async (uuid: string) => uuid === retained
+            ? ['66666666-6666-4666-8666-666666666666']
+            : uuid === deleted ? [`${deleted}@6c48a`, sceneUuid] : []);
+        mockAssetManager.removeAsset.mockImplementation(async (uuid: string) => {
+            if (uuid === failed) throw new Error('trash unavailable');
+            return {};
+        });
+
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [`${deleted}@6c48a`, deleted, retained, invalid, failed] })).resolves.toEqual({
+            deletedTextureUuids: [deleted],
+            retainedTextureUuids: [retained],
+            failures: [
+                { uuid: invalid, reason: 'Asset is not an immutable LightFX texture.' },
+                { uuid: failed, reason: 'trash unavailable' },
+            ],
+        });
+        expect(mockAssetManager.queryAssetUsers).toHaveBeenCalledTimes(3);
+        expect(mockAssetManager.removeAsset).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports dependency query failures without attempting that deletion', async () => {
+        const uuid = '11111111-1111-4111-8111-111111111111';
+        mockAssetManager.queryAssetInfo.mockReturnValue({
+            uuid,
+            url: 'db://assets/Maps/bake-22222222-2222-4222-8222-222222222222/LFX_Mesh_0000.png',
+        });
+        mockAssetManager.queryAssetUsers.mockRejectedValueOnce(new Error('dependency index unavailable'));
+
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid] })).resolves.toEqual({
+            deletedTextureUuids: [],
+            retainedTextureUuids: [],
+            failures: [{ uuid, reason: 'dependency index unavailable' }],
+        });
+        expect(mockAssetManager.removeAsset).not.toHaveBeenCalled();
     });
 
     it('reserves against legacy native operations and keeps ownership after begin validation failure', async () => {

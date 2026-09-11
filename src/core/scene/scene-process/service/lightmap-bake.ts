@@ -1,7 +1,7 @@
 import { director, MeshRenderer, Scene, Terrain, Texture2D } from 'cc';
 import type {
     ILightFXBakeEvents, ILightFXCancelResult, ILightmapBakeOptions,
-    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService, ILightmapBakeCapabilities,
+    ILightmapBakeInfo, ILightmapBakeResult, ILightmapBakeService, ILightmapBakeCapabilities, ILightmapClearResult,
 } from '../../common';
 import { Rpc } from '../rpc';
 import { lightFXCoordinator } from './baking/lightfx/baker';
@@ -29,6 +29,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         }
         return { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1,
             ...(host.lightmapOutputDirectory === true ? { outputDirectory: true as const } : {}),
+            ...(host.lightmapAssetCleanupVersion === 1 ? { assetCleanupVersion: 1 as const } : {}),
             ...(host.diagnosticsVersion === 1 ? { diagnostics: await lightFXCoordinator.queryDiagnostics('lightmap') } : {}),
             ...(host.cancelOwnershipVersion === 1 ? { cancelVersion: 1 as const, cancellable: lightFXCoordinator.canCancel('lightmap') } : {}), busy: host.busy };
     }
@@ -158,15 +159,20 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         };
     }
 
-    async clearBake(options: { saveScene?: boolean; deleteAssets?: boolean } = {}): Promise<{ clearedCount: number }> {
+    async clearBake(options: { saveScene?: boolean; deleteAssets?: boolean } = {}): Promise<ILightmapClearResult> {
         return lightFXSceneOperation.run('lightmap', 'clear', () => this.clearBakeExclusive(options));
     }
 
-    private async clearBakeExclusive(options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }> {
+    private async clearBakeExclusive(options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<ILightmapClearResult> {
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
+        if (options.deleteAssets === true && options.saveScene === false) {
+            throw new Error('deleteAssets requires saveScene so the saved scene cannot retain deleted lightmap references.');
+        }
 
         const bindings = this.snapshotSceneBindings(scene);
+        const textureUuids = [...new Set(bindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)
+            .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0))];
         const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
         const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
         const targets = [...new Set(bindings.map(binding => binding.target.uuid as string)), scene.uuid];
@@ -176,8 +182,24 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             (scene.globals as any).bakedWithHighpLightmap = false;
             (scene.globals as any).bakedWithStationaryMainLight = false;
             await Service.Engine.repaintInEditMode();
-            await finishSavedLightFXRecording(Service.Undo, undo,
-                options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
+            if (options.deleteAssets === true) {
+                try {
+                    await Service.Editor.save({});
+                } catch (error) {
+                    try {
+                        await Service.Undo.endRecording(undo);
+                    } catch (recordingError) {
+                        throw new LightFXResultRetainedError('recording', recordingError);
+                    }
+                    throw new LightFXResultRetainedError('save', error);
+                }
+                // The saved scene is the new baseline. Discard only this still-active recording so
+                // Undo cannot restore references to texture assets that are about to be deleted.
+                Service.Undo.cancelRecording(undo);
+            } else {
+                await finishSavedLightFXRecording(Service.Undo, undo,
+                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
+            }
         } catch (error) {
             if (error instanceof LightFXResultRetainedError) throw error;
             Service.Undo.cancelRecording(undo);
@@ -188,10 +210,16 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             throw error;
         }
 
-        if (options.deleteAssets) {
-            await lightFXCoordinator.removeLightmapAssets(scene.name);
+        if (options.deleteAssets === true) {
+            const result = await lightFXCoordinator.removeLightmapAssets(scene.uuid, textureUuids);
+            return {
+                clearedCount: bindings.length,
+                deletedAssetCount: result.deletedTextureUuids.length,
+                retainedAssetCount: result.retainedTextureUuids.length,
+                failedAssetCount: result.failures.length,
+            };
         }
-        return { clearedCount: bindings.length };
+        return { clearedCount: bindings.length, deletedAssetCount: 0, retainedAssetCount: 0, failedAssetCount: 0 };
     }
 
     cancel(): Promise<ILightFXCancelResult> {

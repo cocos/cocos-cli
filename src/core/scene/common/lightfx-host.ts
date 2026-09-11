@@ -18,6 +18,8 @@ export interface ILightFXHostCapabilities {
     lightmapAssetVersion?: 1;
     /** Accepts an existing assets directory as the Lightmap output parent. */
     lightmapOutputDirectory?: true;
+    /** Deletes only unreferenced immutable LightFX textures selected by exact UUID. */
+    lightmapAssetCleanupVersion?: 1;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
     diagnosticsVersion?: 1;
@@ -113,7 +115,15 @@ export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions
 
 export interface IRemoveLightmapAssetsOptions {
     transactionId?: string;
-    sceneName: string;
+    /** Saved scene whose dependency index may still report the bindings just cleared. */
+    sceneUuid: string;
+    textureUuids: string[];
+}
+
+export interface IRemoveLightmapAssetsResult {
+    deletedTextureUuids: string[];
+    retainedTextureUuids: string[];
+    failures: Array<{ uuid: string; reason: string }>;
 }
 
 export interface IQueryLightmapTextureInfoOptions {
@@ -152,6 +162,6 @@ export interface ILightFXBakeHostService {
     commit(options: ILightFXOperationOptions): Promise<void>;
     rollback(options: ILightFXOperationOptions): Promise<void>;
     cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
-    removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<void>;
+    removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<IRemoveLightmapAssetsResult>;
     queryLightmapTextureInfo(options: IQueryLightmapTextureInfoOptions): Promise<IQueryLightmapTextureInfoResult>;
 }

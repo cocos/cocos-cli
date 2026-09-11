@@ -104,6 +104,6 @@ describe('Immutable Lightmap asset versions', () => {
         mockAssets.refreshAsset.mockRejectedValueOnce(new Error('import unavailable'));
         await expect(bake('pixels B')).rejects.toThrow('import unavailable');
         expect(await readFile(a.path, 'utf8')).toBe('pixels A');
-        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
+        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
     });
 });

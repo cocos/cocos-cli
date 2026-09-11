@@ -62,7 +62,7 @@ export interface ILightmapBakeOptions {
     timeoutMs?: number;
 }
 
-/** Implementation support, not native executable readiness, task recovery or safe asset deletion. */
+/** Implementation support, not native executable readiness or task recovery. */
 export interface ILightmapBakeCapabilities {
     /** The actual host accepts a selected assets output directory. */
     outputDirectory?: true;
@@ -73,6 +73,8 @@ export interface ILightmapBakeCapabilities {
     sceneTransactionVersion: 1;
     /** The actual host preserves previous textures in immutable per-operation directories. */
     assetVersion: 1;
+    /** Clear saves first, then deletes exact unreferenced immutable LightFX texture assets. */
+    assetCleanupVersion?: 1;
     /** Same-Scene cancellation requires the actual host ownership protocol. */
     cancelVersion?: 1;
     /** Advisory: this Scene has obtained a native Lightmap operation ID. */
@@ -100,6 +102,13 @@ export interface ILightmapBakeInfo {
     missingTextureUuids: string[];
 }
 
+export interface ILightmapClearResult {
+    clearedCount: number;
+    deletedAssetCount: number;
+    retainedAssetCount: number;
+    failedAssetCount: number;
+}
+
 export interface ILightFXCancelResult {
     cancelled: boolean;
     target: 'light-probe' | 'lightmap' | null;
@@ -124,7 +133,7 @@ export interface ILightmapBakeService extends IServiceEvents {
     queryCapabilities(): Promise<ILightmapBakeCapabilities>;
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
-    clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }>;
+    clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<ILightmapClearResult>;
     /** Cancels only this Scene's lightmap bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;
 }

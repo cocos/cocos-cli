@@ -24,6 +24,7 @@ import type {
     IQueryLightmapTextureInfoOptions,
     IQueryLightmapTextureInfoResult,
     IRemoveLightmapAssetsOptions,
+    IRemoveLightmapAssetsResult,
     IResolvedLightFXTextureSource,
     IResolveLightFXTextureSourceOptions,
     IRunLightFXBakeOptions,
@@ -94,7 +95,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async queryDiagnostics(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined> {
@@ -427,11 +428,15 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         return { cancelled: true, target: operation.target };
     }
 
-    public async removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<void> {
+    public async removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<IRemoveLightmapAssetsResult> {
         if (this.operation) {
             throw new Error(`A ${this.operation.target} LightFX bake is already in progress.`);
         }
-        this.validateSceneName(options.sceneName);
+        if (!options || typeof options.sceneUuid !== 'string' || !Array.isArray(options.textureUuids) || options.textureUuids.length > MAX_TEXTURE_SOURCES) {
+            throw new Error('Invalid Lightmap texture UUID list.');
+        }
+        const sceneUuid = Utils.UUID.decompressUUID(options.sceneUuid).split('@', 1)[0];
+        if (!Utils.UUID.isUUID(sceneUuid)) throw new Error('Invalid Lightmap scene UUID.');
         this.validateSceneOperation(options.transactionId, 'lightmap', 'clear');
         const legacy = options.transactionId === undefined;
         const token = legacy ? await this.reserveSceneOperation({ target: 'lightmap', action: 'clear' }) : { transactionId: options.transactionId! };
@@ -439,9 +444,45 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         if (owner.removingAssets) throw new Error('Lightmap assets are already being removed.');
         owner.removingAssets = true;
         try {
-            const targetDir = join(this.queryAssetRoot(), options.sceneName, 'lightmap');
-            await remove(targetDir);
-            await assetManager.refreshAsset(`db://assets/${options.sceneName}`);
+            const uuids = [...new Set(options.textureUuids.map(value => {
+                if (typeof value !== 'string') throw new Error('Invalid Lightmap texture UUID.');
+                const uuid = Utils.UUID.decompressUUID(value).split('@', 1)[0];
+                if (!Utils.UUID.isUUID(uuid)) throw new Error('Invalid Lightmap texture UUID.');
+                return uuid;
+            }))];
+            const result: IRemoveLightmapAssetsResult = { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
+            for (const uuid of uuids) {
+                const info = assetManager.queryAssetInfo(uuid);
+                const parts = info?.url?.startsWith('db://assets/') ? info.url.slice('db://assets/'.length).split('/') : [];
+                const filename = parts.at(-1) ?? '';
+                const version = parts.at(-2) ?? '';
+                if (!info?.url || !/^LFX_(?:Mesh|Terrain)_\d{4,}\.png$/.test(filename)
+                    || !version.startsWith('bake-') || !Utils.UUID.isUUID(version.slice('bake-'.length))) {
+                    result.failures.push({ uuid, reason: 'Asset is not an immutable LightFX texture.' });
+                    continue;
+                }
+                try {
+                    const users = await assetManager.queryAssetUsers(uuid);
+                    const hasOtherUser = users.some((user) => {
+                        try {
+                            const userUuid = Utils.UUID.decompressUUID(user).split('@', 1)[0];
+                            return userUuid !== sceneUuid && userUuid !== uuid;
+                        } catch {
+                            // An unknown dependency identifier is retained conservatively.
+                            return true;
+                        }
+                    });
+                    if (hasOtherUser) {
+                        result.retainedTextureUuids.push(uuid);
+                        continue;
+                    }
+                    await assetManager.removeAsset(uuid);
+                    result.deletedTextureUuids.push(uuid);
+                } catch (error) {
+                    result.failures.push({ uuid, reason: error instanceof Error ? error.message : String(error) });
+                }
+            }
+            return result;
         } finally {
             owner.removingAssets = false;
             if (legacy) await this.releaseSceneOperation(token);
