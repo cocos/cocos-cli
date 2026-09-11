@@ -115,7 +115,7 @@ export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions
 
 export interface IRemoveLightmapAssetsOptions {
     transactionId?: string;
-    /** Saved scene whose dependency index may still report the bindings just cleared. */
+    /** Saved scene whose stale dependency entry may be ignored after Scene verified no live reference remains. */
     sceneUuid: string;
     textureUuids: string[];
 }

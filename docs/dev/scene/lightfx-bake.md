@@ -36,10 +36,11 @@ Lightmap 使用独立能力查询，不能复用 Probe 的生命周期判断：
 
 ```ts
 const capabilities = await cli.Scene.LightmapBake.queryCapabilities();
-// { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1, busy: false }
+// { version: 1, resultLifecycleVersion: 1, sceneTransactionVersion: 1, assetVersion: 1,
+//   outputDirectory: true, assetCleanupVersion: 1, busy: false }
 ```
 
-这里的 `resultLifecycleVersion: 1` 包含 Mesh／Terrain 的结果录制目标、空纹理引用、TerrainBlock 恢复刷新及保存基线；`assetVersion: 1` 必须由实际 Node host 的 `lightmapAssetVersion: 1` 确认，保证新 Bake 不覆盖旧纹理版本。旧 host 即使支持 Probe 事务，也可能缺少资产版本保护，此时 Lightmap 查询拒绝返回支持。该能力只覆盖保留资产的 Clear，不承诺 deleteAssets 删除归属或资产 GC；有归属取消另通过 `cancelVersion`／`cancellable` 声明，见下文。
+这里的 `resultLifecycleVersion: 1` 包含 Mesh／Terrain 的结果录制目标、空纹理引用、TerrainBlock 恢复刷新及保存基线；`assetVersion: 1` 必须由实际 Node host 的 `lightmapAssetVersion: 1` 确认，保证新 Bake 不覆盖旧纹理版本。旧 host 即使支持 Probe 事务，也可能缺少资产版本保护，此时 Lightmap 查询拒绝返回支持。`outputDirectory` 和 `assetCleanupVersion` 分别表示实际 Host 支持安全的自选输出目录和精确资产清理；字段缺失时不得调用对应能力。有归属取消另通过 `cancelVersion`／`cancellable` 声明，见下文。
 
 `busy` 仅为共享宿主的瞬时占用提示，包含导出前预留、原生操作、提交后场景回写及失败恢复；查询不占锁、不释放锁、不返回内部凭据。即使 busy=false，执行入口仍需原子预留，调用方必须处理查询之后发生的并发拒绝。该接口不检查原生 LightFX 可执行文件、场景输入合法性或渲染质量，也不是持久任务／统一百分比协议。上方示例仅列基础字段；可选取消能力和原生诊断见下文。新旧 renderer 混用的限制仍见下文。
 
@@ -284,7 +285,7 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 }
 ```
 
-解除绑定并删除当前场景生成的 Lightmap 目录：
+解除绑定并删除没有其他引用的不可变 LightFX Lightmap 贴图：
 
 ```json
 {
@@ -295,7 +296,9 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 }
 ```
 
-`saveScene` 默认为 `true`，`deleteAssets` 默认为 `false`。成功结果中的 `clearedCount` 是解除绑定的 Mesh 和 Terrain block 总数。
+`saveScene` 默认为 `true`，`deleteAssets` 默认为 `false`。调用 `deleteAssets:true` 前必须确认 `queryCapabilities().assetCleanupVersion === 1`；服务也会在修改场景前再次校验实际 Host 能力。成功结果中的 `clearedCount` 是解除绑定的 Mesh 和 Terrain block 总数，`deletedAssetCount`、`retainedAssetCount` 和 `failedAssetCount` 分别表示删除、因引用保留和删除失败的贴图数量。
+
+删除模式先清空绑定，再序列化实时场景检查候选贴图是否仍被其他字段引用；仍存在的根资源或子资源引用会保留。场景保存成功后清空整个 Scene Undo／Redo 历史，防止更早的 Bake 记录通过 Redo 恢复已经删除的 UUID。Host 仅逐项删除 Asset DB 可验证的不可变 LightFX 贴图，不删除父目录或同目录的其他文件；其他资产仍引用、依赖查询失败或删除失败时保留并报告。
 
 ### 取消烘焙
 
@@ -387,9 +390,9 @@ LightFX 当前可能输出 Creator 历史协议版本。解析器只接受已知
 - 已有另一个 LightFX 任务运行。
 - 当前可见场景尚未加载完成，或同时存在多个可见的场景渲染器。
 
-Bake 和 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与结果修改的 MeshRenderer／Terrain 组件（同一 Terrain 多 block 去重）及 Scene 标记，不能只录制不递归的 Scene 根节点；旧引擎缺类型的空纹理引用也会保留在快照中。成功自动保存后以该记录作为保存点；saveScene:false 不隐式保存场景。失败必须区分原生提交前、结果应用中和结果录制后保存阶段，不能对所有错误统一恢复绑定或删除资产，详见“提交与保存失败”。
+Bake 和非删除模式 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与结果修改的 MeshRenderer／Terrain 组件（同一 Terrain 多 block 去重）及 Scene 标记，不能只录制不递归的 Scene 根节点；旧引擎缺类型的空纹理引用也会保留在快照中。成功自动保存后以该记录作为保存点；saveScene:false 不隐式保存场景。`deleteAssets:true` 是例外：保存成功后清空整个 Scene Undo／Redo 历史，避免当前或更早的 Bake 记录恢复已删除资源。失败必须区分原生提交前、结果应用中和结果录制后保存阶段，不能对所有错误统一恢复绑定或删除资产，详见“提交与保存失败”。
 
-绑定历史与资产版本分别保留：新版本输出不会覆盖旧 PNG，Undo 通过旧 UUID 恢复旧纹理／UV／场景标记。此前旧版本 CLI 已覆盖丢失的像素无法靠此修复找回。`deleteAssets:true` 仍会删除同 sceneName 的整个 lightmap 目录，包括所有版本；不属于可恢复绑定的保留资产验证范围，调用方不可据此假定删除可撤销或跨同名场景安全。
+绑定历史与资产版本分别保留：新版本输出不会覆盖旧 PNG，普通 Bake／Clear 的 Undo 通过旧 UUID 恢复旧纹理／UV／场景标记。此前旧版本 CLI 已覆盖丢失的像素无法靠此修复找回。`deleteAssets:true` 只处理 Clear 前实际绑定、且可验证为不可变 LightFX 版本产物的根贴图 UUID；不会删除整个目录。当前实时场景或其他磁盘资产仍引用的贴图会保留，删除操作不可撤销。
 
 ## 验证范围
 
