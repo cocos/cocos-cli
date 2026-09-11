@@ -178,6 +178,10 @@ const entries: IDtsEntry[] = [
         source: 'src/lib/builder/builder.ts',
         output: 'builder.d.ts'
     }, {
+        name: 'simulator',
+        source: 'src/lib/simulator/simulator.ts',
+        output: 'simulator.d.ts'
+    }, {
         name: 'cli',
         source: 'src/lib/cli.ts',
         output: 'cli.d.ts'

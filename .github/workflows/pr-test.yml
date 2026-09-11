@@ -99,6 +99,9 @@ jobs:
         id: type-check
         run: npx tsc -b
 
+      - name: Build simulator runtime artifacts
+        run: npm run build:simulator:runtime
+
       - name: Run unit tests
         id: unit-tests
         run: npm run test:quiet

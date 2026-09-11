@@ -1,0 +1,79 @@
+System.register([], function (_export, _context) {
+  "use strict";
+  let cc;
+  class Application {
+    constructor () {
+      this.settingsPath = 'src/settings.json';
+      this.projectPath = <%- JSON.stringify(projectPath) %>;
+      this.libraryPath = <%- JSON.stringify(libraryPath) %>;
+      this.showFPS = true;
+      this.previewServer = <%- JSON.stringify(serverURL) %>;
+      this.designResolution = {
+        width: <%= designResolution.width %>,
+        height: <%= designResolution.height %>,
+        policy: <%= designResolution.resolutionPolicy %>
+      };
+    }
+
+    init (engine) {
+      cc = engine;
+      cc.game.onPostBaseInitDelegate.add(this.onPostInitBase.bind(this));
+      cc.game.onPostSubsystemInitDelegate.add(this.onPostSystemInit.bind(this));
+    }
+
+    onPostInitBase () {
+      // do custom logic
+    }
+
+    onPostSystemInit () {
+      // do custom logic
+    }
+
+    start () {
+      return cc.game.init({
+        debugMode: cc.DebugMode.INFO,
+        settingsPath: this.settingsPath,
+        overrideSettings: {
+          assets: {
+            // 资产走 preview server 的 /sim-assets 内容路由（见 src/core/preview/game-preview.middleware.ts）。
+            // 不能指项目 library 磁盘路径：单个磁盘 base 只能覆盖一个 library 目录，而引擎初始化要的
+            // 内置资产（effect/材质等）在 engine 的 internal db library（editor/library），不在项目
+            // library，simulator 直读磁盘够不到 → readFile failed → 黑屏。/sim-assets 路由用
+            // getLibraryDirs 聚合所有 db 的 library 目录（含引擎 editor/library），能覆盖全部资产。
+            importBase: this.previewServer + '/sim-assets',
+            nativeBase: this.previewServer + '/sim-assets',
+          },
+          path: {
+            projectPath: this.projectPath,
+            previewServer: this.previewServer,
+          },
+          profiling: {
+            showFPS: this.showFPS,
+          },
+          screen: {
+            designResolution: this.designResolution,
+          }
+        }
+      }).then(() => cc.game.run(this.onGameStarted.bind(this)));
+    }
+
+    onGameStarted () {
+      let previewSceneJson = jsb.fileUtils.getStringFromFile(<%- JSON.stringify(previewSceneJsonPath) %>);
+      let previewSceneJsonObject = JSON.parse(previewSceneJson);
+      cc.assetManager.loadWithJson(previewSceneJsonObject, (err, sceneAsset) => {
+        if (err) {
+          console.error(err);
+          return;
+        }
+        cc.director.runSceneImmediate(sceneAsset);
+      });
+    }
+  }
+
+  _export("Application", Application);
+
+  return {
+    setters: [],
+    execute: function () {}
+  };
+});

@@ -12,6 +12,7 @@
 - 🏗️ **项目管理**：创建、导入、构建 Cocos 项目
 - 📦 **资源管理**：导入导出资源，批量处理
 - ⚡ **构建系统**：多平台构建支持
+- 🖥️ **模拟器预览**：从 CLI 构建并启动 Cocos 模拟器
 - 🎨 **交互式界面**：向导式操作流程
 
 ## 📋 环境要求
@@ -78,6 +79,23 @@ cocos --help
 
 详细命令说明请查看 [Commands 文档](docs/zh/commands.md)。
 
+## 🖥️ 模拟器预览
+
+模拟器构建不在 `npm run build` 内 —— `npm run release` 会自动构建，也可以单独构建：
+
+```bash
+# 构建模拟器 native 可执行程序 + runtime 产物
+npm run build:simulator
+
+# 只构建 native 可执行程序
+npm run build:simulator:native
+
+# 只构建 runtime 产物
+npm run build:simulator:runtime
+```
+
+对外接口在 `src/lib/simulator/simulator.ts`（类型声明生成在 `packages/cocos-cli-types/simulator.d.ts`）。简介见 [docs/zh/simulator.md](docs/zh/simulator.md)。
+
 ## 🛠️ 开发
 
 ### 开发模式
@@ -133,6 +151,9 @@ npm run update:repos
 ```bash
 # 运行所有单元测试
 npm test
+
+# 运行 asset-db workspace 测试
+npm run test:asset-db
 
 # 监听模式运行测试
 npm run test:watch

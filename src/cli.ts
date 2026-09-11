@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand, MakeCommand, RunCommand, UploadCommand, PublishCommand } from './commands';
 import { config } from './display/config';
 import { PreviewCommand } from './commands/preview';
+import { SimulatorCommand } from './commands/simulator';
 
 const program = new Command();
 
@@ -31,6 +32,7 @@ commandRegistry.register(new RunCommand(program));
 commandRegistry.register(new UploadCommand(program));
 commandRegistry.register(new PublishCommand(program));
 commandRegistry.register(new PreviewCommand(program));
+commandRegistry.register(new SimulatorCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();

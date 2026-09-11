@@ -30,6 +30,10 @@ static/web/scene-bundle.js
 static/web/scene-bundle.js.map
 static/web/polyfills.bundle.js
 static/web/editor-extends.bundle.js
+# simulator runtime 构建产物，由 workflow/build-simulator-runtime.js 生成
+static/simulator/import-map.json
+static/simulator/system.bundle.js
+static/simulator/polyfills.bundle.js
 
 # 构建文件
 /dist

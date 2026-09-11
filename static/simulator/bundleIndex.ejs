@@ -1,0 +1,8 @@
+System.register("virtual:///prerequisite-imports/<%= bundleName %>", [<% for (let i = 0; i < bundleEntry.length; ++i) { let entry = bundleEntry[i] %>
+    '<%= entry %>',<% } %>
+], function () {
+    return {
+        setters: new Array(<%= bundleEntry.length %>).fill(() => {}),
+        execute: function () {},
+    };
+});
