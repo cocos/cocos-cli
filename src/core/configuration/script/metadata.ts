@@ -324,7 +324,23 @@ export function inferSchemaFromValue(value: unknown, key: string): ICocosConfigu
 
 export function convertConfigItem(
     item: IConfigurationItem,
-    key: string
+    key: string,
+    hiddenKeys?: string[]
+): ICocosConfigurationPropertySchema {
+    const schema = convertConfigItemSchema(item, key, hiddenKeys);
+    // Force-hide any option whose key is listed for the current platform.
+    // Applied at every depth, because the recursive calls below thread
+    // `hiddenKeys` through `convertConfigItem` itself.
+    if (hiddenKeys?.length && hiddenKeys.includes(key)) {
+        schema.hidden = true;
+    }
+    return schema;
+}
+
+function convertConfigItemSchema(
+    item: IConfigurationItem,
+    key: string,
+    hiddenKeys?: string[]
 ): ICocosConfigurationPropertySchema {
     const title = normalizeDisplayText(item.label, createTitleFromKey(key));
     const description = translateMetadataText(item.description);
@@ -376,9 +392,9 @@ export function convertConfigItem(
 
     case 'array': {
         const inferredItem = Array.isArray(item.items)
-            ? item.items.filter(hasConfigItemShape).map((subItem, index) => convertConfigItem(subItem, `${key}[${index}]`))
+            ? item.items.filter(hasConfigItemShape).map((subItem, index) => convertConfigItem(subItem, `${key}[${index}]`, hiddenKeys))
             : hasConfigItemShape(item.items)
-                ? convertConfigItem(item.items, `${key}.item`)
+                ? convertConfigItem(item.items, `${key}.item`, hiddenKeys)
                 : Array.isArray(item.default) && item.default.length
                     ? inferSchemaFromValue(item.default[0], `${key}.item`)
                     : undefined;
@@ -396,7 +412,7 @@ export function convertConfigItem(
 
         for (const [childKey, childItem] of Object.entries(item.properties ?? {})) {
             if (hasConfigItemShape(childItem)) {
-                declaredProperties[childKey] = convertConfigItem(childItem, childKey);
+                declaredProperties[childKey] = convertConfigItem(childItem, childKey, hiddenKeys);
             }
         }
 

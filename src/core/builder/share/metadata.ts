@@ -42,23 +42,18 @@ const PLATFORM_HIDDEN_SCHEMA_OPTIONS: Record<string, string[]> = {
         'packAutoAtlas',
     ],
     android: [
-        // Example: 'inputSDK',
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
     ],
 };
-
-function shouldHidePlatformSchemaOption(platform: string, key: string): boolean {
-    return PLATFORM_HIDDEN_SCHEMA_OPTIONS[platform]?.includes(key) ?? false;
-}
 
 function convertBuilderConfigItem(
     item: IConfigurationItem,
     key: string,
     platform?: string
 ): ICocosConfigurationPropertySchema {
-    const schema = convertConfigItem(item, key);
-    if (platform && shouldHidePlatformSchemaOption(platform, key)) {
-        schema.hidden = true;
-    }
+    const hiddenKeys = platform ? PLATFORM_HIDDEN_SCHEMA_OPTIONS[platform] : undefined;
+    const schema = convertConfigItem(item, key, hiddenKeys);
     return schema;
 }
 
