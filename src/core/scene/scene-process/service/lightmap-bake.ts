@@ -180,8 +180,13 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             throw new Error('The LightFX host does not support exact Lightmap asset cleanup.');
         }
 
+        // Query before recording/clearing so a damaged ownership record cannot partially Clear.
+        // Older hosts ignore sceneUuid and omit the optional list, retaining exact-bound cleanup.
+        const owned = options.deleteAssets === true
+            ? (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? []
+            : [];
         const bindings = this.snapshotSceneBindings(scene);
-        const textureUuids = [...new Set(bindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)
+        const textureUuids = [...new Set([...owned, ...bindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)]
             .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0)
             .map(uuid => this.rootAssetUuid(uuid)))];
         const previousHighp = (scene.globals as any).bakedWithHighpLightmap;

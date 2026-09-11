@@ -53,6 +53,8 @@ export interface IResolvedLightFXTextureSource {
 }
 
 export interface IBeginLightFXBakeOptions {
+    /** Stable saved scene identity for exact generated-asset cleanup after reopening. */
+    sceneUuid?: string;
     outputUrl?: string;
     transactionId?: string;
     target: LightFXBakeTarget;
@@ -128,6 +130,8 @@ export interface IRemoveLightmapAssetsResult {
 
 export interface IQueryLightmapTextureInfoOptions {
     uuids: string[];
+    /** Also return this scene's known generated assets, without adding them to the preview list. */
+    sceneUuid?: string;
 }
 
 export interface ILightmapTextureInfo {
@@ -142,6 +146,7 @@ export interface ILightmapTextureInfo {
 export interface IQueryLightmapTextureInfoResult {
     textures: ILightmapTextureInfo[];
     missingTextureUuids: string[];
+    ownedTextureUuids?: string[];
 }
 
 /**

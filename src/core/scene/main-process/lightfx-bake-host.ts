@@ -38,6 +38,7 @@ import type {
 } from '../common/lightfx-host';
 import { assetManager } from '../../assets';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
+import { LightmapAssetRecord } from './lightfx/asset-record';
 import { decodeLightFXOutput } from './lightfx/output';
 import { LightFXProcess } from './lightfx/process';
 
@@ -61,6 +62,8 @@ interface LightFXHostOperation {
     controller: AbortController;
     runner: LightFXProcess;
     assets: LightmapAssetTransaction | null;
+    assetRecord?: LightmapAssetRecord;
+    recordedTextureUuids?: string[];
     cleanupPromise: Promise<void> | null;
     expiryTimer: NodeJS.Timeout | null;
     terminalState: OperationTerminalState | null;
@@ -74,6 +77,13 @@ const MAX_REMEMBERED_OPERATIONS = 32;
 const MAX_INPUT_CHUNK_BASE64_LENGTH = 1024 * 1024;
 const MAX_INPUT_BYTES = 1024 * 1024 * 1024;
 const MAX_TEXTURE_SOURCES = 10_000;
+
+function isImmutableLightmapTexture(url: string | undefined): boolean {
+    const parts = url?.startsWith('db://assets/') ? url.slice('db://assets/'.length).split('/') : [];
+    const version = parts.at(-2) ?? '';
+    return /^LFX_(?:Mesh|Terrain)_\d{4,}\.png$/.test(parts.at(-1) ?? '')
+        && version.startsWith('bake-') && Utils.UUID.isUUID(version.slice('bake-'.length));
+}
 
 /** Reads only the native percentage format observed on the dedicated Progress channel. */
 export function parseLightFXProgressRate(value: unknown): number | undefined {
@@ -231,7 +241,10 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 missingTextureUuids.push(uuid);
             }
         }
-        return { textures, missingTextureUuids };
+        const ownedTextureUuids = options.sceneUuid === undefined ? undefined
+            : (await new LightmapAssetRecord(dirname(this.queryAssetRoot()), options.sceneUuid).read())
+                .filter(uuid => !!assetManager.queryAssetInfo(uuid));
+        return { textures, missingTextureUuids, ...(ownedTextureUuids ? { ownedTextureUuids } : {}) };
     }
 
     public async begin(options: IBeginLightFXBakeOptions): Promise<IBeginLightFXBakeResult> {
@@ -244,6 +257,8 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
 
         const assetRoot = this.queryAssetRoot();
         const projectRoot = dirname(assetRoot);
+        const assetRecord = options.target === 'lightmap' && options.sceneUuid !== undefined
+            ? new LightmapAssetRecord(projectRoot, options.sceneUuid) : undefined;
         const operationId = randomUUID();
         const workspace = join(
             projectRoot,
@@ -277,6 +292,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             controller: new AbortController(),
             runner: new LightFXProcess(),
             assets: null,
+            assetRecord,
             cleanupPromise: null,
             expiryTimer: null,
             terminalState: null,
@@ -288,6 +304,8 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         if (this.diagnostics.size > MAX_REMEMBERED_OPERATIONS) { this.diagnostics.delete(this.diagnostics.keys().next().value!); }
         if (this.sceneOperation) this.sceneOperation.nativeStarted = true;
         try {
+            // A corrupt/unreadable record must fail before native work or asset publication.
+            await assetRecord?.read();
             if (options.outputUrl !== undefined) {
                 const path = relative(await realpath(assetRoot), await realpath(parentDir));
                 if (path === '..' || path.startsWith(`..${sep}`) || isAbsolute(path) || !(await stat(parentDir)).isDirectory()) {
@@ -504,14 +522,16 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 if (!Utils.UUID.isUUID(uuid)) throw new Error('Invalid Lightmap texture UUID.');
                 return uuid;
             }))];
+            const record = new LightmapAssetRecord(dirname(this.queryAssetRoot()), sceneUuid);
+            const infos = new Map(uuids.map(uuid => [uuid, assetManager.queryAssetInfo(uuid)]));
+            const known = uuids.filter(uuid => isImmutableLightmapTexture(infos.get(uuid)?.url));
+            // Include legacy currently-bound candidates before deletion so a retained/failed
+            // delete can be retried after the saved scene no longer has any Lightmap binding.
+            if (known.length) await record.add(known);
             const result: IRemoveLightmapAssetsResult = { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
             for (const uuid of uuids) {
-                const info = assetManager.queryAssetInfo(uuid);
-                const parts = info?.url?.startsWith('db://assets/') ? info.url.slice('db://assets/'.length).split('/') : [];
-                const filename = parts.at(-1) ?? '';
-                const version = parts.at(-2) ?? '';
-                if (!info?.url || !/^LFX_(?:Mesh|Terrain)_\d{4,}\.png$/.test(filename)
-                    || !version.startsWith('bake-') || !Utils.UUID.isUUID(version.slice('bake-'.length))) {
+                const info = infos.get(uuid);
+                if (!info || !isImmutableLightmapTexture(info.url)) {
                     result.failures.push({ uuid, reason: 'Asset is not an immutable LightFX texture.' });
                     continue;
                 }
@@ -531,10 +551,16 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                         continue;
                     }
                     await assetManager.removeAsset(uuid);
+                    if (info.file && await pathExists(info.file)) {
+                        throw new Error('Lightmap texture file still exists after asset deletion.');
+                    }
                     result.deletedTextureUuids.push(uuid);
                 } catch (error) {
                     result.failures.push({ uuid, reason: error instanceof Error ? error.message : String(error) });
                 }
+            }
+            if (result.deletedTextureUuids.length > 0) {
+                await record.forget(result.deletedTextureUuids);
             }
             return result;
         } finally {
@@ -686,11 +712,18 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         }
         await assetManager.refreshAsset(operation.targetUrl);
 
+        const generatedUuids: string[] = [];
         for (const file of files) {
             this.throwIfTerminated(operation);
             const url = `${operation.targetUrl}/${file}`;
             const uuid = await this.waitForAsset(operation, url, Math.min(operation.timeoutMs, 60_000));
             await this.disableAlphaFix(uuid);
+            generatedUuids.push(uuid);
+        }
+        if (operation.assetRecord) {
+            await operation.assetRecord.add(generatedUuids);
+            operation.recordedTextureUuids = generatedUuids;
+            this.throwIfTerminated(operation);
         }
         return files.map((file) => `${operation.targetUrl}/${file}`);
     }
@@ -831,6 +864,9 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 // retried when either restoration or the following Asset DB refresh fails.
                 await operation.assets.rollback();
                 await assetManager.refreshAsset(operation.refreshUrl);
+                if (operation.recordedTextureUuids) {
+                    await operation.assetRecord?.forget(operation.recordedTextureUuids);
+                }
             }
             let cleanupError: unknown;
             try {
