@@ -14,7 +14,7 @@ npm run build:simulator          # both, in order
 
 `npm run build` does **not** build the simulator. The release pipeline (`workflow/release.js`) builds it automatically before packaging, so a plain release already includes a working simulator.
 
-Runtime artifacts (`static/simulator/{import-map.json,system.bundle.js,polyfills.bundle.js}` and `packages/engine/bin/**`) are git-ignored — a fresh clone must run `npm run build:simulator:runtime` before the tests or the launcher will work.
+Runtime artifacts (`packages/engine/bin/simulator/{import-map.json,system.bundle.js,polyfills.bundle.js}` and `packages/engine/bin/**`) are git-ignored — a fresh clone must run `npm run build:simulator:runtime` before the tests or the launcher will work.
 
 ## 2. Implementation
 
@@ -24,7 +24,7 @@ Runtime artifacts (`static/simulator/{import-map.json,system.bundle.js,polyfills
 | `src/core/simulator/internal.ts` | Pure logic: platform artifact table, path resolution, CLI args, `config.json`, preload asset trimming |
 | `src/core/simulator/runtime-writer.ts` | Writes runtime artifacts: settings / bundle index / `cc/env` / template rendering / validation |
 | `static/simulator/main.ejs` | Simulator bootstrap |
-| `workflow/build-simulator-runtime.js` | Engine runtime artifacts + `static/simulator/import-map.json` |
+| `workflow/build-simulator-runtime.js` | Engine runtime artifacts + `packages/engine/bin/simulator/import-map.json` |
 | `workflow/build-simulator.js` | Native executable |
 | `src/lib/simulator/simulator.ts` | Public command layer (facade) |
 

@@ -288,7 +288,7 @@ class SimulatorManager extends EventEmitter {
      */
     private readonly _inFlight = new Map<string, Promise<unknown>>();
     private _launchQueue: Promise<void> = Promise.resolve();
-    // runtime 构建共享 static/simulator；准备资源与构建必须使用同一条读写队列。
+    // runtime 构建会重写引擎产物；准备资源与构建必须使用同一条读写队列。
     private _resourceQueue: Promise<void> = Promise.resolve();
     private _launchGeneration = 0;
     private readonly _stops = new Map<string, Promise<boolean>>();
@@ -557,15 +557,15 @@ class SimulatorManager extends EventEmitter {
             join(resourcesPath, 'src', 'cocos-js'),
         );
         await copyIfExists(
-            join(GlobalPaths.workspace, 'static', 'simulator', 'import-map.json'),
+            join(resolvedEnginePath, 'bin', 'simulator', 'import-map.json'),
             join(resourcesPath, 'src', 'import-map.json'),
         );
         await copyIfExists(
-            join(GlobalPaths.workspace, 'static', 'simulator', 'system.bundle.js'),
+            join(resolvedEnginePath, 'bin', 'simulator', 'system.bundle.js'),
             join(resourcesPath, 'src', 'system.bundle.js'),
         );
         await copyIfExists(
-            join(GlobalPaths.workspace, 'static', 'simulator', 'polyfills.bundle.js'),
+            join(resolvedEnginePath, 'bin', 'simulator', 'polyfills.bundle.js'),
             join(resourcesPath, 'src', 'polyfills.bundle.js'),
         );
 

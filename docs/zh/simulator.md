@@ -14,7 +14,7 @@ npm run build:simulator          # 两者，依次执行
 
 `npm run build` **不带** simulator 构建。release 流水线（`workflow/release.js`）会在打包前自动构建，所以一次普通 release 已经包含可用的 simulator。
 
-runtime 产物（`static/simulator/{import-map.json,system.bundle.js,polyfills.bundle.js}` 和 `packages/engine/bin/**`）已加进 `.gitignore` —— 新克隆的仓库必须先跑 `npm run build:simulator:runtime`，否则单测和启动器都跑不起来。
+runtime 产物（`packages/engine/bin/simulator/{import-map.json,system.bundle.js,polyfills.bundle.js}` 和 `packages/engine/bin/**`）已加进 `.gitignore` —— 新克隆的仓库必须先跑 `npm run build:simulator:runtime`，否则单测和启动器都跑不起来。
 
 ## 2. 实现
 
@@ -24,7 +24,7 @@ runtime 产物（`static/simulator/{import-map.json,system.bundle.js,polyfills.b
 | `src/core/simulator/internal.ts` | 纯逻辑：平台产物表、路径推导、CLI 参数、`config.json`、preload 资源裁剪 |
 | `src/core/simulator/runtime-writer.ts` | 往 runtime 目录写产物：settings / bundle 索引 / `cc/env` / 模板渲染 / 产物校验 |
 | `static/simulator/main.ejs` | simulator bootstrap |
-| `workflow/build-simulator-runtime.js` | 引擎 runtime 产物 + `static/simulator/import-map.json` |
+| `workflow/build-simulator-runtime.js` | 引擎 runtime 产物 + `packages/engine/bin/simulator/import-map.json` |
 | `workflow/build-simulator.js` | native 可执行程序 |
 | `src/lib/simulator/simulator.ts` | 对外命令层（facade） |
 

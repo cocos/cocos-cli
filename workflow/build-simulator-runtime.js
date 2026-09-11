@@ -29,8 +29,8 @@ function normalizeEngineDir(engineDir) {
     }
 }
 
-function getSimulatorStaticDir() {
-    return path.join(rootDir, 'static', 'simulator');
+function getSimulatorStaticDir(enginePath) {
+    return path.join(resolveEngineDir(enginePath), 'bin', 'simulator');
 }
 
 function getSimulatorRuntimeBuildPlatform() {
@@ -99,7 +99,7 @@ async function buildSimulatorRuntime(enginePath, options = {}) {
     }
 
     const engineDir = normalizeEngineDir(resolveEngineDir(enginePath));
-    const staticDir = getSimulatorStaticDir();
+    const staticDir = getSimulatorStaticDir(engineDir);
     const engineOutput = path.join(engineDir, 'bin', 'native-preview');
 
     const ccbuildModule = resolveModule('@cocos/ccbuild', engineDir);

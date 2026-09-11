@@ -3,14 +3,14 @@
  *
  * 合并自三份旧测试，按「从静态产物 → 各写入步骤 → 端到端」的层次组织：
  * - 构建产物一致性：`workflow/build-simulator*.js` 与 `core/simulator` 的平台产物表、
- *   `static/simulator/import-map.json` 与 `buildImportMap()`、`main.ejs` 的 bootstrap 约定。
+ *   `packages/engine/bin/simulator/import-map.json` 与 `buildImportMap()`、`main.ejs` 的 bootstrap 约定。
  * - runtime-writer 各写入步骤：settings / bundle 索引 / `cc/env` / `main.js` /
  *   `application.js` / `config.json` / 产物校验，逐个对着临时目录验证。
  * - `prepareResources()` 端到端：靠 `runtimeRoot` 把产物写到临时目录，不覆盖开发者
  *   当前准备好的 runtime。
  *
  * 只有「需要真实项目 / preview server」的依赖（builder、asset-db、include-modules 校验）
- * 被 mock；引擎 runtime 产物（native-preview、static/simulator 的 bundle）走真实实现。
+ * 被 mock；引擎 runtime 产物（native-preview、bin/simulator 的 bundle）走真实实现。
  *
  * native C++ 可执行文件与 jsb-adapter 是重产物，测试不探测它们是否存在：
  * `simulatorManager.getExecutablePath` 被 stub 成固定路径只验证透传；
@@ -40,7 +40,7 @@ const buildSimulatorRuntime = require('../workflow/build-simulator-runtime.js');
 
 const workspace = resolve(__dirname, '..');
 const enginePath = resolve(__dirname, '..', 'packages', 'engine');
-const simulatorStaticDir = join(workspace, 'static', 'simulator');
+const simulatorStaticDir = join(enginePath, 'bin', 'simulator');
 
 /** 原生可执行文件的期望路径。测试里 stub 掉真实 exe 探测，只验证这个路径被透传。 */
 const FAKE_EXECUTABLE_PATH = join(
@@ -120,7 +120,7 @@ function readImportMap(): IImportMap {
 }
 
 function readMainEjs(): string {
-    return readFileSync(join(simulatorStaticDir, 'main.ejs'), 'utf8');
+    return readFileSync(join(workspace, 'static', 'simulator', 'main.ejs'), 'utf8');
 }
 
 // ---------------------------------------------------------------------------
@@ -129,6 +129,14 @@ function readMainEjs(): string {
 
 describe('build artifacts consistency', () => {
     describe('simulator platform artifacts', () => {
+        it('places generated support files inside the selected engine', () => {
+            const customEngine = resolve('/tmp/custom-engine');
+            const generatedDir = buildSimulatorRuntime.getSimulatorStaticDir(customEngine);
+            expect(generatedDir).toBe(join(customEngine, 'bin', 'simulator'));
+            for (const name of ['import-map.json', 'system.bundle.js', 'polyfills.bundle.js']) {
+                expect(realRuntimeWriter.listRequiredSimulatorArtifacts(customEngine)).toContain(join(generatedDir, name));
+            }
+        });
         it('keeps workflow/build-simulator.js and core/simulator in sync', () => {
             // 构建脚本决定「产出哪个可执行文件」，core/simulator 决定「运行时去哪里找」。
             // 两张表必须逐字段相同，否则 launchPreview 会报 executable is unavailable。
@@ -181,7 +189,7 @@ describe('build artifacts consistency', () => {
         });
     });
 
-    describe('static/simulator/import-map.json', () => {
+    describe('packages/engine/bin/simulator/import-map.json', () => {
         const map = readImportMap();
 
         it('is a round-trip of buildImportMap over its own feature units', () => {
@@ -543,15 +551,18 @@ describe('runtime writer steps', () => {
             const required = listRequiredSimulatorArtifacts(enginePath);
             expect(required).toContain(join(enginePath, 'bin', 'native-preview'));
             expect(required).toContain(join(enginePath, 'bin', 'adapter', 'native', 'engine-adapter.js'));
-            expect(required).toContain(join(workspace, 'static', 'simulator', 'import-map.json'));
-            expect(required).toContain(join(workspace, 'static', 'simulator', 'system.bundle.js'));
-            expect(required).toContain(join(workspace, 'static', 'simulator', 'polyfills.bundle.js'));
+            expect(required).toContain(join(enginePath, 'bin', 'simulator', 'import-map.json'));
+            expect(required).toContain(join(enginePath, 'bin', 'simulator', 'system.bundle.js'));
+            expect(required).toContain(join(enginePath, 'bin', 'simulator', 'polyfills.bundle.js'));
         });
 
         it('passes when every required artifact is present', async () => {
-            // 伪造引擎侧产物，避免依赖真实 native build / build:adapter；static/simulator 三个
-            // bundle 走 GlobalPaths.workspace（runtime build 已产出，真实存在）。
+            // 所有必需产物都在 fakeEngine 内伪造，不依赖 native 构建。
             const fakeEngine = join(tempDir, 'engine');
+            await ensureDir(join(fakeEngine, 'bin', 'simulator'));
+            for (const name of ['import-map.json', 'system.bundle.js', 'polyfills.bundle.js']) {
+                await writeFile(join(fakeEngine, 'bin', 'simulator', name), 'stub');
+            }
             await ensureDir(join(fakeEngine, 'bin', 'native-preview'));
             await writeFile(join(fakeEngine, 'bin', 'native-preview', 'base.js'), 'stub');
             await ensureDir(join(fakeEngine, 'bin', 'adapter', 'native'));

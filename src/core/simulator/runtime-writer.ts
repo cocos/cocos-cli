@@ -97,7 +97,7 @@ export async function writeSettingsFiles(resourcesPath: string, previewData: IPr
  *
  * 与 editor simulator 一致：`cc` 索引模块不在这里生成，而是由 preview server 的 quick-pack
  * 产物提供（`cce:/internal/x/cc` → `q-bundled:///virtual/cc.js`），feature 集合天然与项目
- * 配置一致；引擎 feature unit 由 `static/simulator/import-map.json` 映射到本地 `src/cocos-js/*.js`。
+ * 配置一致；引擎 feature unit 由 `bin/simulator/import-map.json` 映射到本地 `src/cocos-js/*.js`。
  */
 export async function writeRuntimeEngineBootstrap(resourcesPath: string, enginePath: string): Promise<void> {
     const ccbuild = requireFromEngine<any>('@cocos/ccbuild', enginePath);
@@ -166,9 +166,9 @@ export function listRequiredSimulatorArtifacts(enginePath: string): string[] {
         join(enginePath, 'bin', 'native-preview', 'base.js'),
         join(enginePath, 'bin', 'adapter', 'native', 'web-adapter.js'),
         join(enginePath, 'bin', 'adapter', 'native', 'engine-adapter.js'),
-        join(GlobalPaths.workspace, 'static', 'simulator', 'import-map.json'),
-        join(GlobalPaths.workspace, 'static', 'simulator', 'system.bundle.js'),
-        join(GlobalPaths.workspace, 'static', 'simulator', 'polyfills.bundle.js'),
+        join(enginePath, 'bin', 'simulator', 'import-map.json'),
+        join(enginePath, 'bin', 'simulator', 'system.bundle.js'),
+        join(enginePath, 'bin', 'simulator', 'polyfills.bundle.js'),
     ];
 }
 
