@@ -383,7 +383,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     private clearBindings(bindings: LightmapBinding[]): void {
         for (const binding of bindings) {
             if (binding.blockId === undefined) binding.target._updateLightmap(null, 0, 0, 0, 0);
-            else binding.target._updateLightmap(binding.blockId, null, 0, 0, 0, 0);
+            else this.updateTerrainBinding(binding, null, 0, 0, 0, 0);
         }
     }
 
@@ -391,8 +391,28 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         for (const binding of bindings) {
             const { x, y, z, w } = binding.uv;
             if (binding.blockId === undefined) binding.target._updateLightmap(binding.texture, x, y, z, w);
-            else binding.target._updateLightmap(binding.blockId, binding.texture, x, y, z, w);
+            else this.updateTerrainBinding(binding, binding.texture, x, y, z, w);
         }
+    }
+
+    private updateTerrainBinding(binding: LightmapBinding, texture: Texture2D | null, x: number, y: number, z: number, w: number): void {
+        const terrain = binding.target;
+        const blockId = binding.blockId!;
+        if (terrain.getBlocks()[blockId]) {
+            terrain._updateLightmap(blockId, texture, x, y, z, w);
+            return;
+        }
+        // A terrain reopened under an inactive parent has serialized results but no
+        // runtime blocks. The engine setter assumes a block exists and throws after
+        // mutating the entry. Preserve the data without enabling or rebuilding nodes;
+        // TerrainBlock.build will consume it when the terrain is later enabled.
+        const info = terrain._lightmapInfos[blockId];
+        if (!info) throw new Error(`Missing Terrain lightmap entry: ${blockId}`);
+        info.texture = texture;
+        info.UOff = x;
+        info.VOff = y;
+        info.UScale = z;
+        info.VScale = w;
     }
 
     private async waitForAsset(url: string, timeoutMs: number): Promise<string> {

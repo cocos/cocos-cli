@@ -38,7 +38,7 @@ function fixture() {
     const terrain = { uuid: 'terrain', lightMapSize: 64, _lightmapInfos: [
         { texture: oldTexture, UOff: 1, VOff: 2, UScale: 3, VScale: 4 },
         { texture: oldTexture, UOff: 5, VOff: 6, UScale: 7, VScale: 8 },
-    ], _resetLightmap: jest.fn(), _updateLightmap: jest.fn() };
+    ], getBlocks: () => [{}, {}], _resetLightmap: jest.fn(), _updateLightmap: jest.fn() };
     const scene = { uuid: 'scene', name: 'test', globals: { bakedWithHighpLightmap: false, bakedWithStationaryMainLight: false },
         children: [], getComponents: (type: unknown) => type === mockMeshRenderer ? [model] : type === mockTerrain ? [terrain] : [],
     };
@@ -57,6 +57,7 @@ function fixture() {
 describe('Lightmap result recording targets', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockBake.mockReset();
         mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1 });
         mockQuerySceneSerializedData.mockResolvedValue('[]');
         mockRemoveLightmapAssets.mockResolvedValue({ deletedTextureUuids: [], retainedTextureUuids: [], failures: [] });
@@ -168,6 +169,39 @@ describe('Lightmap result recording targets', () => {
         expect(mockUndo.beginRecording).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Bake lightmap' });
         expect(f.terrain._updateLightmap.mock.calls).toEqual([[0, null, 0, 0, 0, 0], [1, null, 0, 0, 0, 0]]);
         expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.texture, 0, 0, 1, 1);
+    });
+    it.each(['bake', 'clear', 'delete'] as const)('clears serialized bindings of a reopened inactive Terrain during %s without requiring runtime blocks', async operation => {
+        const f = fixture();
+        f.terrain.getBlocks = () => [];
+        // Match the engine precondition: calling this setter without a block fails.
+        f.terrain._updateLightmap.mockImplementation(() => { throw new Error('unbuilt terrain block'); });
+        mockBake.mockResolvedValueOnce({ models: [f.model], terrains: [], operationId: 'operation', stationaryMainLight: false,
+            textureUrls: [], result: { meshes: [{ id: 0, index: 0, offset: [0, 0], scale: [1, 1] }], terrains: [] } });
+        if (operation === 'bake') await f.service.bake({ saveScene: false });
+        else await f.service.clearBake({ deleteAssets: operation === 'delete' });
+        expect(f.terrain._lightmapInfos).toEqual([
+            { texture: null, UOff: 0, VOff: 0, UScale: 0, VScale: 0 },
+            { texture: null, UOff: 0, VOff: 0, UScale: 0, VScale: 0 },
+        ]);
+        expect(f.terrain._updateLightmap).not.toHaveBeenCalled();
+    });
+    it.each(['bake', 'clear'] as const)('restores every inactive Terrain block on %s failure without masking the original error', async operation => {
+        const f = fixture();
+        f.terrain.getBlocks = () => [];
+        const previous = f.terrain._lightmapInfos.map(info => ({ ...info }));
+        f.terrain._updateLightmap.mockImplementation(() => { throw new Error('unbuilt terrain block'); });
+        if (operation === 'bake') {
+            mockBake.mockResolvedValueOnce({ models: [f.model], terrains: [], operationId: 'operation', stationaryMainLight: false,
+                textureUrls: [], result: { meshes: [{ id: 0, index: 0, offset: [0, 0], scale: [1, 1] }], terrains: [] } });
+            f.model._updateLightmap.mockImplementationOnce(() => {}).mockImplementationOnce(() => { throw new Error('apply failed'); });
+            await expect(f.service.bake({ saveScene: false })).rejects.toThrow('apply failed');
+        } else {
+            mockQuerySceneSerializedData.mockRejectedValueOnce(new Error('serialization failed'));
+            await expect(f.service.clearBake({ deleteAssets: true })).rejects.toThrow('serialization failed');
+        }
+        expect(f.terrain._lightmapInfos).toEqual(previous);
+        expect(f.terrain._updateLightmap).not.toHaveBeenCalled();
+        expect(mockUndo.cancelRecording).toHaveBeenCalledWith('recording');
     });
     it('establishes a Clear history barrier even when current results were already unbound', async () => {
         const f = fixture();
