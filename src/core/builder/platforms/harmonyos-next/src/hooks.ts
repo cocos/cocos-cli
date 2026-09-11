@@ -74,7 +74,10 @@ export async function onAfterInit(this: IBuilder, options: IHarmonyOSNextInterna
     // checkSDKEnv(options);
 }
 
-export function onAfterBundleInit(options: IHarmonyOSNextInternalBuildOptions) {
+export async function onAfterBundleInit(options: IHarmonyOSNextInternalBuildOptions) {
+    // Preserve the native runtime target, especially for subclasses of JSB constructors.
+    await nativeCommonHook.onAfterBundleInit(options);
+
     if (options.packages['harmonyos-next'].jsEngine === 'ARK') {
         options.buildScriptParam.importMapFormat = 'esm';
     }
