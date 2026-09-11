@@ -296,6 +296,38 @@ export default class AndroidPackTool extends NativePackTool {
         return this.params.projectName.replace(/[^a-zA-Z0-9]/g, '');
     }
 
+    // 清理损坏的 Gradle wrapper 缓存目录
+    private async cleanBrokenGradleWrapperCache(gradleUserHome: string) {
+        const distsDir = ps.join(gradleUserHome, 'wrapper', 'dists');
+
+        if (!await fs.pathExists(distsDir)) {
+            return;
+        }
+
+        const distNames = await fs.readdir(distsDir);
+
+        for (const distName of distNames) {
+            const distRoot = ps.join(distsDir, distName);
+            const hashDirs: string[] = await fs.readdir(distRoot).catch(() => []);
+
+            for (const hashDir of hashDirs) {
+                const cacheDir = ps.join(distRoot, hashDir);
+                const entries: string[] = await fs.readdir(cacheDir).catch(() => []);
+
+                const expectedZip = `${distName}.zip`;
+                const hasZip = entries.includes(expectedZip);
+                const hasExtractedDir = entries.includes(distName);
+                const hasPart = entries.some((name) => name.endsWith('.part'));
+                const hasLock = entries.some((name) => name.endsWith('.lck'));
+
+                if ((hasPart || hasLock) && !hasZip && !hasExtractedDir) {
+                    console.warn(`[Android] Remove broken Gradle wrapper cache: ${cacheDir}`);
+                    await fs.remove(cacheDir);
+                }
+            }
+        }
+    }
+
     async make() {
         const options = this.params.platformParams;
         const nativePrjDir = this.paths.nativePrjDir;
@@ -318,6 +350,11 @@ export default class AndroidPackTool extends NativePackTool {
             throw new Error(`[Android] Project directory not found: ${nativePrjDir}`);
         }
 
+        const gradleUserHome = ps.join(nativePrjDir, '.gradle-user-home');
+        await fs.ensureDir(gradleUserHome);
+        await this.cleanBrokenGradleWrapperCache(gradleUserHome);
+        console.log(`[Android] Use GRADLE_USER_HOME: ${gradleUserHome}`);
+
         let gradlew = 'gradlew';
         if (process.platform === 'win32') {
             gradlew += '.bat';
@@ -328,6 +365,20 @@ export default class AndroidPackTool extends NativePackTool {
         }
 
         // 构建模式：Debug 或 Release
+        const runGradle = async (args: string[], slient: boolean) => {
+            const originGradleUserHome = process.env.GRADLE_USER_HOME;
+            process.env.GRADLE_USER_HOME = gradleUserHome;
+            try {
+                await cchelper.runCmd(gradlew, args, slient, nativePrjDir);
+            } finally {
+                if (originGradleUserHome === undefined) {
+                    delete process.env.GRADLE_USER_HOME;
+                } else {
+                    process.env.GRADLE_USER_HOME = originGradleUserHome;
+                }
+            }
+        };
+
         const outputMode = this.params.debug ? 'Debug' : 'Release';
         // 使用项目名而不是 ASCII 版本，因为 settings.gradle 中已经替换为实际项目名
         const projectName = this.params.projectName;
@@ -339,7 +390,7 @@ export default class AndroidPackTool extends NativePackTool {
         const originDir = process.cwd();
         try {
             process.chdir(nativePrjDir);
-            await cchelper.runCmd(gradlew, [buildMode], false, nativePrjDir);
+            await runGradle([buildMode], false);
         // eslint-disable-next-line no-useless-catch
         } catch (e) {
             throw e;
@@ -354,7 +405,7 @@ export default class AndroidPackTool extends NativePackTool {
             const instantBuildMode = `instantapp:assemble${outputMode}`;
             try {
                 process.chdir(nativePrjDir);
-                await cchelper.runCmd(gradlew, [instantBuildMode], false, nativePrjDir);
+                await runGradle([instantBuildMode], false);
             } catch (e) {
                 console.warn(`[Android] Failed to build instant app:`, e);
             } finally {
@@ -373,7 +424,7 @@ export default class AndroidPackTool extends NativePackTool {
             }
             try {
                 process.chdir(nativePrjDir);
-                await cchelper.runCmd(gradlew, [bundleBuildMode], false, nativePrjDir);
+                await runGradle([bundleBuildMode], false);
             } catch (e) {
                 console.warn(`[Android] Failed to build app bundle:`, e);
             } finally {
@@ -384,7 +435,7 @@ export default class AndroidPackTool extends NativePackTool {
         // 停止 Gradle 守护进程，释放文件锁定，以便可以删除构建目录
         try {
             process.chdir(nativePrjDir);
-            await cchelper.runCmd(gradlew, ['--stop'], true, nativePrjDir);
+            await runGradle(['--stop'], true);
             console.log(`[Android] Stopped Gradle daemon`);
         } catch (e) {
             // 忽略停止守护进程的错误，不影响构建结果
