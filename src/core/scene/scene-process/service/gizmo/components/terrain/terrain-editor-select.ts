@@ -5,6 +5,7 @@ import { ServiceEvents } from '../../../core/global-events';
 import type { ITerrainBlockLayerSlot } from '../../../../../common';
 import { TerrainBrush } from './terrain-brush';
 import { TerrainEditorMode } from './terrain-editor-mode';
+import type TerrainGizmo from './gizmo-select';
 
 export class TerrainEditorWeightMapData {
     public data = new Uint8Array();
@@ -20,7 +21,7 @@ export class TerrainEditorSelect extends TerrainEditorMode {
     private _weightData: TerrainEditorWeightMapData | null = null;
     private _layerList: Array<Texture2D | null> = [];
 
-    constructor(gizmo: any) {
+    constructor(gizmo: TerrainGizmo) {
         super(gizmo);
         const effect = (cc as any).EffectAsset?.get?.('internal/editor/terrain-select-brush');
         if (effect) { this._selectMaterial = new Material(); this._selectMaterial.initialize({ effectAsset: effect }); }
@@ -70,8 +71,8 @@ export class TerrainEditorSelect extends TerrainEditorMode {
             };
         });
     }
-    public onDeactivate() { this.setSelectBlock(null); }
-    public forceUpdate() {
+    public deactivate() { this.setSelectBlock(null); }
+    public refreshPreview() {
         if (!this._selectBlock) return;
         TerrainBrush.updateBrushDepthOffsetToMaterial(this._selectMaterial);
         this._selectBlock.setBrushMaterial(this._selectMaterial); this._selectBlock._invalidMaterial();

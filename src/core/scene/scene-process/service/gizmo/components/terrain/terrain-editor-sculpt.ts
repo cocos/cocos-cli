@@ -4,8 +4,9 @@ import {
     TerrainBrush, TerrainBrushType, TerrainCircleBrush, TerrainEdModifierKeyState, TerrainImageBrush,
 } from './terrain-brush';
 import { TerrainEditorMode } from './terrain-editor-mode';
+import type TerrainGizmo from './gizmo-select';
 import {
-    eTerrainTerrainEditorSculptToolMode, TerrainEditorSculptTool, TerrainEditorSculptTool_Flatten,
+    TerrainSculptToolMode, TerrainEditorSculptTool, TerrainEditorSculptTool_Flatten,
     TerrainEditorSculptTool_Sculpt, TerrainEditorSculptTool_SetHeight, TerrainEditorSculptTool_Smooth,
 } from './terrain-editor-sculpt-tools';
 import { TerrainHeightOperation, TerrainHeightUndoRedo } from './terrain-operation';
@@ -18,7 +19,7 @@ export class TerrainEditorSculpt extends TerrainEditorMode {
     public _currentBrush: TerrainBrush;
     private _currentTool: TerrainEditorSculptTool | null = null;
 
-    constructor(gizmo: any) {
+    constructor(gizmo: TerrainGizmo) {
         super(gizmo);
         const circle = new TerrainCircleBrush(); circle.strength = 5;
         const image = new TerrainImageBrush(); image.strength = 5;
@@ -41,13 +42,13 @@ export class TerrainEditorSculpt extends TerrainEditorMode {
     }
     public setSculptBrushRotation(rotation: number) { (this.getBrush(TerrainBrushType.IMAGE) as TerrainImageBrush)._rotation = rotation; }
 
-    public onUpdate(terrain: Terrain, deltaTime: number, isShiftDown: boolean) {
+    public update(terrain: Terrain, deltaTime: number, isShiftDown: boolean) {
         if (!this._currentTool) return;
         const modifiers = new TerrainEdModifierKeyState(); modifiers.siftPressed = isShiftDown;
         this._updateHeight(terrain, deltaTime, modifiers);
         this.gizmo.isTerrainChange = true;
     }
-    public forceUpdate() { TerrainBrush.updateBrushDepthOffsetToMaterial(this._currentBrush.material); }
+    public refreshPreview() { TerrainBrush.updateBrushDepthOffsetToMaterial(this._currentBrush.material); }
 
     public onUpdateBrushPosition(terrain: Terrain, position: Vec3) {
         const brush = this._currentBrush; brush.update(terrain, position);
@@ -67,14 +68,14 @@ export class TerrainEditorSculpt extends TerrainEditorMode {
 
     public onMouseDown(terrain: Terrain) {
         this._undo = new TerrainHeightUndoRedo(terrain);
-        let mode = eTerrainTerrainEditorSculptToolMode.SCULPT;
-        if (this.gizmo.isSmooth) mode = eTerrainTerrainEditorSculptToolMode.SMOOTH;
-        else if (this.gizmo.isFlatten) mode = eTerrainTerrainEditorSculptToolMode.FLATTEN;
-        else if (this.gizmo.isSetHeight) mode = eTerrainTerrainEditorSculptToolMode.SET_HEIGHT;
+        let mode = TerrainSculptToolMode.SCULPT;
+        if (this.gizmo.isSmooth) mode = TerrainSculptToolMode.SMOOTH;
+        else if (this.gizmo.isFlatten) mode = TerrainSculptToolMode.FLATTEN;
+        else if (this.gizmo.isSetHeight) mode = TerrainSculptToolMode.SET_HEIGHT;
         switch (mode) {
-            case eTerrainTerrainEditorSculptToolMode.SMOOTH: this._currentTool = new TerrainEditorSculptTool_Smooth(); break;
-            case eTerrainTerrainEditorSculptToolMode.FLATTEN: this._currentTool = new TerrainEditorSculptTool_Flatten(); break;
-            case eTerrainTerrainEditorSculptToolMode.SET_HEIGHT: this._currentTool = new TerrainEditorSculptTool_SetHeight(this._currentBrush._setHeight); break;
+            case TerrainSculptToolMode.SMOOTH: this._currentTool = new TerrainEditorSculptTool_Smooth(); break;
+            case TerrainSculptToolMode.FLATTEN: this._currentTool = new TerrainEditorSculptTool_Flatten(); break;
+            case TerrainSculptToolMode.SET_HEIGHT: this._currentTool = new TerrainEditorSculptTool_SetHeight(this._currentBrush._setHeight); break;
             default: this._currentTool = new TerrainEditorSculptTool_Sculpt(this.gizmo.isConcave); break;
         }
         const x = Math.floor(this._currentBrush.position.x / terrain.info.tileSize);

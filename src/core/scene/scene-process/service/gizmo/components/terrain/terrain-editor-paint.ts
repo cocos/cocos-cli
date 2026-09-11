@@ -3,6 +3,7 @@ import { Service } from '../../../core/decorator';
 import { TerrainBrush, TerrainBrushType, TerrainCircleBrush, TerrainImageBrush } from './terrain-brush';
 import { TerrainEditorMode } from './terrain-editor-mode';
 import { TerrainWeightOperation, TerrainWeightUndoRedo } from './terrain-operation';
+import type TerrainGizmo from './gizmo-select';
 
 const clamp = math.clamp;
 
@@ -12,7 +13,7 @@ export class TerrainEditorPaint extends TerrainEditorMode {
     public _currentLayer = -1;
     public _currentBrush: TerrainBrush;
 
-    constructor(gizmo: any) {
+    constructor(gizmo: TerrainGizmo) {
         super(gizmo);
         const circle = new TerrainCircleBrush(); circle.strength = 5;
         const image = new TerrainImageBrush(); image.strength = 5;
@@ -33,7 +34,7 @@ export class TerrainEditorPaint extends TerrainEditorMode {
     public setCurrentLayer(layer: number) { this._currentLayer = layer; }
     public getCurrentLayer() { return this._currentLayer; }
 
-    public onUpdate(terrain: Terrain, deltaTime: number) {
+    public update(terrain: Terrain, deltaTime: number) {
         if (!this._undo) return;
         this._updateWeight(terrain, deltaTime); this.gizmo.isTerrainChange = true;
     }
@@ -58,8 +59,8 @@ export class TerrainEditorPaint extends TerrainEditorMode {
         if (this._undo?.data.length || this._undo?.redoOperations.length) Service.Undo.push(this._undo);
         this._undo = null;
     }
-    public forceUpdate() { TerrainBrush.updateBrushDepthOffsetToMaterial(this._currentBrush.material); }
-    public onDeactivate() {
+    public refreshPreview() { TerrainBrush.updateBrushDepthOffsetToMaterial(this._currentBrush.material); }
+    public deactivate() {
         if (!this.gizmo.editor.getEditTerrain()?._asset) this._currentLayer = -1;
     }
 

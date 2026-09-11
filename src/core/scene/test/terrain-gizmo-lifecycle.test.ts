@@ -65,7 +65,7 @@ jest.mock('../scene-process/service/gizmo/components/terrain/terrain-brush', () 
 
 import { Terrain } from 'cc';
 import TerrainGizmo from '../scene-process/service/gizmo/components/terrain/gizmo-select';
-import { eTerrainEditorMode } from '../scene-process/service/gizmo/components/terrain/terrain-editor-mode';
+import { TerrainEditorModeType } from '../scene-process/service/gizmo/components/terrain/terrain-editor-mode';
 import { TerrainEditorSelect } from '../scene-process/service/gizmo/components/terrain/terrain-editor-select';
 
 describe('TerrainGizmo lifecycle', () => {
@@ -174,17 +174,17 @@ describe('TerrainGizmo lifecycle', () => {
         };
 
         expect(gizmo.readTerrainState().paint.brush).toMatchObject({ kind: 'image', falloff: 0.5 });
-        expect(gizmo.queryBrushOfMode(eTerrainEditorMode.SCULPT)).toEqual({ radius: 3, strength: 5, _setHeight: 9 });
-        expect(gizmo.queryBrushOfMode(eTerrainEditorMode.PAINT)).toEqual({ radius: 7, strength: 3, _setHeight: 0, falloff: 0.5 });
-        expect(gizmo.queryBrushOfMode(eTerrainEditorMode.MANAGE)).toBeNull();
+        expect(gizmo.queryBrushOfMode(TerrainEditorModeType.SCULPT)).toEqual({ radius: 3, strength: 5, _setHeight: 9 });
+        expect(gizmo.queryBrushOfMode(TerrainEditorModeType.PAINT)).toEqual({ radius: 7, strength: 3, _setHeight: 0, falloff: 0.5 });
+        expect(gizmo.queryBrushOfMode(TerrainEditorModeType.MANAGE)).toBeNull();
 
         gizmo.updateTerrainPaintSession({ brush: { falloff: 0.2 } });
         expect(paintCircle.setFalloff).toHaveBeenCalledWith(0.2);
-        expect(gizmo.queryBrushOfMode(eTerrainEditorMode.PAINT).falloff).toBe(0.2);
+        expect(gizmo.queryBrushOfMode(TerrainEditorModeType.PAINT).falloff).toBe(0.2);
 
-        gizmo.setBrushOfMode(eTerrainEditorMode.PAINT, { falloff: 0.3 });
+        gizmo.setBrushOfMode(TerrainEditorModeType.PAINT, { falloff: 0.3 });
         expect(paintCircle.setFalloff).toHaveBeenLastCalledWith(0.3);
-        expect(gizmo.queryBrushOfMode(eTerrainEditorMode.PAINT).falloff).toBe(0.3);
+        expect(gizmo.queryBrushOfMode(TerrainEditorModeType.PAINT).falloff).toBe(0.3);
         expect(paintImage).toMatchObject({ image: null, _rotation: 0 });
     });
 
