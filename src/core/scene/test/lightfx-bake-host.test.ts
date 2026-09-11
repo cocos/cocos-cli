@@ -28,7 +28,7 @@ jest.mock('../main-process/lightfx/output', () => ({
     decodeLightFXOutput: jest.fn(() => mockDecodedResult),
 }));
 
-import { LightFXBakeHost } from '../main-process/lightfx-bake-host';
+import { LightFXBakeHost, parseLightFXProgressRate } from '../main-process/lightfx-bake-host';
 
 describe('LightFXBakeHost', () => {
     let root: string;
@@ -72,6 +72,18 @@ describe('LightFXBakeHost', () => {
         return operationId;
     }
 
+    it('extracts only verified percentages from the native Progress channel', () => {
+        expect([
+            parseLightFXProgressRate('Build lighting 0%'),
+            parseLightFXProgressRate('Build lighting 25%\n'),
+            parseLightFXProgressRate('Build lighting 99.5%'),
+            parseLightFXProgressRate('Build lighting 100%'),
+        ]).toEqual([0, 25, 99.5, 100]);
+        for (const value of ['[2,400]', 'Build lighting 101%', 'Build lighting -1%', 'Other stage 25%', '25%', { rate: 25 }]) {
+            expect(parseLightFXProgressRate(value)).toBeUndefined();
+        }
+    });
+
     it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
         const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
         const busy = { ...idle, busy: true };
@@ -99,6 +111,7 @@ describe('LightFXBakeHost', () => {
             lateLog = onLog;
             for (let index = 0; index < 150; index++) { onLog(`line ${index}`); }
             onProgress({ native: [1, 4], file: cwd });
+            onProgress('Build lighting 25%\n');
             await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
         });
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
@@ -107,8 +120,8 @@ describe('LightFXBakeHost', () => {
         await host.appendInput({ operationId, chunkBase64: Buffer.from('input').toString('base64') });
         await host.run({ operationId });
         const diagnostic = (await host.queryDiagnostics(owner))!;
-        expect([diagnostic.stage, diagnostic.logs.length, diagnostic.logs[0], diagnostic.logs.at(-1), diagnostic.progress])
-            .toEqual(['awaiting-commit', 128, 'line 22', 'line 149', '{"native":[1,4],"file":"<bake workspace>"}']);
+        expect([diagnostic.stage, diagnostic.logs.length, diagnostic.logs[0], diagnostic.logs.at(-1), diagnostic.progress, diagnostic.rate])
+            .toEqual(['awaiting-commit', 128, 'line 22', 'line 149', 'Build lighting 25%\n', 25]);
         diagnostic.logs.length = 0;
         await expect(host.queryDiagnostics({ ...owner, target: 'lightmap' })).resolves.toBeUndefined();
         await expect(host.queryDiagnostics({ ...owner, transactionId: undefined })).resolves.toBeUndefined();

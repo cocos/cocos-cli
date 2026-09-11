@@ -73,6 +73,15 @@ const MAX_INPUT_CHUNK_BASE64_LENGTH = 1024 * 1024;
 const MAX_INPUT_BYTES = 1024 * 1024 * 1024;
 const MAX_TEXTURE_SOURCES = 10_000;
 
+/** Reads only the native percentage format observed on the dedicated Progress channel. */
+export function parseLightFXProgressRate(value: unknown): number | undefined {
+    if (typeof value !== 'string') { return undefined; }
+    const match = /^Build lighting (?<rate>\d{1,3}(?:\.\d+)?)%$/.exec(value.trim());
+    if (!match?.groups) { return undefined; }
+    const rate = Number(match.groups.rate);
+    return Number.isFinite(rate) && rate >= 0 && rate <= 100 ? rate : undefined;
+}
+
 /**
  * Executes every Node-only part of a LightFX bake on behalf of either a Scene worker or a browser
  * Scene Webview. Only one operation can exist at a time, including the apply/save transaction gap.
@@ -310,7 +319,11 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 },
                 onProgress: progress => {
                     if (this.operation !== operation || operation.terminalState) { return; }
-                    this.diagnostics.get(operation.id)!.value.progress = this.diagnosticText(operation, progress);
+                    const diagnostic = this.diagnostics.get(operation.id)!.value;
+                    diagnostic.progress = this.diagnosticText(operation, progress);
+                    const rate = parseLightFXProgressRate(progress);
+                    if (rate === undefined) { delete diagnostic.rate; }
+                    else { diagnostic.rate = rate; }
                 },
             });
             this.throwIfTerminated(operation);

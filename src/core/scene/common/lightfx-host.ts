@@ -24,12 +24,14 @@ export interface ILightFXHostCapabilities {
     busy: boolean;
 }
 
-/** Native diagnostic text is informational, never a progress percentage or an instruction. */
+/** Native diagnostic data is informational and never controls the bake transaction. */
 export interface ILightFXDiagnostics {
     version: 1;
     stage: string;
     logs: string[];
     progress?: string;
+    /** Verified percentage from the native Progress channel; absent for unknown payload formats. */
+    rate?: number;
 }
 
 /** JSON-safe reference to a texture needed by a LightFX input file. */
