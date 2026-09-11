@@ -344,9 +344,21 @@ Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 rende
 
 本批补齐成功重烘焙的收尾链路：修改场景前校验 Host 的内部 `lightmapRebakeCleanupVersion === 1` 并读取旧候选；新结果应用、录制和保存确认后，使旧 Lightmap 历史失效（保留本次新结果的 Redo 和普通历史），检查实时剩余引用并清理旧候选。Host 只接受仍持有正确 Bake reservation 且原生已 commit 的 `action:bake` 清理。当前新结果、其他字段／场景／材质引用必须保留。删除失败、引用保留或回应不明时返回包含 `New Lightmap result is saved and retained` 的错误，保留已完成的新结果并明确报告，不再恢复旧内存冒充回滚；不能把它解释成 Bake 没有修改场景。
 
-`saveScene:false` 不授权删除磁盘已保存场景仍依赖的贴图，不隐式保存，也不删除旧产物或固定发布；成功后的旧结果历史仍失效。保存失败／取消／应用失败不触发旧产物清理。下一次成功保存的 Bake 或删除模式 Clear 可重试已记录产物。`31598b0a` 已接入保存后的固定 PNG 发布；`tmp/lfx.in`／`output/lfx.out`／`lfx.log` 固定发布仍待接入，不宣称完整产物已经对齐。
+`saveScene:false` 不授权删除磁盘已保存场景仍依赖的贴图，不隐式保存，也不删除旧产物或固定发布；成功后的旧结果历史仍失效。保存失败／取消／应用失败不触发旧产物清理。下一次成功保存的 Bake 或删除模式 Clear 可重试已记录产物。`31598b0a` 已接入保存后的固定 PNG 发布；`2b13cfce` 已接入原生配套文件发布与清理，真实面板正常主链路已通过，异常与同场景 Creator 对照仍待专项验收。
 
 ## Lightmap 资产规则
+
+### 原生配套文件接入（实施前记录）
+
+下一批复用 PNG 的暂存／保存后发布事务：原生完成时将实际 `tmp/lfx.in`、`output/lfx.out` 和存在的 `lfx.log` 导入本轮暂存目录，记录其根 UUID 为独立 auxiliary 成员，不混入贴图预览或纹理数量。保存后发布为 `<根>/tmp/lfx.in`、`<根>/output/lfx.out`、`<根>/lfx.log`。这比延长原生工作目录生命周期更小，commit 仍可按原机制清理工作目录。日志缺失不伪造文件，输入／输出缺失仍按实际失败处理。
+
+成功重烘焙和删除式 Clear 清理已记录的旧配套资产；Bake 排除本次 UUID。配套文件不是 Lightmap 绑定，因此不得忽略当前场景对它的其他引用。删除／移动均核对磁盘、UUID 和元数据，固定目标冲突不覆盖。显式不保存和保存失败不提前删旧产物。复用现有归属文件的可选 auxiliary 字段，读写保留旧格式兼容，损坏字段在修改场景前报错；不扫描项目、不按目录猜归属、不留成功历史副本。新增内部能力位约束新旧 Host 混用；公共 MCP 不扩展新入口。
+
+实现 `2b13cfce`：上述配套文件以独立 auxiliary UUID 记录，与 PNG 同批预检并移动；返回的 textureUrls 只含 PNG。Scene 在无纹理候选时仍执行 Host 清理以支持辅助资产失败重试，Clear 的资产计数包括辅助文件，绑定计数不变。内部能力位为 `lightmapAuxiliaryAssetsVersion:1`。原生输入文件可能引用临时纹理源，此批未承诺把全部纹理源附件发布成可脱离项目重放的输入包；不扩展为原生工程归档器。
+
+先 `tsc -b`／Scene 与 editor-extends 构建，再定点 6 套／144 项、扩展 32 套／535 项通过（`/tmp/pink-native-products-final-tests.log`）；定点 ESLint 无代码错误，保留已有配置告警。覆盖实际文件移动、固定冲突前置拒绝、部分移动失败、辅助字段损坏、回滚保留上轮、同场景其他引用保留和无纹理候选重试。
+
+隔离工程 `/tmp/pink-native-products.SjK8Ju` 由主 agent 准备新 Host 后交全局 ui_verifier 执行真实按钮，证据 `/tmp/codex-ui-verifier.10oRvd`：128 Bake 产生固定 3 PNG＋3 配套文件，256 Bake 替换为 2 PNG＋3 新 UUID 配套文件；无缺图，保存成功。Clear 后这 5 个当前资产及 meta 实际不存在，归属 textures／auxiliary 为空，绑定及 UV 清空，43 点 SH 哈希不变，一次 Undo／Redo 未恢复。主 agent 已复核磁盘／JSON／截图。空目录及目录 meta 保留；旧版无归属历史不扫描删除。未直接查询 Asset DB 旧 UUID 缓存，也未在本批重复关闭重开或注入异常；不把正常主链路扩展为所有边界已验收。既有告警及点击 Clear 时瞬时 Console 计数差异均保留原始证据。
 
 固定贴图发布的最小接入（实施前记录）：继续使用独立临时导入目录完成纹理加载和场景保存；保存确认、旧产物清理完成后，通过 Asset DB 保留 UUID 移动到默认 `db://assets/LightFX/output`，指定 `outputUrl` 时移动到 `<outputUrl>/output`。固定发布由原 Bake reservation 和实际 operation ID 校验，不接受任意外部 UUID。所有目标先检查冲突，逐项移动后核对 UUID、URL 和磁盘源／目标；不覆盖同名资产、不先复用旧 UUID。失败保留已保存的新结果位置，不删除新贴图。只用非递归空目录删除收敛已清空的 `bake-UUID`，其他文件存在时保留。`saveScene:false` 暂不固定发布，保护磁盘旧引用。本批不宣称 `lfx.in/out/log` 配套文件已经对齐。
 
