@@ -102,11 +102,11 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private operation: LightFXHostOperation | null = null;
     private readonly completedOperations = new Map<string, OperationTerminalState>();
     private readonly diagnostics = new Map<string, { owner: ICancelLightFXOperationOptions; value: ILightFXDiagnostics }>();
-    private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & { nativeStarted: boolean; removingAssets: boolean }) | null = null;
+    private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & { nativeStarted: boolean; nativeCommitted: boolean; removingAssets: boolean }) | null = null;
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async queryDiagnostics(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined> {
@@ -170,7 +170,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         const transactionId = randomUUID();
         // No await before reservation. A lost renderer keeps this locked rather than admitting
         // another writer while its old scene transaction might still resume.
-        this.sceneOperation = { target: options.target, action: options.action, transactionId, nativeStarted: false, removingAssets: false };
+        this.sceneOperation = { target: options.target, action: options.action, transactionId, nativeStarted: false, nativeCommitted: false, removingAssets: false };
         return { transactionId };
     }
 
@@ -442,6 +442,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         }
         // This synchronous decision is the linearization point shared with cancellation and expiry.
         this.decideTerminalState(operation, 'committed');
+        if (this.sceneOperation) this.sceneOperation.nativeCommitted = true;
         try {
             await this.cleanup(operation, false);
         } catch (error) {
@@ -509,7 +510,12 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         }
         const sceneUuid = Utils.UUID.decompressUUID(options.sceneUuid).split('@', 1)[0];
         if (!Utils.UUID.isUUID(sceneUuid)) throw new Error('Invalid Lightmap scene UUID.');
-        this.validateSceneOperation(options.transactionId, 'lightmap', 'clear');
+        const action = options.action ?? 'clear';
+        if (action !== 'clear' && action !== 'bake') throw new Error('Invalid Lightmap cleanup action.');
+        if (action === 'bake' && (!options.transactionId || !this.sceneOperation?.nativeCommitted)) {
+            throw new Error('Lightmap rebake cleanup requires its completed native bake ownership.');
+        }
+        this.validateSceneOperation(options.transactionId, 'lightmap', action);
         const legacy = options.transactionId === undefined;
         const token = legacy ? await this.reserveSceneOperation({ target: 'lightmap', action: 'clear' }) : { transactionId: options.transactionId! };
         const owner = this.sceneOperation!;

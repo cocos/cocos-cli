@@ -5,7 +5,7 @@ const mockBake = jest.fn();
 const mockCommit = jest.fn();
 const mockRollback = jest.fn();
 const mockRemoveLightmapAssets = jest.fn();
-const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1 }));
+const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1; lightmapRebakeCleanupVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1 }));
 const mockUndo = {
     beginRecording: jest.fn(() => 'recording'),
     endRecording: jest.fn(async () => undefined),
@@ -60,7 +60,7 @@ describe('Lightmap result recording targets', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockBake.mockReset();
-        mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1 });
+        mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1 });
         mockQuerySceneSerializedData.mockResolvedValue('[]');
         mockQueryTextureInfo.mockReset().mockResolvedValue({ textures: [], missingTextureUuids: [] });
         mockRemoveLightmapAssets.mockResolvedValue({ deletedTextureUuids: [], retainedTextureUuids: [], failures: [] });
@@ -88,6 +88,68 @@ describe('Lightmap result recording targets', () => {
         expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
         expect(mockSave).toHaveBeenCalledTimes(saveScene ? 1 : 0);
         expect(mockUndo.markSaved).not.toHaveBeenCalled();
+    });
+    it('deletes previous and older unbound products only after the new result is saved', async () => {
+        const f = fixture();
+        mockQueryTextureInfo.mockResolvedValueOnce({ textures: [], missingTextureUuids: [], ownedTextureUuids: ['older-A', 'old-texture', 'new-texture'] });
+        await f.service.bake();
+        expect(mockRemoveLightmapAssets).toHaveBeenCalledWith('scene', ['older-A', 'old-texture'], 'bake');
+        expect(mockSave.mock.invocationCallOrder[0]).toBeLessThan(mockRemoveLightmapAssets.mock.invocationCallOrder[0]);
+        expect(mockUndo.clearHistory).not.toHaveBeenCalled();
+    });
+    it('keeps disk-dependent old pixels for an explicitly unsaved Bake, without retaining old result history', async () => {
+        const f = fixture();
+        const old = deletedLightmapAssets.capture(f.scene, { type: 'cc.ModelBakeSettings', value: {
+            texture: { type: 'cc.Texture2D', value: { uuid: 'old-texture' } },
+        } });
+        await f.service.bake({ saveScene: false });
+        expect(mockSave).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(deletedLightmapAssets.filter(f.scene, old, 'dump').value.texture.value.uuid).toBe('');
+    });
+    it('retains and reports old products referenced by non-Lightmap scene fields', async () => {
+        const f = fixture();
+        mockQuerySceneSerializedData.mockResolvedValueOnce(JSON.stringify({ custom: { __uuid__: 'old-texture@f9941' } }));
+        await expect(f.service.bake()).rejects.toThrow('New Lightmap result is saved and retained');
+        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.texture, 0.1, 0.2, 0.3, 0.4);
+        expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
+        expect(mockRollback).not.toHaveBeenCalled();
+    });
+    it.each(['referenced', 'failed', 'unknown', 'serialization'])('retains the saved new result on %s cleanup failure', async failure => {
+        const f = fixture();
+        if (failure === 'serialization') mockQuerySceneSerializedData.mockRejectedValueOnce(new Error('serialization failed'));
+        else if (failure === 'unknown') mockRemoveLightmapAssets.mockRejectedValueOnce(new Error('response lost'));
+        else mockRemoveLightmapAssets.mockResolvedValueOnce({ deletedTextureUuids: [],
+            retainedTextureUuids: failure === 'referenced' ? ['old-texture'] : [],
+            failures: failure === 'failed' ? [{ uuid: 'old-texture', reason: 'permission denied' }] : [],
+        });
+        await expect(f.service.bake()).rejects.toThrow('New Lightmap result is saved and retained');
+        expect(mockSave).toHaveBeenCalledTimes(1);
+        expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.texture, 0.1, 0.2, 0.3, 0.4);
+        expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
+        expect(mockRollback).not.toHaveBeenCalled();
+    });
+    it('does not invalidate old history or delete pixels after an unconfirmed Bake save', async () => {
+        const f = fixture();
+        const old = deletedLightmapAssets.capture(f.scene, { type: 'cc.ModelBakeSettings', value: {
+            texture: { type: 'cc.Texture2D', value: { uuid: 'old-texture' } },
+        } });
+        mockSave.mockRejectedValueOnce(new Error('save response lost'));
+        await expect(f.service.bake()).rejects.toThrow('result retained');
+        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(deletedLightmapAssets.filter(f.scene, old, 'dump')).toBe(old);
+        // Failure releases the replacement capture scope, permitting a later retry.
+        await f.service.bake();
+    });
+    it.each(['capability', 'ownership'])('rejects unavailable %s before native Bake or scene mutation', async failure => {
+        const f = fixture();
+        if (failure === 'capability') mockQueryCapabilities.mockResolvedValueOnce({ lightmapAssetCleanupVersion: 1 });
+        else mockQueryTextureInfo.mockRejectedValueOnce(new Error('record unavailable'));
+        await expect(f.service.bake()).rejects.toThrow();
+        expect(mockBake).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockSave).not.toHaveBeenCalled();
     });
     it('saves before exact deletion and cancels only the Clear recording', async () => {
         const f = fixture();

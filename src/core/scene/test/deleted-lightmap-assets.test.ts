@@ -11,6 +11,55 @@ const terrain = (uuid: string) => ({ type: 'cc.TerrainBlockLightmapInfo', value:
 } });
 
 describe('Deleted Lightmap snapshot references', () => {
+    it('invalidates successive rebakes while preserving current Redo, ordinary edits and SH', async () => {
+        const scene = {}, deleted = new DeletedLightmapAssets();
+        let state = { position: 0, mesh: mesh('A'), terrain: [terrain('A')], sh: [1, 2, 3] };
+        const manager = new SceneUndoManager({ snapshotAdapter: {
+            capture: () => new Map([['state', deleted.capture(scene, structuredClone(state))]]),
+            equals: (a, b) => JSON.stringify([...a]) === JSON.stringify([...b]),
+            apply: snapshots => { state = deleted.filter(scene, snapshots.get('state'), 'dump'); return { success: true }; },
+        } });
+        const move = manager.beginRecording(['node']);
+        state.position = 10;
+        await manager.endRecording(move);
+        for (const texture of ['B', 'C']) {
+            const bake = manager.beginRecording(['mesh']);
+            const replacement = deleted.beginReplacement(scene);
+            state.mesh = mesh(texture); state.terrain = [terrain(texture)];
+            await manager.endRecording(bake);
+            manager.markSaved();
+            replacement.commit();
+            replacement.commit(); // Completion is idempotent.
+        }
+        await manager.undo();
+        expect([state.mesh.value.texture.value.uuid, state.terrain[0].value.UScale.value, state.position, state.sh])
+            .toEqual(['', 0, 10, [1, 2, 3]]);
+        await manager.undo(); await manager.undo();
+        expect(state.position).toBe(0);
+        await manager.redo(); await manager.redo();
+        expect([state.position, state.mesh.value.texture.value.uuid]).toEqual([10, '']);
+        await manager.redo();
+        expect([state.mesh, state.terrain, state.sh, manager.isDirty()]).toEqual([mesh('C'), [terrain('C')], [1, 2, 3], false]);
+        deleted.clearResults(scene);
+        await manager.undo(); await manager.redo();
+        expect(state.mesh.value.texture.value.uuid).toBe('');
+    });
+
+    it('does not invalidate results on failed recording/save and releases replacement capture state', () => {
+        const scene = {}, deleted = new DeletedLightmapAssets();
+        const before = deleted.capture(scene, mesh('A'));
+        const failed = deleted.beginReplacement(scene);
+        expect(() => deleted.beginReplacement(scene)).toThrow('already being recorded');
+        const retained = deleted.capture(scene, mesh('B'));
+        failed.cancel(); failed.commit();
+        expect(deleted.filter(scene, before, 'dump')).toBe(before);
+        expect(deleted.filter(scene, retained, 'dump')).toBe(retained);
+        const retry = deleted.beginReplacement(scene);
+        const after = deleted.capture(scene, mesh('C'));
+        retry.commit();
+        expect(deleted.filter(scene, retained, 'dump').value.texture.value.uuid).toBe('');
+        expect(deleted.filter(scene, after, 'dump')).toBe(after);
+    });
     it('keeps ordinary edits but invalidates both Bake A and B at Clear, while allowing later Bake C history', async () => {
         const scene = {}, deleted = new DeletedLightmapAssets();
         let state = { position: 0, mesh: mesh('A'), terrain: [terrain('A'), terrain('A')], sh: [1, 2, 3] };

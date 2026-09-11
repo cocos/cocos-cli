@@ -45,6 +45,11 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         if (!scene) throw new Error('No scene is currently open.');
 
         const sceneUrl = await this.querySceneUrl();
+        // Preflight before native publication or scene mutation, not after a successful save.
+        if ((await lightFXBakeHost.queryCapabilities())?.lightmapRebakeCleanupVersion !== 1) {
+            throw new Error('The LightFX host does not support safe Lightmap rebake cleanup.');
+        }
+        const owned = (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? [];
         const settings = createDefaultLightFXSettings('lightmap');
         Object.assign(settings, {
             msaa: options.msaa ?? settings.msaa,
@@ -78,6 +83,9 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             await lightFXCoordinator.commit(output.operationId);
             nativeCommitted = true;
             const previousBindings = this.snapshotSceneBindings(scene);
+            const previousTextureUuids = [...new Set([...owned, ...previousBindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)]
+                .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0)
+                .map(uuid => this.rootAssetUuid(uuid)))];
             const affectedBindings = [...previousBindings, ...this.snapshotBindings(output)];
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
             const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
@@ -86,6 +94,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             const targets = [...new Set([...output.models, ...output.terrains, ...previousBindings.map(binding => binding.target)]
                 .map(component => component.uuid)), scene.uuid];
             const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
+            const replacement = deletedLightmapAssets.beginReplacement(scene);
             try {
                 // A successful bake replaces the complete result, including disabled objects
                 // that were excluded from this export but still have older bindings.
@@ -96,6 +105,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 await Service.Engine.repaintInEditMode();
                 await finishSavedLightFXRecording(Service.Undo, undo,
                     options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
+                replacement.commit();
             } catch (error) {
                 if (error instanceof LightFXResultRetainedError) throw error;
                 this.restoreBindings(affectedBindings);
@@ -103,6 +113,14 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
                 Service.Undo.cancelRecording(undo);
                 throw error;
+            } finally {
+                replacement.cancel();
+            }
+
+            // Never put deletion in the apply rollback scope. The scene may already be on disk.
+            // Explicitly unsaved bakes retain pixels still needed by the saved scene, not for Undo.
+            if (options.saveScene !== false) {
+                await this.cleanupPreviousBake(scene, previousTextureUuids, textures);
             }
 
             this.broadcast('lightfx:bake-end', 'lightmap');
@@ -120,6 +138,25 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             });
             this.broadcast('lightfx:bake-end', 'lightmap', this.errorMessage(error));
             throw error;
+        }
+    }
+
+    private async cleanupPreviousBake(scene: Scene, candidates: string[], textures: Map<string, Texture2D>): Promise<void> {
+        try {
+            const current = new Set([...textures.values()].map(texture => this.rootAssetUuid(texture.uuid)));
+            const previous = candidates.filter(uuid => !current.has(uuid));
+            const retained = await this.queryRemainingSceneTextureUuids(previous);
+            const deletable = previous.filter(uuid => !retained.has(uuid));
+            const finishDeletion = deletedLightmapAssets.begin(scene, deletable);
+            const result = deletable.length > 0
+                ? await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletable, 'bake')
+                : { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
+            finishDeletion(result.deletedTextureUuids);
+            if (retained.size || result.retainedTextureUuids.length || result.failures.length) {
+                throw new Error(`Previous Lightmap cleanup incomplete: ${retained.size + result.retainedTextureUuids.length} referenced assets retained, ${result.failures.length} deletions failed.`);
+            }
+        } catch (error) {
+            throw new Error(`New Lightmap result is saved and retained; previous asset cleanup was not completed. ${this.errorMessage(error)}`);
         }
     }
 

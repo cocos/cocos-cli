@@ -90,8 +90,9 @@ export class LightFXCoordinator {
         }
     }
 
-    removeLightmapAssets(sceneUuid: string, textureUuids: string[]): Promise<IRemoveLightmapAssetsResult> {
-        return lightFXBakeHost.removeLightmapAssets({ sceneUuid, textureUuids, transactionId: lightFXSceneOperation.hostTransactionId });
+    removeLightmapAssets(sceneUuid: string, textureUuids: string[], action: 'bake' | 'clear' = 'clear'): Promise<IRemoveLightmapAssetsResult> {
+        return lightFXBakeHost.removeLightmapAssets({ sceneUuid, textureUuids, transactionId: lightFXSceneOperation.hostTransactionId,
+            ...(action === 'bake' ? { action } : {}) });
     }
 
     async cancel(target: LightFXBakeTarget): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {

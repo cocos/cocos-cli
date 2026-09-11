@@ -10,18 +10,21 @@ class MockVec3 {
 }
 const mockBake = jest.fn(), mockCommit = jest.fn(), mockRollback = jest.fn();
 const mockSave = jest.fn(), mockRepaint = jest.fn();
+const mockRemoveLightmapAssets = jest.fn(), mockQuerySceneSerializedData = jest.fn();
 const mockUndo = { beginRecording: jest.fn(), endRecording: jest.fn(), cancelRecording: jest.fn(), createCheckpoint: jest.fn() };
 jest.mock('cc', () => ({ director: { getScene: mockGetScene }, MeshRenderer: mockMeshRenderer, Terrain: mockTerrain,
     Vec3: MockVec3, SH: { getBasisCount: () => 9 } }));
 jest.mock('../scene-process/service/core', () => ({
     BaseService: class { broadcast() {} }, register: () => () => undefined,
-    Service: { Undo: mockUndo, Editor: { save: mockSave }, Engine: { repaintInEditMode: mockRepaint } },
+    Service: { Undo: mockUndo, Editor: { save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData }, Engine: { repaintInEditMode: mockRepaint } },
 }));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: {
-    bake: mockBake, commit: mockCommit, rollback: mockRollback,
+    bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets,
 } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     reserveSceneOperation: async () => ({ transactionId: 'owner' }), releaseSceneOperation: async () => undefined,
+    queryCapabilities: async () => ({ lightmapRebakeCleanupVersion: 1 }),
+    queryLightmapTextureInfo: async () => ({ textures: [], missingTextureUuids: [], ownedTextureUuids: [] }),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({ createDefaultLightFXSettings: () => ({}) }));
 jest.mock('../scene-process/service/preview/asset-reload', () => ({ loadPreviewAsset: jest.fn() }));
@@ -30,6 +33,7 @@ jest.mock('../scene-process/rpc', () => ({ Rpc: { getInstance: jest.fn() } }));
 import { LightmapBakeService } from '../scene-process/service/lightmap-bake';
 import { LightProbeBakeService } from '../scene-process/service/light-probe-bake';
 import { SceneUndoManager } from '../scene-process/service/undo/scene-undo-manager';
+import { deletedLightmapAssets } from '../scene-process/service/baking/lightfx/deleted-lightmap-assets';
 
 function fixture(target: 'probe' | 'lightmap') {
     const events: string[] = [];
@@ -51,11 +55,23 @@ function fixture(target: 'probe' | 'lightmap') {
         highp: scene.globals.bakedWithHighpLightmap, stationary: scene.globals.bakedWithStationaryMainLight,
         giScale: info.giScale, probes: probes.map(p => ({ normal: p.normal.clone(), coefficients: p.coefficients.map(c => c.clone()) })) });
     let disk = read();
+    const capture = () => ({ state: read(), baked: {
+        __type__: 'cc.ModelBakeSettings', texture: model.bakeSettings.texture ? { __uuid__: model.bakeSettings.texture.uuid } : null,
+        uvParam: model.bakeSettings.uvParam.clone(),
+    }, globals: { __type__: 'cc.SceneGlobals', bakedWithHighpLightmap: scene.globals.bakedWithHighpLightmap,
+        bakedWithStationaryMainLight: scene.globals.bakedWithStationaryMainLight } });
+    mockQuerySceneSerializedData.mockImplementation(async () => JSON.stringify(capture()));
+    mockRemoveLightmapAssets.mockImplementation(async (_scene: string, uuids: string[]) => {
+        assets = assets.filter(uuid => !uuids.includes(uuid));
+        return { deletedTextureUuids: uuids, retainedTextureUuids: [], failures: [] };
+    });
     const manager = new SceneUndoManager({ snapshotAdapter: {
-        capture: () => new Map([['scene', read()]]),
+        capture: () => new Map([['scene', deletedLightmapAssets.capture(scene, capture())]]),
         equals: (a, b) => JSON.stringify(a.get('scene')) === JSON.stringify(b.get('scene')),
         apply: data => {
-            const state = data.get('scene') as ReturnType<typeof read>;
+            const filtered = deletedLightmapAssets.filter(scene, data.get('scene') as ReturnType<typeof capture>, 'serialized');
+            const state = { ...filtered.state, texture: filtered.baked.texture?.__uuid__ ?? null, uv: filtered.baked.uvParam,
+                highp: filtered.globals.bakedWithHighpLightmap, stationary: filtered.globals.bakedWithStationaryMainLight };
             model._updateLightmap(state.texture ? { uuid: state.texture } : null, state.uv.x, state.uv.y, state.uv.z, state.uv.w);
             scene.globals.bakedWithHighpLightmap = state.highp;
             scene.globals.bakedWithStationaryMainLight = state.stationary;
@@ -92,13 +108,15 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
         expect({ events: f.events, disk: f.disk(), dirty: f.manager.isDirty() }).toEqual({ events: ['commit', 'record', 'save'], disk: f.read(), dirty: false });
     });
 
-    it.each([false, true])('restores complete results in edit → rebake → clear history (save=%s)', async saveScene => {
+    it.each([false, true])('keeps ordinary edits and only current Lightmap results in edit → rebake → clear history (save=%s)', async saveScene => {
         const f = fixture(target);
         const scene = mockGetScene();
         const edit = f.manager.beginRecording(['scene']);
         scene.globals.lightProbeInfo.giScale = 1.5;
         await f.manager.endRecording(edit);
         const edited = f.read();
+        const previous = (value: ReturnType<typeof f.read>) => target === 'lightmap'
+            ? { ...value, texture: null, uv: { x: 0, y: 0, z: 0, w: 0 }, highp: false, stationary: false } : value;
 
         await f.service.bake({ giScale: 2, highp: true, saveScene });
         const baked = f.read();
@@ -110,20 +128,20 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
         await f.manager.undo();
         expect(f.read()).toEqual(baked);
         await f.manager.undo();
-        expect(f.read()).toEqual(edited);
+        expect(f.read()).toEqual(previous(edited));
         await f.manager.undo();
-        expect(f.read()).toEqual(f.old);
+        expect(f.read()).toEqual(previous(f.old));
         expect(f.manager.canUndo()).toBe(false);
 
         await f.manager.redo();
-        expect(f.read()).toEqual(edited);
+        expect(f.read()).toEqual(previous(edited));
         await f.manager.redo();
         expect(f.read()).toEqual(baked);
         await f.manager.redo();
         expect(f.read()).toEqual(cleared);
         expect(f.manager.canRedo()).toBe(false);
         expect(f.manager.isDirty()).toBe(!saveScene);
-        expect(f.assets()).toEqual(['old', 'new']);
+        expect(f.assets()).toEqual(target === 'lightmap' && saveScene ? ['new'] : ['old', 'new']);
     });
 
     it.each([false, true])('does not mutate scene, disk or history on commit failure (host committed=%s)', async committed => {

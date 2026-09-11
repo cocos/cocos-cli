@@ -3,6 +3,7 @@ export class DeletedLightmapAssets {
     private readonly scenes = new WeakMap<object, Set<string>>();
     private readonly epochs = new WeakMap<object, { value: number }>();
     private readonly snapshots = new WeakMap<object, number>();
+    private readonly replacements = new WeakMap<object, Set<object>>();
 
     constructor(private readonly normalize: (uuid: string) => string = rootLightmapAssetUuid) {}
 
@@ -18,6 +19,7 @@ export class DeletedLightmapAssets {
     capture<T>(scene: object | null | undefined, snapshot: T): T {
         if (scene && snapshot && typeof snapshot === 'object') {
             this.snapshots.set(snapshot, this.epochs.get(scene)?.value ?? 0);
+            this.replacements.get(scene)?.add(snapshot);
         }
         return snapshot;
     }
@@ -27,6 +29,32 @@ export class DeletedLightmapAssets {
         const epoch = this.epochs.get(scene) ?? { value: 0 };
         epoch.value++;
         this.epochs.set(scene, epoch);
+    }
+
+    /** Start after the Bake's before snapshot. Commit only after recording/save succeeds. */
+    beginReplacement(scene: object): { commit(): void; cancel(): void } {
+        if (this.replacements.has(scene)) throw new Error('A Lightmap result replacement is already being recorded.');
+        const captured = new Set<object>();
+        this.replacements.set(scene, captured);
+        let active = true;
+        const cancel = (): void => {
+            if (!active) return;
+            active = false;
+            this.replacements.delete(scene);
+            captured.clear();
+        };
+        return {
+            commit: () => {
+                if (!active) return;
+                this.clearResults(scene);
+                const epoch = this.epochs.get(scene)!.value;
+                // The completed Bake can Redo its current result; earlier snapshots cannot
+                // revive replaced results, even when external references kept their pixels.
+                for (const snapshot of captured) this.snapshots.set(snapshot, epoch);
+                cancel();
+            },
+            cancel,
+        };
     }
 
     /** Protect in-flight deletes too; an unconfirmed response must not revive possibly deleted assets. */

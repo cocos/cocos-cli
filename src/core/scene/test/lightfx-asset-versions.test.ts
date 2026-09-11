@@ -32,12 +32,12 @@ describe('Immutable Lightmap asset versions', () => {
     });
     afterEach(async () => { await host.dispose(); await remove(root); });
 
-    async function bake(bytes: string, outputUrl?: string, sceneUuid?: string) {
+    async function bake(bytes: string, outputUrl?: string, sceneUuid?: string, transactionId?: string) {
         mockRun.mockImplementationOnce(async ({ cwd }: { cwd: string }) => {
             await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
             await outputFile(join(cwd, 'output', 'LFX_Mesh_0000.png'), bytes);
         });
-        const token = await host.begin({ ...opts, outputUrl, sceneUuid });
+        const token = await host.begin({ ...opts, outputUrl, sceneUuid, transactionId });
         await host.appendInput({ ...token, chunkBase64: Buffer.from('input').toString('base64') });
         const output = await host.run(token);
         return { token, url: output.textureUrls[0], path: assetPath(output.textureUrls[0]) };
@@ -65,6 +65,35 @@ describe('Immutable Lightmap asset versions', () => {
         });
         return identities;
     }
+
+    it('cleans prior files inside the committed Bake reservation without deleting the new result', async () => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        const a = await bake('pixels A', undefined, sceneUuid);
+        await host.commit(a.token);
+        const oldUuid = [...identities.keys()][0];
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const cleanup = { ...owner, sceneUuid, textureUuids: [oldUuid], action: 'bake' as const };
+        await expect(host.removeLightmapAssets(cleanup)).rejects.toThrow('ownership');
+        const b = await bake('pixels B', undefined, sceneUuid, owner.transactionId);
+        await expect(host.removeLightmapAssets(cleanup)).rejects.toThrow('already in progress');
+        await host.commit(b.token);
+        await expect(host.removeLightmapAssets({ ...cleanup, transactionId: randomUUID() })).rejects.toThrow('ownership');
+        await expect(host.removeLightmapAssets(cleanup)).resolves.toEqual({ deletedTextureUuids: [oldUuid], retainedTextureUuids: [], failures: [] });
+        expect([await pathExists(a.path), await readFile(b.path, 'utf8'), (await host.queryCapabilities()).busy])
+            .toEqual([false, 'pixels B', true]);
+        await host.releaseSceneOperation(owner);
+        expect((await host.queryLightmapTextureInfo({ sceneUuid, uuids: [] })).ownedTextureUuids).toEqual([...identities.keys()]);
+    });
+
+    it('does not accept rebake cleanup after a rolled-back native operation or without a reservation', async () => {
+        const sceneUuid = randomUUID();
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const b = await bake('pixels B', undefined, undefined, owner.transactionId);
+        await host.rollback(b.token);
+        await expect(host.removeLightmapAssets({ ...owner, sceneUuid, textureUuids: [], action: 'bake' })).rejects.toThrow('ownership');
+        await host.releaseSceneOperation(owner);
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [], action: 'bake' })).rejects.toThrow('ownership');
+    });
 
     it('remembers unbound products across Host restart and deletes actual files in custom directories', async () => {
         const identities = realAssetFiles();
@@ -216,6 +245,6 @@ describe('Immutable Lightmap asset versions', () => {
         mockAssets.refreshAsset.mockRejectedValueOnce(new Error('import unavailable'));
         await expect(bake('pixels B')).rejects.toThrow('import unavailable');
         expect(await readFile(a.path, 'utf8')).toBe('pixels A');
-        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
+        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
     });
 });

@@ -20,6 +20,8 @@ export interface ILightFXHostCapabilities {
     lightmapOutputDirectory?: true;
     /** Deletes only unreferenced immutable LightFX textures selected by exact UUID. */
     lightmapAssetCleanupVersion?: 1;
+    /** Supports exact cleanup inside the owning Bake transaction after Scene confirms saving. */
+    lightmapRebakeCleanupVersion?: 1;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
     diagnosticsVersion?: 1;
@@ -117,6 +119,8 @@ export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions
 
 export interface IRemoveLightmapAssetsOptions {
     transactionId?: string;
+    /** Default Clear; Bake cleanup requires its still-held scene reservation. */
+    action?: 'bake' | 'clear';
     /** Saved scene whose stale dependency entry may be ignored after Scene verified no live reference remains. */
     sceneUuid: string;
     textureUuids: string[];
