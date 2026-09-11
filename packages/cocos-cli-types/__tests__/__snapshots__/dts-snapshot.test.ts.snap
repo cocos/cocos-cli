@@ -6695,6 +6695,17 @@ export declare interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
+    toggleLightProbeEditMode(mode: boolean | undefined): boolean;
+    queryLightProbeEditMode(): boolean;
+    toggleLightProbeBoundingBoxEditMode(mode: boolean | undefined): boolean;
+    queryLightProbeBoundingBoxEditMode(): boolean;
+    selectAllLightProbes(): void;
+    unselectAllLightProbes(): void;
+    queryLightProbeSelectedCount(): number;
+    deleteSelectedLightProbes(): number;
+    duplicateSelectedLightProbes(): number;
+    generateLightProbes(): number;
+    regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
 }
 export declare interface IInsertLODOptions {
     path: string;
