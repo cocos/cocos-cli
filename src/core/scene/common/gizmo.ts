@@ -63,17 +63,21 @@ export interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
-    /** Toggles the current selected probe groups' vertex mode. */
-    toggleLightProbeEditMode(enabled: boolean): boolean;
+
+    // Light Probe 编辑模式 facade（对齐 cocos-editor general-scene-facade toggle/query）
+    toggleLightProbeEditMode(mode: boolean | undefined): boolean;
     queryLightProbeEditMode(): boolean;
-    toggleLightProbeBoundingBoxEditMode(enabled: boolean): boolean;
+    toggleLightProbeBoundingBoxEditMode(mode: boolean | undefined): boolean;
     queryLightProbeBoundingBoxEditMode(): boolean;
+
+    // Light Probe VERTEX 逐探针编辑：选择 / 删除 / 复制（供面板按钮经 RPC 调用）
     selectAllLightProbes(): void;
     unselectAllLightProbes(): void;
     queryLightProbeSelectedCount(): number;
-    duplicateSelectedLightProbes(): Promise<number>;
     deleteSelectedLightProbes(): Promise<number>;
+    duplicateSelectedLightProbes(): Promise<number>;
     generateLightProbes(): number;
+    // 框选探针（方案 A）：上层框选时主动调用，屏幕矩形（left<right、bottom<top），additive 并入现有选中。返回选中总数。
     regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
 }
 
@@ -91,7 +95,8 @@ export type IPublicGizmoService = Pick<IGizmoService,
     'toggleLightProbeEditMode' | 'queryLightProbeEditMode' |
     'toggleLightProbeBoundingBoxEditMode' | 'queryLightProbeBoundingBoxEditMode' |
     'selectAllLightProbes' | 'unselectAllLightProbes' | 'queryLightProbeSelectedCount' |
-    'duplicateSelectedLightProbes' | 'deleteSelectedLightProbes' | 'generateLightProbes' | 'regionSelectLightProbes'
+    'deleteSelectedLightProbes' | 'duplicateSelectedLightProbes' |
+    'regionSelectLightProbes' | 'generateLightProbes'
 >;
 
 export interface IGizmoEvents {

@@ -35,6 +35,8 @@ const MESSAGE_ONLY_EVENTS = [
     'terrain:sculpt',
     'terrain:block-update',
     'terrain:session-changed',
+    'scene:light-probe-edit-mode-changed',
+    'scene:light-probe-bounding-box-edit-mode-changed',
 ] as const;
 
 // 定义事件分组映射

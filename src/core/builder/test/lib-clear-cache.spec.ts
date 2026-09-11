@@ -1,5 +1,5 @@
-const clearCacheMock = jest.fn(async (scope: 'project' | 'global' | 'all') => ({
-    scope,
+const clearCacheMock = jest.fn(async (options: { scope: 'project' | 'global' | 'all' }) => ({
+    scope: options.scope,
     cleared: [],
 }));
 
@@ -23,10 +23,10 @@ describe('lib/builder clearCache API', () => {
     it('delegates cache cleanup to core builder', async () => {
         const builderLib = await getBuilderLib();
 
-        const result = await builderLib.clearCache('project');
+        const result = await builderLib.clearCache({ scope: 'project' });
 
         expect(clearCacheMock).toHaveBeenCalledTimes(1);
-        expect(clearCacheMock).toHaveBeenCalledWith('project');
+        expect(clearCacheMock).toHaveBeenCalledWith({ scope: 'project' });
         expect(result).toEqual({
             scope: 'project',
             cleared: [],
