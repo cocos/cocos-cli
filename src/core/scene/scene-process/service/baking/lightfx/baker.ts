@@ -95,6 +95,10 @@ export class LightFXCoordinator {
             ...(action === 'bake' ? { action } : {}) });
     }
 
+    publishLightmapAssets(operationId: string): Promise<{ textureUrls: string[] }> {
+        return lightFXBakeHost.publishLightmapAssets({ operationId, transactionId: lightFXSceneOperation.hostTransactionId });
+    }
+
     async cancel(target: LightFXBakeTarget): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {
         const operation = this.operation;
         if (!operation || operation.target !== target) return { cancelled: false, target: null };

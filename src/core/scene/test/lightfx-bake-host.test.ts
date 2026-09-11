@@ -90,7 +90,7 @@ describe('LightFXBakeHost', () => {
     });
 
     it('queries protocol and occupancy without reserving, releasing or exposing ownership', async () => {
-        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
+        const idle = { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false };
         const busy = { ...idle, busy: true };
         await expect(host.queryCapabilities()).resolves.toEqual(idle);
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
@@ -243,7 +243,7 @@ describe('LightFXBakeHost', () => {
             deletedTextureUuids: [deleted],
             retainedTextureUuids: [retained],
             failures: [
-                { uuid: invalid, reason: 'Asset is not an immutable LightFX texture.' },
+                { uuid: invalid, reason: 'Asset is not a managed LightFX texture.' },
                 { uuid: failed, reason: 'trash unavailable' },
             ],
         });

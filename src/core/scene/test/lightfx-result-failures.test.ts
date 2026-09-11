@@ -20,10 +20,11 @@ jest.mock('../scene-process/service/core', () => ({
 }));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: {
     bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets,
+    publishLightmapAssets: async () => ({ textureUrls: ['db://assets/LightFX/output/LFX_Mesh_0000.png'] }),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     reserveSceneOperation: async () => ({ transactionId: 'owner' }), releaseSceneOperation: async () => undefined,
-    queryCapabilities: async () => ({ lightmapRebakeCleanupVersion: 1 }),
+    queryCapabilities: async () => ({ lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1 }),
     queryLightmapTextureInfo: async () => ({ textures: [], missingTextureUuids: [], ownedTextureUuids: [] }),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({ createDefaultLightFXSettings: () => ({}) }));

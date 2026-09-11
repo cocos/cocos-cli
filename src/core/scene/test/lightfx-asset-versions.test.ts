@@ -1,4 +1,4 @@
-import { ensureDir, existsSync, mkdtemp, outputFile, pathExists, readFile, remove, symlink } from 'fs-extra';
+import { ensureDir, existsSync, mkdtemp, outputFile, pathExists, readFile, remove, symlink, move } from 'fs-extra';
 import { randomUUID } from 'crypto';
 import { join } from 'path';
 import { tmpdir } from 'os';
@@ -6,7 +6,7 @@ import { tmpdir } from 'os';
 const mockAssets = {
     queryPath: jest.fn(), refreshAsset: jest.fn(), queryUUID: jest.fn(),
     queryAssetMeta: jest.fn(() => ({ userData: { fixAlphaTransparencyArtifacts: false } })),
-    queryAssetInfo: jest.fn(), queryAssetUsers: jest.fn(), removeAsset: jest.fn(),
+    queryAssetInfo: jest.fn(), queryAssetUsers: jest.fn(), removeAsset: jest.fn(), moveAsset: jest.fn(),
 };
 const mockRun = jest.fn();
 jest.mock('../../assets', () => ({ assetManager: mockAssets }));
@@ -48,6 +48,7 @@ describe('Immutable Lightmap asset versions', () => {
         mockAssets.queryUUID.mockImplementation((url: string) => {
             const existing = [...identities.values()].find(info => info.url === url);
             if (existing) return existing.uuid;
+            if (!existsSync(assetPath(url))) return null;
             const uuid = randomUUID();
             identities.set(uuid, { uuid, url, file: assetPath(url) });
             return uuid;
@@ -63,8 +64,36 @@ describe('Immutable Lightmap asset versions', () => {
             await remove(`${info.file}.meta`);
             identities.delete(uuid);
         });
+        mockAssets.moveAsset.mockReset().mockImplementation(async (source: string, target: string) => {
+            const info = [...identities.values()].find(info => info.url === source)!;
+            await move(info.file, assetPath(target), { overwrite: false });
+            info.url = target;
+            info.file = assetPath(target);
+        });
         return identities;
     }
+
+    it.each([undefined, 'db://assets', 'db://assets/Chosen'])('publishes fixed current textures with the same UUID and supports Clear after reopening (%s)', async outputUrl => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        if (outputUrl) await ensureDir(assetPath(outputUrl));
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const a = await bake('pixels A', outputUrl, sceneUuid, owner.transactionId);
+        const uuid = [...identities.keys()][0];
+        const request = { ...a.token, ...owner };
+        await expect(host.publishLightmapAssets(request)).rejects.toThrow('ownership');
+        await host.commit(a.token);
+        await expect(host.publishLightmapAssets({ ...request, operationId: randomUUID() })).rejects.toThrow('ownership');
+        const output = await host.publishLightmapAssets(request);
+        const target = `${outputUrl && outputUrl !== 'db://assets' ? outputUrl : 'db://assets/LightFX'}/output/LFX_Mesh_0000.png`;
+        expect(output.textureUrls).toEqual([target]);
+        expect([identities.get(uuid)?.url, await readFile(assetPath(target), 'utf8'), await pathExists(a.path)]).toEqual([target, 'pixels A', false]);
+        await expect(host.publishLightmapAssets(request)).resolves.toEqual(output);
+        await host.releaseSceneOperation(owner);
+        host = new LightFXBakeHost();
+        expect((await host.queryLightmapTextureInfo({ sceneUuid, uuids: [] })).ownedTextureUuids).toEqual([uuid]);
+        const cleared = await host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid] });
+        expect([cleared.deletedTextureUuids, await pathExists(assetPath(target))]).toEqual([[uuid], false]);
+    });
 
     it('cleans prior files inside the committed Bake reservation without deleting the new result', async () => {
         const identities = realAssetFiles(), sceneUuid = randomUUID();
@@ -245,6 +274,6 @@ describe('Immutable Lightmap asset versions', () => {
         mockAssets.refreshAsset.mockRejectedValueOnce(new Error('import unavailable'));
         await expect(bake('pixels B')).rejects.toThrow('import unavailable');
         expect(await readFile(a.path, 'utf8')).toBe('pixels A');
-        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
+        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
     });
 });

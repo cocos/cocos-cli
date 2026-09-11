@@ -5,7 +5,8 @@ const mockBake = jest.fn();
 const mockCommit = jest.fn();
 const mockRollback = jest.fn();
 const mockRemoveLightmapAssets = jest.fn();
-const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1; lightmapRebakeCleanupVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1 }));
+const mockPublishLightmapAssets = jest.fn();
+const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1; lightmapRebakeCleanupVersion?: 1; lightmapPublicationVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1 }));
 const mockUndo = {
     beginRecording: jest.fn(() => 'recording'),
     endRecording: jest.fn(async () => undefined),
@@ -22,7 +23,7 @@ jest.mock('../scene-process/service/core', () => ({
     BaseService: class { broadcast() {} }, register: () => () => undefined,
     Service: { Undo: mockUndo, Editor: { save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData }, Engine: { repaintInEditMode: async () => undefined } },
 }));
-jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets } }));
+jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets, publishLightmapAssets: mockPublishLightmapAssets } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     queryLightmapTextureInfo: mockQueryTextureInfo,
     queryCapabilities: mockQueryCapabilities,
@@ -60,7 +61,8 @@ describe('Lightmap result recording targets', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockBake.mockReset();
-        mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1 });
+        mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1 });
+        mockPublishLightmapAssets.mockReset().mockResolvedValue({ textureUrls: ['db://assets/LightFX/output/LFX_Mesh_0000.png'] });
         mockQuerySceneSerializedData.mockResolvedValue('[]');
         mockQueryTextureInfo.mockReset().mockResolvedValue({ textures: [], missingTextureUuids: [] });
         mockRemoveLightmapAssets.mockResolvedValue({ deletedTextureUuids: [], retainedTextureUuids: [], failures: [] });
@@ -92,9 +94,11 @@ describe('Lightmap result recording targets', () => {
     it('deletes previous and older unbound products only after the new result is saved', async () => {
         const f = fixture();
         mockQueryTextureInfo.mockResolvedValueOnce({ textures: [], missingTextureUuids: [], ownedTextureUuids: ['older-A', 'old-texture', 'new-texture'] });
-        await f.service.bake();
+        const result = await f.service.bake();
+        expect(result.textureUrls).toEqual(['db://assets/LightFX/output/LFX_Mesh_0000.png']);
         expect(mockRemoveLightmapAssets).toHaveBeenCalledWith('scene', ['older-A', 'old-texture'], 'bake');
         expect(mockSave.mock.invocationCallOrder[0]).toBeLessThan(mockRemoveLightmapAssets.mock.invocationCallOrder[0]);
+        expect(mockRemoveLightmapAssets.mock.invocationCallOrder[0]).toBeLessThan(mockPublishLightmapAssets.mock.invocationCallOrder[0]);
         expect(mockUndo.clearHistory).not.toHaveBeenCalled();
     });
     it('keeps disk-dependent old pixels for an explicitly unsaved Bake, without retaining old result history', async () => {
@@ -105,7 +109,17 @@ describe('Lightmap result recording targets', () => {
         await f.service.bake({ saveScene: false });
         expect(mockSave).not.toHaveBeenCalled();
         expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(mockPublishLightmapAssets).not.toHaveBeenCalled();
         expect(deletedLightmapAssets.filter(f.scene, old, 'dump').value.texture.value.uuid).toBe('');
+    });
+    it('does not revert saved bindings or remove new files on fixed publication failure', async () => {
+        const f = fixture();
+        mockPublishLightmapAssets.mockRejectedValueOnce(new Error('target occupied'));
+        await expect(f.service.bake()).rejects.toThrow('fixed output publication was not completed');
+        expect(mockSave).toHaveBeenCalledTimes(1);
+        expect(mockRollback).not.toHaveBeenCalled();
+        expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
+        expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.texture, 0.1, 0.2, 0.3, 0.4);
     });
     it('retains and reports old products referenced by non-Lightmap scene fields', async () => {
         const f = fixture();

@@ -22,6 +22,8 @@ export interface ILightFXHostCapabilities {
     lightmapAssetCleanupVersion?: 1;
     /** Supports exact cleanup inside the owning Bake transaction after Scene confirms saving. */
     lightmapRebakeCleanupVersion?: 1;
+    /** Post-save, UUID-preserving relocation into the current fixed output directory. */
+    lightmapPublicationVersion?: 1;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
     diagnosticsVersion?: 1;
@@ -112,6 +114,10 @@ export interface ILightFXOperationOptions {
     operationId: string;
 }
 
+export interface IPublishLightmapAssetsOptions extends ILightFXOperationOptions {
+    transactionId: string;
+}
+
 export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions {
     target: LightFXBakeTarget;
     transactionId?: string;
@@ -169,6 +175,7 @@ export interface ILightFXBakeHostService {
     appendInput(options: IAppendLightFXInputOptions): Promise<void>;
     run(options: IRunLightFXBakeOptions): Promise<IRunLightFXBakeResult>;
     commit(options: ILightFXOperationOptions): Promise<void>;
+    publishLightmapAssets(options: IPublishLightmapAssetsOptions): Promise<{ textureUrls: string[] }>;
     rollback(options: ILightFXOperationOptions): Promise<void>;
     cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
     removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<IRemoveLightmapAssetsResult>;

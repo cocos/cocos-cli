@@ -27,6 +27,7 @@ export const lightFXBakeHost: ILightFXBakeHostService = {
     appendInput: (options: IAppendLightFXInputOptions): Promise<void> => Rpc.getInstance().request('lightFXBakeHost', 'appendInput', [options]),
     run: (options: IRunLightFXBakeOptions): Promise<IRunLightFXBakeResult> => Rpc.getInstance().request('lightFXBakeHost', 'run', [options]),
     commit: (options: ILightFXOperationOptions): Promise<void> => Rpc.getInstance().request('lightFXBakeHost', 'commit', [options]),
+    publishLightmapAssets: options => Rpc.getInstance().request('lightFXBakeHost', 'publishLightmapAssets', [options]),
     rollback: (options: ILightFXOperationOptions): Promise<void> => Rpc.getInstance().request('lightFXBakeHost', 'rollback', [options]),
     cancel: (options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: 'light-probe' | 'lightmap' | null }> => Rpc.getInstance().request('lightFXBakeHost', 'cancel', [options]),
     removeLightmapAssets: (options: IRemoveLightmapAssetsOptions): Promise<IRemoveLightmapAssetsResult> => Rpc.getInstance().request('lightFXBakeHost', 'removeLightmapAssets', [options]),

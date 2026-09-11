@@ -35,10 +35,12 @@ import type {
     ILightFXSceneOperationToken,
     ICancelLightFXOperationOptions,
     ILightFXDiagnostics,
+    IPublishLightmapAssetsOptions,
 } from '../common/lightfx-host';
 import { assetManager } from '../../assets';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
 import { LightmapAssetRecord } from './lightfx/asset-record';
+import { isLightmapTextureUrl, publishLightmapTextures, removeEmptyLightmapVersion } from './lightfx/asset-publication';
 import { decodeLightFXOutput } from './lightfx/output';
 import { LightFXProcess } from './lightfx/process';
 
@@ -64,6 +66,7 @@ interface LightFXHostOperation {
     assets: LightmapAssetTransaction | null;
     assetRecord?: LightmapAssetRecord;
     recordedTextureUuids?: string[];
+    publicationRootUrl: string;
     cleanupPromise: Promise<void> | null;
     expiryTimer: NodeJS.Timeout | null;
     terminalState: OperationTerminalState | null;
@@ -102,11 +105,14 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private operation: LightFXHostOperation | null = null;
     private readonly completedOperations = new Map<string, OperationTerminalState>();
     private readonly diagnostics = new Map<string, { owner: ICancelLightFXOperationOptions; value: ILightFXDiagnostics }>();
-    private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & { nativeStarted: boolean; nativeCommitted: boolean; removingAssets: boolean }) | null = null;
+    private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & {
+        nativeStarted: boolean; nativeCommitted: boolean; removingAssets: boolean;
+        publication?: { operationId: string; textureUuids: string[]; stagingUrl: string; rootUrl: string };
+    }) | null = null;
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async queryDiagnostics(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined> {
@@ -268,8 +274,8 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         );
         const tmpDir = join(workspace, 'tmp');
         const outputDir = join(workspace, 'output');
-        // Published textures are immutable: existing saved scenes and Undo
-        // records may still refer to any earlier bake, including legacy files.
+        // Import the new result separately until the scene save is confirmed.
+        // Fixed publication follows exact cleanup; this is not an Undo pixel archive.
         const version = `bake-${operationId}`;
         const parentUrl = options.outputUrl ?? `db://assets/${options.sceneName}/lightmap`;
         const parentDir = join(assetRoot, parentUrl.slice('db://assets'.length));
@@ -285,6 +291,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             outputDir,
             targetDir,
             targetUrl,
+            publicationRootUrl: options.outputUrl && options.outputUrl !== 'db://assets' ? options.outputUrl : 'db://assets/LightFX',
             refreshUrl: options.outputUrl ?? `db://assets/${options.sceneName}`,
             inputBytes: 0,
             inputWritePromise: Promise.resolve(),
@@ -442,7 +449,13 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         }
         // This synchronous decision is the linearization point shared with cancellation and expiry.
         this.decideTerminalState(operation, 'committed');
-        if (this.sceneOperation) this.sceneOperation.nativeCommitted = true;
+        if (this.sceneOperation) {
+            this.sceneOperation.nativeCommitted = true;
+            if (operation.target === 'lightmap' && operation.recordedTextureUuids) {
+                this.sceneOperation.publication = { operationId: operation.id, textureUuids: operation.recordedTextureUuids,
+                    stagingUrl: operation.targetUrl, rootUrl: operation.publicationRootUrl };
+            }
+        }
         try {
             await this.cleanup(operation, false);
         } catch (error) {
@@ -477,6 +490,22 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         operation.controller.abort();
         await operation.runner.cancel();
         await this.cleanup(operation, true);
+    }
+
+    public async publishLightmapAssets(options: IPublishLightmapAssetsOptions): Promise<{ textureUrls: string[] }> {
+        this.validateSceneOperation(options?.transactionId, 'lightmap', 'bake');
+        const owner = this.sceneOperation;
+        const publication = owner?.publication;
+        if (!owner?.nativeCommitted || !publication || publication.operationId !== options?.operationId) {
+            throw new Error('Lightmap publication requires its committed Bake ownership.');
+        }
+        if (this.operation || owner.removingAssets) throw new Error('Lightmap asset publication or cleanup is already in progress.');
+        owner.removingAssets = true;
+        try {
+            return { textureUrls: await publishLightmapTextures(this.queryAssetRoot(), publication.textureUuids, publication.stagingUrl, publication.rootUrl) };
+        } finally {
+            owner.removingAssets = false;
+        }
     }
 
     public async cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {
@@ -529,16 +558,19 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 return uuid;
             }))];
             const record = new LightmapAssetRecord(dirname(this.queryAssetRoot()), sceneUuid);
+            const recorded = new Set(await record.read());
             const infos = new Map(uuids.map(uuid => [uuid, assetManager.queryAssetInfo(uuid)]));
-            const known = uuids.filter(uuid => isImmutableLightmapTexture(infos.get(uuid)?.url));
+            const managed = (uuid: string): boolean => isImmutableLightmapTexture(infos.get(uuid)?.url)
+                || (recorded.has(uuid) && isLightmapTextureUrl(infos.get(uuid)?.url));
+            const known = uuids.filter(managed);
             // Include legacy currently-bound candidates before deletion so a retained/failed
             // delete can be retried after the saved scene no longer has any Lightmap binding.
             if (known.length) await record.add(known);
             const result: IRemoveLightmapAssetsResult = { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
             for (const uuid of uuids) {
                 const info = infos.get(uuid);
-                if (!info || !isImmutableLightmapTexture(info.url)) {
-                    result.failures.push({ uuid, reason: 'Asset is not an immutable LightFX texture.' });
+                if (!info || !managed(uuid)) {
+                    result.failures.push({ uuid, reason: 'Asset is not a managed LightFX texture.' });
                     continue;
                 }
                 try {
@@ -561,6 +593,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                         throw new Error('Lightmap texture file still exists after asset deletion.');
                     }
                     result.deletedTextureUuids.push(uuid);
+                    if (info.file) await removeEmptyLightmapVersion(this.queryAssetRoot(), dirname(info.url!));
                 } catch (error) {
                     result.failures.push({ uuid, reason: error instanceof Error ? error.message : String(error) });
                 }

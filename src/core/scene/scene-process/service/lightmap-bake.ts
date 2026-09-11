@@ -46,8 +46,9 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
 
         const sceneUrl = await this.querySceneUrl();
         // Preflight before native publication or scene mutation, not after a successful save.
-        if ((await lightFXBakeHost.queryCapabilities())?.lightmapRebakeCleanupVersion !== 1) {
-            throw new Error('The LightFX host does not support safe Lightmap rebake cleanup.');
+        const capabilities = await lightFXBakeHost.queryCapabilities();
+        if (capabilities?.lightmapRebakeCleanupVersion !== 1 || capabilities.lightmapPublicationVersion !== 1) {
+            throw new Error('The LightFX host does not support current Lightmap publication and cleanup. Restart the Cocos host after updating the CLI; reloading only the window may keep the old host.');
         }
         const owned = (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? [];
         const settings = createDefaultLightFXSettings('lightmap');
@@ -121,6 +122,11 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             // Explicitly unsaved bakes retain pixels still needed by the saved scene, not for Undo.
             if (options.saveScene !== false) {
                 await this.cleanupPreviousBake(scene, previousTextureUuids, textures);
+                try {
+                    output.textureUrls = (await lightFXCoordinator.publishLightmapAssets(output.operationId)).textureUrls;
+                } catch (error) {
+                    throw new Error(`New Lightmap result is saved and retained; fixed output publication was not completed. ${this.errorMessage(error)}`);
+                }
             }
 
             this.broadcast('lightfx:bake-end', 'lightmap');
