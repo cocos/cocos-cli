@@ -344,17 +344,21 @@ Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 rende
 
 本批补齐成功重烘焙的收尾链路：修改场景前校验 Host 的内部 `lightmapRebakeCleanupVersion === 1` 并读取旧候选；新结果应用、录制和保存确认后，使旧 Lightmap 历史失效（保留本次新结果的 Redo 和普通历史），检查实时剩余引用并清理旧候选。Host 只接受仍持有正确 Bake reservation 且原生已 commit 的 `action:bake` 清理。当前新结果、其他字段／场景／材质引用必须保留。删除失败、引用保留或回应不明时返回包含 `New Lightmap result is saved and retained` 的错误，保留已完成的新结果并明确报告，不再恢复旧内存冒充回滚；不能把它解释成 Bake 没有修改场景。
 
-`saveScene:false` 不授权删除磁盘已保存场景仍依赖的贴图，本批不隐式保存，也不删除旧产物；成功后的旧结果历史仍失效。保存失败／取消／应用失败不触发旧产物清理。下一次成功保存的 Bake 或删除模式 Clear 可重试已记录产物。固定 `LightFX/output` 与 `tmp/lfx.in`／`output/lfx.out`／`lfx.log` 发布另行接入，须先解决发布与保存之间的覆盖保护，不能只替换目录字符串；本批不是固定产物对齐完成证明。
+`saveScene:false` 不授权删除磁盘已保存场景仍依赖的贴图，不隐式保存，也不删除旧产物或固定发布；成功后的旧结果历史仍失效。保存失败／取消／应用失败不触发旧产物清理。下一次成功保存的 Bake 或删除模式 Clear 可重试已记录产物。`31598b0a` 已接入保存后的固定 PNG 发布；`tmp/lfx.in`／`output/lfx.out`／`lfx.log` 固定发布仍待接入，不宣称完整产物已经对齐。
 
-## Lightmap 资产规则（既有实现，按上述最新决定逐步替换）
+## Lightmap 资产规则
 
-Lightmap 按每次烘焙的 operation UUID 输出到独立版本目录（以下为默认路径模板）：
+固定贴图发布的最小接入（实施前记录）：继续使用独立临时导入目录完成纹理加载和场景保存；保存确认、旧产物清理完成后，通过 Asset DB 保留 UUID 移动到默认 `db://assets/LightFX/output`，指定 `outputUrl` 时移动到 `<outputUrl>/output`。固定发布由原 Bake reservation 和实际 operation ID 校验，不接受任意外部 UUID。所有目标先检查冲突，逐项移动后核对 UUID、URL 和磁盘源／目标；不覆盖同名资产、不先复用旧 UUID。失败保留已保存的新结果位置，不删除新贴图。只用非递归空目录删除收敛已清空的 `bake-UUID`，其他文件存在时保留。`saveScene:false` 暂不固定发布，保护磁盘旧引用。本批不宣称 `lfx.in/out/log` 配套文件已经对齐。
+
+Lightmap 先按每次烘焙的 operation UUID 导入到独立暂存目录（以下为省略 `outputUrl` 时的模板），这不是成功后保留的历史版本：
 
 ```text
 db://assets/<scene-name>/lightmap/bake-<operation-uuid>/
 ```
 
-指定 `outputUrl` 时改为 `<outputUrl>/bake-<operation-uuid>/`，例如 `db://assets/烘焙结果 Room A`。目录必须已存在且真实路径位于当前项目 assets 内；不接受任意磁盘路径、路径穿越或指向 assets 外的符号链接。参数仅改变本次输出位置，不自动保存为场景设置。Scene 的 `queryCapabilities().outputDirectory === true` 来自实际 Host 的 `lightmapOutputDirectory` 支持位；旧 Host 不支持时明确报错，不忽略选择后写入默认目录。省略参数仍沿用原路径。
+指定 `outputUrl` 时暂存到 `<outputUrl>/bake-<operation-uuid>/`，例如 `db://assets/烘焙结果 Room A`。选择目录必须已存在且真实路径位于当前项目 assets 内；不接受任意磁盘路径、路径穿越或指向 assets 外的符号链接。参数仅改变本次输出位置，不自动保存为场景设置。Scene 的 `queryCapabilities().outputDirectory === true` 来自实际 Host 的 `lightmapOutputDirectory` 支持位；旧 Host 不支持时明确报错，不忽略选择后写入默认目录。
+
+保存与旧图清理成功后，当前 PNG 保留 UUID 移动到 `db://assets/LightFX/output`；选择 `db://assets` 与省略参数相同，选择子目录则发布到 `<outputUrl>/output`。固定发布额外要求内部 Host 的 `lightmapPublicationVersion === 1`。更新 CLI 后若出现能力不支持错误，需要重启实际 Cocos Host；单独 Reload Window 可能仍连接旧 Host。
 
 典型文件包括：
 
@@ -364,9 +368,9 @@ LFX_Terrain_0000.png
 ```
 
 - Mesh 与 Terrain 使用独立的类型和索引映射，避免两者均从索引 0 开始时串绑贴图。
-- 当前发布阶段仍创建新的 URL／Asset UUID，不直接覆盖已发布像素。保存确认后精确删除旧产物，不再供旧结果 Undo 使用；saveScene:false 的新结果不会改写或删除磁盘旧场景依赖的贴图。固定产物布局仍待接入。
+- 每次生成新 Asset UUID，不直接覆盖已发布像素。保存确认后精确删除旧产物，再把新图移动到固定 URL，不再供旧结果 Undo 使用；`saveScene:false` 的新结果留在独立暂存位置，不会改写或删除磁盘旧场景依赖的贴图。目标仍被占用时明确报错，不覆盖。
 - 旧版平铺目录中的 PNG／`.meta` 原样保留，不自动迁移、不复用其 UUID。调用方必须使用返回的 textureUrls 或真实绑定查询，不拼接固定文件路径。
-- 旧产物从场景归属记录及替换前实时绑定收集，不扫描目录猜测归属。成功保存的 Bake 和删除模式 Clear 会清理无引用候选；引用保留／失败项可以重试。旧版已解绑且从未记录归属的资产不自动猜测删除，空目录暂不删除。
+- 旧产物从场景归属记录及替换前实时绑定收集，不扫描目录猜测归属。成功保存的 Bake 和删除模式 Clear 会清理无引用候选；引用保留／失败项可以重试。旧版已解绑且从未记录归属的资产不自动猜测删除；已清空的 `bake-UUID` 目录只做非递归删除并刷新 Asset DB，含其他内容的目录保留。
 - 导入后将 `fixAlphaTransparencyArtifacts` 设置为 `false`，再加载 Texture2D 子资源并绑定。
 - 原生提交确认前的导入／加载失败尝试回滚本次新目录；提交确认后不再删除产物。应用失败恢复旧绑定，保存失败保留已录制结果，规则见“提交与保存失败”。旧版本目录不受影响。
 - 成功、失败、取消和超时进入 workspace 清理；回滚或 Asset DB 刷新失败时保留备份和互斥以便恢复，不能宣称所有错误都会完成清理。
@@ -408,9 +412,19 @@ Bake 和非删除模式 Clear 的结果作为单次 Undo 记录。Lightmap 明�
 
 ## 验证范围
 
-最新实现 `02f099e7`：成功保存后的旧产物精确清理和旧结果历史失效已接通。先 `tsc -b`／Scene 与 editor-extends 构建，后定点 5 套／120 项、扩展 29 套／472 项通过（`/tmp/pink-rebake-cleanup-final-tests.log`）；定点 ESLint 无代码错误，已有配置提示保留。新增测试核对真实临时文件、Host 归属、保存失败／结果不明、当前有效 Redo 和普通历史，不等同实机。以下独立版本完整 Undo 的旧实机记录只作为历史证据，不能作为最新策略验收。
+固定 PNG 发布依赖补充：Asset DB 的普通非覆盖移动原先先移 `.meta`，再移源文件，失败后仍吞错并刷新。仅对非覆盖移动补充错误传播；普通同级移动若源文件尚在、目标文件尚未生成，则无覆盖地回放已移动的元数据，阻止后续刷新生成不同 UUID。覆盖模式不在本次修改范围。该最小共用依赖必须用真实文件与故障注入验证，不能只靠 `moveAsset()` resolve 判成功。
 
-2026-09-11 产品对齐补充：Lightmap 日志保留真实 Log／Progress 顺序，原生结束后在临时目录清理前读取 `lfx.log`，补充真实 Mesh／Terrain 输出索引与 UV。日志最多 128 条、每条 2048 字符，原生日志文件读取上限 256 KiB，超限明确提示，缺失日志不伪造成几何统计，也不让烘焙失败。探针日志行为保持原状。当前固定产物布局对齐尚未实施，日志与历史修复不代表资源删除实机问题已通过。
+默认入口补充：PinK 目录选择器总会传入 `outputUrl`，默认选中 `db://assets` 与省略参数同样发布到 `db://assets/LightFX/output`；选择 assets 内子目录才使用 `<outputUrl>/output`。这保证直接接受目录选择器默认值也得到 Creator 风格目录，不要求 UI 绕过既有选择入口。
+
+本轮首次 UI 验证发现 PinK 桥接仍硬编码 `saveScene:false`，实际跳过以上发布和旧图清理，虽然面板提示生成成功。该次结果不作为通过证据。PinK 面板入口改为显式保存，并在生成前告知保存／替换语义；CLI 非 UI 调用显式传 `saveScene:false` 仍保持不保存、不删除磁盘旧依赖的安全契约。证据 `/tmp/codex-ui-verifier.aG5Cnt`。
+
+固定 PNG 发布 `31598b0a`、非覆盖移动保护 `60f9a975`：先 `tsc -b` 和 Scene／editor-extends 构建，再 **32 套／524 项**通过（`/tmp/pink-fixed-output-final2-tests.log`）；定点 ESLint 无代码错误，保留已有 unused catch 和配置警告。PinK `17a0a25b7cb` 接通面板保存式 Bake，客户端类型检查／构建和扩展构建后，15 项 Electron 桥接测试、69 项扩展宿主测试及 1 套编译面板测试通过。实机结果另行记录，不以这些自动测试代替。
+
+本轮最终隔离实机 `/tmp/codex-ui-verifier.4fxdtg`：真实面板 128→256 两次 Bake 均发布到 `LightFX/output`，由原生实际打包产生 3→2 张 PNG；旧 PNG／meta 和已空暂存版本目录实际删除、保存场景和运行时 UUID 一致。真实 Clear 后当前 PNG／meta 删除、Mesh 和两个 Terrain block 纹理／UV 清空，节点 X=1 不回退；Scene Undo 节点／最近一条 Bake、Redo Bake／节点不恢复旧图。真实保存、关闭 Scene 标签并从 Assets 重开后仍无绑定／缺图，X=1、dirty=false，43 点完整 SH 哈希不变。主 agent 准备隔离工程与新 Host 后交全局 `ui_verifier` 控制，并独立核对原始数据。旧版未记录归属且已解绑文件未猜删；没有验证所有更早历史、异常／取消／外部引用、禁用 Terrain 或保留历史软重载。原生配套文件固定发布及 Creator 同场景日志／预览对照仍待完成，不将本主链路称为全量产品对齐。已有 dump null／argv.json 告警不宣称消除。
+
+前一批 `02f099e7`：成功保存后的旧产物精确清理和旧结果历史失效已接通。先 `tsc -b`／Scene 与 editor-extends 构建，后定点 5 套／120 项、扩展 29 套／472 项通过（`/tmp/pink-rebake-cleanup-final-tests.log`）；定点 ESLint 无代码错误，已有配置提示保留。新增测试核对真实临时文件、Host 归属、保存失败／结果不明、当前有效 Redo 和普通历史，不等同实机。以下独立版本完整 Undo 的旧实机记录只作为历史证据，不能作为最新策略验收。
+
+2026-09-11 产品对齐补充：Lightmap 日志保留真实 Log／Progress 顺序，原生结束后在临时目录清理前读取 `lfx.log`，补充真实 Mesh／Terrain 输出索引与 UV。日志最多 128 条、每条 2048 字符，原生日志文件读取上限 256 KiB，超限明确提示，缺失日志不伪造成几何统计，也不让烘焙失败。探针日志行为保持原状。此处日志修复不代表原生配套文件已固定发布，也不代替资源删除实机证据。
 
 当前实现已经验证：
 
