@@ -2,6 +2,7 @@ import { Component, Node } from 'cc';
 import { EventSourceType, NodeEventType, type IUndoCommandMeta, type IUndoRedoResult } from '../../../../common';
 import compMgr from '../../component/index';
 import dumpUtil from '../../dump';
+import { deletedLightmapAssets } from '../../baking/lightfx/deleted-lightmap-assets';
 import {
     createUndoId,
     success,
@@ -52,7 +53,7 @@ export function captureComponentStructureSnapshot(component: Component): ICompon
         nodePath: getNodePath(component.node),
         index: component.node.components.indexOf(component),
         type: getComponentType(component),
-        dump: cloneDump(dump),
+        dump: deletedLightmapAssets.capture(component.node.scene, cloneDump(dump)),
     };
 }
 

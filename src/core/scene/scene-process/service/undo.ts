@@ -8,6 +8,7 @@ import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
 import { restoreComponentSnapshotDump, restoreNodeSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
 import { withLightProbeTransformScenes } from './scene/light-probe-transform';
+import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets';
 
 interface IRecordingComponentSnapshot {
     uuid: string;
@@ -251,7 +252,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             kind: 'node',
             uuid: node.uuid,
             path: this._getNodePath(node),
-            dump: this._cloneDump(dumpUtil.dumpNode(node, { includeComponents: false })),
+            dump: deletedLightmapAssets.capture(node.scene, this._cloneDump(dumpUtil.dumpNode(node, { includeComponents: false }))),
             components: node.components
                 .map(component => this._captureComponentSnapshot(component as Component))
                 .filter((snapshot): snapshot is IRecordingComponentSnapshot => !!snapshot),
@@ -270,7 +271,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             nodePath: this._getNodePath(component.node),
             index: component.node.components.indexOf(component),
             type: this._getComponentType(component),
-            dump: this._cloneDump(dumpUtil.dumpComponent(component)),
+            dump: deletedLightmapAssets.capture(component.node.scene, this._cloneDump(dumpUtil.dumpComponent(component))),
         };
     }
 

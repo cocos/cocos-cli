@@ -6,6 +6,7 @@ import { BaseEditor } from './base-editor';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
+import { deletedLightmapAssets } from '../baking/lightfx/deleted-lightmap-assets';
 
 /**
  * SceneEditor - 场景编辑器
@@ -98,6 +99,7 @@ export class SceneEditor extends BaseEditor {
         const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(scene);
         const serializeJSON = sceneUtils.serialize(scene);
         const sceneAfterLoad = await sceneUtils.runSceneImmediateByJson(serializeJSON);
+        deletedLightmapAssets.transfer(scene, sceneAfterLoad);
         editorPrefabUtils.restorePrefabUUID(sceneAfterLoad, prefabUUIDMap);
         this.entity.instance = sceneAfterLoad;
         return this.encode(undefined, this._lastOpenOptions);

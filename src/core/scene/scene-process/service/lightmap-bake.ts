@@ -10,6 +10,7 @@ import { lightFXBakeHost } from './baking/lightfx/host';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { finishSavedLightFXRecording, LightFXResultRetainedError } from './baking/lightfx/saved-recording';
+import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
 
@@ -76,14 +77,19 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             // An unconfirmed commit can leave an orphan version, never a dangling scene binding.
             await lightFXCoordinator.commit(output.operationId);
             nativeCommitted = true;
-            const previousBindings = this.snapshotBindings(output);
+            const previousBindings = this.snapshotSceneBindings(scene);
+            const affectedBindings = [...previousBindings, ...this.snapshotBindings(output)];
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
             const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
             // Scene recordings do not recursively capture child components.
             // Keep the flags last, after restoring each affected result binding.
-            const targets = [...new Set([...output.models, ...output.terrains].map(component => component.uuid)), scene.uuid];
+            const targets = [...new Set([...output.models, ...output.terrains, ...previousBindings.map(binding => binding.target)]
+                .map(component => component.uuid)), scene.uuid];
             const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
             try {
+                // A successful bake replaces the complete result, including disabled objects
+                // that were excluded from this export but still have older bindings.
+                this.clearBindings(previousBindings);
                 this.applyBakeResult(output, textures);
                 (scene.globals as any).bakedWithHighpLightmap = settings.highp;
                 (scene.globals as any).bakedWithStationaryMainLight = output.stationaryMainLight;
@@ -92,7 +98,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                     options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
             } catch (error) {
                 if (error instanceof LightFXResultRetainedError) throw error;
-                this.restoreBindings(previousBindings);
+                this.restoreBindings(affectedBindings);
                 (scene.globals as any).bakedWithHighpLightmap = previousHighp;
                 (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
                 Service.Undo.cancelRecording(undo);
@@ -215,14 +221,16 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         }
 
         if (options.deleteAssets === true) {
-            // This is intentionally outside the rollback block: the cleared scene is already saved,
-            // so a notification failure must not restore only the in-memory bindings. Asset deletion
-            // cannot participate in Scene Undo; reset the entire stack before removing any texture.
-            Service.Undo.clearHistory();
+            // Keep earlier edits, but invalidate all pre-Clear baked results. This stays outside
+            // rollback: a notification failure must not restore only the already-saved memory state.
+            deletedLightmapAssets.clearResults(scene);
+            Service.Undo.cancelRecording(undo);
             const deletableTextureUuids = textureUuids.filter(uuid => !retainedSceneTextureUuids.has(uuid));
+            const finishDeletion = deletedLightmapAssets.begin(scene, deletableTextureUuids);
             const result = deletableTextureUuids.length > 0
                 ? await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletableTextureUuids)
                 : { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
+            finishDeletion(result.deletedTextureUuids);
             return {
                 clearedCount: bindings.length,
                 deletedAssetCount: result.deletedTextureUuids.length,

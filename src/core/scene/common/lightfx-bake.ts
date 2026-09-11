@@ -133,7 +133,7 @@ export interface ILightmapBakeService extends IServiceEvents {
     queryCapabilities(): Promise<ILightmapBakeCapabilities>;
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
-    /** Asset deletion saves the scene and clears all Scene Undo/Redo history before removing textures. */
+    /** Asset deletion saves the scene; unrelated history is kept, but pre-Clear baked results cannot be restored. */
     clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<ILightmapClearResult>;
     /** Cancels only this Scene's lightmap bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;

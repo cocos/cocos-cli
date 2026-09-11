@@ -2,6 +2,7 @@ import { Component, Node } from 'cc';
 import type { IUndoCommandMeta, IUndoRedoResult } from '../../../../common';
 import { restoreTerrainLightmapBindings } from '../../dump/terrain-lightmap-restore';
 import { restoreLightProbeGroupCache } from '../../dump/light-probe-group-restore';
+import { deletedLightmapAssets } from '../../baking/lightfx/deleted-lightmap-assets';
 
 export function createUndoId(prefix: string): string {
     try {
@@ -91,6 +92,8 @@ export async function restoreNodeSnapshotDump(
         return;
     }
 
+    dump = deletedLightmapAssets.filter(node.scene, dump, 'dump');
+
     if (dump.name && dump.name.value !== node.name) {
         const name = dump.name.value as string;
         if (options.updateNodeName) {
@@ -137,6 +140,7 @@ export async function restoreComponentSnapshotDump(
     if (!dump?.value) {
         return;
     }
+    dump = deletedLightmapAssets.filter(component.node?.scene, dump, 'dump');
     const { default: dumpUtil } = await import('../../dump');
     await dumpUtil.restoreComponentSnapshotProperties(component, dump);
     (component as any).onRestore?.();
