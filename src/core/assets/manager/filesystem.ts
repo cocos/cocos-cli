@@ -143,8 +143,17 @@ export async function moveAssetSource(source: string, target: string, options?: 
 
     try {
         if (!Utils.Path.contains(source, target)) {
-            await renamePath(source + '.meta', target + '.meta', { overwrite: true });
-            await renamePath(source, target, renameOptions);
+            await renamePath(source + '.meta', target + '.meta', renameOptions);
+            try {
+                await renamePath(source, target, renameOptions);
+            } catch (error) {
+                // Keep the original UUID when a non-overwriting source move fails.
+                // Propagate failure before Asset DB refresh can generate a replacement meta.
+                if (!renameOptions.overwrite && existsSync(source) && !existsSync(target)) {
+                    await renamePath(target + '.meta', source + '.meta', { overwrite: false });
+                }
+                throw error;
+            }
             return;
         }
 
@@ -168,5 +177,6 @@ export async function moveAssetSource(source: string, target: string, options?: 
     } catch (error) {
         console.error(`asset db moveFile from ${source} -> ${target} fail!`);
         console.error(error);
+        if (!renameOptions.overwrite) throw error;
     }
 }
