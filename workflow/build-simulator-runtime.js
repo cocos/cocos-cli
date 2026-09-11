@@ -160,7 +160,7 @@ async function buildSimulatorRuntime(enginePath, options = {}) {
         },
     });
 
-    const importMap = buildImportMap(statsQuery.getFeatureUnits());
+    const importMap = buildImportMap(statsQuery.getUnitsOfFeatures(features));
     await fs.writeFile(
         path.join(staticDir, 'import-map.json'),
         `${JSON.stringify(importMap, null, 2)}\n`,
