@@ -726,7 +726,7 @@ export class Parser {
         }
     }
 
-    private replaceValue(owner: object, key: string | number, value: any): any {
+    private replaceValue(owner: object, key: string | number, value: unknown): unknown {
         return this.valueReplacer ? this.valueReplacer(owner, key, value) : value;
     }
 }

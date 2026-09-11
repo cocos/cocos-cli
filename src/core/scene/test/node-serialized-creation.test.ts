@@ -40,7 +40,6 @@ jest.mock('cc', () => ({
     Quat: class Quat {},
     Vec3: class Vec3 {},
 }));
-jest.mock('../scene-process/service/core', () => ({ Service: {} }));
 jest.mock('../scene-process/service/node/index', () => ({
     __esModule: true,
     default: {
@@ -56,11 +55,8 @@ jest.mock('../scene-process/service/node/serialized-node-data', () => ({
 jest.mock('../scene-process/service/prefab/node', () => ({
     nodeOperation: { checkToAddTargetOverride: jest.fn() },
 }));
-jest.mock('../scene-process/service/prefab/utils', () => ({
-    prefabUtils: { removeTargetOverride: jest.fn() },
-}));
 
-import { mountSerializedNodes } from '../scene-process/service/undo/commands/create-serialized-nodes-command';
+import { mountSerializedNodes } from '../scene-process/service/node/serialized-node-mount';
 
 describe('Serialized node batch mounting', () => {
     const data: SerializedNodeData = {

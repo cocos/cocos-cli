@@ -55,7 +55,8 @@ import {
     type IPrefabCanvasUndoRecord,
 } from './node/prefab-canvas-mutation';
 import { deserializeNodes, disposeSerializedNodes, serializeNodes } from './node/serialized-node-data';
-import { CreateSerializedNodesCommand, mountSerializedNodes } from './undo/commands/create-serialized-nodes-command';
+import { mountSerializedNodes } from './node/serialized-node-mount';
+import { CreateSerializedNodesCommand } from './undo/commands/create-serialized-nodes-command';
 
 const NodeMgr = EditorExtends.Node;
 

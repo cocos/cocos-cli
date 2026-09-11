@@ -130,7 +130,7 @@ export const SchemaSerializedNodeData = z.object({
         type: z.enum(['node', 'component']),
         uuid: z.string().min(1).describe('Original target UUID, resolved only within the destination Runtime'),
     })).describe('References to nodes or components outside this batch; asset references remain in the serialized graph'),
-}).describe('Complete node batch returned by scene-serialize-nodes, including all reference and transform metadata') satisfies z.ZodType<SerializedNodeData>;
+}).describe('Complete node batch returned by scene-serialize-nodes, including all reference and transform metadata. Pass the entire object unchanged to scene-create-nodes-by-serialized-data.') satisfies z.ZodType<SerializedNodeData>;
 
 export const SchemaNodeSerialize = z.object({
     paths: z.array(z.string().min(1)).min(1).describe('Node paths in the source scene, such as Canvas/Panel; the editor root cannot be serialized'),

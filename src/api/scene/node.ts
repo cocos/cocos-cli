@@ -30,6 +30,7 @@ import { ICreateByNodeTypeParams, INodeInfo, Scene } from '../../core/scene';
 
 export class NodeApi {
 
+    /** 将指定节点及其子树导出为可传输的数据 */
     @tool('scene-serialize-nodes')
     @title('Serialize Scene Nodes')
     @description('Serialize nodes and their subtrees from the currently opened source scene as one transferable batch. Removes duplicate selections and descendants already covered by a selected parent, preserving references within the batch. Does not modify the scene, clipboard, or undo history. Keep the complete returned data unchanged, then open the destination scene in the same project and pass it to scene-create-nodes-by-serialized-data. The source scene may be closed after serialization.')
@@ -47,6 +48,7 @@ export class NodeApi {
         }
     }
 
+    /** 从序列化数据整批创建节点，成功后记录一次撤销 */
     @tool('scene-create-nodes-by-serialized-data')
     @title('Create Nodes From Serialized Data')
     @description('Create a batch of nodes in the currently opened destination scene using the complete data returned by scene-serialize-nodes in the same project. The parent must exist. Creates new node and component identities, preserves internal references, asset references, and complete Prefab instances, and resolves name conflicts. External node and component references default to clear; use resolve only when pasting into the source Runtime. Success records one undo operation; failure rolls back the batch. Returns the new root node paths. Does not save the scene automatically; use scene-save to persist the result.')

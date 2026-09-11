@@ -253,7 +253,7 @@ describe('Serialized node data with the real engine', () => {
 
     it.each(['second root', 'undo snapshot'])('destroys mounted components when creation fails at the %s', async stage => {
         const { ServiceEvents } = await import('../scene-process/service/core');
-        const { mountSerializedNodes } = await import('../scene-process/service/undo/commands/create-serialized-nodes-command');
+        const { mountSerializedNodes } = await import('../scene-process/service/node/serialized-node-mount');
         const parent = new engine.Node('RollbackParent');
         const roots = [new engine.Node('First'), new engine.Node('Second')];
         const child = new engine.Node('Child');
@@ -610,6 +610,46 @@ describe('Serialized node data with the real engine', () => {
             }
             expect(scene.children.map(node => node.uuid)).toEqual(ids);
             expect(scene.children[0].getComponent(References)!.target).toBe(scene.children[1]);
+        });
+
+        it('撤销目标被同名节点替换 → 拒绝撤销且保留整批现有节点', async () => {
+            await services.Service.Node.createBySerializedData({ data: createData(), parentPath: '/' });
+            const original = scene.children[0];
+            const originalPath = EditorExtends.Node.getNodePath(original);
+            const replacement = new engine.Node(original.name);
+
+            removeTree(original);
+            original.setParent(null);
+            original.destroy();
+            replacement.parent = scene;
+            replacement.setSiblingIndex(0);
+            addTree(replacement);
+            const before = scene.children.map(node => node.uuid);
+
+            expect(EditorExtends.Node.getNodePath(replacement)).toBe(originalPath);
+            expect((await services.Service.Undo.undo()).success).toBe(false);
+            expect(scene.children.map(node => node.uuid)).toEqual(before);
+        });
+
+        it('重做父节点被同名节点替换 → 拒绝向替代节点创建子树', async () => {
+            const parent = new engine.Node('Parent');
+            parent.parent = scene;
+            addTree(parent);
+            const parentPath = EditorExtends.Node.getNodePath(parent);
+            await services.Service.Node.createBySerializedData({ data: createData(), parentPath });
+            expect((await services.Service.Undo.undo()).success).toBe(true);
+
+            removeTree(parent);
+            parent.setParent(null);
+            parent.destroy();
+            const replacement = new engine.Node('Parent');
+            replacement.parent = scene;
+            addTree(replacement);
+
+            expect(EditorExtends.Node.getNodePath(replacement)).toBe(parentPath);
+            expect((await services.Service.Undo.redo()).success).toBe(false);
+            expect(replacement.children).toEqual([]);
+            expect(scene.children).toEqual([replacement]);
         });
 
         it.each(['undo', 'redo'] as const)('rejects serialized creation %s from an earlier editor session', async direction => {

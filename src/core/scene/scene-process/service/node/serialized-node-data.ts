@@ -2,13 +2,16 @@ import { Asset, assetManager, CCObject, Component, deserialize, editorExtrasTag,
 import type { SerializedNodeData } from '../../../common/node';
 import { sceneUtils } from '../scene/utils';
 
+// 序列化数据中用于标记批外节点和组件引用的字段
+const NODE_REFERENCE_KEY = '$nodeReference';
+
 const typedArrayConstructors = new Set([
     'Uint8Array', 'Uint8ClampedArray', 'Int8Array', 'Uint16Array', 'Int16Array',
     'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array',
 ]);
 
 /** 收集本批需要序列化的节点 */
-export function collectSerializedNodes(roots: Node[]): Set<Node> {
+function collectSerializedNodes(roots: Node[]): Set<Node> {
     const nodes = new Set<Node>();
     const visit = (node: Node) => {
         if (nodes.has(node)) {
@@ -231,7 +234,7 @@ export function serializeNodes(roots: Node[], preservePrefab = false): Serialize
                     };
                     references.set(target, reference);
                 }
-                return { $nodeReference: reference.id };
+                return { [NODE_REFERENCE_KEY]: reference.id };
             }
 
             return value;
@@ -294,8 +297,8 @@ function parseNodeData(data: SerializedNodeData): { json: JsonValue; assetUuids:
                 assetUuids.add(value.__uuid__);
             }
 
-            if ('$nodeReference' in value && (typeof value.$nodeReference !== 'string' ||
-                !referenceIds.has(value.$nodeReference) || Object.keys(value).length !== 1)) {
+            if (NODE_REFERENCE_KEY in value && (typeof value[NODE_REFERENCE_KEY] !== 'string' ||
+                !referenceIds.has(value[NODE_REFERENCE_KEY]) || Object.keys(value).length !== 1)) {
                 throw new Error('Invalid serialized external reference marker.');
             }
 
@@ -397,8 +400,8 @@ export async function deserializeNodes(
                     continue;
                 }
 
-                if ('$nodeReference' in child && typeof child.$nodeReference === 'string') {
-                    const reference = references.get(child.$nodeReference);
+                if (NODE_REFERENCE_KEY in child && typeof child[NODE_REFERENCE_KEY] === 'string') {
+                    const reference = references.get(child[NODE_REFERENCE_KEY]);
                     if (!reference) {
                         throw new Error('Unknown serialized external reference.');
                     }
