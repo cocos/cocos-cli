@@ -40,7 +40,7 @@ import type {
 import { assetManager } from '../../assets';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
 import { LightmapAssetRecord } from './lightfx/asset-record';
-import { isLightmapTextureUrl, publishLightmapTextures, removeEmptyLightmapVersion } from './lightfx/asset-publication';
+import { isLightmapTextureUrl, lightmapAuxiliaryPath, publishLightmapTextures, removeEmptyLightmapVersion } from './lightfx/asset-publication';
 import { decodeLightFXOutput } from './lightfx/output';
 import { LightFXProcess } from './lightfx/process';
 
@@ -66,6 +66,7 @@ interface LightFXHostOperation {
     assets: LightmapAssetTransaction | null;
     assetRecord?: LightmapAssetRecord;
     recordedTextureUuids?: string[];
+    recordedAuxiliaryUuids?: string[];
     publicationRootUrl: string;
     cleanupPromise: Promise<void> | null;
     expiryTimer: NodeJS.Timeout | null;
@@ -107,12 +108,12 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
     private readonly diagnostics = new Map<string, { owner: ICancelLightFXOperationOptions; value: ILightFXDiagnostics }>();
     private sceneOperation: (IReserveLightFXSceneOperationOptions & ILightFXSceneOperationToken & {
         nativeStarted: boolean; nativeCommitted: boolean; removingAssets: boolean;
-        publication?: { operationId: string; textureUuids: string[]; stagingUrl: string; rootUrl: string };
+        publication?: { operationId: string; textureUuids: string[]; auxiliaryUuids: string[]; stagingUrl: string; rootUrl: string };
     }) | null = null;
     private readonly releasedSceneOperations = new Set<string>();
 
     public async queryCapabilities(): Promise<ILightFXHostCapabilities> {
-        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
+        return { sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: this.sceneOperation !== null || this.operation !== null };
     }
 
     public async queryDiagnostics(options: ICancelLightFXOperationOptions): Promise<ILightFXDiagnostics | undefined> {
@@ -453,7 +454,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             this.sceneOperation.nativeCommitted = true;
             if (operation.target === 'lightmap' && operation.recordedTextureUuids) {
                 this.sceneOperation.publication = { operationId: operation.id, textureUuids: operation.recordedTextureUuids,
-                    stagingUrl: operation.targetUrl, rootUrl: operation.publicationRootUrl };
+                    auxiliaryUuids: operation.recordedAuxiliaryUuids ?? [], stagingUrl: operation.targetUrl, rootUrl: operation.publicationRootUrl };
             }
         }
         try {
@@ -502,7 +503,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         if (this.operation || owner.removingAssets) throw new Error('Lightmap asset publication or cleanup is already in progress.');
         owner.removingAssets = true;
         try {
-            return { textureUrls: await publishLightmapTextures(this.queryAssetRoot(), publication.textureUuids, publication.stagingUrl, publication.rootUrl) };
+            return { textureUrls: await publishLightmapTextures(this.queryAssetRoot(), publication.textureUuids, publication.stagingUrl, publication.rootUrl, publication.auxiliaryUuids) };
         } finally {
             owner.removingAssets = false;
         }
@@ -559,15 +560,26 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             }))];
             const record = new LightmapAssetRecord(dirname(this.queryAssetRoot()), sceneUuid);
             const recorded = new Set(await record.read());
-            const infos = new Map(uuids.map(uuid => [uuid, assetManager.queryAssetInfo(uuid)]));
+            // Native files never occur in a Lightmap binding. Their complete membership is
+            // host-owned, including retries after Clear already removed all texture bindings.
+            const currentAuxiliary = new Set(action === 'bake' ? owner.publication?.auxiliaryUuids ?? [] : []);
+            const auxiliary = new Set((await record.readAuxiliary()).filter(uuid => !currentAuxiliary.has(uuid)));
+            const candidates = [...new Set([...uuids, ...auxiliary])];
+            const infos = new Map(candidates.map(uuid => [uuid, assetManager.queryAssetInfo(uuid)]));
             const managed = (uuid: string): boolean => isImmutableLightmapTexture(infos.get(uuid)?.url)
-                || (recorded.has(uuid) && isLightmapTextureUrl(infos.get(uuid)?.url));
-            const known = uuids.filter(managed);
+                || (recorded.has(uuid) && isLightmapTextureUrl(infos.get(uuid)?.url))
+                || (auxiliary.has(uuid) && !!infos.get(uuid)?.url?.startsWith('db://assets/')
+                    && !!lightmapAuxiliaryPath(infos.get(uuid)!.url!.split('/').at(-1)!));
+            const known = uuids.filter(uuid => !auxiliary.has(uuid) && managed(uuid));
             // Include legacy currently-bound candidates before deletion so a retained/failed
             // delete can be retried after the saved scene no longer has any Lightmap binding.
             if (known.length) await record.add(known);
             const result: IRemoveLightmapAssetsResult = { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
-            for (const uuid of uuids) {
+            if (auxiliary.size) {
+                result.deletedAuxiliaryAssetUuids = [];
+                result.retainedAuxiliaryAssetUuids = [];
+            }
+            for (const uuid of candidates) {
                 const info = infos.get(uuid);
                 if (!info || !managed(uuid)) {
                     result.failures.push({ uuid, reason: 'Asset is not a managed LightFX texture.' });
@@ -578,28 +590,32 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                     const hasOtherUser = users.some((user) => {
                         try {
                             const userUuid = Utils.UUID.decompressUUID(user).split('@', 1)[0];
-                            return userUuid !== sceneUuid && userUuid !== uuid;
+                            return userUuid !== uuid && (auxiliary.has(uuid) || userUuid !== sceneUuid);
                         } catch {
                             // An unknown dependency identifier is retained conservatively.
                             return true;
                         }
                     });
                     if (hasOtherUser) {
-                        result.retainedTextureUuids.push(uuid);
+                        (auxiliary.has(uuid) ? result.retainedAuxiliaryAssetUuids! : result.retainedTextureUuids).push(uuid);
                         continue;
                     }
                     await assetManager.removeAsset(uuid);
                     if (info.file && await pathExists(info.file)) {
                         throw new Error('Lightmap texture file still exists after asset deletion.');
                     }
-                    result.deletedTextureUuids.push(uuid);
+                    if (info.file && await pathExists(`${info.file}.meta`)) {
+                        throw new Error('Lightmap asset metadata still exists after asset deletion.');
+                    }
+                    (auxiliary.has(uuid) ? result.deletedAuxiliaryAssetUuids! : result.deletedTextureUuids).push(uuid);
                     if (info.file) await removeEmptyLightmapVersion(this.queryAssetRoot(), dirname(info.url!));
                 } catch (error) {
                     result.failures.push({ uuid, reason: error instanceof Error ? error.message : String(error) });
                 }
             }
-            if (result.deletedTextureUuids.length > 0) {
-                await record.forget(result.deletedTextureUuids);
+            const deleted = [...result.deletedTextureUuids, ...(result.deletedAuxiliaryAssetUuids ?? [])];
+            if (deleted.length > 0) {
+                await record.forget(deleted);
             }
             return result;
         } finally {
@@ -749,6 +765,17 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             await copy(join(operation.outputDir, file), join(operation.targetDir, file), { overwrite: true });
             await assets.preserveMeta(file);
         }
+        const auxiliaryFiles: string[] = [];
+        if (operation.assetRecord && this.sceneOperation) {
+            // Copy before native commit cleans the workspace. Flat staging avoids a second
+            // directory transaction; publication maps these exact names to Creator's layout.
+            for (const file of ['lfx.in', 'lfx.out', 'lfx.log']) {
+                const source = join(operation.workspace, lightmapAuxiliaryPath(file)!);
+                if (file === 'lfx.log' && !(await pathExists(source))) continue;
+                await copy(source, join(operation.targetDir, file), { overwrite: false, errorOnExist: true });
+                auxiliaryFiles.push(file);
+            }
+        }
         await assetManager.refreshAsset(operation.targetUrl);
 
         const generatedUuids: string[] = [];
@@ -760,8 +787,13 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             generatedUuids.push(uuid);
         }
         if (operation.assetRecord) {
-            await operation.assetRecord.add(generatedUuids);
+            const auxiliaryUuids: string[] = [];
+            for (const file of auxiliaryFiles) {
+                auxiliaryUuids.push(await this.waitForAsset(operation, `${operation.targetUrl}/${file}`, Math.min(operation.timeoutMs, 60_000)));
+            }
+            await operation.assetRecord.add(generatedUuids, auxiliaryUuids);
             operation.recordedTextureUuids = generatedUuids;
+            operation.recordedAuxiliaryUuids = auxiliaryUuids;
             this.throwIfTerminated(operation);
         }
         return files.map((file) => `${operation.targetUrl}/${file}`);
@@ -904,7 +936,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 await operation.assets.rollback();
                 await assetManager.refreshAsset(operation.refreshUrl);
                 if (operation.recordedTextureUuids) {
-                    await operation.assetRecord?.forget(operation.recordedTextureUuids);
+                    await operation.assetRecord?.forget([...operation.recordedTextureUuids, ...(operation.recordedAuxiliaryUuids ?? [])]);
                 }
             }
             let cleanupError: unknown;

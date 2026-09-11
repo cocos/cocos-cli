@@ -47,7 +47,8 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         const sceneUrl = await this.querySceneUrl();
         // Preflight before native publication or scene mutation, not after a successful save.
         const capabilities = await lightFXBakeHost.queryCapabilities();
-        if (capabilities?.lightmapRebakeCleanupVersion !== 1 || capabilities.lightmapPublicationVersion !== 1) {
+        if (capabilities?.lightmapRebakeCleanupVersion !== 1 || capabilities.lightmapPublicationVersion !== 1
+            || capabilities.lightmapAuxiliaryAssetsVersion !== 1) {
             throw new Error('The LightFX host does not support current Lightmap publication and cleanup. Restart the Cocos host after updating the CLI; reloading only the window may keep the old host.');
         }
         const owned = (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? [];
@@ -154,12 +155,11 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             const retained = await this.queryRemainingSceneTextureUuids(previous);
             const deletable = previous.filter(uuid => !retained.has(uuid));
             const finishDeletion = deletedLightmapAssets.begin(scene, deletable);
-            const result = deletable.length > 0
-                ? await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletable, 'bake')
-                : { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
+            const result = await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletable, 'bake');
             finishDeletion(result.deletedTextureUuids);
-            if (retained.size || result.retainedTextureUuids.length || result.failures.length) {
-                throw new Error(`Previous Lightmap cleanup incomplete: ${retained.size + result.retainedTextureUuids.length} referenced assets retained, ${result.failures.length} deletions failed.`);
+            const retainedCount = retained.size + result.retainedTextureUuids.length + (result.retainedAuxiliaryAssetUuids?.length ?? 0);
+            if (retainedCount || result.failures.length) {
+                throw new Error(`Previous Lightmap cleanup incomplete: ${retainedCount} referenced assets retained, ${result.failures.length} deletions failed.`);
             }
         } catch (error) {
             throw new Error(`New Lightmap result is saved and retained; previous asset cleanup was not completed. ${this.errorMessage(error)}`);
@@ -218,9 +218,11 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         if (options.deleteAssets === true && options.saveScene === false) {
             throw new Error('deleteAssets requires saveScene so the saved scene cannot retain deleted lightmap references.');
         }
-        if (options.deleteAssets === true
-            && (await lightFXBakeHost.queryCapabilities())?.lightmapAssetCleanupVersion !== 1) {
-            throw new Error('The LightFX host does not support exact Lightmap asset cleanup.');
+        if (options.deleteAssets === true) {
+            const capabilities = await lightFXBakeHost.queryCapabilities();
+            if (capabilities?.lightmapAssetCleanupVersion !== 1 || capabilities.lightmapAuxiliaryAssetsVersion !== 1) {
+                throw new Error('The LightFX host does not support exact Lightmap asset cleanup. Restart the Cocos host after updating the CLI.');
+            }
         }
 
         // Query before recording/clearing so a damaged ownership record cannot partially Clear.
@@ -275,14 +277,12 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             Service.Undo.cancelRecording(undo);
             const deletableTextureUuids = textureUuids.filter(uuid => !retainedSceneTextureUuids.has(uuid));
             const finishDeletion = deletedLightmapAssets.begin(scene, deletableTextureUuids);
-            const result = deletableTextureUuids.length > 0
-                ? await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletableTextureUuids)
-                : { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
+            const result = await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletableTextureUuids);
             finishDeletion(result.deletedTextureUuids);
             return {
                 clearedCount: bindings.length,
-                deletedAssetCount: result.deletedTextureUuids.length,
-                retainedAssetCount: retainedSceneTextureUuids.size + result.retainedTextureUuids.length,
+                deletedAssetCount: result.deletedTextureUuids.length + (result.deletedAuxiliaryAssetUuids?.length ?? 0),
+                retainedAssetCount: retainedSceneTextureUuids.size + result.retainedTextureUuids.length + (result.retainedAuxiliaryAssetUuids?.length ?? 0),
                 failedAssetCount: result.failures.length,
             };
         }

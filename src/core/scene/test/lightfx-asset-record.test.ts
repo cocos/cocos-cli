@@ -25,11 +25,22 @@ describe('Exact scene Lightmap asset membership', () => {
             .toBe(JSON.stringify({ version: 1, textures: [b] }));
     });
 
+    it('keeps auxiliary membership separate while preserving it through texture changes and restart', async () => {
+        const record = new LightmapAssetRecord(root, scene);
+        await record.add([a], [`${b}@sub`, b]);
+        await record.forget([a]);
+        await new LightmapAssetRecord(root, scene).add([a]);
+        expect([await record.read(), await record.readAuxiliary()]).toEqual([[a], [b]]);
+        await record.forget([b]);
+        expect([await record.read(), await record.readAuxiliary()]).toEqual([[a], []]);
+    });
+
     it.each(['../outside', '', 'scene/name'])('rejects unsafe scene identity: %s', invalid => {
         expect(() => new LightmapAssetRecord(root, invalid)).toThrow('scene UUID');
     });
 
-    it.each(['{broken', 'null', '{"version":2,"textures":[]}', '{"version":1,"textures":["../outside"]}'])('does not overwrite a damaged record: %s', async content => {
+    it.each(['{broken', 'null', '{"version":2,"textures":[]}', '{"version":1,"textures":["../outside"]}',
+        '{"version":1,"textures":[],"auxiliary":["../outside"]}', '{"version":1,"textures":[],"auxiliary":null}'])('does not overwrite a damaged record: %s', async content => {
         const file = join(root, 'settings', 'lightfx-assets', `${scene}.json`);
         await outputFile(file, content);
         const record = new LightmapAssetRecord(root, scene);

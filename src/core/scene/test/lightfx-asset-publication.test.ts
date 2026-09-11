@@ -83,6 +83,33 @@ describe('Fixed Lightmap publication after saving', () => {
         await expect(publishLightmapTextures(root, [uuid], staging, 'db://assets/LightFX')).rejects.toThrow('symbolic');
         expect(mockAssets.moveAsset).not.toHaveBeenCalled();
     });
+    it('publishes native file bytes with their UUIDs but returns only preview texture URLs', async () => {
+        const texture = await add('LFX_Mesh_0000.png');
+        const native = await Promise.all(['lfx.in', 'lfx.out', 'lfx.log'].map(add));
+        const result = await publishLightmapTextures(root, [texture], staging, 'db://assets/Chosen', native);
+        expect(result).toEqual(['db://assets/Chosen/output/LFX_Mesh_0000.png']);
+        const urls = ['tmp/lfx.in', 'output/lfx.out', 'lfx.log'].map(file => `db://assets/Chosen/${file}`);
+        expect(native.map(uuid => infos.get(uuid)?.url)).toEqual(urls);
+        expect(await Promise.all(urls.map(url => readFile(path(url), 'utf8')))).toEqual(['pixels:lfx.in', 'pixels:lfx.out', 'pixels:lfx.log']);
+        expect(await pathExists(path(staging))).toBe(false);
+    });
+    it('preflights native collisions before moving any PNG and never replaces unrelated files', async () => {
+        const texture = await add('LFX_Mesh_0000.png'), log = await add('lfx.log');
+        const destination = path('db://assets/LightFX/lfx.log');
+        await outputFile(destination, 'user log');
+        await expect(publishLightmapTextures(root, [texture], staging, 'db://assets/LightFX', [log])).rejects.toThrow('occupied');
+        expect(mockAssets.moveAsset).not.toHaveBeenCalled();
+        expect(await readFile(destination, 'utf8')).toBe('user log');
+    });
+    it('retains new assets on a partial native move failure and can retry without duplicate PNG moves', async () => {
+        const texture = await add('LFX_Mesh_0000.png'), input = await add('lfx.in');
+        const original = mockAssets.moveAsset.getMockImplementation()!;
+        mockAssets.moveAsset.mockImplementationOnce(original).mockRejectedValueOnce(new Error('native move denied'));
+        await expect(publishLightmapTextures(root, [texture], staging, 'db://assets/LightFX', [input])).rejects.toThrow('native move denied');
+        expect([await pathExists(infos.get(texture)!.file), await pathExists(infos.get(input)!.file)]).toEqual([true, true]);
+        await publishLightmapTextures(root, [texture], staging, 'db://assets/LightFX', [input]);
+        expect(await pathExists(path(staging))).toBe(false);
+    });
     it('never deletes a nonempty version folder or a regular output directory', async () => {
         await outputFile(path(`${staging}/unrelated.txt`), 'keep');
         await removeEmptyLightmapVersion(root, staging);

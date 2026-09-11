@@ -6,7 +6,7 @@ const mockCommit = jest.fn();
 const mockRollback = jest.fn();
 const mockRemoveLightmapAssets = jest.fn();
 const mockPublishLightmapAssets = jest.fn();
-const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1; lightmapRebakeCleanupVersion?: 1; lightmapPublicationVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1 }));
+const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1; lightmapRebakeCleanupVersion?: 1; lightmapPublicationVersion?: 1; lightmapAuxiliaryAssetsVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1 }));
 const mockUndo = {
     beginRecording: jest.fn(() => 'recording'),
     endRecording: jest.fn(async () => undefined),
@@ -61,7 +61,7 @@ describe('Lightmap result recording targets', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockBake.mockReset();
-        mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1 });
+        mockQueryCapabilities.mockResolvedValue({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1 });
         mockPublishLightmapAssets.mockReset().mockResolvedValue({ textureUrls: ['db://assets/LightFX/output/LFX_Mesh_0000.png'] });
         mockQuerySceneSerializedData.mockResolvedValue('[]');
         mockQueryTextureInfo.mockReset().mockResolvedValue({ textures: [], missingTextureUuids: [] });
@@ -125,7 +125,7 @@ describe('Lightmap result recording targets', () => {
         const f = fixture();
         mockQuerySceneSerializedData.mockResolvedValueOnce(JSON.stringify({ custom: { __uuid__: 'old-texture@f9941' } }));
         await expect(f.service.bake()).rejects.toThrow('New Lightmap result is saved and retained');
-        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).toHaveBeenCalledWith('scene', [], 'bake');
         expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.texture, 0.1, 0.2, 0.3, 0.4);
         expect(mockUndo.cancelRecording).not.toHaveBeenCalled();
         expect(mockRollback).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe('Lightmap result recording targets', () => {
         });
         expect(mockSave).toHaveBeenCalledTimes(1);
         expect(mockUndo.clearHistory).not.toHaveBeenCalled();
-        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).toHaveBeenCalledWith('scene', []);
     });
     it('restores bindings without saving when the live scene reference check fails', async () => {
         const f = fixture();
@@ -262,7 +262,25 @@ describe('Lightmap result recording targets', () => {
         f.terrain._lightmapInfos = [];
         await f.service.clearBake({ deleteAssets: true });
         expect(mockUndo.clearHistory).not.toHaveBeenCalled();
-        expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+        expect(mockRemoveLightmapAssets).toHaveBeenCalledWith('scene', []);
+    });
+    it('counts auxiliary deletion and retention even after texture bindings were already cleared', async () => {
+        const f = fixture();
+        f.model.bakeSettings.texture = null as any;
+        f.terrain._lightmapInfos = [];
+        mockRemoveLightmapAssets.mockResolvedValueOnce({ deletedTextureUuids: [], retainedTextureUuids: [],
+            deletedAuxiliaryAssetUuids: ['input', 'log'], retainedAuxiliaryAssetUuids: ['output'], failures: [] });
+        await expect(f.service.clearBake({ deleteAssets: true })).resolves.toEqual({
+            clearedCount: 0, deletedAssetCount: 2, retainedAssetCount: 1, failedAssetCount: 0,
+        });
+        expect(mockSave.mock.invocationCallOrder[0]).toBeLessThan(mockRemoveLightmapAssets.mock.invocationCallOrder[0]);
+    });
+    it('rejects a host lacking auxiliary cleanup before changing bindings or saving', async () => {
+        const f = fixture();
+        mockQueryCapabilities.mockResolvedValueOnce({ lightmapAssetCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapRebakeCleanupVersion: 1 });
+        await expect(f.service.clearBake({ deleteAssets: true })).rejects.toThrow('Restart the Cocos host');
+        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockSave).not.toHaveBeenCalled();
     });
     it('replaces excluded objects old bindings, recording them for normal rebake Undo', async () => {
         const f = fixture();

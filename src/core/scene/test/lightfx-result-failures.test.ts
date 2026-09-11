@@ -24,7 +24,7 @@ jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoord
 } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     reserveSceneOperation: async () => ({ transactionId: 'owner' }), releaseSceneOperation: async () => undefined,
-    queryCapabilities: async () => ({ lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1 }),
+    queryCapabilities: async () => ({ lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1 }),
     queryLightmapTextureInfo: async () => ({ textures: [], missingTextureUuids: [], ownedTextureUuids: [] }),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({ createDefaultLightFXSettings: () => ({}) }));

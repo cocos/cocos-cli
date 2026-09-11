@@ -24,6 +24,8 @@ export interface ILightFXHostCapabilities {
     lightmapRebakeCleanupVersion?: 1;
     /** Post-save, UUID-preserving relocation into the current fixed output directory. */
     lightmapPublicationVersion?: 1;
+    /** Stages, publishes and precisely cleans up native lfx.in/out/log assets. */
+    lightmapAuxiliaryAssetsVersion?: 1;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
     diagnosticsVersion?: 1;
@@ -135,6 +137,8 @@ export interface IRemoveLightmapAssetsOptions {
 export interface IRemoveLightmapAssetsResult {
     deletedTextureUuids: string[];
     retainedTextureUuids: string[];
+    deletedAuxiliaryAssetUuids?: string[];
+    retainedAuxiliaryAssetUuids?: string[];
     failures: Array<{ uuid: string; reason: string }>;
 }
 

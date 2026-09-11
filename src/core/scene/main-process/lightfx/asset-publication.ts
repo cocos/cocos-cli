@@ -8,6 +8,16 @@ export function isLightmapTextureUrl(url: string | undefined): boolean {
     return !!url?.startsWith('db://assets/') && /^LFX_(?:Mesh|Terrain)_\d{4,}\.png$/.test(url.split('/').at(-1) ?? '');
 }
 
+/** Only these native products belong to the Lightmap publication contract. */
+export function lightmapAuxiliaryPath(filename: string): string | undefined {
+    switch (filename) {
+        case 'lfx.in': return 'tmp/lfx.in';
+        case 'lfx.out': return 'output/lfx.out';
+        case 'lfx.log': return 'lfx.log';
+        default: return undefined;
+    }
+}
+
 /** Reject symlinks (including dangling ones) before creating or moving managed outputs. */
 async function assertAssetPath(assetRoot: string, path: string): Promise<void> {
     const local = relative(assetRoot, path);
@@ -44,20 +54,24 @@ export async function removeEmptyLightmapVersion(assetRoot: string, url: string)
 }
 
 /** Post-save relocation: UUIDs stay valid even if a later move fails. Never overwrite assets. */
-export async function publishLightmapTextures(assetRoot: string, uuids: readonly string[], stagingUrl: string, rootUrl: string): Promise<string[]> {
+export async function publishLightmapTextures(assetRoot: string, uuids: readonly string[], stagingUrl: string, rootUrl: string,
+    auxiliaryUuids: readonly string[] = []): Promise<string[]> {
     if (!rootUrl.startsWith('db://assets') || (rootUrl !== 'db://assets' && !rootUrl.startsWith('db://assets/'))) {
         throw new Error('Invalid Lightmap publication directory.');
     }
     const outputUrl = `${rootUrl}/output`;
     const outputDir = join(assetRoot, outputUrl.slice('db://assets/'.length));
     await assertAssetPath(assetRoot, outputDir);
-    const files = uuids.map(uuid => {
+    const auxiliary = new Set(auxiliaryUuids);
+    const files = [...uuids, ...auxiliaryUuids].map(uuid => {
         const info = assetManager.queryAssetInfo(uuid);
-        if (!info?.file || !isLightmapTextureUrl(info.url)) throw new Error('Published Lightmap texture is missing.');
+        if (!info?.file || !info.url?.startsWith('db://assets/')) throw new Error('Published Lightmap asset is missing.');
         const filename = basename(info.file);
-        const url = `${outputUrl}/${filename}`;
+        const path = auxiliary.has(uuid) ? lightmapAuxiliaryPath(filename) : isLightmapTextureUrl(info.url) ? `output/${filename}` : undefined;
+        if (!path) throw new Error('Invalid Lightmap publication asset.');
+        const url = `${rootUrl}/${path}`;
         if (info.url !== `${stagingUrl}/${filename}` && info.url !== url) throw new Error('Lightmap publication source no longer belongs to this bake.');
-        return { uuid, source: info.url!, sourceFile: info.file, url, file: join(outputDir, filename) };
+        return { uuid, source: info.url, sourceFile: info.file, url, file: join(assetRoot, url.slice('db://assets/'.length)) };
     });
     if (new Set(files.map(file => file.url)).size !== files.length) throw new Error('Duplicate Lightmap output names.');
     // Preflight every target before the first move. Partial moves still keep their original UUIDs.
@@ -72,6 +86,7 @@ export async function publishLightmapTextures(assetRoot: string, uuids: readonly
         }
     }
     await ensureDir(outputDir);
+    for (const file of files) await ensureDir(dirname(file.file));
     await assetManager.refreshAsset(rootUrl);
     for (const file of files) {
         if (file.source !== file.url) await assetManager.moveAsset(file.source, file.url, { overwrite: false, rename: false });
@@ -82,5 +97,5 @@ export async function publishLightmapTextures(assetRoot: string, uuids: readonly
         }
     }
     await removeEmptyLightmapVersion(assetRoot, stagingUrl);
-    return files.map(file => file.url);
+    return files.filter(file => !auxiliary.has(file.uuid)).map(file => file.url);
 }
