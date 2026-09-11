@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { open } from 'fs/promises';
 import {
     appendFile,
     copy,
@@ -113,6 +114,42 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             text = text.split(JSON.stringify(path).slice(1, -1)).join(label).split(path).join(label);
         }
         return text.slice(0, 2048);
+    }
+
+    private appendLightmapLog(operation: LightFXHostOperation, message: unknown): void {
+        const logs = this.diagnostics.get(operation.id)!.value.logs;
+        const text = this.diagnosticText(operation, message).trim();
+        if (!text || logs.at(-1) === text) return;
+        logs.push(text);
+        if (logs.length > 128) {
+            logs.splice(0, logs.length - 127);
+            logs.unshift('[Earlier baking log entries omitted.]');
+        }
+    }
+
+    /** Read native statistics before the temporary workspace is removed; logging cannot fail a bake. */
+    private async readNativeLightmapLog(operation: LightFXHostOperation): Promise<void> {
+        if (operation.target !== 'lightmap') return;
+        try {
+            const file = await open(join(operation.workspace, 'lfx.log'), 'r');
+            try {
+                const buffer = Buffer.alloc(256 * 1024 + 1);
+                const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
+                const text = buffer.subarray(0, Math.min(bytesRead, buffer.length - 1)).toString('utf8');
+                const seen = new Set(this.diagnostics.get(operation.id)!.value.logs);
+                const lines = text.split(/\r?\n/);
+                if (bytesRead === buffer.length) lines.pop();
+                for (const line of lines) {
+                    const clean = this.diagnosticText(operation, line).trim();
+                    if (clean && !seen.has(clean)) { this.appendLightmapLog(operation, clean); seen.add(clean); }
+                }
+                if (bytesRead === buffer.length) this.appendLightmapLog(operation, '[Native log exceeds the preview limit.]');
+            } finally { await file.close(); }
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                this.appendLightmapLog(operation, '[Unable to read the native baking log.]');
+            }
+        }
     }
 
     public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {
@@ -300,6 +337,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         }
         operation.state = 'running';
         this.diagnostics.get(operation.id)!.value.stage = 'running';
+        if (operation.target === 'lightmap') this.appendLightmapLog(operation, 'Baking started');
 
         try {
             await operation.inputWritePromise;
@@ -314,6 +352,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 onLog: message => {
                     if (this.operation !== operation || operation.terminalState) { return; }
                     console.log(`[LightFX] ${message}`);
+                    if (operation.target === 'lightmap') { this.appendLightmapLog(operation, message); return; }
                     const logs = this.diagnostics.get(operation.id)!.value.logs;
                     logs.push(this.diagnosticText(operation, message));
                     if (logs.length > 128) { logs.shift(); }
@@ -322,19 +361,34 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                     if (this.operation !== operation || operation.terminalState) { return; }
                     const diagnostic = this.diagnostics.get(operation.id)!.value;
                     diagnostic.progress = this.diagnosticText(operation, progress);
+                    if (operation.target === 'lightmap') this.appendLightmapLog(operation, progress);
                     const rate = parseLightFXProgressRate(progress);
                     if (rate === undefined) { delete diagnostic.rate; }
                     else { diagnostic.rate = rate; }
                 },
             });
             this.throwIfTerminated(operation);
+            await this.readNativeLightmapLog(operation);
             const result = decodeLightFXOutput(await readFile(join(operation.outputDir, 'lfx.out')));
+            if (operation.target === 'lightmap') {
+                for (const item of result.meshes) {
+                    if (!this.diagnostics.get(operation.id)!.value.logs.some(line => line.startsWith(`Mesh ${item.id}:`))) {
+                        this.appendLightmapLog(operation, `Mesh ${item.id}: Index(${item.index}) Offset(${item.offset.join(', ')}) Scale(${item.scale.join(', ')})`);
+                    }
+                }
+                for (const item of result.terrains) {
+                    this.appendLightmapLog(operation, `Terrain ${item.id} Block ${item.blockId}: Index(${item.index}) Offset(${item.offset.join(', ')}) Scale(${item.scale.join(', ')})`);
+                }
+            }
             const textureUrls = operation.target === 'lightmap'
                 ? await this.stageLightmapAssets(operation)
                 : [];
             this.throwIfTerminated(operation);
             operation.state = 'awaiting-commit';
             this.diagnostics.get(operation.id)!.value.stage = 'awaiting-commit';
+            if (operation.target === 'lightmap' && !this.diagnostics.get(operation.id)!.value.logs.includes('End of the baking.')) {
+                this.appendLightmapLog(operation, 'End of the baking.');
+            }
             return { result, textureUrls };
         } catch (error) {
             const terminalError = operation.terminalState === 'cancelled' || operation.terminalState === 'expired'

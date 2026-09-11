@@ -138,6 +138,27 @@ describe('LightFXBakeHost', () => {
         await host.releaseSceneOperation(token);
     });
 
+    it('keeps Lightmap progress history and reads native statistics before cleanup', async () => {
+        jest.spyOn(host as any, 'stageLightmapAssets').mockResolvedValue([]);
+        mockRunnerRun.mockImplementationOnce(async ({ cwd, onProgress }: { cwd: string; onProgress: (value: string) => void }) => {
+            onProgress('Build lighting 25%');
+            onProgress('Build lighting 50%');
+            onProgress('Build lighting 100%');
+            await outputFile(join(cwd, 'lfx.log'), 'Build lighting 100%\nBake scene stats: objects 3 lights 1 triangles 224\n');
+            await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
+        });
+        const token = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const { operationId } = await host.begin({ ...token, target: 'lightmap', sceneName: 'Scene', textureSources: [], timeoutMs: 120_000 });
+        await host.appendInput({ operationId, chunkBase64: Buffer.from('input').toString('base64') });
+        await host.run({ operationId });
+        await host.commit({ operationId });
+        expect((await host.queryDiagnostics({ ...token, operationId, target: 'lightmap' }))?.logs).toEqual([
+            'Baking started', 'Build lighting 25%', 'Build lighting 50%', 'Build lighting 100%',
+            'Bake scene stats: objects 3 lights 1 triangles 224', 'End of the baking.',
+        ]);
+        await host.releaseSceneOperation(token);
+    });
+
     it('reserves before export, rejects missing/wrong ownership and keeps the lease past native commit', async () => {
         const token = await host.reserveSceneOperation({ target: 'light-probe', action: 'bake' });
         const opts = { target: 'light-probe' as const, sceneName: 'LightProbe', textureSources: [], timeoutMs: 120_000 };
