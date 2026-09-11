@@ -6725,19 +6725,21 @@ export declare interface ILightFXDiagnostics {
     stage: string;
     logs: string[];
     progress?: string;
+    rate?: number;
 }
 export declare interface ILightmapBakeCapabilities {
+    outputDirectory?: true;
     diagnostics?: ILightFXDiagnostics;
     version: 1;
     resultLifecycleVersion: 1;
     sceneTransactionVersion: 1;
     assetVersion: 1;
+    assetCleanupVersion?: 1;
     cancelVersion?: 1;
     cancellable?: boolean;
     busy: boolean;
 }
 export declare interface ILightmapBakeInfo {
-    readiness?: ILightmapReadiness;
     sceneUrl: string;
     baked: boolean;
     meshCount: number;
@@ -6748,6 +6750,7 @@ export declare interface ILightmapBakeInfo {
     missingTextureUuids: string[];
 }
 export declare interface ILightmapBakeOptions {
+    outputUrl?: string;
     msaa?: 1 | 2 | 4 | 8;
     resolution?: 128 | 256 | 512 | 1024 | 2048;
     filter?: boolean;
@@ -6778,22 +6781,14 @@ export declare interface ILightmapBakeService extends IServiceEvents {
     clearBake(options?: {
         saveScene?: boolean;
         deleteAssets?: boolean;
-    }): Promise<{
-        clearedCount: number;
-    }>;
+    }): Promise<ILightmapClearResult>;
     cancel(): Promise<ILightFXCancelResult>;
 }
-export declare interface ILightmapReadiness {
-    version: 1;
-    objects: {
-        componentUuid: string;
-        nodeName: string;
-        kind: 'mesh' | 'terrain';
-        receivesLightmap: boolean;
-        castsShadow: boolean;
-        lightmapSize: number;
-        issues: LightmapObjectIssue[];
-    }[];
+export declare interface ILightmapClearResult {
+    clearedCount: number;
+    deletedAssetCount: number;
+    retainedAssetCount: number;
+    failedAssetCount: number;
 }
 export declare interface ILightmapTextureInfo {
     uuid: string;
@@ -7733,7 +7728,6 @@ export declare interface LabelAtlasAssetUserData {
     spriteFrameUuid: string;
     _fntConfig: FntData;
 }
-export declare type LightmapObjectIssue = 'inactive' | 'movable' | 'editor-only' | 'disabled' | 'not-participating' | 'missing-mesh' | 'invalid-uv1' | 'skinned-static-pose' | 'material-approximation' | 'terrain-translation-only';
 export declare interface LODsOption {
     screenRatio: number;
     faceCount: number;
