@@ -1,5 +1,13 @@
 import type { Terrain } from 'cc';
 
+/** Runtime fields installed by the Scene Terrain service on engine Terrain components. */
+declare module 'cc' {
+    interface Terrain {
+        manager?: ITerrainService | null;
+        isTerrainChange?: boolean;
+    }
+}
+
 /** Identifies one Terrain component without relying on the active gizmo selection. */
 export interface ITerrainTarget {
     nodeUuid: string;
@@ -49,6 +57,11 @@ export interface ITerrainBrushState {
     setHeight: number;
 }
 
+/** JSON-safe Paint brush state. Falloff belongs to the Paint circle brush only. */
+export interface ITerrainPaintBrushState extends ITerrainBrushState {
+    falloff: number;
+}
+
 /** Canonical Sculpt session state for a valid Terrain target. */
 export interface ITerrainSculptState {
     tool: TerrainSculptTool;
@@ -57,7 +70,7 @@ export interface ITerrainSculptState {
 
 /** Canonical Paint session state for a valid Terrain target. */
 export interface ITerrainPaintState {
-    brush: ITerrainBrushState;
+    brush: ITerrainPaintBrushState;
 }
 
 /** The canonical editor-session state for one valid Terrain target. */
@@ -87,12 +100,32 @@ export interface ITerrainInvalidSnapshot {
 /** Discriminated read result. Callers must replace cached state when `valid` is `false`. */
 export type TerrainReadResult = ITerrainSnapshot | ITerrainInvalidSnapshot;
 
+/** Stable codes for internal Terrain layer authoring failures. */
+export type TerrainLayerErrorCode = 'DEFAULT_DETAIL_MAP_UNAVAILABLE';
+
+/** Reports an internal Terrain layer authoring failure without mutating the selected target. */
+export class TerrainLayerError extends Error {
+    constructor(
+        readonly code: TerrainLayerErrorCode,
+        message: string,
+        options?: ErrorOptions,
+    ) {
+        super(message, options);
+        this.name = 'TerrainLayerError';
+    }
+}
+
 /** A partial, non-asset numeric brush-session update. Brush image selection is controlled by dedicated asset commands. */
 export interface ITerrainBrushPatch {
     radius?: number;
     strength?: number;
     rotation?: number;
     setHeight?: number;
+}
+
+/** A partial Paint brush update. Falloff is constrained to the inclusive [0, 1] range by TerrainService. */
+export interface ITerrainPaintBrushPatch extends ITerrainBrushPatch {
+    falloff?: number;
 }
 
 /** A partial Sculpt session update that does not assign brush assets or create Scene Undo entries. */
@@ -103,7 +136,7 @@ export interface ITerrainSculptSessionPatch {
 
 /** A partial Paint session update that does not assign brush assets or create Scene Undo entries. */
 export interface ITerrainPaintSessionPatch {
-    brush?: ITerrainBrushPatch;
+    brush?: ITerrainPaintBrushPatch;
 }
 
 /** One Terrain layer assigned to an RGBA channel in a selected Terrain block. */
@@ -180,8 +213,8 @@ export interface ITerrainService {
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
     /** Commits a complete Manage draft as one TerrainInfo/Undo mutation. */
     saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
-    /** Adds a fully specified Terrain layer; `detailMapUuid` must identify a compatible Texture2D. */
-    addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
+    /** Adds a complete layer, or uses the CLI-owned built-in texture and material defaults when omitted. */
+    addLayer(target: ITerrainTarget, layer?: ITerrainLayerState): Promise<TerrainReadResult>;
     /** Removes one Terrain layer slot and returns the authoritative state. */
     removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult>;
     /** Applies one explicit layer patch and returns the authoritative state. */

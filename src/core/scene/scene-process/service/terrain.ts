@@ -4,6 +4,7 @@ import { ServiceEvents } from './core/global-events';
 import { getEditorNodeByUuid, getEditorNodeByPath } from './gizmo/utils/editor-node';
 import { loadAny } from './node/node-create';
 import { sceneAssetBinaryClient } from '../scene-asset-binary-client';
+import { TerrainLayerError } from '../../common';
 import type {
     ITerrainBlockData,
     ITerrainBrushPatch,
@@ -14,6 +15,7 @@ import type {
     ITerrainLayerState,
     ITerrainManageState,
     ITerrainPaintSessionPatch,
+    ITerrainPaintBrushPatch,
     ITerrainService,
     ITerrainSculptSessionPatch,
     ITerrainTarget,
@@ -45,6 +47,24 @@ const terrainEditorModes = new Set<TerrainEditorMode>(['manage', 'sculpt', 'pain
 const terrainSculptTools = new Set<NonNullable<ITerrainSculptSessionPatch['tool']>>([
     'bulge', 'sunken', 'smooth', 'flatten', 'set-height',
 ]);
+
+/**
+ * The built-in Texture2D sub-asset used for immediate Terrain layer creation.
+ *
+ * This is the `userData.redirect` Texture2D in
+ * `editor/assets/default-terrain/default-layer-texture.jpg.meta`; the root JPG UUID
+ * identifies an ImageAsset and must not be passed to `loadAny<Texture2D>`.
+ */
+const DEFAULT_TERRAIN_LAYER_DETAIL_MAP_UUID = '52ef29ed-bd92-4e94-ab2f-0ebc91bf3a60@6c48a';
+
+/** CLI-owned material defaults for an authoring-ready Terrain layer. */
+const defaultTerrainLayer: ITerrainLayerState = {
+    detailMapUuid: DEFAULT_TERRAIN_LAYER_DETAIL_MAP_UUID,
+    normalMapUuid: null,
+    metallic: 0,
+    roughness: 1,
+    tileSize: 1,
+};
 
 function copyTarget(target: ITerrainTarget): ITerrainTarget {
     return { nodeUuid: target.nodeUuid, componentUuid: target.componentUuid };
@@ -93,8 +113,14 @@ function normalizeSculptPatch(value: unknown): ITerrainSculptSessionPatch | unde
 
 function normalizePaintPatch(value: unknown): ITerrainPaintSessionPatch | undefined {
     if (!value || typeof value !== 'object') return undefined;
-    const brush = normalizeBrushPatch((value as ITerrainPaintSessionPatch).brush);
-    return brush ? { brush } : undefined;
+    const source = (value as ITerrainPaintSessionPatch).brush;
+    if (!source || typeof source !== 'object') return undefined;
+    const brush: ITerrainPaintBrushPatch = normalizeBrushPatch(source) ?? {};
+    if (Object.hasOwn(source, 'falloff')) {
+        if (typeof source.falloff !== 'number' || !Number.isFinite(source.falloff) || source.falloff < 0 || source.falloff > 1) return undefined;
+        brush.falloff = source.falloff;
+    }
+    return Object.keys(brush).length ? { brush } : undefined;
 }
 
 
@@ -370,16 +396,29 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         return result;
     }
 
-    /** Adds one complete layer; incompatible or unavailable textures leave Terrain untouched. */
-    public async addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult> {
-        const next = normalizeLayerState(layer);
+    /** Adds a complete layer, or applies the built-in Texture2D and CLI-owned defaults when omitted. */
+    public async addLayer(target: ITerrainTarget, layer?: ITerrainLayerState): Promise<TerrainReadResult> {
+        const usesDefaultLayer = layer === undefined;
+        const next = usesDefaultLayer ? defaultTerrainLayer : normalizeLayerState(layer);
         if (!next || !next.detailMapUuid) return this.read(target);
         const initial = this.resolveTarget(target);
         if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const undoService = this.getTerrainUndoService();
         if (!undoService) return this.readResolved(target, initial.gizmo);
-        const assets = await this.loadLayerAssets(next);
-        if (!assets?.detailMap) return this.read(target);
+
+        let assets: ITerrainLayerAssets | null;
+        if (usesDefaultLayer) {
+            try {
+                assets = await this.loadDefaultTerrainLayerAssets();
+            } catch (error) {
+                const current = this.resolveTarget(target);
+                if (!current) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
+                throw error;
+            }
+        } else {
+            assets = await this.loadLayerAssets(next);
+            if (!assets?.detailMap) return this.read(target);
+        }
 
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
@@ -477,6 +516,22 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         } catch (error) {
             console.warn(`[Terrain] load ${usage} texture failed: ${uuid}`, error);
             return null;
+        }
+    }
+
+    /** Loads the CLI-owned default as a required internal asset and preserves the underlying failure. */
+    private async loadDefaultTerrainLayerAssets(): Promise<ITerrainLayerAssets> {
+        const message = 'The built-in default Terrain layer Detail Map is unavailable.';
+        try {
+            const detailMap = await loadAny<Texture2D>(DEFAULT_TERRAIN_LAYER_DETAIL_MAP_UUID);
+            if (!(detailMap instanceof Texture2D)) {
+                throw new TerrainLayerError('DEFAULT_DETAIL_MAP_UNAVAILABLE', message);
+            }
+            return { detailMap, normalMap: null };
+        } catch (error) {
+            console.error(`[Terrain] load layer texture failed: ${DEFAULT_TERRAIN_LAYER_DETAIL_MAP_UUID}`, error);
+            if (error instanceof TerrainLayerError) throw error;
+            throw new TerrainLayerError('DEFAULT_DETAIL_MAP_UNAVAILABLE', message, { cause: error });
         }
     }
 

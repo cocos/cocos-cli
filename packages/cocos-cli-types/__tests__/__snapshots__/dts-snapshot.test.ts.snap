@@ -5710,7 +5710,8 @@ export { }
 `;
 
 exports[`DTS API compatibility cli.d.ts should match snapshot 1`] = `
-"import type { Component } from 'cc';
+"import type { Camera } from 'cc';
+import type { Component } from 'cc';
 import type { Node as Node_2 } from 'cc';
 import type { Scene } from 'cc';
 import type { Terrain } from 'cc';
@@ -6497,6 +6498,7 @@ export declare interface ICameraService {
     setGridColor(color: number[], persist?: boolean): void;
     setOriginAxes2D(config: IOriginAxesConfig): void;
     setOriginAxes3D(config: IOriginAxesConfig): void;
+    getCamera(): Camera | undefined;
     onUpdate(deltaTime: number): void;
 }
 export declare interface IChangeNodeLockParams {
@@ -6721,6 +6723,7 @@ export declare interface ILightFXCancelResult {
     target: 'light-probe' | 'lightmap' | null;
 }
 export declare interface ILightFXDiagnostics {
+    operationId?: string;
     version: 1;
     stage: string;
     logs: string[];
@@ -7562,11 +7565,17 @@ export declare interface ITerrainManageState {
     lightMapSize: number;
     blockCount: [number, number];
 }
+export declare interface ITerrainPaintBrushPatch extends ITerrainBrushPatch {
+    falloff?: number;
+}
+export declare interface ITerrainPaintBrushState extends ITerrainBrushState {
+    falloff: number;
+}
 export declare interface ITerrainPaintSessionPatch {
-    brush?: ITerrainBrushPatch;
+    brush?: ITerrainPaintBrushPatch;
 }
 export declare interface ITerrainPaintState {
-    brush: ITerrainBrushState;
+    brush: ITerrainPaintBrushState;
 }
 export declare interface ITerrainSculptSessionPatch {
     tool?: TerrainSculptTool;
@@ -7597,7 +7606,7 @@ export declare interface ITerrainService {
     setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
     setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
     saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
-    addLayer(target: ITerrainTarget, layer: ITerrainLayerState): Promise<TerrainReadResult>;
+    addLayer(target: ITerrainTarget, layer?: ITerrainLayerState): Promise<TerrainReadResult>;
     removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult>;
     updateLayer(target: ITerrainTarget, index: number, patch: ITerrainLayerPatch): Promise<TerrainReadResult>;
     readBlock(target: ITerrainTarget): TerrainBlockReadResult;

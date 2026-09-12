@@ -10,7 +10,7 @@ import type TerrainGizmo from './gizmo-select';
 export default class TerrainPersistentGizmo extends GizmoBase<Terrain> {
     private _controller!: TerrainController;
     private get selectGizmo(): TerrainGizmo | null {
-        return this.target ? Service.Gizmo.getComponentGizmo(this.target) as TerrainGizmo | null : null;
+        return this.target ? (Service.Gizmo.getComponentGizmo(this.target) as TerrainGizmo | null) : null;
     }
     protected init() {
         this._controller = new TerrainController(this.getGizmoRoot());
@@ -22,23 +22,43 @@ export default class TerrainPersistentGizmo extends GizmoBase<Terrain> {
     }
     private updateController() {
         if (!this._controller) return;
-        if (!this.target) { this._controller.hide(); return; }
+        if (!this.target) {
+            this._controller.hide();
+            return;
+        }
         this._controller.updateWorldPosition(this.target.node.getWorldPosition());
         const info = this.target.info;
         this._controller.updateSize(info.size.width, info.size.height);
-        this._controller.show(); Service.Engine.repaintInEditMode();
+        this._controller.show();
+        Service.Engine.repaintInEditMode();
     }
-    public onTargetUpdate() { this.updateController(); }
-    public onNodeChanged() { this.updateController(); }
+    public onTargetUpdate() {
+        this.updateController();
+    }
+    public onNodeChanged() {
+        this.updateController();
+    }
     onControllerMouseDown(event: GizmoMouseEvent) {
         if (!this.target) return;
         const path = getEditorNodePath(this.target.node);
         if (Service.Selection.query()[0] !== path) {
-            event.propagationStopped = true; Service.Selection.select(path); return;
+            event.propagationStopped = true;
+            Service.Selection.select(path);
+            return;
         }
-        const gizmo = this.selectGizmo; if (gizmo?.visible()) gizmo.onControllerMouseDown(event);
+        const gizmo = this.selectGizmo;
+        if (gizmo?.visible()) gizmo.onControllerMouseDown(event);
     }
-    onControllerMouseMove(event: GizmoMouseEvent) { const gizmo = this.selectGizmo; if (gizmo?.visible()) gizmo.onControllerMouseMove(event); }
-    onControllerMouseUp(event: GizmoMouseEvent) { const gizmo = this.selectGizmo; if (gizmo?.visible()) gizmo.onControllerMouseUp(event); }
-    onControllerHoverOut() { const gizmo = this.selectGizmo; if (gizmo?.visible()) gizmo.onControllerHoverOut(); }
+    onControllerMouseMove(event: GizmoMouseEvent) {
+        const gizmo = this.selectGizmo;
+        if (gizmo?.visible()) gizmo.onControllerMouseMove(event);
+    }
+    onControllerMouseUp(event: GizmoMouseEvent) {
+        const gizmo = this.selectGizmo;
+        if (gizmo?.visible()) gizmo.onControllerMouseUp(event);
+    }
+    onControllerHoverOut() {
+        const gizmo = this.selectGizmo;
+        if (gizmo?.visible()) gizmo.onControllerHoverOut();
+    }
 }

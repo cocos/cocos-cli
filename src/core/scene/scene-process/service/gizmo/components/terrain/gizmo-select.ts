@@ -6,22 +6,55 @@ import GizmoBase from '../../base/gizmo-base';
 import { TerrainEditor } from './terrain-editor';
 import { TerrainEditorPaint } from './terrain-editor-paint';
 import { TerrainEditorSculpt } from './terrain-editor-sculpt';
-import { eTerrainEditorMode } from './terrain-editor-mode';
-import { TerrainBrushType, TerrainImageBrush } from './terrain-brush';
+import { TerrainEditorModeType } from './terrain-editor-mode';
+import { TerrainBrushType, TerrainCircleBrush, TerrainImageBrush } from './terrain-brush';
 import type {
     ITerrainBlockData,
     ITerrainBrushPatch,
     ITerrainBrushState,
     ITerrainEditorState,
     ITerrainPaintSessionPatch,
+    ITerrainPaintBrushState,
     ITerrainSculptSessionPatch,
     TerrainEditorMode,
     TerrainSculptTool,
 } from '../../../../../common';
 import type { GizmoMouseEvent } from '../../utils/defines';
+import type { ISceneKeyboardEvent } from '../../../operation/types';
 
-interface IBrush { radius: number; strength: number; _setHeight: number; }
-interface ITerrainInfo { tileSize: number; weightMapSize: number; lightMapSize: number; blockCount: number[]; }
+interface IBrush {
+    radius: number;
+    strength: number;
+    _setHeight: number;
+}
+interface IPaintBrush extends IBrush {
+    falloff: number;
+}
+interface IBrushSetting {
+    radius?: number;
+    strength?: number;
+    _setHeight?: number;
+    _rotation?: number;
+    falloff?: number;
+}
+interface ITerrainLayerValue {
+    tileSize?: number;
+    metallic?: number;
+    roughness?: number;
+    normalMap?: string | null;
+}
+interface ITerrainEditModeOption {
+    isSculptDown?: boolean;
+    isSmooth?: boolean;
+    isFlatten?: boolean;
+    isSetHeight?: boolean;
+}
+interface ITerrainInfo {
+    tileSize: number;
+    weightMapSize: number;
+    lightMapSize: number;
+    blockCount: [number, number];
+}
 
 /** Component gizmo containing all Terrain editing operations. */
 export default class TerrainGizmo extends GizmoBase<Terrain> {
@@ -33,27 +66,48 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
     private _isFlatten = false;
     private _isSetHeight = false;
 
-    public get editor() { return this._editor; }
-    public get isConcave() { return this._isConcave; }
-    public get isSmooth() { return this._isSmooth; }
-    public get isFlatten() { return this._isFlatten; }
-    public get isSetHeight() { return this._isSetHeight; }
-    public applySmooth(value: boolean) { this._isSmooth = value; }
-    public get isTerrainChange() { return !!this.target && Service.Terrain.isTerrainChange; }
+    public get editor() {
+        return this._editor;
+    }
+    public get isConcave() {
+        return this._isConcave;
+    }
+    public get isSmooth() {
+        return this._isSmooth;
+    }
+    public get isFlatten() {
+        return this._isFlatten;
+    }
+    public get isSetHeight() {
+        return this._isSetHeight;
+    }
+    public applySmooth(value: boolean) {
+        this._isSmooth = value;
+    }
+    public get isTerrainChange() {
+        return !!this.target && Service.Terrain.isTerrainChange;
+    }
     public set isTerrainChange(value: boolean) {
-        if (this.target) { (this.target as any).manager = Service.Terrain; (this.target as any).isTerrainChange = value; }
+        if (this.target) {
+            this.target.manager = Service.Terrain;
+            this.target.isTerrainChange = value;
+        }
         if (value && this.target) Service.Terrain.select(this.target.node.uuid);
     }
 
     protected init() {
-        this._editor = new TerrainEditor((Service.Camera as any).getCamera?.() ?? null, this);
+        this._editor = new TerrainEditor(Service.Camera.getCamera() ?? null, this);
     }
     protected onShow() {
-        this.registerCameraMovedEvent(); this.initEditor(); this._editor.updateBlockDepthOffset();
+        this.registerCameraMovedEvent();
+        this.initEditor();
+        this._editor.updateBlockDepthOffset();
     }
     protected onHide() {
-        this._isEditorInit = false; this.unregisterCameraMoveEvent();
-        this._editor?.clearBrush(); this._editor?.setEditTerrain(null); this._editor?.setCurrentLayer(0);
+        this._isEditorInit = false;
+        this.unregisterCameraMoveEvent();
+        this._editor?.setEditTerrain(null);
+        this._editor?.setCurrentLayer(0);
         Service.Engine.repaintInEditMode();
     }
     public onTargetUpdate() {
@@ -65,8 +119,12 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         }
         if (this._isInitialized) this.initEditor();
     }
-    public onNodeChanged() { if (this._isInitialized) this.initEditor(); }
-    public onEditorCameraMoved() { this._editor?.updateBlockDepthOffset(); }
+    public onNodeChanged() {
+        if (this._isInitialized) this.initEditor();
+    }
+    public onEditorCameraMoved() {
+        this._editor?.updateBlockDepthOffset();
+    }
     private initEditor() {
         const target = this.target;
         if (!target || !this._editor) {
@@ -84,7 +142,12 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
      * instead of exposing this gizmo or its editor internals to Scene callers.
      */
     public readTerrainState(): ITerrainEditorState {
-        const info = this.queryTerrainInfo() ?? { tileSize: 0, weightMapSize: 0, lightMapSize: 0, blockCount: [0, 0] as [number, number] };
+        const info = this.queryTerrainInfo() ?? {
+            tileSize: 0,
+            weightMapSize: 0,
+            lightMapSize: 0,
+            blockCount: [0, 0] as [number, number],
+        };
         return {
             manage: {
                 tileSize: info.tileSize,
@@ -92,31 +155,35 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
                 lightMapSize: info.lightMapSize,
                 blockCount: [info.blockCount[0] ?? 0, info.blockCount[1] ?? 0],
             },
-            layers: this.getLayers().map((layer) => layer ? ({
-                detailMapUuid: layer.detailMap,
-                normalMapUuid: layer.normalMap,
-                metallic: layer.metallic,
-                roughness: layer.roughness,
-                tileSize: layer.tileSize,
-            }) : null),
+            layers: this.getLayers().map(layer =>
+                layer
+                    ? {
+                          detailMapUuid: layer.detailMap,
+                          normalMapUuid: layer.normalMap,
+                          metallic: layer.metallic,
+                          roughness: layer.roughness,
+                          tileSize: layer.tileSize,
+                      }
+                    : null,
+            ),
             mode: this.getTerrainMode(),
             currentLayer: this._editor.getCurrentLayer(),
             sculpt: {
                 tool: this.getTerrainSculptTool(),
-                brush: this.getTerrainBrushState(eTerrainEditorMode.SCULPT),
+                brush: this.getTerrainBrushState(TerrainEditorModeType.SCULPT),
             },
             paint: {
-                brush: this.getTerrainBrushState(eTerrainEditorMode.PAINT),
+                brush: this.getTerrainPaintBrushState(),
             },
         };
     }
 
     public setTerrainMode(mode: TerrainEditorMode): void {
-        const internalMode: Record<TerrainEditorMode, eTerrainEditorMode> = {
-            manage: eTerrainEditorMode.MANAGE,
-            sculpt: eTerrainEditorMode.SCULPT,
-            paint: eTerrainEditorMode.PAINT,
-            block: eTerrainEditorMode.SELECT,
+        const internalMode: Record<TerrainEditorMode, TerrainEditorModeType> = {
+            manage: TerrainEditorModeType.MANAGE,
+            sculpt: TerrainEditorModeType.SCULPT,
+            paint: TerrainEditorModeType.PAINT,
+            block: TerrainEditorModeType.SELECT,
         };
         this._editor.setMode(internalMode[mode]);
         Service.Engine.repaintInEditMode();
@@ -131,37 +198,47 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
 
     public updateTerrainSculptSession(patch: ITerrainSculptSessionPatch): void {
         if (patch.tool) this.setTerrainSculptTool(patch.tool);
-        if (patch.brush) this.updateTerrainBrush(eTerrainEditorMode.SCULPT, patch.brush);
+        if (patch.brush) this.updateTerrainBrush(TerrainEditorModeType.SCULPT, patch.brush);
         Service.Engine.repaintInEditMode();
     }
 
     public updateTerrainPaintSession(patch: ITerrainPaintSessionPatch): void {
-        if (patch.brush) this.updateTerrainBrush(eTerrainEditorMode.PAINT, patch.brush);
+        if (patch.brush) {
+            this.updateTerrainBrush(TerrainEditorModeType.PAINT, patch.brush);
+            if (typeof patch.brush.falloff === 'number')
+                this.getTerrainCircleBrush(TerrainEditorModeType.PAINT).setFalloff(patch.brush.falloff);
+        }
         Service.Engine.repaintInEditMode();
     }
 
     public readTerrainBlock(): ITerrainBlockData | null {
-        const select = this._editor.getMode(eTerrainEditorMode.SELECT);
+        const select = this._editor.getMode(TerrainEditorModeType.SELECT);
         const index = select.getCurrentBlockIndex();
         if (!index) return null;
         const weight = select.getCurrentWeightData();
         return {
             index: { x: index[0], y: index[1] },
             layers: select.getCurrentBlockLayerSlots(),
-            weight: weight ? {
-                width: weight.width,
-                height: weight.height,
-                data: new Uint8Array(weight.data),
-            } : null,
+            weight: weight
+                ? {
+                      width: weight.width,
+                      height: weight.height,
+                      data: new Uint8Array(weight.data),
+                  }
+                : null,
         };
     }
 
     private getTerrainMode(): TerrainEditorMode {
         switch (this._editor.getCurrentModeType()) {
-            case eTerrainEditorMode.MANAGE: return 'manage';
-            case eTerrainEditorMode.SCULPT: return 'sculpt';
-            case eTerrainEditorMode.PAINT: return 'paint';
-            default: return 'block';
+            case TerrainEditorModeType.MANAGE:
+                return 'manage';
+            case TerrainEditorModeType.SCULPT:
+                return 'sculpt';
+            case TerrainEditorModeType.PAINT:
+                return 'paint';
+            default:
+                return 'block';
         }
     }
 
@@ -180,7 +257,7 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         this._isSetHeight = tool === 'set-height';
     }
 
-    private getTerrainBrushState(mode: eTerrainEditorMode.SCULPT | eTerrainEditorMode.PAINT): ITerrainBrushState {
+    private getTerrainBrushState(mode: TerrainEditorModeType.SCULPT | TerrainEditorModeType.PAINT): ITerrainBrushState {
         const editor = this.getTerrainBrushEditor(mode);
         const brush = editor.getCurrentBrush();
         const image = editor.getBrush(TerrainBrushType.IMAGE) as TerrainImageBrush;
@@ -194,7 +271,18 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         };
     }
 
-    private updateTerrainBrush(mode: eTerrainEditorMode.SCULPT | eTerrainEditorMode.PAINT, patch: ITerrainBrushPatch): void {
+    /** Paint falloff is retained by the circle brush even while an image brush is selected. */
+    private getTerrainPaintBrushState(): ITerrainPaintBrushState {
+        return {
+            ...this.getTerrainBrushState(TerrainEditorModeType.PAINT),
+            falloff: this.getTerrainCircleBrush(TerrainEditorModeType.PAINT).getFalloff(),
+        };
+    }
+
+    private updateTerrainBrush(
+        mode: TerrainEditorModeType.SCULPT | TerrainEditorModeType.PAINT,
+        patch: ITerrainBrushPatch,
+    ): void {
         const editor = this.getTerrainBrushEditor(mode);
         const image = editor.getBrush(TerrainBrushType.IMAGE) as TerrainImageBrush;
         const brush = editor.getCurrentBrush();
@@ -204,109 +292,202 @@ export default class TerrainGizmo extends GizmoBase<Terrain> {
         if (typeof patch.setHeight === 'number') brush._setHeight = patch.setHeight;
     }
 
-    private getTerrainBrushEditor(mode: eTerrainEditorMode.SCULPT | eTerrainEditorMode.PAINT): TerrainEditorSculpt | TerrainEditorPaint {
-        return mode === eTerrainEditorMode.SCULPT
-            ? this._editor.getMode(eTerrainEditorMode.SCULPT)
-            : this._editor.getMode(eTerrainEditorMode.PAINT);
+    private getTerrainBrushEditor(
+        mode: TerrainEditorModeType.SCULPT | TerrainEditorModeType.PAINT,
+    ): TerrainEditorSculpt | TerrainEditorPaint {
+        return mode === TerrainEditorModeType.SCULPT
+            ? this._editor.getMode(TerrainEditorModeType.SCULPT)
+            : this._editor.getMode(TerrainEditorModeType.PAINT);
+    }
+
+    private getTerrainCircleBrush(
+        mode: TerrainEditorModeType.SCULPT | TerrainEditorModeType.PAINT,
+    ): TerrainCircleBrush {
+        return this.getTerrainBrushEditor(mode).getBrush(TerrainBrushType.CIRCLE) as TerrainCircleBrush;
     }
 
     async addLayerByUuid(uuid: string) {
         if (!this.target) return -1;
-        const texture = await loadAny<any>(uuid);
-        const layer = new TerrainLayer(); layer.detailMap = texture; layer.tileSize = 1;
-        const index = this.target.addLayer(layer); this.updateTerrainAsset(); this.isTerrainChange = true; this.emitNodeChange();
-        Service.Engine.repaintInEditMode(); return index;
+        const texture = await loadAny<Texture2D>(uuid);
+        const layer = new TerrainLayer();
+        layer.detailMap = texture;
+        layer.tileSize = 1;
+        const index = this.target.addLayer(layer);
+        this.updateTerrainAsset();
+        this.isTerrainChange = true;
+        this.emitNodeChange();
+        Service.Engine.repaintInEditMode();
+        return index;
     }
 
     /** Applies a service-validated Sculpt brush texture without changing Terrain asset state. */
     public setSculptBrushTexture(texture: Texture2D | null): void {
-        const sculpt = this.getTerrainBrushEditor(eTerrainEditorMode.SCULPT);
+        const sculpt = this.getTerrainBrushEditor(TerrainEditorModeType.SCULPT);
         sculpt.setBrushImage(texture);
         Service.Engine.repaintInEditMode();
     }
 
     /** Applies a service-validated Paint brush texture without changing Terrain asset state. */
     public setPaintBrushTexture(texture: Texture2D | null): void {
-        const paint = this.getTerrainBrushEditor(eTerrainEditorMode.PAINT);
+        const paint = this.getTerrainBrushEditor(TerrainEditorModeType.PAINT);
         paint.setBrushImage(texture);
         Service.Engine.repaintInEditMode();
     }
     async setSculptBrushRotation(rotation: number) {
-        (this._editor.getMode(eTerrainEditorMode.SCULPT) as any).setSculptBrushRotation(rotation);
+        this._editor.getMode(TerrainEditorModeType.SCULPT).setSculptBrushRotation(rotation);
     }
-    async setLayerValue(index: number, uuid: string, extVal: any) {
+    async setLayerValue(index: number, uuid: string, extVal?: ITerrainLayerValue) {
         if (!this.target) return null;
-        const layer = this.target.getLayer(index); if (!layer) return null;
+        const layer = this.target.getLayer(index);
+        if (!layer) return null;
         if (extVal) {
-            if ('tileSize' in extVal) layer.tileSize = extVal.tileSize;
-            if ('metallic' in extVal) layer.metallic = extVal.metallic;
-            if ('roughness' in extVal) layer.roughness = extVal.roughness;
-            if ('normalMap' in extVal) layer.normalMap = extVal.normalMap ? await loadAny<any>(extVal.normalMap) : null;
+            if (extVal.tileSize !== undefined) layer.tileSize = extVal.tileSize;
+            if (extVal.metallic !== undefined) layer.metallic = extVal.metallic;
+            if (extVal.roughness !== undefined) layer.roughness = extVal.roughness;
+            if ('normalMap' in extVal)
+                layer.normalMap = extVal.normalMap ? await loadAny<Texture2D>(extVal.normalMap) : null;
         }
-        if (uuid) layer.detailMap = await loadAny<any>(uuid);
-        this.updateTerrainAsset(); this.isTerrainChange = true; this.emitNodeChange(); Service.Engine.repaintInEditMode();
+        if (uuid) layer.detailMap = await loadAny<Texture2D>(uuid);
+        this.updateTerrainAsset();
+        this.isTerrainChange = true;
+        this.emitNodeChange();
+        Service.Engine.repaintInEditMode();
         return index;
     }
     removeLayerByIndex(index: number) {
         if (!this.target) return;
-        this.target.removeLayer(index); this.updateTerrainAsset(); this.isTerrainChange = true; this.emitNodeChange(); Service.Engine.repaintInEditMode();
+        this.target.removeLayer(index);
+        this.updateTerrainAsset();
+        this.isTerrainChange = true;
+        this.emitNodeChange();
+        Service.Engine.repaintInEditMode();
     }
-    setCurrentEditLayer(index: number) { this._editor.setCurrentLayer(index); Service.Engine.repaintInEditMode(); }
+    setCurrentEditLayer(index: number) {
+        this._editor.setCurrentLayer(index);
+        Service.Engine.repaintInEditMode();
+    }
     getLayers() {
         if (!this.target) return [];
         return Array.from({ length: TERRAIN_MAX_LAYER_COUNT }, (_, index) => {
             const layer = this.target!.getLayer(index);
-            return layer ? {
-                detailMap: layer.detailMap?._uuid ?? null, metallic: layer.metallic,
-                normalMap: layer.normalMap?._uuid ?? null, roughness: layer.roughness, tileSize: layer.tileSize,
-            } : null;
+            return layer
+                ? {
+                      detailMap: layer.detailMap?._uuid ?? null,
+                      metallic: layer.metallic,
+                      normalMap: layer.normalMap?._uuid ?? null,
+                      roughness: layer.roughness,
+                      tileSize: layer.tileSize,
+                  }
+                : null;
         });
     }
-    getCurrentEditLayer() { return this._editor.getCurrentLayer(); }
-    setCurrentEditMode(mode: eTerrainEditorMode, option?: any) {
-        const config = Object.assign({ isSculptDown: false, isSmooth: false, isFlatten: false, isSetHeight: false }, option || {});
-        this._isConcave = this._isShiftDown = !!config.isSculptDown; this._isSmooth = !!config.isSmooth;
-        this._isFlatten = !!config.isFlatten; this._isSetHeight = !!config.isSetHeight;
-        this._editor.setMode(mode); Service.Engine.repaintInEditMode();
+    getCurrentEditLayer() {
+        return this._editor.getCurrentLayer();
+    }
+    setCurrentEditMode(mode: TerrainEditorModeType, option?: ITerrainEditModeOption) {
+        const config = Object.assign(
+            { isSculptDown: false, isSmooth: false, isFlatten: false, isSetHeight: false },
+            option || {},
+        );
+        this._isConcave = this._isShiftDown = !!config.isSculptDown;
+        this._isSmooth = !!config.isSmooth;
+        this._isFlatten = !!config.isFlatten;
+        this._isSetHeight = !!config.isSetHeight;
+        this._editor.setMode(mode);
+        Service.Engine.repaintInEditMode();
     }
     queryTerrainInfo(): ITerrainInfo | null {
-        const info = this.target?.info; return info ? {
-            tileSize: info.tileSize, weightMapSize: info.weightMapSize, lightMapSize: info.lightMapSize, blockCount: [...info.blockCount],
-        } : null;
+        const info = this.target?.info;
+        return info
+            ? {
+                  tileSize: info.tileSize,
+                  weightMapSize: info.weightMapSize,
+                  lightMapSize: info.lightMapSize,
+                  blockCount: [info.blockCount[0], info.blockCount[1]],
+              }
+            : null;
     }
-    changeTerrainInfo(info: any) {
+    changeTerrainInfo(info: ITerrainInfo) {
         if (!this.target) return;
-        const terrainInfo = new TerrainInfo(); Object.assign(terrainInfo, info); this.target.rebuild(terrainInfo);
-        this.isTerrainChange = true; this.emitNodeChange(); Service.Engine.repaintInEditMode();
+        const terrainInfo = new TerrainInfo();
+        Object.assign(terrainInfo, info);
+        this.target.rebuild(terrainInfo);
+        this.isTerrainChange = true;
+        this.emitNodeChange();
+        Service.Engine.repaintInEditMode();
     }
-    queryBrushOfMode(mode: eTerrainEditorMode): IBrush | null {
-        if (mode !== eTerrainEditorMode.SCULPT && mode !== eTerrainEditorMode.PAINT) return null;
-        const brush = (this._editor.getMode(mode) as any).getCurrentBrush();
+    queryBrushOfMode(mode: TerrainEditorModeType.SCULPT): IBrush;
+    queryBrushOfMode(mode: TerrainEditorModeType.PAINT): IPaintBrush;
+    queryBrushOfMode(mode: TerrainEditorModeType.MANAGE | TerrainEditorModeType.SELECT): null;
+    queryBrushOfMode(mode: TerrainEditorModeType): IBrush | IPaintBrush | null;
+    queryBrushOfMode(mode: TerrainEditorModeType): IBrush | IPaintBrush | null {
+        if (mode !== TerrainEditorModeType.SCULPT && mode !== TerrainEditorModeType.PAINT) return null;
+        const brush = this._editor.getMode(mode).getCurrentBrush();
+        if (mode === TerrainEditorModeType.PAINT) {
+            return {
+                radius: brush.radius,
+                strength: brush.strength,
+                _setHeight: brush._setHeight,
+                falloff: this.getTerrainCircleBrush(mode).getFalloff(),
+            };
+        }
         return { radius: brush.radius, strength: brush.strength, _setHeight: brush._setHeight };
     }
-    setBrushOfMode(mode: eTerrainEditorMode, setting: any) {
-        if (mode !== eTerrainEditorMode.SCULPT && mode !== eTerrainEditorMode.PAINT) return;
-        const brush = (this._editor.getMode(mode) as any).getCurrentBrush();
-        for (const key of Object.keys(setting || {})) if (key !== 'material' && setting[key] !== undefined) brush[key] = setting[key];
+    setBrushOfMode(mode: TerrainEditorModeType, setting?: IBrushSetting) {
+        if (mode !== TerrainEditorModeType.SCULPT && mode !== TerrainEditorModeType.PAINT) return;
+        const brush = this._editor.getMode(mode).getCurrentBrush();
+        if (!setting) return;
+        if (setting.radius !== undefined) brush.radius = setting.radius;
+        if (setting.strength !== undefined) brush.strength = setting.strength;
+        if (setting._setHeight !== undefined) brush._setHeight = setting._setHeight;
+        if (setting._rotation !== undefined) brush._rotation = setting._rotation;
+        if (mode === TerrainEditorModeType.PAINT && setting.falloff !== undefined)
+            this.getTerrainCircleBrush(mode).setFalloff(setting.falloff);
     }
     getBlockInfo() {
-        const mode = this._editor.getMode(eTerrainEditorMode.SELECT); const index = mode.getCurrentBlockIndex() ?? [0, 0];
+        const mode = this._editor.getMode(TerrainEditorModeType.SELECT);
+        const index = mode.getCurrentBlockIndex() ?? [0, 0];
         const weight = mode.getCurrentWeightData();
         return {
             index: { x: index[0], y: index[1] },
             weight: weight ? { data: Array.from(weight.data), width: weight.width, height: weight.height } : null,
-            layers: mode.getCurrentLayerList().map((layer: any) => layer?._uuid ?? ''),
+            layers: mode.getCurrentLayerList().map(layer => layer?.uuid ?? ''),
         };
     }
-    emitNodeChange() { if (this.target) this.onComponentChanged(this.target.node); }
-    onKeyDown(event: any) { if (event.shiftKey) this._isShiftDown = true; }
-    onKeyUp(event: any) { if (event.keyCode === 16) this._isShiftDown = this._isConcave; }
-    onUpdate(deltaTime: number) { this._editor?.update(deltaTime, this._isShiftDown); }
-    onCameraControlModeChanged(mode: number) { if (mode !== 0 && this._editor?.isChanged) this.emitNodeChange(); }
-    updateTerrainAsset() { if (this.target?._asset) this.target.exportLayerListToAsset(this.target._asset); }
+    emitNodeChange() {
+        if (this.target) this.onComponentChanged(this.target.node);
+    }
+    onKeyDown(event: ISceneKeyboardEvent) {
+        if (event.shiftKey) this._isShiftDown = true;
+    }
+    onKeyUp(event: ISceneKeyboardEvent) {
+        if (event.keyCode === 16) this._isShiftDown = this._isConcave;
+    }
+    onUpdate(deltaTime: number) {
+        this._editor?.update(deltaTime, this._isShiftDown);
+    }
+    onCameraControlModeChanged(mode: number) {
+        if (mode !== 0 && this._editor?.isChanged) this.emitNodeChange();
+    }
+    updateTerrainAsset() {
+        if (this.target?._asset) this.target.exportLayerListToAsset(this.target._asset);
+    }
 
-    public onControllerMouseDown(event: GizmoMouseEvent) { event.propagationStopped = true; this._isShiftDown = event.shiftKey; this._editor.onMouseDown(event.x, event.y); }
-    public onControllerMouseMove(event: GizmoMouseEvent) { event.propagationStopped = true; this._editor.onMouseMove(event.x, event.y); }
-    public onControllerMouseUp(event: GizmoMouseEvent) { event.propagationStopped = true; if (this._editor.isChanged) this.emitNodeChange(); this._editor.onMouseUp(); }
-    public onControllerHoverOut() { this._editor.onHoverOut(); }
+    public onControllerMouseDown(event: GizmoMouseEvent) {
+        event.propagationStopped = true;
+        this._isShiftDown = event.shiftKey;
+        this._editor.onMouseDown(event.x, event.y);
+    }
+    public onControllerMouseMove(event: GizmoMouseEvent) {
+        event.propagationStopped = true;
+        this._editor.onMouseMove(event.x, event.y);
+    }
+    public onControllerMouseUp(event: GizmoMouseEvent) {
+        event.propagationStopped = true;
+        if (this._editor.isChanged) this.emitNodeChange();
+        this._editor.onMouseUp();
+    }
+    public onControllerHoverOut() {
+        this._editor.onHoverOut();
+    }
 }

@@ -9,6 +9,7 @@ const mockUndo = {
     push: jest.fn(),
     isApplying: jest.fn(() => false),
 };
+const mockConsoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 const mockConsoleWarn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
 jest.mock('cc', () => {
@@ -81,6 +82,7 @@ import type {
     TerrainBlockReadResult,
     TerrainReadResult,
 } from '../common/terrain';
+import { TerrainLayerError } from '../common/terrain';
 import { TerrainService } from '../scene-process/service/terrain';
 
 function clone<T>(value: T): T {
@@ -122,7 +124,7 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
             brush: { kind: 'image', imageUuid: 'sculpt-brush', radius: 3, strength: 5, rotation: 15, setHeight: 9 },
         },
         paint: {
-            brush: { kind: 'circle', imageUuid: null, radius: 6, strength: 4, rotation: 0, setHeight: 0 },
+            brush: { kind: 'circle', imageUuid: null, radius: 6, strength: 4, rotation: 0, setHeight: 0, falloff: 0.5 },
         },
     };
 
@@ -239,6 +241,7 @@ describe('TerrainService target-safe public capability', () => {
         mockUndo.push.mockReset();
         mockUndo.isApplying.mockReset();
         mockUndo.isApplying.mockReturnValue(false);
+        mockConsoleError.mockReset();
         mockConsoleWarn.mockReset();
     });
 
@@ -252,14 +255,17 @@ describe('TerrainService target-safe public capability', () => {
             service.setSculptSession(target, { tool: 'set-height', brush: { radius: 8, setHeight: 12 } });
             const brush = service.setSculptBrushAsset(target, 'brush');
             const paintBrush = service.setPaintBrushAsset(target, 'brush');
-            service.setPaintSession(target, { brush: { strength: 7 } });
+            service.setPaintSession(target, { brush: { strength: 7, falloff: 0.4 } });
+            // @ts-expect-error Falloff is a Paint-only session property.
+            service.setSculptSession(target, { brush: { falloff: 0.4 } });
             const manage = service.saveManage(target, { tileSize: 1, weightMapSize: 128, lightMapSize: 128, blockCount: [1, 1] });
+            const defaultLayer = service.addLayer(target);
             const add = service.addLayer(target, {
                 detailMapUuid: 'detail', normalMapUuid: null, metallic: 0, roughness: 1, tileSize: 1,
             });
             const update = service.updateLayer(target, 0, { roughness: 0.5 });
             const remove = service.removeLayer(target, 0);
-            return { read, block, brush, paintBrush, manage, add, update, remove };
+            return { read, block, brush, paintBrush, manage, defaultLayer, add, update, remove };
         };
 
         expect(assertPublicTerrainInterface).toBeDefined();
@@ -317,9 +323,9 @@ describe('TerrainService target-safe public capability', () => {
             valid: true,
             sculpt: { tool: 'set-height', brush: { radius: 8, strength: 6, rotation: 30, setHeight: 12 } },
         });
-        expect(service.setPaintSession(fixture.target, { brush: { strength: 7 } })).toMatchObject({
+        expect(service.setPaintSession(fixture.target, { brush: { strength: 7, falloff: 0.4 } })).toMatchObject({
             valid: true,
-            paint: { brush: { kind: 'circle', strength: 7 } },
+            paint: { brush: { kind: 'circle', strength: 7, falloff: 0.4 } },
         });
 
         expect(fixture.gizmo.setTerrainMode).toHaveBeenCalledWith('paint');
@@ -328,8 +334,38 @@ describe('TerrainService target-safe public capability', () => {
             tool: 'set-height',
             brush: { radius: 8, strength: 6, rotation: 30, setHeight: 12 },
         });
-        expect(fixture.gizmo.updateTerrainPaintSession).toHaveBeenCalledWith({ brush: { strength: 7 } });
+        expect(fixture.gizmo.updateTerrainPaintSession).toHaveBeenCalledWith({ brush: { strength: 7, falloff: 0.4 } });
         expect(mockEmit).toHaveBeenCalledWith('terrain:session-changed', fixture.target);
+    });
+
+    it('accepts only finite Paint falloff values within the inclusive unit interval', () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockReturnValue({ getComponentGizmo: () => fixture.gizmo });
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+
+        expect(service.setPaintSession(fixture.target, { brush: { falloff: 0 } })).toMatchObject({
+            valid: true,
+            paint: { brush: { falloff: 0 } },
+        });
+        expect(service.setPaintSession(fixture.target, { brush: { falloff: 1 } })).toMatchObject({
+            valid: true,
+            paint: { brush: { falloff: 1 } },
+        });
+
+        const updateCalls = fixture.gizmo.updateTerrainPaintSession.mock.calls.length;
+        for (const brush of [
+            { falloff: -0.1 },
+            { falloff: 1.1 },
+            { falloff: Number.NaN },
+            { strength: 9, falloff: -0.1 },
+        ]) {
+            expect(service.setPaintSession(fixture.target, { brush })).toMatchObject({
+                valid: true,
+                paint: { brush: { strength: 4, falloff: 1 } },
+            });
+        }
+        expect(fixture.gizmo.updateTerrainPaintSession).toHaveBeenCalledTimes(updateCalls);
     });
 
     it('assigns or clears only the explicit target Sculpt image brush and emits invalidation', async () => {
@@ -547,7 +583,36 @@ describe('TerrainService target-safe public capability', () => {
         expect(mockLoadAny).not.toHaveBeenCalled();
     });
 
-    it('reports a texture-load error while leaving the explicit Terrain unchanged', async () => {
+    it('creates an authoring-ready default layer with one Undo command', async () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockImplementation((name: string) => {
+            if (name === 'Gizmo') return { getComponentGizmo: () => fixture.gizmo };
+            if (name === 'Undo') return mockUndo;
+            return null;
+        });
+        mockLoadAny.mockImplementation(async (uuid: string) => new Texture2D(uuid));
+
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+
+        const added = await service.addLayer(fixture.target);
+        expect(added).toMatchObject({ valid: true });
+        if (!added.valid) throw new Error('Expected the explicit Terrain target to remain valid.');
+        expect(added.layers).toHaveLength(4);
+        expect(added.layers[1]).toEqual({
+            detailMapUuid: '52ef29ed-bd92-4e94-ab2f-0ebc91bf3a60@6c48a',
+            normalMapUuid: null,
+            metallic: 0,
+            roughness: 1,
+            tileSize: 1,
+        });
+
+        expect(mockLoadAny).toHaveBeenCalledWith('52ef29ed-bd92-4e94-ab2f-0ebc91bf3a60@6c48a');
+        expect(mockUndo.push).toHaveBeenCalledTimes(1);
+        expect(mockUndo.push.mock.calls[0][0].meta.type).toBe('terrain:add-layer');
+    });
+
+    it('reports a custom layer texture-load error without changing the explicit Terrain', async () => {
         const fixture = createFixture();
         mockQueryRegisteredService.mockImplementation((name: string) => {
             if (name === 'Gizmo') return { getComponentGizmo: () => fixture.gizmo };
@@ -565,6 +630,35 @@ describe('TerrainService target-safe public capability', () => {
         })).resolves.toEqual({ target: fixture.target, valid: true, assetUuid: 'terrain-asset', ...before });
 
         expect(mockConsoleWarn).toHaveBeenCalledWith('[Terrain] load layer texture failed: detail-load-error', error);
+        expect(fixture.state).toEqual(before);
+        expect(mockUndo.push).not.toHaveBeenCalled();
+    });
+
+    it('throws an internal error for an unavailable default Detail Map without changing a valid Terrain', async () => {
+        const fixture = createFixture();
+        mockQueryRegisteredService.mockImplementation((name: string) => {
+            if (name === 'Gizmo') return { getComponentGizmo: () => fixture.gizmo };
+            if (name === 'Undo') return mockUndo;
+            return null;
+        });
+        const error = new Error('asset database unavailable');
+        mockLoadAny.mockRejectedValue(error);
+
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        const before = clone(fixture.state);
+
+        const thrown = await service.addLayer(fixture.target).catch((caught: unknown) => caught);
+        expect(thrown).toBeInstanceOf(TerrainLayerError);
+        expect(thrown).toMatchObject({
+            name: 'TerrainLayerError',
+            code: 'DEFAULT_DETAIL_MAP_UNAVAILABLE',
+            cause: error,
+        });
+        expect(mockConsoleError).toHaveBeenCalledWith(
+            '[Terrain] load layer texture failed: 52ef29ed-bd92-4e94-ab2f-0ebc91bf3a60@6c48a',
+            error,
+        );
         expect(fixture.state).toEqual(before);
         expect(mockUndo.push).not.toHaveBeenCalled();
     });

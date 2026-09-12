@@ -1,8 +1,14 @@
 import { Material, Terrain, Texture2D, Vec2, Vec3, Vec4, builtinResMgr, clamp } from 'cc';
 
-export enum TerrainBrushType { CIRCLE, IMAGE, _MAX }
+export enum TerrainBrushType {
+    CIRCLE,
+    IMAGE,
+    _MAX,
+}
 
-export class TerrainEdModifierKeyState { public siftPressed = false; }
+export class TerrainEdModifierKeyState {
+    public siftPressed = false;
+}
 
 const brushDepthOffsetDefaultRatios = 0.001;
 let brushDepthOffset = 0.05;
@@ -25,34 +31,63 @@ export class TerrainBrush {
     public _setHeight = 0;
     public _rotation = 0;
 
-    public get rotation() { return this._rotation / 180 * Math.PI; }
-    public getDelta(_x: number, _z: number) { return 0; }
+    public get rotation() {
+        return (this._rotation / 180) * Math.PI;
+    }
+    public getDelta(_x: number, _z: number) {
+        return 0;
+    }
     public getBound(bbmin: Vec2, bbmax: Vec2) {
         bbmin.set(this.position.x - this.radius, this.position.z - this.radius);
         bbmax.set(this.position.x + this.radius, this.position.z + this.radius);
     }
-    public update(_terrain: Terrain, pos: Vec3) { this.position.set(pos); }
+    public update(_terrain: Terrain, pos: Vec3) {
+        this.position.set(pos);
+    }
 }
 
 export class TerrainBrushData {
     public bmin: number[] = [0, 0];
     public bmax: number[] = [0, 0];
-    public width() { return this.bmax[0] - this.bmin[0] + 1; }
-    public height() { return this.bmax[1] - this.bmin[1] + 1; }
+    public width() {
+        return this.bmax[0] - this.bmin[0] + 1;
+    }
+    public height() {
+        return this.bmax[1] - this.bmin[1] + 1;
+    }
 }
 
-export enum eTerrainCircleBrushType { Linear, Smooth, Spherical, Tip }
+export enum TerrainCircleBrushType {
+    Linear,
+    Smooth,
+    Spherical,
+    Tip,
+}
 
 export class TerrainCircleBrush extends TerrainBrush {
-    protected type = eTerrainCircleBrushType.Linear;
+    protected type = TerrainCircleBrushType.Linear;
     protected falloff = 0.5;
 
-    constructor() { super(); this._updateMaterial(); }
-
-    public setType(type: eTerrainCircleBrushType) {
-        if (this.type !== type) { this.type = type; this._updateMaterial(); }
+    constructor() {
+        super();
+        this._updateMaterial();
     }
-    public getType() { return this.type; }
+
+    public setType(type: TerrainCircleBrushType) {
+        if (this.type !== type) {
+            this.type = type;
+            this._updateMaterial();
+        }
+    }
+    public getType() {
+        return this.type;
+    }
+    public getFalloff() {
+        return this.falloff;
+    }
+    public setFalloff(value: number) {
+        this.falloff = clamp(value, 0, 1);
+    }
     public _updateMaterial() {
         const effect = (cc as any).EffectAsset?.get?.('internal/editor/terrain-circle-brush');
         if (effect) {
@@ -90,10 +125,18 @@ export class TerrainCircleBrush extends TerrainBrush {
         const falloff = this.falloff * this.radius;
         let value = 0;
         switch (this.type) {
-            case eTerrainCircleBrushType.Linear: value = TerrainCircleBrush._calculateFalloff_Linear(distance, radius, falloff); break;
-            case eTerrainCircleBrushType.Smooth: value = TerrainCircleBrush._calculateFalloff_Smooth(distance, radius, falloff); break;
-            case eTerrainCircleBrushType.Spherical: value = TerrainCircleBrush._calculateFalloff_Spherical(distance, radius, falloff); break;
-            case eTerrainCircleBrushType.Tip: value = TerrainCircleBrush._calculateFalloff_Tip(distance, radius, falloff); break;
+            case TerrainCircleBrushType.Linear:
+                value = TerrainCircleBrush._calculateFalloff_Linear(distance, radius, falloff);
+                break;
+            case TerrainCircleBrushType.Smooth:
+                value = TerrainCircleBrush._calculateFalloff_Smooth(distance, radius, falloff);
+                break;
+            case TerrainCircleBrushType.Spherical:
+                value = TerrainCircleBrush._calculateFalloff_Spherical(distance, radius, falloff);
+                break;
+            case TerrainCircleBrushType.Tip:
+                value = TerrainCircleBrush._calculateFalloff_Tip(distance, radius, falloff);
+                break;
         }
         return value * this.strength;
     }
@@ -134,7 +177,8 @@ export class TerrainImageBrush extends TerrainBrush {
         const source = nativeData?._src;
         const readImage = (image: CanvasImageSource, width: number, height: number) => {
             const canvas = document.createElement('canvas');
-            canvas.width = width; canvas.height = height;
+            canvas.width = width;
+            canvas.height = height;
             const context = canvas.getContext('2d');
             if (!context) return;
             context.drawImage(image, 0, 0, width, height);
@@ -150,15 +194,23 @@ export class TerrainImageBrush extends TerrainBrush {
             readImage(nativeData as CanvasImageSource, value.width, value.height);
         }
     }
-    public get image() { return this._image; }
+    public get image() {
+        return this._image;
+    }
     public static getColor(pixels: number[], width: number, height: number, u: number, v: number) {
-        u = clamp(u, 0, width - 1); v = clamp(v, 0, height - 1);
+        u = clamp(u, 0, width - 1);
+        v = clamp(v, 0, height - 1);
         return pixels[v * width + u];
     }
     public static sampleImage(pixels: number[], width: number, height: number, u: number, v: number) {
-        u *= width - 1; v *= height - 1;
-        const u0 = Math.floor(u), v0 = Math.floor(v), u1 = u0 + 1, v1 = v0 + 1;
-        const du = u - u0, dv = v - v0;
+        u *= width - 1;
+        v *= height - 1;
+        const u0 = Math.floor(u),
+            v0 = Math.floor(v),
+            u1 = u0 + 1,
+            v1 = v0 + 1;
+        const du = u - u0,
+            dv = v - v0;
         const c00 = this.getColor(pixels, width, height, u0, v0);
         const c10 = this.getColor(pixels, width, height, u1, v0);
         const c01 = this.getColor(pixels, width, height, u0, v1);
@@ -171,18 +223,24 @@ export class TerrainImageBrush extends TerrainBrush {
             : 1;
     }
     public getDelta(x: number, z: number) {
-        let dx = this.position.x - x, dz = this.position.z - z;
+        let dx = this.position.x - x,
+            dz = this.position.z - z;
         if (this.rotation) {
-            const sine = Math.sin(this.rotation), cosine = Math.cos(this.rotation);
+            const sine = Math.sin(this.rotation),
+                cosine = Math.cos(this.rotation);
             const tx = dx * cosine + dz * sine;
-            dz = -dx * sine + dz * cosine; dx = tx;
+            dz = -dx * sine + dz * cosine;
+            dx = tx;
         }
-        const u = dx / this.radius * 0.5 + 0.5, v = dz / this.radius * 0.5 + 0.5;
+        const u = (dx / this.radius) * 0.5 + 0.5,
+            v = (dz / this.radius) * 0.5 + 0.5;
         return u < 0 || u > 1 || v < 0 || v > 1 ? 0 : this.sample(u, v) * this.strength;
     }
     public getBound(bbmin: Vec2, bbmax: Vec2) {
-        const c = Math.abs(Math.cos(this.rotation)), s = Math.abs(Math.sin(this.rotation));
-        const halfX = this.radius * (c + s), halfZ = this.radius * (c + s);
+        const c = Math.abs(Math.cos(this.rotation)),
+            s = Math.abs(Math.sin(this.rotation));
+        const halfX = this.radius * (c + s),
+            halfZ = this.radius * (c + s);
         bbmin.set(this.position.x - halfX, this.position.z - halfZ);
         bbmax.set(this.position.x + halfX, this.position.z + halfZ);
     }
