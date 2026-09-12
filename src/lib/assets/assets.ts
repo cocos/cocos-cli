@@ -3,6 +3,7 @@ import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, I
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
 import type { AnimGraphVariantDump } from '../../core/assets/animation-graph-variant';
+import { normalize } from 'path';
 
 export type * from '../../core/assets/@types/public';
 export type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
@@ -28,6 +29,36 @@ export function setFileSystemProvider(provider: IAssetFileSystemProvider): void 
 export async function start(): Promise<void> {
     const { startAssetDB } = await import('../../core/assets');
     await startAssetDB();
+}
+
+/**
+ * Reconcile the current project's enabled Localization Runtime builtin mount.
+ * The caller supplies no mount identity or registration data: the host
+ * re-reads the persisted enable flag and packaged manifest, then uses the
+ * canonical register info with AssetDBManager.addDB().
+ */
+export async function reconcileLocalizationRuntimeMount(): Promise<void> {
+    if (!assetDBManager.ready) {
+        throw new Error('Asset database is not ready; call Assets.start before reconciling the Localization Runtime.');
+    }
+
+    const { default: assetConfig } = await import('../../core/assets/asset-config');
+    const registerInfo = assetConfig.resolveBuiltinLocalizationMount();
+    const existing = assetDBManager.assetDBMap[registerInfo.name];
+    if (existing) {
+        if (normalize(existing.options.target) !== normalize(registerInfo.target)) {
+            throw new Error(`Localization Runtime AssetDB target conflict for '${registerInfo.name}'.`);
+        }
+    } else {
+        await assetDBManager.addDB(registerInfo);
+    }
+
+    if (!assetDBManager.assetDBMap[registerInfo.name]) {
+        throw new Error(`Localization Runtime AssetDB '${registerInfo.name}' was not registered.`);
+    }
+    if (!assetConfig.data.assetDBList.some((info) => info.name === registerInfo.name)) {
+        assetConfig.data.assetDBList.push(registerInfo);
+    }
 }
 
 /**
