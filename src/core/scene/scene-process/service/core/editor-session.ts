@@ -10,4 +10,6 @@ export interface IEditorSessionService {
     getEditorSession(): IEditorSessionSnapshot;
     isCurrentEditorSession(session: IEditorSessionSnapshot): boolean;
     reloadForSession(params: IReloadOptions, session: IEditorSessionSnapshot): Promise<ReloadResult>;
+    /** Serialize a short result transaction with open/close/reload. Use the supplied save, not Editor.save. */
+    runForSession<T>(session: IEditorSessionSnapshot, operation: (save: () => Promise<unknown>) => Promise<T>): Promise<T>;
 }

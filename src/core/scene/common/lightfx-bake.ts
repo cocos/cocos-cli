@@ -44,7 +44,7 @@ export interface ILightProbeBakeResult {
 }
 
 export interface ILightmapBakeOptions {
-    /** Existing assets directory URL. Each bake publishes an immutable child directory; omitted uses the scene's default. */
+    /** Existing assets parent directory. Saved results publish to scene-<scene UUID>/output; omitted uses db://assets/LightFX. */
     outputUrl?: string;
     msaa?: 1 | 2 | 4 | 8;
     resolution?: 128 | 256 | 512 | 1024 | 2048;
@@ -71,7 +71,7 @@ export interface ILightmapBakeCapabilities {
     /** Mesh/Terrain bindings, null references and live blocks are restored with the result history. */
     resultLifecycleVersion: 1;
     sceneTransactionVersion: 1;
-    /** The actual host preserves previous textures in immutable per-operation directories. */
+    /** The actual host stages new UUIDs separately before saving and replacing prior outputs. */
     assetVersion: 1;
     /** Clear saves first, then deletes exact unreferenced immutable LightFX texture assets. */
     assetCleanupVersion?: 1;

@@ -46,7 +46,7 @@ const capabilities = await cli.Scene.LightmapBake.queryCapabilities();
 
 ### 原生诊断
 
-Probe／Lightmap 的 `queryCapabilities()` 和成功 Bake 结果可带 `diagnostics`：`{ version: 1, stage, logs, progress?, rate? }`。Scene 只返回本运行实例、对应烘焙类型的当前或最近原生操作，内部 Host 查询校验 operation ID、target 与 transaction ID；不会返回其他场景的日志。没有可用诊断或查询失败时字段可缺省，集成方应降级显示，不能因此把烘焙成功改为失败。
+Probe／Lightmap 的 `queryCapabilities()` 和成功 Bake 结果可带 `diagnostics`：`{ version: 1, operationId?, stage, logs, progress?, rate? }`。Scene 只返回本运行实例、对应烘焙类型的当前或最近原生操作，内部 Host 查询校验 operation ID、target 与 transaction ID；不会返回其他场景的日志。没有可用诊断或查询失败时字段可缺省，集成方应降级显示，不能因此把烘焙成功改为失败。
 
 Host 最多记住 32 个操作；每个操作保留最近 128 条日志，每条与进度文本上限为 2048 字符，隐藏该操作工作目录和目标资产目录的绝对路径。`progress` 保留 LightFX 原始文本（例如 `Build lighting 25%`）；仅当专用 Progress 事件严格匹配该已验证格式且数值位于 0–100 时，另提供 `rate`。未知格式不得从日志或任意数字推断百分比。`stage` 是最近采样的原生阶段，不代替上层 Scene 的成功／取消／恢复状态。进程重启后诊断不保留，不提供持久任务身份或失联事务恢复。
 
@@ -146,7 +146,7 @@ Scene runtime 先通过内部 `reserveSceneOperation` 取得宿主生成的事�
 
 该操作清除当前场景全部探针的烘焙结果，通知引擎刷新，并作为一次 Undo 操作记录。成功结果中的 `probeCount` 表示处理的探针数量。
 
-Probe Clear 继续保留完整旧 SH 撤销。Lightmap 按用户最新决定收敛：成功重烘焙后不恢复此前旧纹理／UV／场景标记，本次有效结果可以 Redo；删除模式 Clear 后本次及更早结果均失效。不要把探针完整撤销同样改掉。
+Probe Clear 保留完整旧 SH 撤销。Lightmap 的当前契约为：成功重烘焙后不恢复此前旧纹理／UV／场景标记，本次有效结果可以 Redo；删除模式 Clear 后本次及更早结果均失效。两者的 Undo 语义不同。
 
 Probe／Lightmap Bake／Clear 的 `saveScene` 默认是 `true`：完整成功后，当前结果作为已保存基线；Undo 离开保存点会变脏，Redo 回到已保存的有效结果恢复干净。Lightmap 旧结果须经过失效过滤，不能因历史尚存就恢复已被替换的贴图。显式传 `false` 时只修改内存并保留 dirty，调用方需要另行保存。
 
@@ -191,13 +191,13 @@ Bake 按「确认原生产物提交 → 应用场景结果 → 完成 Undo 录�
 
 | 参数 | 范围 | CLI 默认值 |
 | --- | --- | --- |
-| `outputUrl` | 已存在的 `db://assets` 内目录 URL，仅 Lightmap 支持 | `db://assets/<sceneName>/lightmap` |
+| `outputUrl` | 已存在的 `db://assets` 内父目录 URL，仅 Lightmap 支持 | 发布父目录 `db://assets/LightFX` |
 | `msaa` | 1、2、4、8 | 4 |
 | `resolution` | 128、256、512、1024、2048 | 1024 |
 | `filter` | boolean | `true` |
 | `highp` | boolean | `false` |
 | `giScale` | 0–100 | 1 |
-| `giSamples` | 1–65535，整数 | 25 |
+| `giSamples` | 1–2590，整数 | 25 |
 | `giPathLength` | 1、2、3、4 | 4 |
 | `aoLevel` | 0、1、2 | 0 |
 | `aoStrength` | ≥ 0 | 0.5 |
@@ -218,8 +218,8 @@ Bake 按「确认原生产物提交 → 应用场景结果 → 完成 Undo 录�
     "data": {
       "sceneUrl": "db://assets/LightProbe.scene",
       "textureUrls": [
-        "db://assets/LightProbe/lightmap/bake-<operation-uuid>/LFX_Mesh_0000.png",
-        "db://assets/LightProbe/lightmap/bake-<operation-uuid>/LFX_Terrain_0000.png"
+        "db://assets/LightFX/scene-<scene-uuid>/output/LFX_Mesh_0000.png",
+        "db://assets/LightFX/scene-<scene-uuid>/output/LFX_Terrain_0000.png"
       ],
       "meshCount": 7,
       "terrainCount": 1,
@@ -249,7 +249,7 @@ Bake 按「确认原生产物提交 → 应用场景结果 → 完成 Undo 录�
       "textures": [
         {
           "uuid": "texture-asset-uuid",
-          "url": "db://assets/LightProbe/lightmap/LFX_Mesh_0000.png",
+          "url": "db://assets/LightFX/scene-<scene-uuid>/output/LFX_Mesh_0000.png",
           "filename": "LFX_Mesh_0000.png",
           "size": 45650,
           "createdAt": 1788782429000,
@@ -285,7 +285,7 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 }
 ```
 
-解除绑定并删除没有其他引用的不可变 LightFX Lightmap 贴图：
+解除绑定并删除没有其他引用的 LightFX 贴图及已登记的配套文件：
 
 ```json
 {
@@ -296,9 +296,11 @@ Pink 应在场景打开、烘焙完成和清理完成后调用该工具刷新面
 }
 ```
 
-`saveScene` 默认为 `true`，`deleteAssets` 默认为 `false`。调用 `deleteAssets:true` 前必须确认 `queryCapabilities().assetCleanupVersion === 1`；服务也会在修改场景前再次校验实际 Host 能力。成功结果中的 `clearedCount` 是解除绑定的 Mesh 和 Terrain block 总数，`deletedAssetCount`、`retainedAssetCount` 和 `failedAssetCount` 分别表示删除、因引用保留和删除失败的贴图数量。
+`saveScene` 默认为 `true`，`deleteAssets` 默认为 `false`。调用 `deleteAssets:true` 前必须确认 `queryCapabilities().assetCleanupVersion === 1`；服务也会在修改场景前再次校验实际 Host 能力。成功结果中的 `clearedCount` 是解除绑定的 Mesh 和 Terrain block 总数，`deletedAssetCount`、`retainedAssetCount` 和 `failedAssetCount` 分别表示删除、因引用保留和删除失败的资产数量，包含原生配套文件。
 
-删除模式先清空绑定，再序列化实时场景检查候选贴图是否仍被其他字段引用；仍存在的根资源或子资源引用会保留。按 2026-09-11 最新 Creator 对齐决定，Clear 不清空节点移动等无关历史：保存成功后只取消 Clear 自身录制，并推进场景级结果代次。Undo／Redo 不恢复任何 Clear 前的 Lightmap 结果（包括未被物理删除的更早 Bake A），但保留普通属性和 SH；Clear 后新的 Bake 历史仍可恢复。快照恢复会清零过期 Mesh／Terrain 绑定、UV 和烘焙标志，同一场景内部重建会转交代次以兼容保留历史的软重载。实际删除的 UUID 另有悬空引用保护；明确保留／失败项解除删除保护，删除结果未知时保守保留。Host 当前仍只逐项删除 Asset DB 可验证的不可变 LightFX 贴图，不删除父目录或同目录其他文件；外部引用、依赖查询失败或删除失败均保留并报告。固定产物布局另行推进，不能据此宣称产物已全面对齐。
+删除模式先清空绑定，再序列化实时场景检查候选资源是否仍被其他字段引用；仍存在的根资源或子资源引用会保留。保存成功后才逐项删除经过 Asset DB 验证、归属明确且没有其他引用的产物，不删除父目录或同目录无关文件。外部引用、依赖查询失败或删除失败均保留并报告。
+
+删除模式不清空节点移动等无关历史：保存成功后只取消 Clear 自身录制，并推进场景级结果代次。Undo／Redo 不恢复任何 Clear 前的 Lightmap 结果（包括未被物理删除的更早 Bake），但保留普通属性和 SH；Clear 后新的 Bake 历史仍可恢复。同一场景内部重建会转交代次，以兼容保留历史的软重载。实际删除的 UUID 另有悬空引用保护；明确保留／失败项解除删除保护，删除结果未知时保守保留。
 
 成功 Bake 会替换完整场景结果：先清空旧绑定再应用本次输出，本次未参与的禁用／排除对象不继续展示旧结果；这些对象纳入结果记录及应用失败恢复范围。只有应用／录制／保存失败时才保留旧结果撤销；完整成功后旧 Lightmap 历史失效，普通属性和探针历史不变。
 
@@ -336,56 +338,20 @@ Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 rende
 
 取消成功后，取消工具本身返回 `code: 200`；原烘焙请求结束并返回 `code: 500`、`reason: "LightFX bake was cancelled."`。这是被取消任务的预期终态。
 
-## 2026-09-11 最新产品决定与实施顺序
+## 场景会话与资产规则
 
-用户已明确不再为普通重烘焙 Undo 保留旧贴图。成功重烘焙应替换并清理旧产物；Clear 后同样不能恢复旧图／UV／效果，节点移动等普通编辑历史和探针 SH 撤销不变。此决定覆盖本文历史版本关于保留所有成功烘焙版本的描述。
-
-当前 `455e8687` 已按场景 UUID 持久记录实际导入的根资产 UUID，Clear 合并当前绑定和已知旧产物，逐项核对引用、删除结果和源文件存在性；不保存历史像素副本，不做项目 GC。
-
-本批补齐成功重烘焙的收尾链路：修改场景前校验 Host 的内部 `lightmapRebakeCleanupVersion === 1` 并读取旧候选；新结果应用、录制和保存确认后，使旧 Lightmap 历史失效（保留本次新结果的 Redo 和普通历史），检查实时剩余引用并清理旧候选。Host 只接受仍持有正确 Bake reservation 且原生已 commit 的 `action:bake` 清理。当前新结果、其他字段／场景／材质引用必须保留。删除失败、引用保留或回应不明时返回包含 `New Lightmap result is saved and retained` 的错误，保留已完成的新结果并明确报告，不再恢复旧内存冒充回滚；不能把它解释成 Bake 没有修改场景。
-
-`saveScene:false` 不授权删除磁盘已保存场景仍依赖的贴图，不隐式保存，也不删除旧产物或固定发布；成功后的旧结果历史仍失效。保存失败／取消／应用失败不触发旧产物清理。下一次成功保存的 Bake 或删除模式 Clear 可重试已记录产物。`31598b0a` 已接入保存后的固定 PNG 发布；`2b13cfce` 已接入原生配套文件发布与清理，真实面板正常主链路已通过，异常与同场景 Creator 对照仍待专项验收。
-
-## Lightmap 资产规则
-
-### 原生配套文件接入（实施前记录）
-
-下一批复用 PNG 的暂存／保存后发布事务：原生完成时将实际 `tmp/lfx.in`、`output/lfx.out` 和存在的 `lfx.log` 导入本轮暂存目录，记录其根 UUID 为独立 auxiliary 成员，不混入贴图预览或纹理数量。保存后发布为 `<根>/tmp/lfx.in`、`<根>/output/lfx.out`、`<根>/lfx.log`。这比延长原生工作目录生命周期更小，commit 仍可按原机制清理工作目录。日志缺失不伪造文件，输入／输出缺失仍按实际失败处理。
-
-成功重烘焙和删除式 Clear 清理已记录的旧配套资产；Bake 排除本次 UUID。配套文件不是 Lightmap 绑定，因此不得忽略当前场景对它的其他引用。删除／移动均核对磁盘、UUID 和元数据，固定目标冲突不覆盖。显式不保存和保存失败不提前删旧产物。复用现有归属文件的可选 auxiliary 字段，读写保留旧格式兼容，损坏字段在修改场景前报错；不扫描项目、不按目录猜归属、不留成功历史副本。新增内部能力位约束新旧 Host 混用；公共 MCP 不扩展新入口。
-
-实现 `2b13cfce`：上述配套文件以独立 auxiliary UUID 记录，与 PNG 同批预检并移动；返回的 textureUrls 只含 PNG。Scene 在无纹理候选时仍执行 Host 清理以支持辅助资产失败重试，Clear 的资产计数包括辅助文件，绑定计数不变。内部能力位为 `lightmapAuxiliaryAssetsVersion:1`。原生输入文件可能引用临时纹理源，此批未承诺把全部纹理源附件发布成可脱离项目重放的输入包；不扩展为原生工程归档器。
-
-先 `tsc -b`／Scene 与 editor-extends 构建，再定点 6 套／144 项、扩展 32 套／535 项通过（`/tmp/pink-native-products-final-tests.log`）；定点 ESLint 无代码错误，保留已有配置告警。覆盖实际文件移动、固定冲突前置拒绝、部分移动失败、辅助字段损坏、回滚保留上轮、同场景其他引用保留和无纹理候选重试。
-
-隔离工程 `/tmp/pink-native-products.SjK8Ju` 由主 agent 准备新 Host 后交全局 ui_verifier 执行真实按钮，证据 `/tmp/codex-ui-verifier.10oRvd`：128 Bake 产生固定 3 PNG＋3 配套文件，256 Bake 替换为 2 PNG＋3 新 UUID 配套文件；无缺图，保存成功。Clear 后这 5 个当前资产及 meta 实际不存在，归属 textures／auxiliary 为空，绑定及 UV 清空，43 点 SH 哈希不变，一次 Undo／Redo 未恢复。主 agent 已复核磁盘／JSON／截图。空目录及目录 meta 保留；旧版无归属历史不扫描删除。未直接查询 Asset DB 旧 UUID 缓存，也未在本批重复关闭重开或注入异常；不把正常主链路扩展为所有边界已验收。既有告警及点击 Clear 时瞬时 Console 计数差异均保留原始证据。
-
-固定贴图发布的最小接入（实施前记录）：继续使用独立临时导入目录完成纹理加载和场景保存；保存确认、旧产物清理完成后，通过 Asset DB 保留 UUID 移动到默认 `db://assets/LightFX/output`，指定 `outputUrl` 时移动到 `<outputUrl>/output`。固定发布由原 Bake reservation 和实际 operation ID 校验，不接受任意外部 UUID。所有目标先检查冲突，逐项移动后核对 UUID、URL 和磁盘源／目标；不覆盖同名资产、不先复用旧 UUID。失败保留已保存的新结果位置，不删除新贴图。只用非递归空目录删除收敛已清空的 `bake-UUID`，其他文件存在时保留。`saveScene:false` 暂不固定发布，保护磁盘旧引用。本批不宣称 `lfx.in/out/log` 配套文件已经对齐。
-
-Lightmap 先按每次烘焙的 operation UUID 导入到独立暂存目录（以下为省略 `outputUrl` 时的模板），这不是成功后保留的历史版本：
-
-```text
-db://assets/<scene-name>/lightmap/bake-<operation-uuid>/
-```
-
-指定 `outputUrl` 时暂存到 `<outputUrl>/bake-<operation-uuid>/`，例如 `db://assets/烘焙结果 Room A`。选择目录必须已存在且真实路径位于当前项目 assets 内；不接受任意磁盘路径、路径穿越或指向 assets 外的符号链接。参数仅改变本次输出位置，不自动保存为场景设置。Scene 的 `queryCapabilities().outputDirectory === true` 来自实际 Host 的 `lightmapOutputDirectory` 支持位；旧 Host 不支持时明确报错，不忽略选择后写入默认目录。
-
-保存与旧图清理成功后，当前 PNG 保留 UUID 移动到 `db://assets/LightFX/output`；选择 `db://assets` 与省略参数相同，选择子目录则发布到 `<outputUrl>/output`。固定发布额外要求内部 Host 的 `lightmapPublicationVersion === 1`。更新 CLI 后若出现能力不支持错误，需要重启实际 Cocos Host；单独 Reload Window 可能仍连接旧 Host。
-
-典型文件包括：
-
-```text
-LFX_Mesh_0000.png
-LFX_Terrain_0000.png
-```
-
-- Mesh 与 Terrain 使用独立的类型和索引映射，避免两者均从索引 0 开始时串绑贴图。
-- 每次生成新 Asset UUID，不直接覆盖已发布像素。保存确认后精确删除旧产物，再把新图移动到固定 URL，不再供旧结果 Undo 使用；`saveScene:false` 的新结果留在独立暂存位置，不会改写或删除磁盘旧场景依赖的贴图。目标仍被占用时明确报错，不覆盖。
-- 旧版平铺目录中的 PNG／`.meta` 原样保留，不自动迁移、不复用其 UUID。调用方必须使用返回的 textureUrls 或真实绑定查询，不拼接固定文件路径。
-- 旧产物从场景归属记录及替换前实时绑定收集，不扫描目录猜测归属。成功保存的 Bake 和删除模式 Clear 会清理无引用候选；引用保留／失败项可以重试。旧版已解绑且从未记录归属的资产不自动猜测删除；已清空的 `bake-UUID` 目录只做非递归删除并刷新 Asset DB，含其他内容的目录保留。
-- 导入后将 `fixAlphaTransparencyArtifacts` 设置为 `false`，再加载 Texture2D 子资源并绑定。
-- 原生提交确认前的导入／加载失败尝试回滚本次新目录；提交确认后不再删除产物。应用失败恢复旧绑定，保存失败保留已录制结果，规则见“提交与保存失败”。旧版本目录不受影响。
-- 成功、失败、取消和超时进入 workspace 清理；回滚或 Asset DB 刷新失败时保留备份和互斥以便恢复，不能宣称所有错误都会完成清理。
+- 原生烘焙期间允许打开或重载场景；结果应用前校验启动时的 Scene 实例及编辑器会话代次。同 UUID 重载也视为新会话，旧任务拒绝应用，不保存新场景、不清理旧资产。
+- 结果应用、Undo 录制、保存和清理在原会话的生命周期队列内完成，打开、关闭、重载不会穿插其间。此保护不等同于锁住所有普通属性编辑；烘焙期间仍应避免修改输入几何和灯光。
+- 新产物先导入独立暂存目录：默认 `db://assets/<scene-name>/lightmap/bake-<operation-uuid>/`，指定父目录时为 `<outputUrl>/bake-<operation-uuid>/`。原生提交前失败或取消只回滚本轮产物。
+- 保存并清理旧产物成功后，PNG 保留 UUID 移动到 `<父目录>/scene-<完整场景UUID>/output/`。默认父目录为 `db://assets/LightFX`；`outputUrl: "db://assets"` 与省略相同。相同名称或相同自选父目录的不同场景也互相隔离。调用方必须使用返回的 `textureUrls`，不要拼路径。
+- 同一场景目录内包含 `output/LFX_Mesh_0000.png`、`output/LFX_Terrain_0000.png` 等 PNG，以及实际生成的 `tmp/lfx.in`、`output/lfx.out`、可选 `lfx.log`。配套文件不进入纹理预览列表；输入文件不承诺可脱离项目重放。
+- 新烘焙使用新 UUID，不覆盖同名资产。保存后精确清理旧产物，再发布新文件；冲突或部分移动失败保留已保存的新产物，不伪装成未修改场景。
+- `saveScene:false` 不固定发布、不删除旧资产、不隐式保存。保存失败也不清理旧产物。已确认提交的产物不再用原生 rollback 删除。
+- 归属记录在项目 `settings/lightfx-assets/<场景UUID>.json`，包含 textures 和 auxiliary UUID。旧平铺或自选目录中已记录的产物可以清理；旧版未记录且已解绑的文件不扫描、猜删。
+- 清理检查实时场景引用以及主资源和子资源的外部依赖，逐项确认源文件与 meta 删除。共享资源保留；当前重烘焙若有旧资源保留，仍报告清理未完成并保留已保存结果，不能当作未执行。
+- 已登记的资源在初始化完成、空闲的 Asset DB 中明确不存在时，移除失效归属记录，不计作本次物理删除。数据库未就绪、忙碌或查询抛错时保留记录供重试。
+- 文件移动遇到冲突不覆盖目标；失败时只恢复本次移走且内容未变化的 meta。若源/目标 meta 已被其他操作替换，明确报告安全恢复失败，保留现场，不覆盖别人的元数据。
+- 只非递归删除已清空的 `bake-UUID` 暂存目录；不递归删除输出父目录。损坏归属文件、恢复失败或宿主失联需要排查，不通过手工删记录来解除保护。
 
 ## Creator 互操作说明
 
@@ -405,73 +371,12 @@ Pink 的烘焙信息面板应使用 `scene-query-lightmap-bake-info`，以当前
 
 LightFX 当前可能输出 Creator 历史协议版本。解析器只接受已知兼容版本，并拒绝未知版本、截断数据、非法长度及非有限浮点数。
 
-## 错误与事务
+## main 合并兼容性与验证
 
-### 2026-09-12 重新推进共享引用保护与面板日志
-
-用户重新授权处理两项。修改前核对：清理只查询图片主 UUID，但资产依赖索引精确保存 Texture 子 UUID（如 `@6c48a`），导致其他保存场景的引用漏检。最小修复在 LightFX 删除入口同时检查主资源及其实际子资源的使用者，查询失败保留，不改通用依赖 API、不做项目 GC。Clear 与重烘焙共用该检查。
-
-面板日志目前直接追加原始 `lfx.log`（时间戳、版本、线程等），缺 Creator 的生成图片阶段及场景统计。计划由实际导出 world 计算对象／灯光／三角形统计，通过内部 Host 诊断传递；真实原生进度100%触发生成图片阶段，实际输出提供UV信息，原始日志文件照常保留，不将其诊断噪声混入产品面板。失败仍显示真实错误，探针日志不改。先类型检查／构建、自动测试，再在新隔离窗口由全局 ui_verifier 核验真实按钮、磁盘文件与另一个场景的有效贴图。
-
-实机补充依赖：共享引用保留正确，但原有重烘焙策略仍报告旧产物清理未完成，保存新结果而不固定发布；本次不改变该策略。PinK失败终态仅保留最后轮询的进度，漏掉原生结束日志。最小接入为Host诊断附带内部operationId，PinK终态查询仅接收与启动前不同的本轮诊断，避免GI参数前置拒绝时误取上一轮日志；不新增公开任务或重试Bake。
-
-完成：`b21aa0f3` 修复主图／子资源引用保护，`dba06b7c` 实现阶段统计日志和内部任务标识。先 `tsc -b`／Scene bundle，再33套件／565项及定点ESLint通过。PinK同步终态诊断读取，客户端类型检查／构建后15项桥接测试通过。原始日志文件保留详细诊断，产品面板不再读取整份原生日志；以下旧批次关于读取原生日志的记录仅为历史。
-
-全局 ui_verifier 实机证据 `/tmp/codex-ui-verifier.nd2IMr`、`/tmp/codex-ui-verifier.CctL3q`，均父代理准备隔离配置／临时工程后交控制并独立核对：共享场景Clear后文件hash保持，真正打开另一场景无粉红／missing，纹理和UV有效；正常GI25／1024生成到固定目录，完整进度及2对象／1灯／4108三角形统计与Creator同场景证据一致。GI65535前置拒绝不串旧日志、不改旧图；正常Clear实际删除本轮PNG/meta和三个辅助文件、绑定UV清空，43点完整SH不变。第二窗口单次重烘焙仍按既有策略因2个共享引用保留而报告清理未完成，但此次失败面板完整显示100%、统计、UV、End及失败；新结果有效保存、共享文件hash保持。保留Terrain UV扩展行，不宣称日志全文完全相同；没有扩大处理导入元数据或既有告警。
-
-### Lightmap GI Samples 整数溢出防护（2026-09-12）
-
-已在隔离 PinK 实测 `giSamples=65535` 触发原生 `GenerateIntegrationSamples` 的 vector length_error／SIGABRT。随包 LightFX 对 Lightmap 采样数组长度以有符号32位计算 `giSamples² × 64 × 5`，故最大不溢出整数为2590（不是推荐值，也不保证大值在所有设备上的内存和耗时）。修复仅在公开参数schema、Scene直接入口及输入编码处前置拒绝非法值，不启动原生计算、不修改上一份结果、不静默clamp；Light Probe采样参数保持原契约。用户已决定暂不处理日志对齐，引用保护的隔离失败与用户手测不一致另行保留，不混入本次修复。
-
-产品提交 `21e3b27d`。先通过 `tsc -b` 与 Scene bundle 构建，再通过32套件／556项回归测试及定向 ESLint。全局 ui_verifier 在新夹具 `/tmp/pink-gi-overflow.BNB4DT` 实际执行 GI25 生成 → GI65535 明确拒绝 → 改回25生成成功；拒绝前后场景、PNG、meta 的 hash 及绑定／UV不变，全量43点SH hash一致，两次正常生成均 `dirty:false`、无缺图。Host仅有两次正常任务的 begin/run，65535没有启动原生任务。原始截图、运行时及文件证据 `/tmp/codex-ui-verifier.Uszw6E`。未实机运行2590，不将算术上限当作性能验收；既有告警仍存在。
-
-常见错误包括：
-
-- 当前没有打开已保存场景。
-- 探针不足、未生成或没有可烘焙 Mesh/Terrain。
-- 场景依赖资产缺失。
-- LightFX 缺失、启动失败、连接失败、超时或异常退出。
-- 输出协议不兼容或结果损坏。
-- Asset DB 导入、Texture2D 加载或场景保存失败。
-- 已有另一个 LightFX 任务运行。
-- 当前可见场景尚未加载完成，或同时存在多个可见的场景渲染器。
-
-Bake 和非删除模式 Clear 的结果作为单次 Undo 记录。Lightmap 明确录制参与结果修改的 MeshRenderer／Terrain 组件（同一 Terrain 多 block 去重）及 Scene 标记，不能只录制不递归的 Scene 根节点；旧引擎缺类型的空纹理引用也会保留在快照中。成功自动保存后以该记录作为保存点；saveScene:false 不隐式保存场景。`deleteAssets:true` 是例外：保存成功后只取消本次 Clear 录制，不清空整个 Scene Undo／Redo 历史。恢复快照时使 Clear 前的所有烘焙绑定、UV 和标志失效，而节点移动、其他组件参数及探针系数仍按原历史恢复；即使旧纹理因其他引用保留，也不通过本场景旧快照恢复其烘焙效果。Clear 后新生成的烘焙记录仍可撤销。没有删除候选或全部资产保留时同样推进结果代次而保留普通历史。失败必须区分原生提交前、结果应用中和结果录制后保存阶段，不能对所有错误统一恢复绑定或删除资产，详见“提交与保存失败”。
-
-成功 Lightmap Bake 使先前结果历史失效，保存确认后再清理旧像素；本次结果 Redo、普通属性和探针 SH 历史保留。非删除 Clear 仍可撤销恢复未失效的当前结果。`deleteAssets:true` 合并场景归属记录与实际绑定中可验证的 LightFX 根贴图 UUID，不删除整个目录；实时场景或其他磁盘资产仍引用的贴图保留并报告，删除不可撤销。此前已丢失的像素无法靠此修复找回。
-
-## 验证范围
-
-固定 PNG 发布依赖补充：Asset DB 的普通非覆盖移动原先先移 `.meta`，再移源文件，失败后仍吞错并刷新。仅对非覆盖移动补充错误传播；普通同级移动若源文件尚在、目标文件尚未生成，则无覆盖地回放已移动的元数据，阻止后续刷新生成不同 UUID。覆盖模式不在本次修改范围。该最小共用依赖必须用真实文件与故障注入验证，不能只靠 `moveAsset()` resolve 判成功。
-
-默认入口补充：PinK 目录选择器总会传入 `outputUrl`，默认选中 `db://assets` 与省略参数同样发布到 `db://assets/LightFX/output`；选择 assets 内子目录才使用 `<outputUrl>/output`。这保证直接接受目录选择器默认值也得到 Creator 风格目录，不要求 UI 绕过既有选择入口。
-
-本轮首次 UI 验证发现 PinK 桥接仍硬编码 `saveScene:false`，实际跳过以上发布和旧图清理，虽然面板提示生成成功。该次结果不作为通过证据。PinK 面板入口改为显式保存，并在生成前告知保存／替换语义；CLI 非 UI 调用显式传 `saveScene:false` 仍保持不保存、不删除磁盘旧依赖的安全契约。证据 `/tmp/codex-ui-verifier.aG5Cnt`。
-
-固定 PNG 发布 `31598b0a`、非覆盖移动保护 `60f9a975`：先 `tsc -b` 和 Scene／editor-extends 构建，再 **32 套／524 项**通过（`/tmp/pink-fixed-output-final2-tests.log`）；定点 ESLint 无代码错误，保留已有 unused catch 和配置警告。PinK `17a0a25b7cb` 接通面板保存式 Bake，客户端类型检查／构建和扩展构建后，15 项 Electron 桥接测试、69 项扩展宿主测试及 1 套编译面板测试通过。实机结果另行记录，不以这些自动测试代替。
-
-本轮最终隔离实机 `/tmp/codex-ui-verifier.4fxdtg`：真实面板 128→256 两次 Bake 均发布到 `LightFX/output`，由原生实际打包产生 3→2 张 PNG；旧 PNG／meta 和已空暂存版本目录实际删除、保存场景和运行时 UUID 一致。真实 Clear 后当前 PNG／meta 删除、Mesh 和两个 Terrain block 纹理／UV 清空，节点 X=1 不回退；Scene Undo 节点／最近一条 Bake、Redo Bake／节点不恢复旧图。真实保存、关闭 Scene 标签并从 Assets 重开后仍无绑定／缺图，X=1、dirty=false，43 点完整 SH 哈希不变。主 agent 准备隔离工程与新 Host 后交全局 `ui_verifier` 控制，并独立核对原始数据。旧版未记录归属且已解绑文件未猜删；没有验证所有更早历史、异常／取消／外部引用、禁用 Terrain 或保留历史软重载。原生配套文件固定发布及 Creator 同场景日志／预览对照仍待完成，不将本主链路称为全量产品对齐。已有 dump null／argv.json 告警不宣称消除。
-
-前一批 `02f099e7`：成功保存后的旧产物精确清理和旧结果历史失效已接通。先 `tsc -b`／Scene 与 editor-extends 构建，后定点 5 套／120 项、扩展 29 套／472 项通过（`/tmp/pink-rebake-cleanup-final-tests.log`）；定点 ESLint 无代码错误，已有配置提示保留。新增测试核对真实临时文件、Host 归属、保存失败／结果不明、当前有效 Redo 和普通历史，不等同实机。以下独立版本完整 Undo 的旧实机记录只作为历史证据，不能作为最新策略验收。
-
-2026-09-11 产品对齐补充：Lightmap 日志保留真实 Log／Progress 顺序，原生结束后在临时目录清理前读取 `lfx.log`，补充真实 Mesh／Terrain 输出索引与 UV。日志最多 128 条、每条 2048 字符，原生日志文件读取上限 256 KiB，超限明确提示，缺失日志不伪造成几何统计，也不让烘焙失败。探针日志行为保持原状。此处日志修复不代表原生配套文件已固定发布，也不代替资源删除实机证据。
-
-当前实现已经验证：
-
-- Light Probe Bake/Clear，包含 SH 数据保存和重新加载。
-- Mesh Lightmap Bake/Clear。
-- Terrain Lightmap Bake/Clear。
-- Mesh 与 Terrain 混合场景的独立贴图绑定。
-- 重复烘焙的独立版本目录／UUID、旧像素保留及旧平铺资产兼容。
-- Pink 当前可见场景中的即时结果应用、清理和取消。
-- TypeScript 编译、ESLint、API、协议和资产事务测试。
-
-新增材质类型、灯光类型、LightFX 版本或目标平台时，应补充对应真实场景回归。
-
-2026-09-10 结果历史专项：macOS arm64／隔离 PinK，真实带第二套 UV 的 Mesh 烘焙 128px 标准／高精度贴图；Bake、保留资产的 Clear、独立 Undo／Redo、渲染模型 UV、显式／自动保存、真正关闭重开通过，旁侧 43 点探针全部 SH 保持。Terrain 多 block 录制目标及失败恢复由服务测试覆盖，未在本次专项重做 Terrain 原生场景实测；也没有验收旧 PNG 像素版本撤销、资产删除撤销或最终画面质量。
-
-随后版本隔离专项补验：三次真实 Mesh Bake 使用不同 URL／UUID，标准／高精度 PNG 的 SHA256 随 Undo／Redo 精确对应旧／新结果，关闭重开保留；未保存新 Bake 时磁盘 Scene 仍引用未变更的旧 PNG。旧平铺资产保持。真实文件事务测试覆盖同名场景多次输出互不覆盖、本次回滚／导入失败不影响旧版本；取消故障不作为新增实机验收，资产删除与历史 GC 仍待专门的归属协议。
-
-Terrain 专项补验：快照恢复数组后，对已有 TerrainBlock 重新绑定对应 lightmap info（无元素时解绑）并让材质失效，避免 Terrain.onRestore 的 valid 快路径保留旧引用。实际单块和持久化 `.terrain` 双块＋Mesh 混合场景，Bake／Clear、Undo／Redo、自动／显式保存、关闭重开通过；每个 block 的实际 texture／UV 与序列化结果一致，43 点探针 SH 不变。`bake().terrainCount` 当前是原生输出 block 条目数，`queryBakeInfo().terrainCount` 是拥有绑定的 Terrain 组件数，两者不应直接比较。地形尺寸／高度保存在 `.terrain` 资产，夹具通过 Terrain.saveManage／saveAssetDialog 正式写入，不靠修改内存后只保存 Scene 冒充持久化。
-
-编辑与诊断专项补验（同为 macOS arm64／隔离 PinK）：两组 16／27 点切组全选、真实复制／删除按钮、空白／球起手及 Shift 追加框选通过；复制→Undo→改父节点保持组件与全局表一致的 43 点，Undo 恢复原 SH、Redo 恢复新位置与失效状态。自身旋转／非均匀缩放的探针球与采样位置一致，祖先变换同步和 Undo 通过。真实 Probe Bake 显示 `Build lighting 100%`；Mesh＋双块 Terrain Bake 观察到 `Build lighting 25%` 后取消，前后结果、历史以及 83 个资产／元数据文件哈希一致。另一场景不接收任务日志。上述不包含持久恢复、安全资产回收、跨磁盘失败原子性或其他 OS 的验收。
+- `Scene.Gizmo.deleteSelectedLightProbes()` 和 `duplicateSelectedLightProbes()` 返回 `Promise<number>`，调用方须 `await` 后读取数量。
+- 地形保存异常会阻止场景保存，批量成功项不掩盖失败项；这修正了之前吞错的行为。
+- 普通无生成探针的场景跳过新增子树扫描。探针同步、结果历史保护仍集中于专用辅助模块，公共入口保留调用。
+- 烘焙目录结构已按场景 UUID 隔离；更新 CLI 后重启实际 Node Host 和 Scene runtime，不混用旧产物。
+- 自动回归覆盖场景切换/同 UUID 重载、生命周期队列内保存、双场景同目录重烘焙/清理、旧目录迁移、已删配套文件重试和 meta 冲突恢复。
+- Pink 手动验证：A 场景开始烘焙后打开/重载场景，确认旧任务拒绝写回；A/B 使用相同输出父目录分别 Bake，重烘焙并清理 A，确认 B 不变；删除生成的 log 后重试；最后验证普通节点编辑、Undo/Redo、Terrain 保存和关闭重开。
+- 自动测试不替代当前版本的原生烘焙与画面验收。历史联调证据见 [历史验证记录](history/lightfx-bake-validation.md)，不作为当前版本全量通过的证明。

@@ -3,7 +3,8 @@ import { Vec3, type Node, type Scene } from 'cc';
 /** Finds the scene whose registered probe positions can be affected by this subtree. */
 export function getLightProbeTransformScene(node: Node): Scene | undefined {
     const scene = node.scene;
-    if (!node.isValid || !scene?.globals?.lightProbeInfo) return;
+    // Ordinary scenes do not need a subtree scan on every transform/Undo capture.
+    if (!node.isValid || !scene?.globals?.lightProbeInfo?.data?.probes?.length) return;
     const groups = node.getComponentsInChildren('cc.LightProbeGroup');
     return groups.some(group => group.isValid && group.enabledInHierarchy) ? scene : undefined;
 }

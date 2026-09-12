@@ -21,7 +21,12 @@ const mockQueryTextureInfo = jest.fn(async (): Promise<{ textures: []; missingTe
 jest.mock('cc', () => ({ director: { getScene: mockGetScene }, MeshRenderer: mockMeshRenderer, Terrain: mockTerrain }));
 jest.mock('../scene-process/service/core', () => ({
     BaseService: class { broadcast() {} }, register: () => () => undefined,
-    Service: { Undo: mockUndo, Editor: { save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData }, Engine: { repaintInEditMode: async () => undefined } },
+    Service: { Undo: mockUndo, Editor: {
+        save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData,
+        getEditorSession: () => ({ uuid: mockGetScene()?.uuid, generation: 0 }),
+        isCurrentEditorSession: (session: any) => session.uuid === mockGetScene()?.uuid,
+        runForSession: async (_session: any, action: any) => action(mockSave),
+    }, Engine: { repaintInEditMode: async () => undefined } },
 }));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets, publishLightmapAssets: mockPublishLightmapAssets } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {

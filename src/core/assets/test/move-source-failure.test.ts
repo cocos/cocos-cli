@@ -46,4 +46,26 @@ describe('non-overwriting asset source move failure', () => {
         expect(await pathExists(source)).toBe(false);
         expect(await pathExists(`${source}.meta`)).toBe(false);
     });
+    it('restores the source metadata even when a competing target PNG appears', async () => {
+        setFileSystemProvider({ rename: async (from, to, options) => {
+            if (from === source) await outputFile(target, 'unrelated pixels');
+            await move(from, to, { overwrite: !!options?.overwrite });
+        } });
+        await expect(moveAssetSource(source, target, { overwrite: false })).rejects.toThrow();
+        expect(await readFile(target, 'utf8')).toBe('unrelated pixels');
+        expect(await readFile(`${source}.meta`, 'utf8')).toBe('{"uuid":"original"}');
+        expect(await pathExists(`${target}.meta`)).toBe(false);
+    });
+    it.each(['source', 'target'])('never overwrites a replacement %s metadata during recovery', async location => {
+        setFileSystemProvider({ rename: async (from, to, options) => {
+            if (from === source) {
+                await outputFile(`${location === 'source' ? source : target}.meta`, 'unrelated meta');
+                throw new Error('PNG move denied');
+            }
+            await move(from, to, { overwrite: !!options?.overwrite });
+        } });
+        await expect(moveAssetSource(source, target, { overwrite: false })).rejects.toThrow('could not be restored safely');
+        expect(await readFile(`${location === 'source' ? source : target}.meta`, 'utf8')).toBe('unrelated meta');
+        expect(await readFile(source, 'utf8')).toBe('new pixels');
+    });
 });

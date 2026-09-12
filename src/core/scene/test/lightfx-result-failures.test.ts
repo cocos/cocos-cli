@@ -16,7 +16,12 @@ jest.mock('cc', () => ({ director: { getScene: mockGetScene }, MeshRenderer: moc
     Vec3: MockVec3, SH: { getBasisCount: () => 9 } }));
 jest.mock('../scene-process/service/core', () => ({
     BaseService: class { broadcast() {} }, register: () => () => undefined,
-    Service: { Undo: mockUndo, Editor: { save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData }, Engine: { repaintInEditMode: mockRepaint } },
+    Service: { Undo: mockUndo, Editor: {
+        save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData,
+        getEditorSession: () => ({ uuid: mockGetScene()?.uuid, generation: 0 }),
+        isCurrentEditorSession: (session: any) => session.uuid === mockGetScene()?.uuid,
+        runForSession: async (_session: any, action: any) => action(mockSave),
+    }, Engine: { repaintInEditMode: mockRepaint } },
 }));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: {
     bake: mockBake, commit: mockCommit, rollback: mockRollback, removeLightmapAssets: mockRemoveLightmapAssets,
@@ -107,6 +112,23 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
         const f = fixture(target);
         await f.bake();
         expect({ events: f.events, disk: f.disk(), dirty: f.manager.isDirty() }).toEqual({ events: ['commit', 'record', 'save'], disk: f.read(), dirty: false });
+    });
+    it.each([false, true])('rejects a replaced scene before committing, saving or deleting (same UUID=%s)', sameUuid => {
+        const f = fixture(target);
+        const source = mockGetScene();
+        const original = mockBake.getMockImplementation()!;
+        mockBake.mockImplementationOnce(async (...args) => {
+            const output = await original(...args);
+            mockGetScene.mockReturnValue({ ...source, uuid: sameUuid ? source.uuid : 'other-scene' });
+            return output;
+        });
+        return expect(f.bake()).rejects.toThrow('source scene changed').then(() => {
+            expect(mockSave).not.toHaveBeenCalled();
+            expect(mockCommit).not.toHaveBeenCalled();
+            expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+            expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+            expect(f.read()).toEqual(f.old);
+        });
     });
 
     it.each([false, true])('keeps ordinary edits and only current Lightmap results in edit → rebake → clear history (save=%s)', async saveScene => {

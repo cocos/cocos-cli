@@ -36,7 +36,7 @@ import type {
     ILightFXDiagnostics,
     IPublishLightmapAssetsOptions,
 } from '../common/lightfx-host';
-import { assetManager } from '../../assets';
+import { assetDBManager, assetManager } from '../../assets';
 import type { IAssetInfo } from '../../assets/@types/public';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
 import { LightmapAssetRecord } from './lightfx/asset-record';
@@ -263,6 +263,9 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         const parentDir = join(assetRoot, parentUrl.slice('db://assets'.length));
         const targetDir = join(parentDir, version);
         const targetUrl = `${parentUrl}/${version}`;
+        const publicationBase = options.outputUrl && options.outputUrl !== 'db://assets' ? options.outputUrl : 'db://assets/LightFX';
+        const publicationIdentity = options.sceneUuid
+            ? `scene-${Utils.UUID.decompressUUID(options.sceneUuid).split('@', 1)[0]}` : version;
         const operation: LightFXHostOperation = {
             sceneStats: options.sceneStats ? { ...options.sceneStats } : undefined,
             id: operationId,
@@ -274,7 +277,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             outputDir,
             targetDir,
             targetUrl,
-            publicationRootUrl: options.outputUrl && options.outputUrl !== 'db://assets' ? options.outputUrl : 'db://assets/LightFX',
+            publicationRootUrl: `${publicationBase}/${publicationIdentity}`,
             refreshUrl: options.outputUrl ?? `db://assets/${options.sceneName}`,
             inputBytes: 0,
             inputWritePromise: Promise.resolve(),
@@ -569,12 +572,20 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             // delete can be retried after the saved scene no longer has any Lightmap binding.
             if (known.length) await record.add(known);
             const result: IRemoveLightmapAssetsResult = { deletedTextureUuids: [], retainedTextureUuids: [], failures: [] };
+            const absent: string[] = [];
             if (auxiliary.size) {
                 result.deletedAuxiliaryAssetUuids = [];
                 result.retainedAuxiliaryAssetUuids = [];
             }
             for (const uuid of candidates) {
                 const info = infos.get(uuid);
+                // Only an authoritative miss in an initialized, idle Asset DB invalidates
+                // membership. Exceptions, startup and refresh gaps must retain the record.
+                if (!info && (recorded.has(uuid) || auxiliary.has(uuid)) && assetDBManager?.ready
+                    && !assetDBManager.isBusy() && assetManager.queryAssetInfo(uuid) === null) {
+                    absent.push(uuid);
+                    continue;
+                }
                 if (!info || !managed(uuid)) {
                     result.failures.push({ uuid, reason: 'Asset is not a managed LightFX texture.' });
                     continue;
@@ -623,7 +634,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                     result.failures.push({ uuid, reason: error instanceof Error ? error.message : String(error) });
                 }
             }
-            const deleted = [...result.deletedTextureUuids, ...(result.deletedAuxiliaryAssetUuids ?? [])];
+            const deleted = [...result.deletedTextureUuids, ...(result.deletedAuxiliaryAssetUuids ?? []), ...absent];
             if (deleted.length > 0) {
                 await record.forget(deleted);
             }

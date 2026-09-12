@@ -33,6 +33,15 @@ function fixture() {
 }
 
 describe('Light probe position synchronization', () => {
+    it.each([null, { probes: [] }])('does not scan ordinary scene subtrees without generated probes (%s)', data => {
+        const { node, scene, info } = fixture();
+        (scene.globals.lightProbeInfo as any).data = data;
+        const scan = jest.spyOn(node, 'getComponentsInChildren');
+        synchronizeLightProbeTransform(node);
+        expect(withLightProbeTransformScenes([node])).toEqual([node]);
+        expect(scan).not.toHaveBeenCalled();
+        expect(info.update).not.toHaveBeenCalled();
+    });
     it('retains moved and stationary groups coefficients when translating a group', () => {
         const { node, nextPositions, info, events } = fixture();
         // First two samples belong to A, last two to the stationary group B.

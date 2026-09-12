@@ -14,6 +14,7 @@ import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets'
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
 import { validateLightmapGISamples } from '../../common/lightfx-limits';
+import { captureLightFXScene } from './baking/lightfx/scene-context';
 
 interface LightmapBinding {
     target: any;
@@ -47,6 +48,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
 
+        const context = captureLightFXScene(scene);
         const sceneUrl = await this.querySceneUrl();
         // Preflight before native publication or scene mutation, not after a successful save.
         const capabilities = await lightFXBakeHost.queryCapabilities();
@@ -55,6 +57,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             throw new Error('The LightFX host does not support current Lightmap publication and cleanup. Restart the Cocos host after updating the CLI; reloading only the window may keep the old host.');
         }
         const owned = (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? [];
+        context.assertCurrent();
         const settings = createDefaultLightFXSettings('lightmap');
         Object.assign(settings, {
             msaa: options.msaa ?? settings.msaa,
@@ -83,65 +86,69 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
 
             const targetUrl = `db://assets/${scene.name}/lightmap`;
             const textures = await this.loadOutputTextures(output, targetUrl, timeoutMs);
-            // No scene/history/disk reference may precede the host's decision to retain assets.
-            // An unconfirmed commit can leave an orphan version, never a dangling scene binding.
-            await lightFXCoordinator.commit(output.operationId);
-            nativeCommitted = true;
-            const previousBindings = this.snapshotSceneBindings(scene);
-            const previousTextureUuids = [...new Set([...owned, ...previousBindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)]
-                .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0)
-                .map(uuid => this.rootAssetUuid(uuid)))];
-            const affectedBindings = [...previousBindings, ...this.snapshotBindings(output)];
-            const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
-            const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
-            // Scene recordings do not recursively capture child components.
-            // Keep the flags last, after restoring each affected result binding.
-            const targets = [...new Set([...output.models, ...output.terrains, ...previousBindings.map(binding => binding.target)]
-                .map(component => component.uuid)), scene.uuid];
-            const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
-            const replacement = deletedLightmapAssets.beginReplacement(scene);
-            try {
-                // A successful bake replaces the complete result, including disabled objects
-                // that were excluded from this export but still have older bindings.
-                this.clearBindings(previousBindings);
-                this.applyBakeResult(output, textures);
-                (scene.globals as any).bakedWithHighpLightmap = settings.highp;
-                (scene.globals as any).bakedWithStationaryMainLight = output.stationaryMainLight;
-                await Service.Engine.repaintInEditMode();
-                await finishSavedLightFXRecording(Service.Undo, undo,
-                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
-                replacement.commit();
-            } catch (error) {
-                if (error instanceof LightFXResultRetainedError) throw error;
-                this.restoreBindings(affectedBindings);
-                (scene.globals as any).bakedWithHighpLightmap = previousHighp;
-                (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
-                Service.Undo.cancelRecording(undo);
-                throw error;
-            } finally {
-                replacement.cancel();
-            }
-
-            // Never put deletion in the apply rollback scope. The scene may already be on disk.
-            // Explicitly unsaved bakes retain pixels still needed by the saved scene, not for Undo.
-            if (options.saveScene !== false) {
-                await this.cleanupPreviousBake(scene, previousTextureUuids, textures);
+            const completed = output;
+            return await context.run(async save => {
+                const output = completed;
+                // No scene/history/disk reference may precede the host's decision to retain assets.
+                // An unconfirmed commit can leave an orphan version, never a dangling scene binding.
+                await lightFXCoordinator.commit(output.operationId);
+                nativeCommitted = true;
+                const previousBindings = this.snapshotSceneBindings(scene);
+                const previousTextureUuids = [...new Set([...owned, ...previousBindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)]
+                    .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0)
+                    .map(uuid => this.rootAssetUuid(uuid)))];
+                const affectedBindings = [...previousBindings, ...this.snapshotBindings(output)];
+                const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
+                const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
+                // Scene recordings do not recursively capture child components.
+                // Keep the flags last, after restoring each affected result binding.
+                const targets = [...new Set([...output.models, ...output.terrains, ...previousBindings.map(binding => binding.target)]
+                    .map(component => component.uuid)), scene.uuid];
+                const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
+                const replacement = deletedLightmapAssets.beginReplacement(scene);
                 try {
-                    output.textureUrls = (await lightFXCoordinator.publishLightmapAssets(output.operationId)).textureUrls;
+                    // A successful bake replaces the complete result, including disabled objects
+                    // that were excluded from this export but still have older bindings.
+                    this.clearBindings(previousBindings);
+                    this.applyBakeResult(output, textures);
+                    (scene.globals as any).bakedWithHighpLightmap = settings.highp;
+                    (scene.globals as any).bakedWithStationaryMainLight = output.stationaryMainLight;
+                    await Service.Engine.repaintInEditMode();
+                    await finishSavedLightFXRecording(Service.Undo, undo,
+                        options.saveScene !== false ? save : undefined);
+                    replacement.commit();
                 } catch (error) {
-                    throw new Error(`New Lightmap result is saved and retained; fixed output publication was not completed. ${this.errorMessage(error)}`);
+                    if (error instanceof LightFXResultRetainedError) throw error;
+                    this.restoreBindings(affectedBindings);
+                    (scene.globals as any).bakedWithHighpLightmap = previousHighp;
+                    (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
+                    Service.Undo.cancelRecording(undo);
+                    throw error;
+                } finally {
+                    replacement.cancel();
                 }
-            }
 
-            this.broadcast('lightfx:bake-end', 'lightmap');
-            return {
-                sceneUrl,
-                textureUrls: output.textureUrls,
-                meshCount: output.result.meshes.length,
-                terrainCount: output.result.terrains.length,
-                durationMs: Date.now() - started,
-                diagnostics: await lightFXCoordinator.queryDiagnostics?.('lightmap'),
-            };
+                // Never put deletion in the apply rollback scope. The scene may already be on disk.
+                // Explicitly unsaved bakes retain pixels still needed by the saved scene, not for Undo.
+                if (options.saveScene !== false) {
+                    await this.cleanupPreviousBake(scene, previousTextureUuids, textures);
+                    try {
+                        output.textureUrls = (await lightFXCoordinator.publishLightmapAssets(output.operationId)).textureUrls;
+                    } catch (error) {
+                        throw new Error(`New Lightmap result is saved and retained; fixed output publication was not completed. ${this.errorMessage(error)}`);
+                    }
+                }
+
+                this.broadcast('lightfx:bake-end', 'lightmap');
+                return {
+                    sceneUrl,
+                    textureUrls: output.textureUrls,
+                    meshCount: output.result.meshes.length,
+                    terrainCount: output.result.terrains.length,
+                    durationMs: Date.now() - started,
+                    diagnostics: await lightFXCoordinator.queryDiagnostics?.('lightmap'),
+                };
+            });
         } catch (error) {
             if (output && !nativeCommitted) await lightFXCoordinator.rollback(output.operationId).catch((rollbackError) => {
                 console.error('[LightFX] Failed to roll back lightmap assets:', rollbackError);
@@ -218,78 +225,80 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     private async clearBakeExclusive(options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<ILightmapClearResult> {
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
-        if (options.deleteAssets === true && options.saveScene === false) {
-            throw new Error('deleteAssets requires saveScene so the saved scene cannot retain deleted lightmap references.');
-        }
-        if (options.deleteAssets === true) {
-            const capabilities = await lightFXBakeHost.queryCapabilities();
-            if (capabilities?.lightmapAssetCleanupVersion !== 1 || capabilities.lightmapAuxiliaryAssetsVersion !== 1) {
-                throw new Error('The LightFX host does not support exact Lightmap asset cleanup. Restart the Cocos host after updating the CLI.');
+        return captureLightFXScene(scene).run(async save => {
+            if (options.deleteAssets === true && options.saveScene === false) {
+                throw new Error('deleteAssets requires saveScene so the saved scene cannot retain deleted lightmap references.');
             }
-        }
-
-        // Query before recording/clearing so a damaged ownership record cannot partially Clear.
-        // Older hosts ignore sceneUuid and omit the optional list, retaining exact-bound cleanup.
-        const owned = options.deleteAssets === true
-            ? (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? []
-            : [];
-        const bindings = this.snapshotSceneBindings(scene);
-        const textureUuids = [...new Set([...owned, ...bindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)]
-            .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0)
-            .map(uuid => this.rootAssetUuid(uuid)))];
-        const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
-        const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
-        const targets = [...new Set(bindings.map(binding => binding.target.uuid as string)), scene.uuid];
-        const undo = Service.Undo.beginRecording(targets, { label: 'Clear lightmap' });
-        let retainedSceneTextureUuids = new Set<string>();
-        try {
-            this.clearBindings(bindings);
-            (scene.globals as any).bakedWithHighpLightmap = false;
-            (scene.globals as any).bakedWithStationaryMainLight = false;
-            await Service.Engine.repaintInEditMode();
             if (options.deleteAssets === true) {
-                retainedSceneTextureUuids = await this.queryRemainingSceneTextureUuids(textureUuids);
-                try {
-                    await Service.Editor.save({});
-                } catch (error) {
-                    try {
-                        await Service.Undo.endRecording(undo);
-                    } catch (recordingError) {
-                        throw new LightFXResultRetainedError('recording', recordingError);
-                    }
-                    throw new LightFXResultRetainedError('save', error);
+                const capabilities = await lightFXBakeHost.queryCapabilities();
+                if (capabilities?.lightmapAssetCleanupVersion !== 1 || capabilities.lightmapAuxiliaryAssetsVersion !== 1) {
+                    throw new Error('The LightFX host does not support exact Lightmap asset cleanup. Restart the Cocos host after updating the CLI.');
                 }
-            } else {
-                await finishSavedLightFXRecording(Service.Undo, undo,
-                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
             }
-        } catch (error) {
-            if (error instanceof LightFXResultRetainedError) throw error;
-            Service.Undo.cancelRecording(undo);
-            this.restoreBindings(bindings);
-            (scene.globals as any).bakedWithHighpLightmap = previousHighp;
-            (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
-            await Service.Engine.repaintInEditMode();
-            throw error;
-        }
 
-        if (options.deleteAssets === true) {
-            // Keep earlier edits, but invalidate all pre-Clear baked results. This stays outside
-            // rollback: a notification failure must not restore only the already-saved memory state.
-            deletedLightmapAssets.clearResults(scene);
-            Service.Undo.cancelRecording(undo);
-            const deletableTextureUuids = textureUuids.filter(uuid => !retainedSceneTextureUuids.has(uuid));
-            const finishDeletion = deletedLightmapAssets.begin(scene, deletableTextureUuids);
-            const result = await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletableTextureUuids);
-            finishDeletion(result.deletedTextureUuids);
-            return {
-                clearedCount: bindings.length,
-                deletedAssetCount: result.deletedTextureUuids.length + (result.deletedAuxiliaryAssetUuids?.length ?? 0),
-                retainedAssetCount: retainedSceneTextureUuids.size + result.retainedTextureUuids.length + (result.retainedAuxiliaryAssetUuids?.length ?? 0),
-                failedAssetCount: result.failures.length,
-            };
-        }
-        return { clearedCount: bindings.length, deletedAssetCount: 0, retainedAssetCount: 0, failedAssetCount: 0 };
+            // Query before recording/clearing so a damaged ownership record cannot partially Clear.
+            // Older hosts ignore sceneUuid and omit the optional list, retaining exact-bound cleanup.
+            const owned = options.deleteAssets === true
+                ? (await lightFXBakeHost.queryLightmapTextureInfo({ uuids: [], sceneUuid: scene.uuid })).ownedTextureUuids ?? []
+                : [];
+            const bindings = this.snapshotSceneBindings(scene);
+            const textureUuids = [...new Set([...owned, ...bindings.map(binding => binding.texture?.uuid ?? (binding.texture as any)?._uuid)]
+                .filter((uuid): uuid is string => typeof uuid === 'string' && uuid.length > 0)
+                .map(uuid => this.rootAssetUuid(uuid)))];
+            const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
+            const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
+            const targets = [...new Set(bindings.map(binding => binding.target.uuid as string)), scene.uuid];
+            const undo = Service.Undo.beginRecording(targets, { label: 'Clear lightmap' });
+            let retainedSceneTextureUuids = new Set<string>();
+            try {
+                this.clearBindings(bindings);
+                (scene.globals as any).bakedWithHighpLightmap = false;
+                (scene.globals as any).bakedWithStationaryMainLight = false;
+                await Service.Engine.repaintInEditMode();
+                if (options.deleteAssets === true) {
+                    retainedSceneTextureUuids = await this.queryRemainingSceneTextureUuids(textureUuids);
+                    try {
+                        await save();
+                    } catch (error) {
+                        try {
+                            await Service.Undo.endRecording(undo);
+                        } catch (recordingError) {
+                            throw new LightFXResultRetainedError('recording', recordingError);
+                        }
+                        throw new LightFXResultRetainedError('save', error);
+                    }
+                } else {
+                    await finishSavedLightFXRecording(Service.Undo, undo,
+                        options.saveScene !== false ? save : undefined);
+                }
+            } catch (error) {
+                if (error instanceof LightFXResultRetainedError) throw error;
+                Service.Undo.cancelRecording(undo);
+                this.restoreBindings(bindings);
+                (scene.globals as any).bakedWithHighpLightmap = previousHighp;
+                (scene.globals as any).bakedWithStationaryMainLight = previousStationary;
+                await Service.Engine.repaintInEditMode();
+                throw error;
+            }
+
+            if (options.deleteAssets === true) {
+                // Keep earlier edits, but invalidate all pre-Clear baked results. This stays outside
+                // rollback: a notification failure must not restore only the already-saved memory state.
+                deletedLightmapAssets.clearResults(scene);
+                Service.Undo.cancelRecording(undo);
+                const deletableTextureUuids = textureUuids.filter(uuid => !retainedSceneTextureUuids.has(uuid));
+                const finishDeletion = deletedLightmapAssets.begin(scene, deletableTextureUuids);
+                const result = await lightFXCoordinator.removeLightmapAssets(scene.uuid, deletableTextureUuids);
+                finishDeletion(result.deletedTextureUuids);
+                return {
+                    clearedCount: bindings.length,
+                    deletedAssetCount: result.deletedTextureUuids.length + (result.deletedAuxiliaryAssetUuids?.length ?? 0),
+                    retainedAssetCount: retainedSceneTextureUuids.size + result.retainedTextureUuids.length + (result.retainedAuxiliaryAssetUuids?.length ?? 0),
+                    failedAssetCount: result.failures.length,
+                };
+            }
+            return { clearedCount: bindings.length, deletedAssetCount: 0, retainedAssetCount: 0, failedAssetCount: 0 };
+        });
     }
 
     /** Returns candidates still referenced by the live scene after its Lightmap bindings are cleared. */

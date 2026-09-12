@@ -96,6 +96,22 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             && this.isOpen;
     }
 
+    public runForSession<T>(session: IEditorSessionSnapshot, operation: (save: () => Promise<unknown>) => Promise<T>): Promise<T> {
+        return this.runLifecycle(async () => {
+            const assertCurrent = () => {
+                if (!session.uuid || !this.isCurrentEditorSession(session)) {
+                    throw new Error('The source scene session changed before its result could be applied.');
+                }
+            };
+            assertCurrent();
+            return operation(async () => {
+                assertCurrent();
+                // Already inside the lifecycle queue. Re-entering save() would deadlock.
+                return this.saveUnlocked({ urlOrUUID: session.uuid! });
+            });
+        });
+    }
+
     private invalidateEditorSession(): void {
         this.editorSessionGeneration++;
     }

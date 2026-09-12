@@ -13,6 +13,7 @@ import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { lightFXBakeHost } from './baking/lightfx/host';
 import { finishSavedLightFXRecording, LightFXResultRetainedError } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
+import { captureLightFXScene } from './baking/lightfx/scene-context';
 
 interface ProbeSnapshot {
     normal: Vec3;
@@ -50,7 +51,9 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
 
+        const context = captureLightFXScene(scene);
         const sceneUrl = await this.querySceneUrl();
+        context.assertCurrent();
         const info: any = scene.globals.lightProbeInfo;
         const probes: any[] = info.data?.probes ?? [];
         if (probes.length < 4) throw new Error('At least four generated light probes are required.');
@@ -73,45 +76,46 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         const previous = this.snapshot(probes);
         let output: LightFXBakeOutput | undefined;
         let nativeCommitted = false;
-        let applying = false;
         this.broadcast('lightfx:bake-start', 'light-probe');
         try {
             output = await lightFXCoordinator.bake(scene, 'light-probe', settings, options.timeoutMs ?? 600_000);
-            this.validateResult(probes, output);
-            await lightFXCoordinator.commit(output.operationId);
-            nativeCommitted = true;
+            const completed = output;
+            return await context.run(async save => {
+                const output = completed;
+                this.validateResult(probes, output);
+                await lightFXCoordinator.commit(output.operationId);
+                nativeCommitted = true;
 
-            const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Bake light probes' });
-            try {
-                applying = true;
-                this.applySettings(info, settingsToApply);
-                this.applyResult(probes, output);
-                info.onProbeBakeFinished();
-                await Service.Engine.repaintInEditMode();
-                await finishSavedLightFXRecording(Service.Undo, undo,
-                    options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
-                applying = false;
-            } catch (error) {
-                if (!(error instanceof LightFXResultRetainedError)) Service.Undo.cancelRecording(undo);
-                throw error;
-            }
+                const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Bake light probes' });
+                try {
+                    this.applySettings(info, settingsToApply);
+                    this.applyResult(probes, output);
+                    info.onProbeBakeFinished();
+                    await Service.Engine.repaintInEditMode();
+                    await finishSavedLightFXRecording(Service.Undo, undo,
+                        options.saveScene !== false ? save : undefined);
+                } catch (error) {
+                    if (!(error instanceof LightFXResultRetainedError)) {
+                        Service.Undo.cancelRecording(undo);
+                        this.restore(probes, previous);
+                        this.applySettings(info, previousSettings);
+                        info.onProbeBakeFinished();
+                        await Service.Engine.repaintInEditMode();
+                    }
+                    throw error;
+                }
 
-            this.broadcast('lightfx:bake-end', 'light-probe');
-            return {
-                sceneUrl,
-                probeCount: probes.length,
-                ...settingsToApply,
-                durationMs: Date.now() - started,
-                diagnostics: await lightFXCoordinator.queryDiagnostics?.('light-probe'),
-            };
+                this.broadcast('lightfx:bake-end', 'light-probe');
+                return {
+                    sceneUrl,
+                    probeCount: probes.length,
+                    ...settingsToApply,
+                    durationMs: Date.now() - started,
+                    diagnostics: await lightFXCoordinator.queryDiagnostics?.('light-probe'),
+                };
+            });
         } catch (error) {
             if (output && !nativeCommitted) await lightFXCoordinator.rollback(output.operationId).catch(() => undefined);
-            if (applying && !(error instanceof LightFXResultRetainedError)) {
-                this.restore(probes, previous);
-                this.applySettings(info, previousSettings);
-                info.onProbeBakeFinished();
-                await Service.Engine.repaintInEditMode();
-            }
             this.broadcast('lightfx:bake-end', 'light-probe', this.errorMessage(error));
             throw error;
         }
@@ -124,24 +128,26 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     private async clearBakeExclusive(options: { saveScene?: boolean }): Promise<{ probeCount: number }> {
         const scene = director.getScene();
         if (!scene) throw new Error('No scene is currently open.');
-        const info: any = scene.globals.lightProbeInfo;
-        const probes: any[] = info.data?.probes ?? [];
-        const previous = this.snapshot(probes);
-        const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Clear light probes' });
-        try {
-            info.onProbeBakeCleared();
-            await Service.Engine.repaintInEditMode();
-            await finishSavedLightFXRecording(Service.Undo, undo,
-                options.saveScene !== false ? () => Service.Editor.save({}) : undefined);
-            return { probeCount: probes.length };
-        } catch (error) {
-            if (error instanceof LightFXResultRetainedError) throw error;
-            Service.Undo.cancelRecording(undo);
-            this.restore(probes, previous);
-            info.onProbeBakeFinished();
-            await Service.Engine.repaintInEditMode();
-            throw error;
-        }
+        return captureLightFXScene(scene).run(async save => {
+            const info: any = scene.globals.lightProbeInfo;
+            const probes: any[] = info.data?.probes ?? [];
+            const previous = this.snapshot(probes);
+            const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Clear light probes' });
+            try {
+                info.onProbeBakeCleared();
+                await Service.Engine.repaintInEditMode();
+                await finishSavedLightFXRecording(Service.Undo, undo,
+                    options.saveScene !== false ? save : undefined);
+                return { probeCount: probes.length };
+            } catch (error) {
+                if (error instanceof LightFXResultRetainedError) throw error;
+                Service.Undo.cancelRecording(undo);
+                this.restore(probes, previous);
+                info.onProbeBakeFinished();
+                await Service.Engine.repaintInEditMode();
+                throw error;
+            }
+        });
     }
 
     cancel(): Promise<ILightFXCancelResult> {
