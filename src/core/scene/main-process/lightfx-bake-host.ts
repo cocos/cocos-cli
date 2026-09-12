@@ -38,6 +38,7 @@ import type {
     IPublishLightmapAssetsOptions,
 } from '../common/lightfx-host';
 import { assetManager } from '../../assets';
+import type { IAssetInfo } from '../../assets/@types/public';
 import { LightmapAssetTransaction } from './lightfx/asset-transaction';
 import { LightmapAssetRecord } from './lightfx/asset-record';
 import { isLightmapTextureUrl, lightmapAuxiliaryPath, publishLightmapTextures, removeEmptyLightmapVersion } from './lightfx/asset-publication';
@@ -586,7 +587,23 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                     continue;
                 }
                 try {
-                    const users = await assetManager.queryAssetUsers(uuid);
+                    // Dependency records name Texture/SpriteFrame subassets exactly. A parent
+                    // image with no direct users can still own a texture used by another scene.
+                    const identities = new Set<string>([uuid]);
+                    const collectSubassets = (asset: IAssetInfo): void => {
+                        for (const child of Object.values(asset.subAssets ?? {})) {
+                            const childUuid = Utils.UUID.decompressUUID(child.uuid);
+                            if (childUuid.split('@', 1)[0] !== uuid || !Utils.UUID.isUUID(childUuid)) {
+                                throw new Error('Invalid Lightmap subasset identity; asset retained.');
+                            }
+                            if (identities.has(childUuid)) continue;
+                            identities.add(childUuid);
+                            collectSubassets(child);
+                        }
+                    };
+                    collectSubassets(info);
+                    const users: string[] = [];
+                    for (const identity of identities) users.push(...await assetManager.queryAssetUsers(identity));
                     const hasOtherUser = users.some((user) => {
                         try {
                             const userUuid = Utils.UUID.decompressUUID(user).split('@', 1)[0];

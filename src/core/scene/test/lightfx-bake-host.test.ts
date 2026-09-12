@@ -251,6 +251,41 @@ describe('LightFXBakeHost', () => {
         expect(mockAssetManager.removeAsset).toHaveBeenCalledTimes(2);
     });
 
+    it.each(['6c48a', 'f9941'])('retains a parent image referenced only through subasset %s', async suffix => {
+        const uuid = '11111111-1111-4111-8111-111111111111';
+        const child = `${uuid}@${suffix}`;
+        mockAssetManager.queryAssetInfo.mockReturnValue({ uuid,
+            url: 'db://assets/Maps/bake-22222222-2222-4222-8222-222222222222/LFX_Mesh_0000.png',
+            subAssets: { [suffix]: { uuid: child, subAssets: {} } },
+        });
+        mockAssetManager.queryAssetUsers.mockImplementation(async (id: string) => id === child
+            ? ['66666666-6666-4666-8666-666666666666'] : []);
+        const options = { sceneUuid, textureUuids: [uuid] };
+        await expect(host.removeLightmapAssets(options)).resolves.toEqual({ deletedTextureUuids: [], retainedTextureUuids: [uuid], failures: [] });
+        expect(mockAssetManager.removeAsset).not.toHaveBeenCalled();
+        expect(mockAssetManager.queryAssetUsers).toHaveBeenCalledWith(child);
+        // Once external references are removed, internal subasset dependencies do not
+        // prevent exact cleanup. The same candidate can be retried after Clear.
+        mockAssetManager.queryAssetUsers.mockResolvedValue([child]);
+        await expect(host.removeLightmapAssets(options)).resolves.toEqual({ deletedTextureUuids: [uuid], retainedTextureUuids: [], failures: [] });
+    });
+
+    it('retains an image when only its subasset dependency query fails', async () => {
+        const uuid = '11111111-1111-4111-8111-111111111111';
+        mockAssetManager.queryAssetInfo.mockReturnValue({ uuid,
+            url: 'db://assets/Maps/bake-22222222-2222-4222-8222-222222222222/LFX_Mesh_0000.png',
+            subAssets: { texture: { uuid: `${uuid}@6c48a` } },
+        });
+        mockAssetManager.queryAssetUsers.mockImplementation(async (id: string) => {
+            if (id.includes('@')) throw new Error('subasset index unavailable');
+            return [];
+        });
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid] })).resolves.toEqual({
+            deletedTextureUuids: [], retainedTextureUuids: [], failures: [{ uuid, reason: 'subasset index unavailable' }],
+        });
+        expect(mockAssetManager.removeAsset).not.toHaveBeenCalled();
+    });
+
     it('reports dependency query failures without attempting that deletion', async () => {
         const uuid = '11111111-1111-4111-8111-111111111111';
         mockAssetManager.queryAssetInfo.mockReturnValue({
