@@ -340,7 +340,7 @@ Scene 侧 `LightProbeBake.cancel()`／`LightmapBake.cancel()` 只取消本 rende
 
 ## 场景会话与资产规则
 
-- 原生烘焙期间允许打开或重载场景；结果应用前校验启动时的 Scene 实例及编辑器会话代次。同 UUID 重载也视为新会话，旧任务拒绝应用，不保存新场景、不清理旧资产。
+- Bake／Clear 在申请 Host 事务前同步捕获源 Scene 实例及编辑器会话代次；申请完成后再次校验，若已切换或重载则释放该事务并拒绝执行，不对新场景烘焙、清理或保存。原生烘焙期间允许打开或重载场景，结果应用前仍校验同一源会话；同 UUID 重载也视为新会话。
 - 结果应用、Undo 录制、保存和清理在原会话的生命周期队列内完成，打开、关闭、重载不会穿插其间。此保护不等同于锁住所有普通属性编辑；烘焙期间仍应避免修改输入几何和灯光。
 - 新产物先导入独立暂存目录：默认 `db://assets/<scene-name>/lightmap/bake-<operation-uuid>/`，指定父目录时为 `<outputUrl>/bake-<operation-uuid>/`。原生提交前失败或取消只回滚本轮产物。
 - 保存并清理旧产物成功后，PNG 保留 UUID 移动到 `<父目录>/scene-<完整场景UUID>/output/`。默认父目录为 `db://assets/LightFX`；`outputUrl: "db://assets"` 与省略相同。相同名称或相同自选父目录的不同场景也互相隔离。调用方必须使用返回的 `textureUrls`，不要拼路径。

@@ -19,7 +19,7 @@ const mockQueryUrl = jest.fn();
 const mockAssetQueryUrl = jest.fn();
 const mockRefresh = jest.fn(async (_pathOrUrlOrUUID: string) => 0);
 const mockReimport = jest.fn();
-const mockAddTask = jest.fn(async (func: Function, args: any[]) => await func(...args));
+const mockAddTask = jest.fn(async (func: (...args: any[]) => unknown, args: any[]) => await func(...args));
 const mockAutoRefreshAssetLazy = jest.fn();
 const mockGetCreateMenuByName = jest.fn();
 const mockCreateAssetByHandler = jest.fn();
@@ -99,7 +99,7 @@ jest.mock('../manager/asset-copy', () => ({
 jest.mock('../manager/asset-db', () => ({
     __esModule: true,
     default: {
-        addTask: (func: Function, args: any[]) => mockAddTask(func, args),
+        addTask: (func: (...args: any[]) => unknown, args: any[]) => mockAddTask(func, args),
         autoRefreshAssetLazy: (...args: any[]) => mockAutoRefreshAssetLazy(...args),
         assetDBInfo: {},
         assetDBMap: {},
@@ -465,6 +465,30 @@ describe('asset operation filesystem bridge', () => {
         await assetOperation.moveAsset(source, target);
 
         expect(mockMoveAssetSource).toHaveBeenCalledWith(source, target, undefined);
+    });
+
+    it('moveAsset rejects without refreshing the database when the source move fails', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const source = 'D:/project/assets/source.txt';
+        const target = 'D:/project/assets/folder/source.txt';
+        mockQueryAsset.mockReturnValue({
+            source,
+            _parent: null,
+            isDirectory: () => false,
+            _assetDB: { options: { readonly: false } },
+            url: 'db://assets/source.txt',
+        });
+        mockExistsSync.mockReturnValue(false);
+        mockQueryUrl.mockReturnValue('db://assets/folder/source.txt');
+        const error = new Error('source move failed');
+        mockMoveAssetSource.mockRejectedValueOnce(error);
+
+        await expect(assetOperation.moveAsset(source, target, { overwrite: false })).rejects.toBe(error);
+
+        expect(mockMoveAssetSource).toHaveBeenCalledWith(source, target, { overwrite: false });
+        expect(mockRefresh).not.toHaveBeenCalled();
+        expect(mockAutoRefreshAssetLazy).not.toHaveBeenCalled();
+        expect(mockAddTask).toHaveBeenCalledTimes(1);
     });
 
     it('importAsset should delegate copy to filesystem bridge', async () => {

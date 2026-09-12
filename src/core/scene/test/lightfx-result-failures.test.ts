@@ -1,4 +1,6 @@
 const mockGetScene = jest.fn();
+let mockSessionGeneration = 0;
+const mockReserveSceneOperation = jest.fn(), mockReleaseSceneOperation = jest.fn();
 const mockMeshRenderer = class MeshRenderer {};
 const mockTerrain = class Terrain {};
 class MockVec3 {
@@ -18,8 +20,8 @@ jest.mock('../scene-process/service/core', () => ({
     BaseService: class { broadcast() {} }, register: () => () => undefined,
     Service: { Undo: mockUndo, Editor: {
         save: mockSave, querySceneSerializedData: mockQuerySceneSerializedData,
-        getEditorSession: () => ({ uuid: mockGetScene()?.uuid, generation: 0 }),
-        isCurrentEditorSession: (session: any) => session.uuid === mockGetScene()?.uuid,
+        getEditorSession: () => ({ uuid: mockGetScene()?.uuid, generation: mockSessionGeneration }),
+        isCurrentEditorSession: (session: any) => session.uuid === mockGetScene()?.uuid && session.generation === mockSessionGeneration,
         runForSession: async (_session: any, action: any) => action(mockSave),
     }, Engine: { repaintInEditMode: mockRepaint } },
 }));
@@ -28,8 +30,8 @@ jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoord
     publishLightmapAssets: async () => ({ textureUrls: ['db://assets/LightFX/output/LFX_Mesh_0000.png'] }),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
-    reserveSceneOperation: async () => ({ transactionId: 'owner' }), releaseSceneOperation: async () => undefined,
-    queryCapabilities: async () => ({ lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1 }),
+    reserveSceneOperation: mockReserveSceneOperation, releaseSceneOperation: mockReleaseSceneOperation,
+    queryCapabilities: async () => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1 }),
     queryLightmapTextureInfo: async () => ({ textures: [], missingTextureUuids: [], ownedTextureUuids: [] }),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({ createDefaultLightFXSettings: () => ({}) }));
@@ -102,12 +104,58 @@ function fixture(target: 'probe' | 'lightmap') {
     const service = target === 'probe' ? new LightProbeBakeService() : new LightmapBakeService();
     jest.spyOn(service as any, 'querySceneUrl').mockResolvedValue('db://assets/test.scene');
     if (service instanceof LightmapBakeService) jest.spyOn(service as any, 'loadOutputTextures').mockResolvedValue(new Map([['mesh:0', texture]]));
-    return { service, manager, read, disk: () => disk, assets: () => assets, events, save,
+    return { scene, service, manager, read, disk: () => disk, assets: () => assets, events, save,
         commit: async () => { committed = true; }, bake: () => service.bake({ giScale: 2, highp: true }), old: read() };
 }
 
+beforeEach(() => {
+    jest.resetAllMocks();
+    mockSessionGeneration = 0;
+    mockReserveSceneOperation.mockResolvedValue({ transactionId: 'owner' });
+    mockReleaseSceneOperation.mockResolvedValue(undefined);
+});
+
 describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', target => {
-    beforeEach(() => { jest.resetAllMocks(); });
+    for (const action of ['bake', 'clear', ...(target === 'lightmap' ? ['clear-delete'] : [])]) {
+        it.each(['switch', 'reload', 'session-generation'])(`${action} rejects %s during reservation and releases ownership for retry`, async change => {
+            const source = fixture(target);
+            const replacement = change === 'session-generation' ? source : fixture(target);
+            if (change === 'switch') replacement.scene.uuid = 'other-scene';
+            mockGetScene.mockReturnValue(source.scene);
+            let reserve!: (token: { transactionId: string }) => void;
+            mockReserveSceneOperation.mockReturnValueOnce(new Promise(resolve => { reserve = resolve; }));
+            const invoke = () => action === 'bake' ? source.bake()
+                : source.service.clearBake({ saveScene: true, ...(action === 'clear-delete' ? { deleteAssets: true } : {}) });
+            const pending = invoke();
+            const rejected = expect(pending).rejects.toThrow('source scene changed');
+            expect(mockReserveSceneOperation).toHaveBeenCalledTimes(1);
+            expect(mockBake).not.toHaveBeenCalled();
+            expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+            mockGetScene.mockReturnValue(replacement.scene);
+            if (change === 'session-generation') mockSessionGeneration++;
+            reserve({ transactionId: 'obsolete-owner' });
+            await rejected;
+            expect(mockReleaseSceneOperation).toHaveBeenCalledTimes(1);
+            expect(mockReleaseSceneOperation).toHaveBeenCalledWith({ transactionId: 'obsolete-owner' });
+            expect(mockBake).not.toHaveBeenCalled();
+            expect(mockCommit).not.toHaveBeenCalled();
+            expect(mockRollback).not.toHaveBeenCalled();
+            expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+            expect(mockSave).not.toHaveBeenCalled();
+            expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
+            for (const f of [source, replacement]) {
+                expect(f.read()).toEqual(f.old);
+                expect(f.disk()).toEqual(f.old);
+                expect(f.assets()).toEqual(['old', 'new']);
+            }
+            // The rejected request must not poison the local reservation for the next request.
+            await invoke();
+            expect(mockReserveSceneOperation).toHaveBeenCalledTimes(2);
+            expect(mockReleaseSceneOperation).toHaveBeenCalledTimes(2);
+            expect(mockReleaseSceneOperation).toHaveBeenLastCalledWith({ transactionId: 'owner' });
+            expect(mockSave).toHaveBeenCalledTimes(1);
+        });
+    }
     it('confirms asset retention before recording or saving', async () => {
         const f = fixture(target);
         await f.bake();
@@ -233,7 +281,6 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
 });
 
 describe('Lightmap first bake history', () => {
-    beforeEach(() => jest.resetAllMocks());
     it('restores an empty binding on Undo and preserves later rebake and Clear records', async () => {
         const f = fixture('lightmap');
         mockGetScene().getComponents(mockMeshRenderer)[0].bakeSettings.texture = null;

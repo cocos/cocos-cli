@@ -11,6 +11,20 @@ const targets = ['light-probe', 'lightmap'] as const;
 const actions = ['bake', 'clear'] as const;
 
 describe('LightFX scene-local transactions', () => {
+    it('captures request context synchronously and releases the local guard when capture fails', async () => {
+        const host = { reserveSceneOperation: jest.fn(async () => ({ transactionId: 'owner' })), releaseSceneOperation: jest.fn(async () => undefined) };
+        const guard = new LightFXSceneOperation(host);
+        const operation = jest.fn(async () => 1);
+        const capture = jest.fn(() => { throw new Error('No source scene'); });
+        const failed = guard.run('lightmap', 'clear', operation, capture);
+        expect(capture).toHaveBeenCalledTimes(1);
+        await expect(failed).rejects.toThrow('No source scene');
+        expect(host.reserveSceneOperation).not.toHaveBeenCalled();
+        expect(host.releaseSceneOperation).not.toHaveBeenCalled();
+        expect(operation).not.toHaveBeenCalled();
+        await expect(guard.run('lightmap', 'clear', operation)).resolves.toBe(1);
+    });
+
     it('does not run scene code or release another owner when the host rejects reservation', async () => {
         const host = { reserveSceneOperation: jest.fn(async () => { throw new Error('Host busy'); }), releaseSceneOperation: jest.fn() };
         const operation = jest.fn();

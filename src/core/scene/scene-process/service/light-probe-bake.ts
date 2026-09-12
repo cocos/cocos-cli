@@ -1,4 +1,4 @@
-import { director, Scene, SH, Vec3 } from 'cc';
+import { SH, Vec3 } from 'cc';
 import type {
     ILightFXBakeEvents,
     ILightFXCancelResult,
@@ -9,11 +9,10 @@ import type {
 } from '../../common';
 import { lightFXCoordinator, LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
-import { lightFXSceneOperation } from './baking/lightfx/scene-operation';
 import { lightFXBakeHost } from './baking/lightfx/host';
 import { finishSavedLightFXRecording, LightFXResultRetainedError } from './baking/lightfx/saved-recording';
 import { BaseService, register, Service } from './core';
-import { captureLightFXScene } from './baking/lightfx/scene-context';
+import { runLightFXSceneOperation, type LightFXSceneContext } from './baking/lightfx/scene-context';
 
 interface ProbeSnapshot {
     normal: Vec3;
@@ -43,15 +42,12 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     }
 
     async bake(options: ILightProbeBakeOptions = {}): Promise<ILightProbeBakeResult> {
-        return lightFXSceneOperation.run('light-probe', 'bake', () => this.bakeExclusive(options));
+        return runLightFXSceneOperation('light-probe', 'bake', context => this.bakeExclusive(options, context));
     }
 
-    private async bakeExclusive(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult> {
+    private async bakeExclusive(options: ILightProbeBakeOptions, context: LightFXSceneContext): Promise<ILightProbeBakeResult> {
         const started = Date.now();
-        const scene = director.getScene() as Scene | null;
-        if (!scene) throw new Error('No scene is currently open.');
-
-        const context = captureLightFXScene(scene);
+        const { scene } = context;
         const sceneUrl = await this.querySceneUrl();
         context.assertCurrent();
         const info: any = scene.globals.lightProbeInfo;
@@ -122,13 +118,12 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
     }
 
     async clearBake(options: { saveScene?: boolean } = {}): Promise<{ probeCount: number }> {
-        return lightFXSceneOperation.run('light-probe', 'clear', () => this.clearBakeExclusive(options));
+        return runLightFXSceneOperation('light-probe', 'clear', context => this.clearBakeExclusive(options, context));
     }
 
-    private async clearBakeExclusive(options: { saveScene?: boolean }): Promise<{ probeCount: number }> {
-        const scene = director.getScene();
-        if (!scene) throw new Error('No scene is currently open.');
-        return captureLightFXScene(scene).run(async save => {
+    private async clearBakeExclusive(options: { saveScene?: boolean }, context: LightFXSceneContext): Promise<{ probeCount: number }> {
+        const { scene } = context;
+        return context.run(async save => {
             const info: any = scene.globals.lightProbeInfo;
             const probes: any[] = info.data?.probes ?? [];
             const previous = this.snapshot(probes);

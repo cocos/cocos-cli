@@ -14,7 +14,7 @@ export class LightFXSceneOperation {
         return this.transactionId;
     }
 
-    async run<T>(target: LightFXBakeTarget, action: 'bake' | 'clear', operation: () => Promise<T>): Promise<T> {
+    async run<T>(target: LightFXBakeTarget, action: 'bake' | 'clear', operation: () => Promise<T>, beforeReserve?: () => void): Promise<T> {
         if (this.active) {
             throw new Error(`A ${this.active.target} LightFX ${this.active.action} operation is already in progress.`);
         }
@@ -23,6 +23,8 @@ export class LightFXSceneOperation {
         const owner = { target, action };
         this.active = owner;
         try {
+            // Capture synchronous request context after the busy check but before the first await.
+            beforeReserve?.();
             const token = await this.host.reserveSceneOperation(owner);
             this.transactionId = token.transactionId;
             let result: T;
