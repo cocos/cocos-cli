@@ -144,6 +144,13 @@ jest.mock('../../scene-process/service/node/index', () => ({
     },
 }));
 
+jest.mock('../../scene-process/service/component/index', () => ({
+    __esModule: true,
+    default: {
+        removeComponent: jest.fn(() => true),
+    },
+}));
+
 jest.mock('../../scene-process/service/prefab/utils', () => ({
     prefabUtils: { getPrefabStateInfo: jest.fn(() => ({})) },
 }));

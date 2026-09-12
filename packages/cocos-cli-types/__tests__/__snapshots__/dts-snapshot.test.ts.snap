@@ -6445,6 +6445,7 @@ export declare type IAssetType =
 | 'RenderFlow';
 export declare interface IBaseCreateNodeParams {
     path: string;
+    insertSide?: 'before' | 'after';
     name?: string;
     workMode?: '2d' | '3d';
     position?: IVec3;

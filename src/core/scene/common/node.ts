@@ -234,7 +234,16 @@ export interface IChangeNodeLockParams {
 }
 
 interface IBaseCreateNodeParams {
+    /**
+     * Parent path for append creation. When insertSide is set, this is instead
+     * the sibling anchor path.
+     */
     path: string;
+    /**
+     * Create beside the sibling named by path. Omitting this preserves append
+     * creation under path.
+     */
+    insertSide?: 'before' | 'after';
     name?: string;
     workMode?: '2d' | '3d';
     position?: IVec3;
