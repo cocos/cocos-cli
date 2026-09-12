@@ -11,10 +11,21 @@ export const mockRpcRequest = jest.fn();
 export const mockGetUICanvasNode = jest.fn();
 export const mockGetUITransformParentNode = jest.fn();
 export const mockInstantiate = jest.fn();
+export const mockBaseRemoveNode = jest.fn();
+export const mockRemoveComponent = jest.fn();
+export const mockUndoPush = jest.fn();
+export const mockShouldRecordStructureCommand = jest.fn(() => false);
+export const mockCollectSceneNodeUuids = jest.fn(() => new Set<string>());
+export const mockRecordCreateNodeCommand = jest.fn();
 export const mockScene = { name: 'Scene' };
 
 export class MockCanvas {}
-export class MockUITransform {}
+export class MockUITransform {
+    uuid = 'ui-transform-uuid';
+    isValid = true;
+
+    constructor(public node: MockNode | null = null) {}
+}
 
 export class MockNode {
     uuid: string;
@@ -24,17 +35,24 @@ export class MockNode {
     components: any[] = [];
     layer = 0;
     position = { z: 0 };
+    private _valid = true;
     addChild = jest.fn((node: MockNode) => {
-        this.children.push(node);
-        node.parent = this;
+        node.setParent(this);
     });
     addComponent = jest.fn((component: any) => {
-        const instance = component === 'cc.UITransform' ? new MockUITransform() : new component();
+        const instance = component === 'cc.UITransform' ? new MockUITransform(this) : new component();
         this.components.push(instance);
         return instance;
     });
+    removeComponent = jest.fn((component: MockUITransform) => {
+        this.components = this.components.filter(current => current !== component);
+        component.isValid = false;
+    });
     setPosition = jest.fn();
-    destroy = jest.fn();
+    destroy = jest.fn(() => {
+        this.setParent(null);
+        this._valid = false;
+    });
     setParent = jest.fn((parent: MockNode | null) => {
         if (this.parent) {
             const previousIndex = this.parent.children.indexOf(this);
@@ -46,6 +64,16 @@ export class MockNode {
         if (parent && !parent.children.includes(this)) {
             parent.children.push(this);
         }
+    });
+    setSiblingIndex = jest.fn((siblingIndex: number) => {
+        if (!this.parent) {
+            return;
+        }
+        const currentIndex = this.parent.children.indexOf(this);
+        if (currentIndex >= 0) {
+            this.parent.children.splice(currentIndex, 1);
+        }
+        this.parent.children.splice(siblingIndex, 0, this);
     });
     insertChild = jest.fn((child: MockNode, siblingIndex: number) => {
         child.setParent(this);
@@ -65,7 +93,7 @@ export class MockNode {
     }
 
     get isValid() {
-        return true;
+        return this._valid;
     }
 }
 
@@ -73,6 +101,10 @@ export class MockNode {
     Node: {
         getNodeByPath: jest.fn(),
         getNodePath: jest.fn((node: MockNode) => `/${node.name}`),
+        remove: jest.fn(),
+    },
+    Component: {
+        remove: jest.fn(),
     },
 };
 
@@ -111,7 +143,7 @@ jest.mock('../../scene-process/service/core', () => ({
             removePrefabInfoFromNode: mockRemovePrefabInfoFromNode,
         },
         Undo: {
-            push: jest.fn(),
+            push: mockUndoPush,
         },
     },
 }));
@@ -134,12 +166,19 @@ jest.mock('../../scene-process/service/node/node-utils', () => ({
     setLayer: jest.fn(),
 }));
 
+jest.mock('../../scene-process/service/component/index', () => ({
+    __esModule: true,
+    default: {
+        removeComponent: mockRemoveComponent,
+    },
+}));
+
 jest.mock('../../scene-process/service/node/node-undo', () => ({
     NodeUndoHelper: jest.fn().mockImplementation(() => ({
-        shouldRecordStructureCommand: jest.fn(() => false),
-        collectSceneNodeUuids: jest.fn(() => new Set()),
+        shouldRecordStructureCommand: mockShouldRecordStructureCommand,
+        collectSceneNodeUuids: mockCollectSceneNodeUuids,
         getCreateRootPath: jest.fn(() => null),
-        recordCreateNodeCommand: jest.fn(),
+        recordCreateNodeCommand: mockRecordCreateNodeCommand,
     })),
 }));
 
@@ -147,6 +186,7 @@ jest.mock('../../scene-process/service/node/index', () => ({
     __esModule: true,
     default: {
         ensureUITransformComponent: jest.fn((node: MockNode) => node.addComponent('cc.UITransform')),
+        baseRemoveNode: mockBaseRemoveNode,
     },
 }));
 
@@ -229,5 +269,12 @@ export function resetNodeCreateMocks(): void {
     mockInstantiate.mockImplementation(() => new MockNode('Canvas'));
     mockQueryCanvasRequiredByAsset.mockResolvedValue(false);
     mockRpcRequest.mockReset();
+    mockShouldRecordStructureCommand.mockReturnValue(false);
+    mockCollectSceneNodeUuids.mockReturnValue(new Set());
+    mockRemoveComponent.mockImplementation((component: MockUITransform) => {
+        component.node?.removeComponent(component);
+        return true;
+    });
+    mockBaseRemoveNode.mockImplementation((node: MockNode) => node.destroy());
     (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(null);
 }

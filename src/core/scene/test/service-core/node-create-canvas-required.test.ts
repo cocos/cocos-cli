@@ -4,7 +4,9 @@ import {
     MockCanvas,
     MockNode,
     MockUITransform,
+    mockBaseRemoveNode,
     mockCreateShouldHideInHierarchyCanvasNode,
+    mockCreateNodeByAsset,
     mockGetCurrentEditorType,
     mockGetRootNode,
     mockGetUICanvasNode,
@@ -14,9 +16,12 @@ import {
     mockNodeAtPath,
     mockPrefabAsset,
     mockQueryCanvasRequiredByAsset,
+    mockCollectSceneNodeUuids,
+    mockRemoveComponent,
     mockRemovePrefabInfoFromNode,
     mockRpcRequest,
     mockScene,
+    mockShouldRecordStructureCommand,
     resetNodeCreateMocks,
 } from './node-create-test-harness';
 
@@ -487,6 +492,7 @@ describe('NodeService Canvas requirement handling', () => {
 
         const { NodeService } = require('../../scene-process/service/node');
         const service = new NodeService();
+        const pushUndoRecord = jest.spyOn(service, '_pushPrefabCanvasUndoRecord');
         const params = {
             path: '/Anchor',
             insertSide: 'before',
@@ -504,7 +510,78 @@ describe('NodeService Canvas requirement handling', () => {
 
         expect(root.children.map(child => child.name)).toEqual(['Before', 'Button', 'Anchor', 'After']);
         expect(root.components.some(component => component instanceof MockUITransform)).toBe(true);
+        expect(pushUndoRecord).toHaveBeenCalledTimes(1);
     });
+
+    it.each([
+        { previewExistedBefore: false },
+        { previewExistedBefore: true },
+    ])(
+        'rolls back add-root-ui-transform with previewExistedBefore=$previewExistedBefore when the anchor becomes stale',
+        async ({ previewExistedBefore }) => {
+            const { root, anchor } = createAnchoredTree(undefined, 'PrefabRoot');
+            const host = new MockNode('SceneHost');
+            const hostBefore = new MockNode('HostBefore');
+            const hostAfter = new MockNode('HostAfter');
+            const replacementParent = new MockNode('ReplacementParent');
+            const previewCanvas = new MockNode('PreviewCanvas');
+            const resultNode = new MockNode('Button');
+            host.addChild(hostBefore);
+            host.addChild(root);
+            host.addChild(hostAfter);
+            mockGetCurrentEditorType.mockReturnValue('prefab');
+            mockGetRootNode.mockReturnValue(root);
+            mockCreateNodeByAsset.mockResolvedValue({ node: resultNode, canvasRequired: false });
+            mockNodeAtPath('/Anchor', anchor);
+            mockShouldRecordStructureCommand.mockReturnValue(true);
+            mockCollectSceneNodeUuids.mockReturnValue(new Set(
+                previewExistedBefore ? [previewCanvas.uuid] : [],
+            ));
+            let resolvePreviewCanvas: (canvas: MockNode) => void;
+            mockCreateShouldHideInHierarchyCanvasNode.mockImplementation(() => new Promise<MockNode>(resolve => {
+                resolvePreviewCanvas = resolve;
+            }));
+
+            const { NodeService } = require('../../scene-process/service/node');
+            const service = new NodeService();
+            const pushUndoRecord = jest.spyOn(service, '_pushPrefabCanvasUndoRecord');
+            const params = {
+                path: '/Anchor',
+                insertSide: 'before' as const,
+                nodeType: NodeType.BUTTON,
+                workMode: '2d' as const,
+                canvasRequired: true,
+            };
+            const preflight = await service.preflightCreate(params);
+            const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const creation = service.createByType({
+                ...params,
+                preflightToken: preflight.preflightToken,
+                prefabCanvasHandling: 'add-root-ui-transform',
+            });
+            await new Promise<void>(resolve => setImmediate(resolve));
+            anchor.setParent(replacementParent);
+            resolvePreviewCanvas!(previewCanvas);
+
+            await expect(creation).rejects.toThrow('stale');
+
+            consoleError.mockRestore();
+            expect(root.parent).toBe(host);
+            expect(host.children).toEqual([hostBefore, root, hostAfter]);
+            expect(anchor.parent).toBe(replacementParent);
+            expect(root.components.some(component => component instanceof MockUITransform)).toBe(false);
+            expect(mockRemoveComponent).toHaveBeenCalledTimes(1);
+            if (previewExistedBefore) {
+                expect(mockBaseRemoveNode).not.toHaveBeenCalled();
+                expect(previewCanvas.isValid).toBe(true);
+            } else {
+                expect(mockBaseRemoveNode).toHaveBeenCalledWith(previewCanvas);
+                expect(previewCanvas.isValid).toBe(false);
+            }
+            expect(resultNode.destroy).toHaveBeenCalledTimes(1);
+            expect(pushUndoRecord).not.toHaveBeenCalled();
+        },
+    );
 
     it.each(['before', 'after'] as const)(
         'keeps an anchored %s create beside its anchor inside an existing Canvas ancestor',

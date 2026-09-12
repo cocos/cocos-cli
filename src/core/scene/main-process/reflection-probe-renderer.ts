@@ -1,6 +1,6 @@
 import type { IReflectionProbeSceneIdentity } from '../common/reflection-probe';
 import type { RemoteSocket } from 'socket.io';
-import type { DefaultEventsMap } from 'socket.io/dist/typed-events';
+import type { DefaultEventsMap } from 'socket.io';
 import { SCENE_RENDERER_ROOM, socketService } from '../../../server/socket';
 
 export interface IReflectionProbeCaptureResult {

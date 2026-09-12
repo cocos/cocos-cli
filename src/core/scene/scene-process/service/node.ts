@@ -37,6 +37,7 @@ import { NodeUndoHelper } from './node/node-undo';
 import { isUndoApplying } from './undo/applying-state';
 import { prefabUtils } from './prefab/utils';
 import { sceneUtils } from './scene/utils';
+import compMgr from './component/index';
 import nodeMgr from './node/index';
 import NodeConfig from './node/node-type-config';
 import { RemoveNodeCommand } from './undo/commands/remove-node-command';
@@ -44,19 +45,14 @@ import { RemoveComponentCommand } from './undo/commands/remove-component-command
 import { PrefabPreviewCanvasCommand } from './undo/commands/prefab-preview-canvas-command';
 import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
 import { isRootNodePath, stripLeadingSlashes, validateNodeName } from '../../../engine/editor-extends/manager/path-utils';
+import {
+    createPendingPrefabCanvasMutation,
+    type IPendingPrefabCanvasMutation,
+    type IPrefabCanvasMutationEffects,
+    type IPrefabCanvasUndoRecord,
+} from './node/prefab-canvas-mutation';
 
 const NodeMgr = EditorExtends.Node;
-
-interface IPrefabCanvasUndoRecord {
-    rootNode: Node;
-    rootParentUuid: string | null;
-    rootParentPath: string;
-    rootSiblingIndex: number;
-    addedUITransform: Component | null;
-    previewCanvasNode: Node | null;
-    previewCanvasCreated: boolean;
-    workMode: string;
-}
 
 interface ICreatePreflightToken {
     requestKey: string;
@@ -90,6 +86,11 @@ interface IAnchoredCreateTarget {
     parent: Node;
 }
 
+interface ICanvasResolution {
+    parent: Node | null;
+    mutation: IPendingPrefabCanvasMutation | null;
+}
+
 /**
  * 子进程节点处理器
  * 在子进程中处理所有节点相关操作
@@ -99,6 +100,10 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     private readonly _undo = new NodeUndoHelper((event, ...args) => this.emit(event as any, ...args));
     private _prefabCanvasUndoRecords: IPrefabCanvasUndoRecord[] | null = null;
     private _prefabCanvasUndoBeforeNodeUuids: Set<string> | null = null;
+    private readonly _prefabCanvasMutationEffects: IPrefabCanvasMutationEffects = {
+        commitRecord: record => this._pushPrefabCanvasUndoRecord(record),
+        removeAddedUITransform: component => compMgr.removeComponent(component),
+    };
     private readonly _preflightTokens = new Map<string, ICreatePreflightToken>();
     private _preflightTokenSequence = 0;
 
@@ -552,63 +557,90 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (anchoredTarget) {
             parent = anchoredTarget.parent;
         }
-        parent = await this._resolveCanvasRequired(
+        const canvasResolution = await this._resolveCanvasRequiredTransaction(
             workMode.toLowerCase(),
             Boolean(canvasRequired),
             parent,
             params.position as Vec3,
             params.prefabCanvasHandling,
             params.insertSide ? params : undefined,
-        ) as Node;
-        if (!parent) {
+        );
+        if (!canvasResolution.parent) {
             throw new Error('Failed to resolve a parent for node creation.');
         }
+        parent = canvasResolution.parent;
 
-        /**
-         * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
-         * 是否要 unlink 为普通节点
-         * 有 nodeType 说明是内置资源创建的，需要移除 prefab info
-         * createByAsset 时，如果 assetType 不是 cc.Prefab 或者 unlinkPrefab 为 true，也需要移除
-         */
         const shouldUnlinkPrefab = 'nodeType' in params || assetType !== 'cc.Prefab' || params.unlinkPrefab;
-        if (shouldUnlinkPrefab) {
-            Service.Prefab.removePrefabInfoFromNode(resultNode, true);
-        }
+        try {
+            /**
+             * 默认创建节点是从 prefab 模板，所以初始是 prefab 节点
+             * 是否要 unlink 为普通节点
+             * 有 nodeType 说明是内置资源创建的，需要移除 prefab info
+             * createByAsset 时，如果 assetType 不是 cc.Prefab 或者 unlinkPrefab 为 true，也需要移除
+             */
+            if (shouldUnlinkPrefab) {
+                Service.Prefab.removePrefabInfoFromNode(resultNode, true);
+            }
 
-        if (params.name) {
-            resultNode.name = params.name;
-        }
+            if (params.name) {
+                resultNode.name = params.name;
+            }
 
-        this.emit('node:before-add', resultNode);
-        if (parent) {
+            this.emit('node:before-add', resultNode);
             this.emit('node:before-change', parent);
-        }
 
-        /**
-         * 新节点的 layer 跟随父级节点，但父级节点为场景根节点除外
-         * parent.layer 可能为 0 （界面下拉框为 None），此情况下新节点不跟随
-         */
-        if (parent && parent.layer && parent !== currentScene) {
-            setLayer(resultNode, parent.layer, true);
-        }
+            /**
+             * 新节点的 layer 跟随父级节点，但父级节点为场景根节点除外
+             * parent.layer 可能为 0 （界面下拉框为 None），此情况下新节点不跟随
+             */
+            if (parent.layer && parent !== currentScene) {
+                setLayer(resultNode, parent.layer, true);
+            }
 
-        // Compared to the editor, the position is set via API, so local coordinates are used here.
-        if (params.position) {
-            resultNode.setPosition(params.position);
-        }
+            // Compared to the editor, the position is set via API, so local coordinates are used here.
+            if (params.position) {
+                resultNode.setPosition(params.position);
+            }
 
-        if (params.insertSide) {
-            if (anchoredTarget && parent === anchoredTarget.parent) {
-                // This branch reparents the Prefab root and invalidates its serialized anchor path.
-                const capturedTarget = params.prefabCanvasHandling === 'add-root-ui-transform'
-                    ? anchoredTarget
-                    : undefined;
-                this._insertAtAnchoredTarget(resultNode, params, parent, capturedTarget);
+            if (params.insertSide) {
+                if (anchoredTarget && parent === anchoredTarget.parent) {
+                    // This branch reparents the Prefab root and invalidates its serialized anchor path.
+                    const capturedTarget = params.prefabCanvasHandling === 'add-root-ui-transform'
+                        ? anchoredTarget
+                        : undefined;
+                    this._insertAtAnchoredTarget(resultNode, params, parent, capturedTarget);
+                } else {
+                    resultNode.setParent(parent, params.keepWorldTransform);
+                }
             } else {
                 resultNode.setParent(parent, params.keepWorldTransform);
             }
-        } else {
-            resultNode.setParent(parent, params.keepWorldTransform);
+            canvasResolution.mutation?.commit();
+        } catch (error) {
+            if (!canvasResolution.mutation) {
+                throw error;
+            }
+
+            const rollbackErrors: unknown[] = [];
+            try {
+                canvasResolution.mutation.rollback();
+            } catch (rollbackError) {
+                rollbackErrors.push(rollbackError);
+            }
+            if (!resultNode.parent && resultNode.isValid) {
+                try {
+                    resultNode.destroy();
+                } catch (destroyError) {
+                    rollbackErrors.push(destroyError);
+                }
+            }
+            if (rollbackErrors.length > 0) {
+                throw new AggregateError(
+                    [error, ...rollbackErrors],
+                    'Node creation failed and Prefab Canvas rollback was incomplete.',
+                );
+            }
+            throw error;
         }
         // 挂到 prefab instance 下时，setParent 相关流程可能重新补回模板 prefab 信息。
         // 但在 prefab asset 编辑器中，新节点需要保留 setParent 补齐的 prefab 元数据。
@@ -907,6 +939,27 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         prefabCanvasHandling?: PrefabCanvasHandling,
         anchoredParams?: ICreateByNodeTypeParams | ICreateByAssetParams,
     ): Promise<Node | null> {
+        const resolution = await this._resolveCanvasRequiredTransaction(
+            workMode,
+            canvasRequiredParam,
+            parent,
+            position,
+            prefabCanvasHandling,
+            anchoredParams,
+        );
+        resolution.mutation?.commit();
+        return resolution.parent;
+    }
+
+    private async _resolveCanvasRequiredTransaction(
+        workMode: string,
+        canvasRequiredParam: boolean | undefined,
+        parent: Node | null,
+        position: Vec3 | undefined,
+        prefabCanvasHandling?: PrefabCanvasHandling,
+        anchoredParams?: ICreateByNodeTypeParams | ICreateByAssetParams,
+    ): Promise<ICanvasResolution> {
+        let mutation: IPendingPrefabCanvasMutation | null = null;
 
         if (canvasRequiredParam && parent?.isValid) {
             let canvasNode: Node | null;
@@ -924,7 +977,9 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     if (uiTransformParentNode) {
                         canvasNode = uiTransformParentNode;
                     } else if (prefabCanvasHandling === 'add-root-ui-transform') {
-                        canvasNode = await this.ensurePrefabRootUITransform(workMode);
+                        const prefabRootResolution = await this.ensurePrefabRootUITransform(workMode);
+                        canvasNode = prefabRootResolution?.canvasNode ?? null;
+                        mutation = prefabRootResolution?.mutation ?? null;
                     } else if (!prefabCanvasHandling) {
                         canvasNode = new Node();
                     }
@@ -965,37 +1020,55 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 position.z = canvasNode.position.z;
             }
         }
-        return parent;
+        return { parent, mutation };
     }
 
-    private async ensurePrefabRootUITransform(workMode: string): Promise<Node | null> {
+    private async ensurePrefabRootUITransform(workMode: string): Promise<{
+        canvasNode: Node;
+        mutation: IPendingPrefabCanvasMutation;
+    } | null> {
         const rootNode = Service.Editor.getRootNode();
         if (!rootNode?.isValid) {
             return null;
         }
 
         const undoRecord = this._createPrefabCanvasUndoRecord(rootNode, workMode);
-        if (!hasOneKindOfComponent(rootNode, UITransform)) {
-            undoRecord.addedUITransform = rootNode.addComponent('cc.UITransform') as Component;
-        }
+        const mutation = createPendingPrefabCanvasMutation(
+            undoRecord,
+            this._prefabCanvasMutationEffects,
+        );
+        try {
+            if (!hasOneKindOfComponent(rootNode, UITransform)) {
+                undoRecord.addedUITransform = rootNode.addComponent('cc.UITransform') as Component;
+            }
 
-        if (rootNode.parent && !hasOneKindOfComponent(rootNode.parent, Canvas)) {
-            const canvasNode = await createShouldHideInHierarchyCanvasNode(director.getScene()!, workMode);
-            undoRecord.previewCanvasNode = canvasNode;
-            undoRecord.previewCanvasCreated = !this._prefabCanvasUndoBeforeNodeUuids?.has(canvasNode.uuid);
-            rootNode.parent = canvasNode;
-            this._pushPrefabCanvasUndoRecord(undoRecord);
-            return canvasNode;
-        }
+            if (rootNode.parent && !hasOneKindOfComponent(rootNode.parent, Canvas)) {
+                const canvasNode = await createShouldHideInHierarchyCanvasNode(director.getScene()!, workMode);
+                undoRecord.previewCanvasNode = canvasNode;
+                undoRecord.previewCanvasCreated = !this._prefabCanvasUndoBeforeNodeUuids?.has(canvasNode.uuid);
+                rootNode.parent = canvasNode;
+                return { canvasNode, mutation };
+            }
 
-        this._pushPrefabCanvasUndoRecord(undoRecord);
-        return rootNode;
+            return { canvasNode: rootNode, mutation };
+        } catch (error) {
+            try {
+                mutation.rollback();
+            } catch (rollbackError) {
+                throw new AggregateError(
+                    [error, rollbackError],
+                    'Prefab Canvas handling failed and its rollback was incomplete.',
+                );
+            }
+            throw error;
+        }
     }
 
     private _createPrefabCanvasUndoRecord(rootNode: Node, workMode: string): IPrefabCanvasUndoRecord {
         const rootParent = rootNode.parent as Node | null;
         return {
             rootNode,
+            rootParent,
             rootParentUuid: rootParent?.uuid ?? null,
             rootParentPath: rootParent ? (NodeMgr.getNodePath(rootParent) ?? '/') : '/',
             rootSiblingIndex: rootNode.getSiblingIndex(),
