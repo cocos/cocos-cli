@@ -459,6 +459,9 @@ class ToolDownloader {
         console.log(`❌ 失败: ${failCount}`);
 
         if (failCount > 0) {
+            if (process.env.COCOS_STRICT_TOOL_DOWNLOADS === 'true') {
+                throw new Error(`${failCount} 个工具下载失败`);
+            }
             console.log(`\n💡 提示:`);
             console.log(`   - 失败的下载可能是网络问题或文件不存在`);
             console.log(`   - 可以重新运行脚本重试: npm run download-tools`);

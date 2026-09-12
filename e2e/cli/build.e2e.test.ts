@@ -3,7 +3,6 @@ import {
     createTestProject,
     checkPathExists,
     validateBuildOutput,
-    delay,
     E2E_TIMEOUTS
 } from '../helpers/test-utils';
 import { TestProject } from '../helpers/project-manager';
@@ -55,9 +54,6 @@ describe('cocos build command', () => {
             const buildPath = join(testProject.path, 'build', 'web-desktop-test');
             const buildExists = await checkPathExists(buildPath);
             expect(buildExists).toBe(true);
-
-            // 等待文件系统同步
-            await delay(1000);
 
             // 验证构建产物
             const validation = await validateBuildOutput(buildPath);

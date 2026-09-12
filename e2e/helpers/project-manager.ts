@@ -88,7 +88,7 @@ export class E2EProjectManager {
     ];
 
     constructor(config: E2EWorkspaceConfig = {}) {
-        this.workspaceRoot = config.workspaceRoot || resolve(__dirname, '../.workspace');
+        this.workspaceRoot = config.workspaceRoot || process.env.__E2E_WORKSPACE_ROOT__ || resolve(__dirname, '../.workspace');
         this.cleanBeforeTest = config.cleanBeforeTest !== false;
         this.preserveAfterTest = config.preserveAfterTest || false;
     }

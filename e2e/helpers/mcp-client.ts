@@ -32,7 +32,6 @@ export class MCPTestClient {
     private serverProcess: ChildProcess | null = null;
     private forceKillTimer: NodeJS.Timeout | null = null;
     private startTimeoutTimer: NodeJS.Timeout | null = null;
-    private connectTimer: NodeJS.Timeout | null = null;
     private projectPath: string;
     private port: number;
     private cliPath: string;
@@ -75,6 +74,14 @@ export class MCPTestClient {
      */
     getPort(): number {
         return this.port;
+    }
+
+    /** Connect to a server owned by globalSetup; close() only closes this connection. */
+    async connectToRunningServer(): Promise<void> {
+        if (!Number.isInteger(this.port) || this.port <= 0 || this.port > 65535) {
+            throw new Error('A valid server port is required');
+        }
+        await this.connectClient();
     }
 
     /**
@@ -154,13 +161,9 @@ export class MCPTestClient {
                             this.startTimeoutTimer = null;
                         }
 
-                        // 等待一小段时间确保服务器完全就绪，然后连接客户端
-                        this.connectTimer = setTimeout(() => {
-                            this.connectTimer = null;
-                            this.connectClient()
-                                .then(() => resolve())
-                                .catch(reject);
-                        }, 1000);
+                        // The endpoint has announced readiness; connectClient retries
+                        // if the transport still needs time to become available.
+                        this.connectClient().then(() => resolve()).catch(reject);
                     }
                 }
             });
@@ -180,10 +183,6 @@ export class MCPTestClient {
                     clearTimeout(this.startTimeoutTimer);
                     this.startTimeoutTimer = null;
                 }
-                if (this.connectTimer) {
-                    clearTimeout(this.connectTimer);
-                    this.connectTimer = null;
-                }
                 reject(error);
             });
 
@@ -192,10 +191,6 @@ export class MCPTestClient {
                     if (this.startTimeoutTimer) {
                         clearTimeout(this.startTimeoutTimer);
                         this.startTimeoutTimer = null;
-                    }
-                    if (this.connectTimer) {
-                        clearTimeout(this.connectTimer);
-                        this.connectTimer = null;
                     }
                     reject(new Error(`Server exited with code ${code} before ready`));
                 }
@@ -419,10 +414,6 @@ export class MCPTestClient {
         if (this.startTimeoutTimer) {
             clearTimeout(this.startTimeoutTimer);
             this.startTimeoutTimer = null;
-        }
-        if (this.connectTimer) {
-            clearTimeout(this.connectTimer);
-            this.connectTimer = null;
         }
 
         if (this.client) {

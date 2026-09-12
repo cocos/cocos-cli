@@ -1,0 +1,92 @@
+<% if (waitForConnect) { %>
+debugger
+<% } %>
+window.location.href = <%- JSON.stringify(serverURL + '/') %>;
+function fetchText (url) {
+    return new Promise((resolve, reject) => {
+        let xhr = new XMLHttpRequest()
+        xhr.open('GET', url, true);
+        xhr.timeout = 30000;
+        xhr.onerror = () => reject(new Error(`Failed to fetch ${url}`));
+        xhr.ontimeout = () => reject(new Error(`Timed out fetching ${url}`));
+        xhr.onabort = () => reject(new Error(`Aborted fetching ${url}`));
+        xhr.onload = (() => {
+            if (xhr.status !== 200) {
+                return reject(`${url}: ${xhr.status}`);
+            }
+            resolve(xhr.response);
+        });
+        xhr.send(null);
+    });
+}
+
+async function fetchJson (url) {
+    return JSON.parse((await fetchText(url)));
+}
+
+async function httpHandler(url) {
+    console.log(`httpHandler: ${url}`);
+    let js = await fetchText(url);
+    try {
+        window.eval(js + `\n//# sourceURL=${url}`);
+    } catch (err) {
+        console.error(err);
+        throw err;
+    }
+}
+
+(async function () {
+    window.self = window;
+    require("src/system.bundle.js");
+    require("src/polyfills.bundle.js");
+
+    const importMapList = [];
+
+    const importMapEngineModsUrl = './src/import-map.json';
+    const importMapEngineModsJson = jsb.fileUtils.getStringFromFile(importMapEngineModsUrl);
+    const importMapEngineMods = JSON.parse(importMapEngineModsJson);
+
+    importMapList.push({ location: importMapEngineModsUrl, map: importMapEngineMods });
+
+    const importMapProjectUrl = <%- JSON.stringify(packImportMapURL) %>;
+    const importMapProject = await fetchJson(importMapProjectUrl);
+
+    importMapList.push({ location: importMapProjectUrl, map: importMapProject });
+
+    importMapList.push({ location: './', map: {
+        imports: {
+            'cc': 'cce:/internal/x/cc',
+            'cc/userland/macro': <%- JSON.stringify(userlandMacroURL) %>,
+        },
+    } });
+
+    System.warmup({
+        importMapList,
+        defaultHandler: (urlNoSchema) => {
+            require(urlNoSchema.startsWith('/') ? urlNoSchema.substr(1) : urlNoSchema);
+        },
+        handlers: {
+            'http:': (urlNoSchema) => {
+                return httpHandler('http:' + urlNoSchema);
+            },
+            'https:': (urlNoSchema) => {
+                return httpHandler('https:' + urlNoSchema);
+            },
+        },
+    });
+
+    System.import('./src/application.js').then(({ Application }) => {
+        return new Application();
+    }).then((application) => {
+        return System.import('cc').then((cc) => {
+            require('jsb-adapter/engine-adapter.js');
+            return application.init(cc);
+        }).then(() => {
+            return application.start();
+        });
+    }).catch((err) => {
+        console.error(err);
+    });
+})().catch(err => {
+    console.error(err);
+});

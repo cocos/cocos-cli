@@ -1,6 +1,8 @@
 import { setupMCPTestEnvironment, teardownMCPTestEnvironment, MCPTestContext } from '../helpers/test-utils';
 import { MCPTestClient } from '../helpers/mcp-client';
 import { E2E_PORTS } from '../config';
+import { getProjectManager } from '../helpers/project-manager';
+import { resolve } from 'path';
 
 describe('MCP Server', () => {
     let context: MCPTestContext;
@@ -42,10 +44,13 @@ describe('MCP Server', () => {
     test('should start server on specified port', async () => {
         // 使用配置的测试端口
         const customPort = E2E_PORTS.TEST_PORT;
+        const project = await getProjectManager().createTestProject(
+            resolve(__dirname, '../../tests/fixtures/projects/asset-operation'), 'custom-port',
+        );
 
         // 创建新的客户端实例，指定端口（用于测试自定义端口功能）
         const customClient = new MCPTestClient({
-            projectPath: context.testProject.path,
+            projectPath: project.path,
             port: customPort,
         });
 
@@ -63,6 +68,7 @@ describe('MCP Server', () => {
         } finally {
             // 清理：关闭自定义端口的服务器（这是独立的测试服务器，需要关闭）
             await customClient.close();
+            await project.cleanup();
         }
     });
 });

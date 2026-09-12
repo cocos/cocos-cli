@@ -4,6 +4,12 @@
  */
 
 import { jest, expect } from '@jest/globals';
+import { getSharedMCPServer } from './helpers/shared-mcp-server';
+
+afterAll(async () => {
+    // Release this file's session and any isolated server it owns.
+    await getSharedMCPServer().cleanup();
+});
 
 // Jest 超时时间已在 jest.config.e2e.ts 中配置为 10 分钟
 // 这里不需要再次设置

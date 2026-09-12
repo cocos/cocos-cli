@@ -6,8 +6,8 @@ describe('MCP Builder API', () => {
     let context: MCPTestContext;
 
     beforeAll(async () => {
-        // 使用共享的 MCP 服务器
-        context = await setupMCPTestEnvironment();
+        // Builds need a fresh engine process, independent of scene editing tests.
+        context = await setupMCPTestEnvironment(undefined, 'mcp-e2e-builder');
     });
 
     afterAll(async () => {

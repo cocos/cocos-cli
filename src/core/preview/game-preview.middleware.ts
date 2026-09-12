@@ -29,6 +29,30 @@ export async function getLibraryDirs(): Promise<string[]> {
 }
 
 /**
+ * 按扁平相对路径 `<uuid前两位>/<uuid>[/<nativeName>].<ext>` 在各 library 目录（项目库与引擎
+ * `editor/library`，后者是内置 effect/材质等 builtin 资产的落点）定位文件，返回绝对路径。
+ *
+ * 浏览器游戏预览的 `/assets/<bundle>/(import|native)/` 路由与 simulator 的 `/sim-assets` 路由
+ * 共用同一套扁平查找：simulator 的 generalImportBase/nativeBase 是单 base（previewServer +
+ * '/sim-assets'），表达不了 per-bundle 前缀，故也走扁平路径。
+ */
+async function findInLibraryDirs(tail: string): Promise<string | undefined> {
+    const dirs = await getLibraryDirs();
+    for (const d of dirs) {
+        const full = join(d, tail);
+        // 防目录穿越：join 后必须仍位于 library 目录内，否则跳过（`..` 会逃逸出目录）
+        const rel = relative(d, full);
+        if (rel.startsWith('..') || isAbsolute(rel)) {
+            continue;
+        }
+        if (existsSync(full)) {
+            return full;
+        }
+    }
+    return undefined;
+}
+
+/**
  * 游戏运行时共享的资源路由（settings / 原始资源 / bundle config / bundle index / 启动场景 JSON）。
  * 浏览器游戏预览（/）使用；抽出为具名导出便于维护。
  */
@@ -72,6 +96,38 @@ export const gamePreviewResourceRoutes = [
         },
     },
     {
+        // simulator 运行时专用资产路由：按扁平 library 路径无条件返回文件内容。
+        //
+        // simulator 的 native jsb downloader 用 overrideSettings.assets.importBase/nativeBase =
+        // previewServer + '/sim-assets' 作为 generalImportBase/generalNativeBase（单 base 表达不了
+        // per-bundle 的 assets/<bundle>/(import|native)/ 前缀）。引擎按
+        // `${base}/${uuid前2位}/${uuid}.${ext}` 拼出 http://server/sim-assets/<前2位>/<uuid>.<ext>，
+        // 本路由按扁平相对路径在各 library 目录（含项目库与引擎 editor/library，内置 effect/材质
+        // 都在后者）查文件并回内容（findInLibraryDirs）。
+        //
+        // 下一条 /assets/<bundle>/(import|native)/ 路由是 per-bundle 前缀，与 /sim-assets 前缀互不重叠，
+        // 不会互相捕获；本路由只是逻辑上靠前。缺本路由 simulator 取不到任何资产（含 builtin effect
+        // → pipelineSceneData is invalid）→ 黑屏。
+        url: /^\/sim-assets\/(.+)$/,
+        async handler(req: Request, res: Response, next: NextFunction) {
+            try {
+                const match = req.path.match(/^\/sim-assets\/(.+)$/);
+                if (!match) {
+                    return next();
+                }
+                // 逐段 encode，兼容子资源 `@` 与含特殊字符的目录名（仅保留分隔符 / \ 与 @ 不编码）
+                const tail = match[1].replace(/[^\\/@]+/g, encodeURIComponent);
+                const hit = await findInLibraryDirs(tail);
+                if (!hit) {
+                    return next();
+                }
+                res.sendFile(hit, { dotfiles: 'allow' });
+            } catch (err) {
+                next(err);
+            }
+        },
+    },
+    {
         // bundle 的原始资源文件（import / native），从 asset-db library 目录读取
         url: /^\/(?:remote|assets)\/[^/]+\/(?:import|native)\/(.*)/,
         async handler(req: Request, res: Response, next: NextFunction) {
@@ -82,20 +138,7 @@ export const gamePreviewResourceRoutes = [
                 }
                 // 逐段 encode，兼容子资源 `@` 与含特殊字符的目录名（仅保留分隔符 / \ 与 @ 不编码）
                 const tail = match[1].replace(/[^\\/@]+/g, encodeURIComponent);
-                const dirs = await getLibraryDirs();
-                // 防目录穿越：join 后必须仍位于 library 目录内，否则跳过（`..` 会逃逸出目录）
-                let hit: string | undefined;
-                for (const d of dirs) {
-                    const full = join(d, tail);
-                    const rel = relative(d, full);
-                    if (rel.startsWith('..') || isAbsolute(rel)) {
-                        continue;
-                    }
-                    if (existsSync(full)) {
-                        hit = full;
-                        break;
-                    }
-                }
+                const hit = await findInLibraryDirs(tail);
                 if (!hit) {
                     return next();
                 }

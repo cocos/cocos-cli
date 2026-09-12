@@ -12,6 +12,7 @@
 - 🏗️ **Project Management**: Create, import, and build Cocos projects
 - 📦 **Resource Management**: Import/export resources, batch processing
 - ⚡ **Build System**: Multi-platform build support
+- 🖥️ **Simulator Preview**: Build and launch the Cocos simulator from the CLI
 - 🎨 **Interactive Interface**: Wizard-guided operations
 
 ## 📋 Prerequisites
@@ -78,6 +79,23 @@ cocos --help
 
 For detailed command documentation, see [Commands Documentation](docs/en/commands.md).
 
+## 🖥️ Simulator Preview
+
+The simulator is not part of `npm run build` — `npm run release` builds it automatically, or you can build it directly:
+
+```bash
+# Build the native simulator executable + runtime artifacts
+npm run build:simulator
+
+# Build only the native executable
+npm run build:simulator:native
+
+# Build only the runtime artifacts
+npm run build:simulator:runtime
+```
+
+The public API lives in `src/lib/simulator/simulator.ts` (generated types in `packages/cocos-cli-types/simulator.d.ts`). See [docs/en/simulator.md](docs/en/simulator.md) for an overview.
+
 ## 🧪 Testing
 
 ### Unit Tests
@@ -86,8 +104,8 @@ For detailed command documentation, see [Commands Documentation](docs/en/command
 # Run all unit tests (core)
 npm test
 
-# Run only core tests
-npm run test:core
+# Run asset-db workspace tests
+npm run test:asset-db
 
 # Run tests in watch mode
 npm run test:watch

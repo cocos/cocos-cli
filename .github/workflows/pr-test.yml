@@ -59,6 +59,7 @@ jobs:
     if: needs.check-changes.outputs.should_run == 'true'
 
     strategy:
+      fail-fast: false
       matrix:
         # Windows native build still uses the bundled CMake 3.24.3 and VS2022 generator.
         os: [windows-2022, macos-latest]
@@ -99,9 +100,33 @@ jobs:
         id: type-check
         run: npx tsc -b
 
+      - name: Build simulator runtime artifacts
+        run: npm run build:simulator:runtime
+
+      - name: Verify test scheduling
+        run: |
+          node --test workflow/test-runner.test.cjs workflow/postinstall.test.cjs
+          npm run test:groups
+
+      - name: Restore Jest cache
+        id: jest-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache/jest
+          key: jest-v1-${{ runner.os }}-${{ runner.arch }}-node22.17.0-${{ hashFiles('package-lock.json', 'repo.json', 'jest*.ts', 'tsconfig*.json') }}-${{ github.sha }}
+          restore-keys: |
+            jest-v1-${{ runner.os }}-${{ runner.arch }}-node22.17.0-${{ hashFiles('package-lock.json', 'repo.json', 'jest*.ts', 'tsconfig*.json') }}-
+
       - name: Run unit tests
         id: unit-tests
         run: npm run test:quiet
+
+      - name: Save Jest cache
+        if: steps.jest-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .cache/jest
+          key: ${{ steps.jest-cache.outputs.cache-primary-key }}
 
       # pull_request 与 issue_comment 的 PR 标题字段不同，取当前事件中存在的标题进行检测。
       - name: Run AssetDB package tests

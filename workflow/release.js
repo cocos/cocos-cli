@@ -174,6 +174,18 @@ async function scanProjectFiles() {
 }
 
 /**
+ * Build simulator artifacts under packages/engine before file scanning.
+ */
+async function buildSimulatorArtifacts() {
+    if (process.env.SKIP_SIMULATOR_BUILD === '1') {
+        console.log('Skipping simulator build in release because SKIP_SIMULATOR_BUILD=1');
+        return;
+    }
+
+    await runCommand('npm', ['run', 'build:simulator'], { cwd: context.rootDir });
+}
+
+/**
  * Update Repos
  */
 async function updateRepos() {
@@ -551,14 +563,18 @@ function createReleasePipeline(config) {
 // Define base tasks
 const initTask = gulp.series(
     async () => await getProjectVersion(),
-    async () => await readIgnorePatterns(),
-    async () => await scanProjectFiles()
+    async () => await readIgnorePatterns()
 );
 
 const prepareTask = gulp.series(
     clean,
     updateRepos,
-    installDeps
+    installDeps,
+    buildSimulatorArtifacts
+);
+
+const collectFilesTask = gulp.series(
+    async () => await scanProjectFiles()
 );
 
 // Main release task
@@ -566,6 +582,7 @@ gulp.task('release', gulp.series(
     (cb) => parseArgs(cb),
     initTask,
     prepareTask,
+    collectFilesTask,
     async (cb) => {
         // Dynamically create and execute pipelines based on configs
         const pipelines = context.configs.map(config => createReleasePipeline(config));
