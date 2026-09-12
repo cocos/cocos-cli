@@ -1,6 +1,8 @@
 const fse = require('fs-extra');
 const path = require('path');
 const utils = require('./utils');
+const { parseArgs } = require('node:util');
+const { resolveEnginePath } = require('./engine-path');
 
 if (!utils.hasDevelopmentEnvironment()) return;
 
@@ -43,13 +45,14 @@ module.exports = modsMgr.syncImport('${moduleId}');
 
     console.time('Bundle node_modules/cc');
 
-    const enginePath = path.join(__dirname, '../packages/engine');
+    const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'engine-path': { type: 'string' } } });
+    const enginePath = resolveEnginePath(path.join(__dirname, '..'), values['engine-path']);
 
     const ccTemplatePath = path.join(__dirname, '../packages/cc-module/statics/cc-template.d.ts');
     const ccPath = path.join(__dirname, '../packages/cc-module/cc.d.ts');
 
     const ccdPath = path.join(enginePath, '/bin/.declarations/cc.d.ts');
-    const ccEditorExportsDtsPath = path.join(__dirname, '../packages/engine','./bin/.declarations/cc.editor.d.ts');
+    const ccEditorExportsDtsPath = path.join(enginePath, 'bin/.declarations/cc.editor.d.ts');
 
     const relativeCcdPath = path.relative(path.dirname(ccPath), ccdPath);
     const relativeCcEditorExportsDtsPath = path.relative(path.dirname(ccPath), ccEditorExportsDtsPath);

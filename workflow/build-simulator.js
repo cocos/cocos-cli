@@ -1,7 +1,7 @@
 const fs = require('fs-extra');
 const path = require('path');
 const rootDir = path.resolve(__dirname, '..');
-const defaultEngineDir = path.join(rootDir, 'packages', 'engine');
+const { resolveEnginePath } = require('./engine-path');
 
 const platformArtifacts = {
     darwin: {
@@ -36,7 +36,7 @@ function parseCliEnginePath(argv = process.argv.slice(2)) {
 }
 
 function resolveEngineDir(enginePath) {
-    return path.resolve(enginePath || defaultEngineDir);
+    return resolveEnginePath(rootDir, enginePath);
 }
 
 function getSimulatorReleaseDir(enginePath) {

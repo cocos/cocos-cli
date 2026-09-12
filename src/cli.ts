@@ -6,6 +6,8 @@ import { Command } from 'commander';
 import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand, MakeCommand, RunCommand, UploadCommand, PublishCommand } from './commands';
 import { config } from './display/config';
 import { PreviewCommand } from './commands/preview';
+import { setEnginePathOverride } from './global';
+import { DoctorCommand } from './commands/doctor';
 import { SimulatorCommand } from './commands/simulator';
 
 const program = new Command();
@@ -14,10 +16,15 @@ const program = new Command();
 program
     .name('cocos')
     .description('Cocos CLI tool for project management and building')
-    .version('0.0.1-alpha.41')
+    .version(require('../package.json').version)
     .option('--debug', 'Enable debug mode')
     .option('--no-interactive', 'Disable interactive mode (for CI)')
-    .option('--config <path>', 'Specify config file path');
+    .option('--config <path>', 'Specify config file path')
+    .option('--engine-path <path>', 'Select an Engine SDK (overrides project and local defaults)');
+
+program.hook('preAction', () => {
+    setEnginePathOverride(program.opts().enginePath);
+});
 
 // 全局错误处理
 program.exitOverride();
@@ -32,6 +39,7 @@ commandRegistry.register(new RunCommand(program));
 commandRegistry.register(new UploadCommand(program));
 commandRegistry.register(new PublishCommand(program));
 commandRegistry.register(new PreviewCommand(program));
+commandRegistry.register(new DoctorCommand(program));
 commandRegistry.register(new SimulatorCommand(program));
 
 // 注册所有命令

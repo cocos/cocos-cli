@@ -2135,6 +2135,7 @@ export declare interface EngineInfo {
     },
     tmpDir: string;
     version: string;
+    revision?: string;
 }
 export declare type EnumItem = string | {
     label: string;
@@ -8039,8 +8040,7 @@ export { }
 `;
 
 exports[`DTS API compatibility engine.d.ts should match snapshot 1`] = `
-"import { __private } from 'cc';
-export declare interface BaseItem {
+"export declare interface BaseItem {
     label?: string;
     description?: string;
     default: boolean;
@@ -8082,6 +8082,7 @@ export declare interface EngineInfo {
     },
     tmpDir: string;
     version: string;
+    revision?: string;
 }
 export declare interface Features {
     [feature: string]: IModuleItem;
@@ -8222,7 +8223,9 @@ export declare interface IModuleConfig {
 }
 export declare type IModuleItem = IFeatureItem | IFeatureGroup;
 export declare type IModules = Record<string, IModuleItem>;
-export declare function init(projectPath: string): Promise<void>;
+export declare function init(projectPath: string, options?: {
+    enginePath?: string;
+}): Promise<void>;
 export declare function initEngine(enginePath: string, projectPath: string, serverURL?: string): Promise<void>;
 export declare interface IPhysicsConfig {
     gravity: IVec3Like;
@@ -8306,15 +8309,18 @@ export declare function queryLayerBuiltin(): Promise<{
     name: string;
     value: number;
 }[]>;
-export declare function querySortingLayerBuiltin(): Promise<readonly __private._cocos_sorting_sorting_layers__SortingItem[]>;
+export declare function querySortingLayerBuiltin(): Promise<readonly {
+    id: number;
+    name: string;
+    value: number;
+}[]>;
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
 export { }
 "
 `;
 
 exports[`DTS API compatibility index.d.ts should match snapshot 1`] = `
-"import { __private } from 'cc';
-import type { ChildProcess } from 'child_process';
+"import type { ChildProcess } from 'child_process';
 import { ChunkInfo } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { EventEmitter } from 'events';
 import { default as i18n_2 } from 'i18next';
@@ -9120,6 +9126,7 @@ export declare interface EngineInfo {
     },
     tmpDir: string;
     version: string;
+    revision?: string;
 }
 export declare type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
 export declare interface ExecuteAnimationGraphCommandRequest {
@@ -9623,7 +9630,9 @@ export declare interface ImportMap {
 export declare function init(): Promise<void>;
 export declare function init_2(projectPath: string): Promise<void>;
 export declare function init_3(projectPath: string): Promise<void>;
-export declare function init_4(projectPath: string): Promise<void>;
+export declare function init_4(projectPath: string, options?: {
+    enginePath?: string;
+}): Promise<void>;
 export declare function init_5(projectPath: string): Promise<void>;
 export declare function init_6(): Promise<void>;
 export declare function init_7(projectPath: string): Promise<void>;
@@ -10318,7 +10327,11 @@ export declare function queryPath(urlOrUuid: string): Promise<string>;
 export declare function queryPropertySchema(importer: string): Promise<AssetPropertySchemaMap>;
 export declare function querySerializedData(uuidOrUrlOrPath: string): Promise<SerializedAssetQueryResult>;
 export declare function querySortedPlugins(filterOptions?: FilterPluginOptions): Promise<IPluginScriptInfo[]>;
-export declare function querySortingLayerBuiltin(): Promise<readonly __private._cocos_sorting_sorting_layers__SortingItem[]>;
+export declare function querySortingLayerBuiltin(): Promise<readonly {
+    id: number;
+    name: string;
+    value: number;
+}[]>;
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;

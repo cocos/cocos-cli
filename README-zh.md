@@ -37,20 +37,36 @@
 
    ```bash
    npm install -g node-gyp
-   npm run init
    npm install
    ```
 
-3. **构建并链接到全局**
+3. **配置引擎，准备 CLI 并链接到全局**
+
+   将已准备好的 Engine SDK 放到 `packages/engine`，或在 CLI 根目录被 Git 忽略的 `config.local.json` 中配置本机地址：
+
+   ```json
+   {
+     "project": "D:/Demo/cocos/NewProject",
+     "enginePath": "D:/Cocos/code/cocos-cli/packages/engine"
+   }
+   ```
+
+   相对路径以 CLI 仓库根目录为基准，与启动命令的工作目录无关。不填 `enginePath` 时使用 `packages/engine`。已有 `project` 按原值保留。
 
    ```bash
-   npm run build
+   npm run setup:cli
    npm link
    ```
+
+   开发引擎源码时，显式执行 `npm run fetch:engine`（仅缺少源码时）、`npm run install:engine`，然后用 `npm run setup:dev` 替代 `setup:cli`。自定义引擎自行管理源码，跳过 `fetch:engine`。
+
+`npm install` / `npm ci` 安装依赖，不编译或下载引擎。`setup:cli` 使用准备好的引擎构建 CLI、下载开发工具；`setup:dev` 额外编译引擎源码。`npm run init` 保留为 `setup:cli` 的兼容入口。CI 与更新规则见[环境配置说明](docs/dev/environment-setup.md)。
 
 ## 🚀 快速开始
 
 查看 [快速开始指南](docs/zh/quick-start.md) 了解详细使用步骤。
+
+运行时可用 `--engine-path "D:/engines/custom engine"` 覆盖引擎；优先级为命令行 > 项目 `settings/cocos.config.json` 的 `engineSdk.path` > 本机 `config.local.json.enginePath` > 默认 `packages/engine`。项目可以用 `engineSdk.version` / `revision` 锁定精确身份，详见[环境配置说明](docs/dev/environment-setup.md)。
 
 ## 📚 基本命令
 

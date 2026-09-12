@@ -24,6 +24,7 @@ async function preload(options: {
      * 需要预加载的模块。
      */
     requiredModules: string[];
+    validateEngine?: (engine: unknown) => void;
 }) {
     try {
         if (hasPreload) {
@@ -65,6 +66,7 @@ async function preload(options: {
             // @ts-ignore
             // eslint-disable-next-line no-undef
             const ccm = window.ccm = require('cc');
+            options.validateEngine?.(ccm);
 
             await import(join(options.engineRoot, 'bin/.editor/engine-adapter.js'));
             // ---- hack creator 使用的一些 engine 参数
