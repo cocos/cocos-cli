@@ -1,9 +1,10 @@
 'use strict';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
 declare const require: any;
 
 import { Color, geometry, js, Node, ParticleSystem, Quat, Vec3 } from 'cc';
+import { queryRegisteredService } from '../../../core/decorator';
+import type { GizmoService } from '../../../gizmo';
 import { registerGizmo } from '../../gizmo-defines';
 import { create3DNode } from '../../utils/engine-utils';
 
@@ -28,7 +29,7 @@ let IconGizmoBase: any;
 try {
     GizmoBase = require('../../base/gizmo-base').default;
     IconGizmoBase = require('../../base/gizmo-icon').default;
-} catch (e) {
+} catch {
     GizmoBase = class {};
     IconGizmoBase = class {};
 }
@@ -404,13 +405,14 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
                     break;
                 case ShapeType.Cone: {
                     const coneData = this.getConeData(this.target);
-                    coneData &&
+                    if (coneData) {
                         (this._activeController as any).updateSize(
                             Vec3.ZERO,
                             coneData.topRadius,
                             coneData.height,
                             coneData.bottomRadius,
                         );
+                    }
                     break;
                 }
                 case ShapeType.Hemisphere:
@@ -512,15 +514,11 @@ export const SelectGizmo = ParticleSystemComponentGizmo;
 export const IconGizmo = ParticleSystemIconGizmo;
 export const PersistentGizmo = null;
 
-function getGizmoService(): any {
-    try {
-        const { Service } = require('../../core/decorator');
-        return Service.Gizmo;
-    } catch (e) {
-        return null;
-    }
+function getGizmoService(): Pick<GizmoService, 'forEachInstanceList'> | null {
+    return queryRegisteredService('Gizmo');
 }
 
+// Legacy methods take a node UUID, unlike Component.executeMethod's component UUID.
 export const methods = {
     showBoundingBox(uuid: string, isShow: boolean) {
         getGizmoService()?.forEachInstanceList?.('component', name, (gizmo: any) => {
@@ -543,6 +541,6 @@ export const methods = {
 // 使用 try-catch 包裹，避免测试环境报错
 try {
     registerGizmo(name, { SelectGizmo, IconGizmo, methods });
-} catch (e) {
+} catch {
     // 测试环境可能没有 registerGizmo，忽略
 }
