@@ -407,6 +407,12 @@ LightFX 当前可能输出 Creator 历史协议版本。解析器只接受已知
 
 ## 错误与事务
 
+### Lightmap GI Samples 整数溢出防护（2026-09-12）
+
+已在隔离 PinK 实测 `giSamples=65535` 触发原生 `GenerateIntegrationSamples` 的 vector length_error／SIGABRT。随包 LightFX 对 Lightmap 采样数组长度以有符号32位计算 `giSamples² × 64 × 5`，故最大不溢出整数为2590（不是推荐值，也不保证大值在所有设备上的内存和耗时）。修复仅在公开参数schema、Scene直接入口及输入编码处前置拒绝非法值，不启动原生计算、不修改上一份结果、不静默clamp；Light Probe采样参数保持原契约。用户已决定暂不处理日志对齐，引用保护的隔离失败与用户手测不一致另行保留，不混入本次修复。
+
+产品提交 `21e3b27d`。先通过 `tsc -b` 与 Scene bundle 构建，再通过32套件／556项回归测试及定向 ESLint。全局 ui_verifier 在新夹具 `/tmp/pink-gi-overflow.BNB4DT` 实际执行 GI25 生成 → GI65535 明确拒绝 → 改回25生成成功；拒绝前后场景、PNG、meta 的 hash 及绑定／UV不变，全量43点SH hash一致，两次正常生成均 `dirty:false`、无缺图。Host仅有两次正常任务的 begin/run，65535没有启动原生任务。原始截图、运行时及文件证据 `/tmp/codex-ui-verifier.Uszw6E`。未实机运行2590，不将算术上限当作性能验收；既有告警仍存在。
+
 常见错误包括：
 
 - 当前没有打开已保存场景。
