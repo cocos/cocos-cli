@@ -9,6 +9,9 @@ import {
     IUpdateNodeParams,
     IUpdateNodeResult,
     IPublicNodeService,
+    ISerializeNodesParams,
+    ICreateBySerializedDataParams,
+    SerializedNodeData,
 } from '../../common';
 import { INodeInfo } from '../../common/cli/node';
 import { Rpc } from '../rpc';
@@ -22,6 +25,12 @@ export interface INodeProxy extends Omit<IPublicNodeService, 'createByType' | 'c
 }
 
 export const NodeProxy: INodeProxy = {
+    serialize(params: ISerializeNodesParams): Promise<SerializedNodeData> {
+        return Rpc.getInstance().request('Node', 'serialize', [params]);
+    },
+    createBySerializedData(params: ICreateBySerializedDataParams): Promise<string[]> {
+        return Rpc.getInstance().request('Node', 'createBySerializedData', [params]);
+    },
     async createByType(params: ICreateByNodeTypeParams): Promise<INodeInfo | null> {
         const result: any = await Rpc.getInstance().request('Node', 'createByType', [params]);
         return result ? DumpConverter.toNode(result) : null;

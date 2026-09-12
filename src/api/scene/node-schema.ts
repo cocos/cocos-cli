@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { NodeType } from '../../core/scene';
 import { INodeInfo } from '../../core/scene';
+import type { ICreateBySerializedDataParams, ISerializeNodesParams, SerializedNodeData } from '../../core/scene';
 import { SchemaVec3 } from '../base/schema-value-types';
 import { SchemaNodeIdentifier, SchemaComponentIdentifier } from '../base/schema-identifier';
 import { SchemaPrefabInfo } from './prefab-info-schema';
@@ -109,7 +110,46 @@ export const SchemaNodeCreateByType = SchemaNodeCreateWithPreflight.extend({
     nodeType: z.enum(Object.values(NodeType) as [string, ...string[]]).describe('Node type'), // 节点类型
 });
 
+const SchemaSerializedNodeVec3 = z.object({
+    x: z.number().finite(),
+    y: z.number().finite(),
+    z: z.number().finite(),
+});
+
+export const SchemaSerializedNodeData = z.object({
+    version: z.literal(1).describe('Serialized node data format version'),
+    serialized: z.string().min(1).describe('Opaque Cocos JSON object graph returned by scene-serialize-nodes; pass it unchanged'),
+    rootTransforms: z.array(z.object({
+        position: SchemaSerializedNodeVec3,
+        rotation: SchemaSerializedNodeVec3.extend({ w: z.number().finite() }),
+        scale: SchemaSerializedNodeVec3,
+    })).min(1).describe('Saved world transforms in serialized root order'),
+    externalReferences: z.array(z.object({
+        id: z.string().min(1).describe('Reference placeholder ID in the serialized graph'),
+        type: z.enum(['node', 'component']),
+        uuid: z.string().min(1).describe('Original target UUID, resolved only within the destination Runtime'),
+    })).describe('References to nodes or components outside this batch; asset references remain in the serialized graph'),
+}).describe('Complete node batch returned by scene-serialize-nodes, including all reference and transform metadata. Pass the entire object unchanged to scene-create-nodes-by-serialized-data.') satisfies z.ZodType<SerializedNodeData>;
+
+export const SchemaNodeSerialize = z.object({
+    paths: z.array(z.string().min(1)).min(1).describe('Node paths in the source scene, such as Canvas/Panel; the editor root cannot be serialized'),
+}).describe('Serialize the selected nodes and their subtrees as one batch') satisfies z.ZodType<ISerializeNodesParams>;
+
+export const SchemaNodeCreateBySerializedData = z.object({
+    data: SchemaSerializedNodeData,
+    parentPath: z.string().min(1).describe('Existing parent path in the destination scene; use / for the editor root'),
+    siblingIndex: z.number().int().nonnegative().optional().describe('Zero-based insertion index; defaults to appending after existing children'),
+    keepWorldTransform: z.boolean().optional().describe('Restore saved world transforms when true; defaults to preserving local transforms'),
+    externalReferences: z.enum(['clear', 'resolve']).optional().describe('Defaults to clear for cross-scene copies. Use resolve only in the source Runtime to look up original UUIDs; missing references become null'),
+}).describe('Create a complete node batch in the destination scene from previously serialized data') satisfies z.ZodType<ICreateBySerializedDataParams>;
+
+export const SchemaNodeCreateBySerializedDataResult = z.array(z.string()).describe('New root node paths in serialized order, after resolving name conflicts');
+
 // 类型导出
+export type TSerializedNodeData = z.infer<typeof SchemaSerializedNodeData>;
+export type TSerializeNodesOptions = z.infer<typeof SchemaNodeSerialize>;
+export type TCreateNodesBySerializedDataOptions = z.infer<typeof SchemaNodeCreateBySerializedData>;
+export type TCreateNodesBySerializedDataResult = z.infer<typeof SchemaNodeCreateBySerializedDataResult>;
 export type TDeleteNodeOptions = z.infer<typeof SchemaNodeDelete>;
 export type TUpdateNodeOptions = z.infer<typeof SchemaNodeUpdate>;
 export type TCreateNodeByAssetOptions = z.infer<typeof SchemaNodeCreateByAsset>;

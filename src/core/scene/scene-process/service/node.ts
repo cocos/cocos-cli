@@ -4,6 +4,9 @@ import type { ComponentService } from './component';
 import {
     type ICreateByAssetParams,
     type ICreateByNodeTypeParams,
+    type ISerializeNodesParams,
+    type ICreateBySerializedDataParams,
+    type SerializedNodeData,
     type ICreateNodePreflightResult,
     type IDeleteNodeParams,
     type IDeleteNodeResult,
@@ -44,6 +47,9 @@ import { RemoveComponentCommand } from './undo/commands/remove-component-command
 import { PrefabPreviewCanvasCommand } from './undo/commands/prefab-preview-canvas-command';
 import { broadcastAnimationPropertyCommitted } from './animation/property-commit-event';
 import { isRootNodePath, stripLeadingSlashes, validateNodeName } from '../../../engine/editor-extends/manager/path-utils';
+import { deserializeNodes, disposeSerializedNodes, serializeNodes } from './node/serialized-node-data';
+import { mountSerializedNodes } from './node/serialized-node-mount';
+import { CreateSerializedNodesCommand } from './undo/commands/create-serialized-nodes-command';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -75,6 +81,137 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     private _prefabCanvasUndoBeforeNodeUuids: Set<string> | null = null;
     private readonly _preflightTokens = new Map<string, ICreatePreflightToken>();
     private _preflightTokenSequence = 0;
+
+    async serialize(params: ISerializeNodesParams): Promise<SerializedNodeData> {
+        if (!Array.isArray(params?.paths) || !params.paths.length) {
+            throw new Error('Node.serialize requires at least one node path.');
+        }
+
+        await Service.Editor.lock();
+        try {
+            const root = Service.Editor.getRootNode();
+            if (!root) {
+                throw new Error('Failed to serialize nodes: the scene is not opened.');
+            }
+
+            const selected = new Set(params.paths.map(path => {
+                const node = NodeMgr.getNodeByPath(path) as Node | null;
+                if (!node?.isValid || node === root || !node.isChildOf(root)) {
+                    throw new Error(`Node cannot be serialized at path: ${path}`);
+                }
+                return node;
+            }));
+
+            // 父节点已包含其子树，过滤被选中父节点覆盖的子节点
+            const roots = [...selected].filter(node => {
+                for (let parent = node.parent; parent; parent = parent.parent) {
+                    if (selected.has(parent)) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            // 多个根节点一起序列化，保留根节点之间的引用
+            return serializeNodes(roots);
+        } finally {
+            Service.Editor.unlock();
+        }
+    }
+
+    /**
+     * 从序列化数据创建节点，挂载到指定父节点并返回节点路径
+     * 创建成功后整批记录撤销，失败时清理本次创建的节点
+     */
+    async createBySerializedData(params: ICreateBySerializedDataParams): Promise<string[]> {
+        if (
+            !params ||
+            typeof params.parentPath !== 'string' ||
+            (params.siblingIndex !== undefined && (!Number.isInteger(params.siblingIndex) || params.siblingIndex < 0)) ||
+            (params.externalReferences !== undefined && !['clear', 'resolve'].includes(params.externalReferences)) ||
+            (params.keepWorldTransform !== undefined && typeof params.keepWorldTransform !== 'boolean')
+        ) {
+            throw new Error('Invalid serialized node creation options.');
+        }
+
+        await Service.Editor.lock();
+        let nodes: Node[] = [];
+        try {
+            const root = Service.Editor.getRootNode();
+
+            // Prefab 编辑模式下，根路径指向正在编辑的 Prefab 根节点
+            const parent: Node | null = isRootNodePath(params.parentPath)
+                ? root
+                : NodeMgr.getNodeByPath(params.parentPath);
+
+            // 确认编辑根节点未切换，且目标父节点仍有效并属于该根节点
+            // 资源加载需要等待，加载前后都要检查，避免向已切换的场景或 Prefab 中创建节点
+            const isCurrentTarget = () =>
+                root &&
+                Service.Editor.getRootNode() === root &&
+                parent?.isValid &&
+                (parent === root || parent.isChildOf(root));
+
+            if (!isCurrentTarget()) {
+                throw new Error(`Parent node not found at path: ${params.parentPath}`);
+            }
+
+            nodes = await deserializeNodes(params.data, params.externalReferences ?? 'clear');
+
+            if (!isCurrentTarget()) {
+                throw new Error('The target editor or parent changed while loading serialized nodes.');
+            }
+
+            // 未指定位置时追加到末尾，插入范围以资源加载后的子节点数量为准
+            const siblingIndex = params.siblingIndex ?? parent!.children.length;
+            if (siblingIndex > parent!.children.length) {
+                throw new Error('The insertion index is outside the target parent.');
+            }
+
+            // 检查所有待创建的节点，避免嵌套实例使正在编辑的 Prefab 引用自身
+            if (Service.Editor.getCurrentEditorType() === 'prefab') {
+                const assetUuid = root!['_prefab']?.asset?._uuid;
+                for (const node of nodes) {
+                    node.walk(child => {
+                        if (assetUuid && child['_prefab']?.asset?._uuid === assetUuid) {
+                            throw new Error('Cannot create a prefab instance inside its own asset.');
+                        }
+                    });
+                }
+            }
+
+            let paths: string[] = [];
+
+            // 整批挂载成功并取得有效路径后，再统一记录撤销
+            mountSerializedNodes({
+                nodes,
+                parent: parent!,
+                editorRoot: root!,
+                siblingIndex,
+                data: params.data,
+                keepWorldTransform: !!params.keepWorldTransform,
+                onMounted: () => {
+                    paths = nodes.map(node => NodeMgr.getNodePath(node));
+                    if (paths.some(path => !path)) {
+                        throw new Error('Failed to register the created node paths.');
+                    }
+
+                    // 执行撤销或重做时不新增撤销记录
+                    if (!isUndoApplying()) {
+                        Service.Undo.push(new CreateSerializedNodesCommand(nodes, parent!));
+                    }
+                },
+            });
+
+            return paths;
+        } catch (error) {
+            // 挂载流程负责回滚，这里清理尚未挂载或已解除挂载的节点
+            disposeSerializedNodes(nodes.filter(node => !node.parent));
+            throw error;
+        } finally {
+            Service.Editor.unlock();
+        }
+    }
 
     async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
         this._validateCreateParams(params);

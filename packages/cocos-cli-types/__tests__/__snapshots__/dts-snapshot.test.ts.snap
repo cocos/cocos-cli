@@ -6573,6 +6573,13 @@ export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
 export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
     nodeType: NodeType;
 }
+export declare interface ICreateBySerializedDataParams {
+    data: SerializedNodeData;
+    parentPath: string;
+    siblingIndex?: number;
+    keepWorldTransform?: boolean;
+    externalReferences?: 'resolve' | 'clear';
+}
 export declare interface ICreateNodePreflightResult {
     action: 'create' | 'choose-prefab-canvas-handling';
     canvasRequired: boolean;
@@ -6811,6 +6818,8 @@ export declare interface INodeDumpOptions {
     includeComponents?: boolean;
 }
 export declare interface INodeService extends IServiceEvents {
+    serialize(params: ISerializeNodesParams): Promise<SerializedNodeData>;
+    createBySerializedData(params: ICreateBySerializedDataParams): Promise<string[]>;
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult>;
@@ -6983,6 +6992,12 @@ export declare type IPropertyLock = {
     message: string
 };
 export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare interface IQuat {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
 export declare interface IQueryClassesOptions {
     extends?: string | string[];
     excludeSelf?: boolean;
@@ -7281,6 +7296,9 @@ export declare interface ISelectionService {
     query(): string[];
     isSelect(path: string): boolean;
     reset(): void;
+}
+export declare interface ISerializeNodesParams {
+    paths: string[];
 }
 export declare interface IServiceEvents {
     onEditorOpened?(): void;
@@ -7863,6 +7881,20 @@ export declare interface SerializedAssetFinder {
     textures?: Array<string | null>;
     materials?: Array<string | null>;
     scenes?: Array<string | null>;
+}
+export declare interface SerializedNodeData {
+    version: 1;
+    serialized: string;
+    rootTransforms: {
+        position: IVec3;
+        rotation: IQuat;
+        scale: IVec3;
+    }[];
+    externalReferences: {
+        id: string;
+        type: 'node' | 'component';
+        uuid: string;
+    }[];
 }
 export declare interface SimplifyOptions {
     targetRatio?: number;

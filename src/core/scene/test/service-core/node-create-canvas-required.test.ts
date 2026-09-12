@@ -150,6 +150,14 @@ jest.mock('../../scene-process/service/undo/commands/remove-component-command', 
     RemoveComponentCommand: {},
 }));
 
+// 隔离本组用例未使用的序列化创建依赖，避免加载真实引擎模块
+jest.mock('../../scene-process/service/undo/commands/create-serialized-nodes-command', () => ({
+    CreateSerializedNodesCommand: {},
+}));
+jest.mock('../../scene-process/service/node/serialized-node-mount', () => ({
+    mountSerializedNodes: jest.fn(),
+}));
+
 jest.mock('../../scene-process/service/animation/property-commit-event', () => ({
     broadcastAnimationPropertyCommitted: jest.fn(),
 }));

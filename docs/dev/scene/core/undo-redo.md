@@ -1,6 +1,6 @@
 # Scene Undo/Redo
 
-Last updated: 2026-06-10
+Last updated: 2026-09-11
 
 ## 目标
 
@@ -41,7 +41,7 @@ Undo/redo 只覆盖“当前正在编辑的 scene/prefab 资源中，会被保�
 
 | 范围 | 已覆盖 API / 行为 | 记录方式 |
 | --- | --- | --- |
-| Node 生命周期 | create、delete、copy paste、duplicate | structure command |
+| Node 生命周期 | create、delete、copy paste、duplicate、createBySerializedData | structure command |
 | Node 属性 | setProperty、reset、resetProperty、updatePropertyFromNull、setNodeAndChildrenLayer、changeNodeLock | snapshot command |
 | Node 层级 | setParent、reorder、children moveArrayElement、cut paste | reparent / order snapshot |
 | Component 生命周期 | add、remove、removeArrayElement(`__comps__`) | component structure command |
@@ -56,6 +56,7 @@ Undo/redo 只覆盖“当前正在编辑的 scene/prefab 资源中，会被保�
 | 范围 | API / 行为 | 原因 |
 | --- | --- | --- |
 | 查询 | query、queryNodeTree、getPrefabInfo、isPrefabInstance、canUndo、canRedo、isDirty | 只读 |
+| 节点序列化 | `Node.serialize` | 返回可传输数据，不修改场景、复制缓存或历史记录 |
 | 选择状态 | Selection.select、unselect、clear、query | 编辑器临时状态，不写 scene/prefab 持久化数据 |
 | 预览属性 | previewSetProperty、cancelPreviewSetProperty | 预览态，可取消，不形成持久化 command |
 | Camera / SceneView | camera pan/orbit/zoom、scene view light/visibility/view config | 视图状态，不是 scene 数据 dirty 来源 |
@@ -109,6 +110,8 @@ Command：
 - `src/core/scene/scene-process/service/undo/commands/snapshot-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/composite-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/create-node-command.ts`
+- `src/core/scene/scene-process/service/undo/commands/create-serialized-nodes-command.ts`
+  - `CreateSerializedNodesCommand`：整批创建节点的 Undo/Redo，共用一份对象图快照。
 - `src/core/scene/scene-process/service/undo/commands/remove-node-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/add-component-command.ts`
 - `src/core/scene/scene-process/service/undo/commands/remove-component-command.ts`
@@ -125,6 +128,8 @@ Command：
   - RPC/service 入口，负责参数解析、锁、调用 node manager、调用 undo helper。
 - `src/core/scene/scene-process/service/node/node-undo.ts`
   - Node 相关 undo/redo helper，负责 snapshot capture/apply、children order、component order、reparent、create-node command 捕获。
+- `src/core/scene/scene-process/service/node/serialized-node-mount.ts`
+  - 首次创建与 Redo 共用的批量挂载流程，负责重名、插入位置、变换、Prefab 引用记录和失败回滚。
 - `src/core/scene/scene-process/service/ui.ts`
   - `alignSelection` / `distributeSelection` 通过 `Undo.beginRecording/endRecording` 记录选中节点位置变化。
 - `src/core/scene/scene-process/service/prefab.ts`
@@ -137,6 +142,7 @@ Command：
 
 - `createByType`
 - `createByAsset`
+- `createBySerializedData`
 - `delete`
 - `setProperty`
 - `reset`
@@ -377,6 +383,7 @@ dirty 规则：
 | --- | --- | --- | --- |
 | 创建节点 | `NodeService.createByType` | `node:create` | `src/core/scene/scene-process/service/node.ts` |
 | 通过资源创建节点 | `NodeService.createByAsset` | `node:create` | `src/core/scene/scene-process/service/node.ts` |
+| 从序列化数据批量创建节点 | `NodeService.createBySerializedData` | `node:create-serialized` | `src/core/scene/scene-process/service/undo/commands/create-serialized-nodes-command.ts` |
 | 删除节点 | `NodeService.delete` | `node:delete` | `src/core/scene/scene-process/service/node.ts` |
 | 设置节点属性 | `NodeService.setProperty` | `node:set-property` snapshot | `src/core/scene/scene-process/service/node.ts` |
 | 重置节点 | `NodeService.reset` | `node:reset` snapshot | `src/core/scene/scene-process/service/node.ts` |
@@ -421,9 +428,21 @@ Structure command 适合对象结构变化：
 - 节点创建/删除。
 - 组件添加/删除。
 
-结构命令不能只依赖 uuid。恢复时还需要 path、parent path、sibling index、component index 等兜底信息，避免对象被删除后找不回来。
+结构命令需要记录恢复对象所需的身份、数据和位置信息。常规结构快照保存 uuid、path、parent path、sibling index、component index 等信息，用于重新定位和还原对象。
+
+`CreateSerializedNodesCommand` 使用整批对象图快照、根节点和父节点 UUID、sibling index，以及编辑会话标识。它要求恢复时保留 UUID，并在执行前确认仍属于原编辑会话；目标或父节点缺失时明确失败，不按路径替换为另一个同名对象。这里的路径不能作为对象身份兜底，不能仅为补齐快照字段而放宽该校验。
 
 ## 特殊实现说明
+
+### `createBySerializedData`
+
+- 首次创建先校验数据、加载资源并还原节点，再调用 `mountSerializedNodes` 整批挂载。
+- 挂载成功后才捕获保留完整 Prefab 信息的快照，并 push 一个 `CreateSerializedNodesCommand`。
+- 挂载或快照捕获失败时，回滚本批节点和父级 Prefab 元数据，不新增 Undo 记录。
+- Undo 先检查全部根节点及其父级身份，再移除本批引用记录和节点；Redo 使用同一份快照恢复原 UUID，并复用批量挂载流程。
+- 同一编辑会话内保留历史的重载可以继续 Undo/Redo；命令每次从当前编辑器获取根节点。切换编辑会话后拒绝执行旧命令。
+
+对应测试集中在 `node-serialized-data.testcase.ts`，由 `scene.test.ts` 加载；`serialized-node-data.engine-test.ts` 另外覆盖真实引擎中的引用、Prefab、重载和会话校验。
 
 ### `setNodeAndChildrenLayer`
 
@@ -528,7 +547,7 @@ Recording 的恢复范围是现有对象的 dump。不要用它包 `Node.create/
 9. capture after。
 10. before/after 相同则不入栈。
 11. push command。
-12. 添加 `undo-redo.testcase.ts` 集成测试。
+12. 添加 Undo/Redo 集成测试。通用历史行为放在 `undo-redo.testcase.ts`；业务专用行为可以集中在对应的 `*.testcase.ts`，并确保由 `scene.test.ts` 加载。
 13. 如新增公开 API，更新 `common/*`、proxy、dts snapshot。
 
 不要把 `cancelGroup` 当 rollback 使用。业务失败后是否回滚，需要调用方显式补偿或 reload。

@@ -1,6 +1,6 @@
 import type { Node } from 'cc';
 import { IRemovedComponentInfo, ISetPropertyOptions, IComponent } from './component';
-import { IVec3 } from './value-types';
+import { IVec3, IQuat } from './value-types';
 import { IServiceEvents } from '../scene-process/service/core';
 import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
 import type { IProperty } from '../@types/public';
@@ -32,6 +32,47 @@ export interface INodeTreeItem {
 
 export interface IQueryNodeTreeParams {
     path?: string;
+}
+
+/** 一批节点及其子树的序列化数据 */
+export interface SerializedNodeData {
+    /** 数据格式版本，反序列化时会进行校验 */
+    version: 1;
+
+    /** 所有根节点共用的 Cocos JSON 对象图，用于保留批内引用 */
+    serialized: string;
+
+    /** 按根节点的序列化顺序保存世界变换，keepWorldTransform 为 true 时使用 */
+    rootTransforms: {
+        position: IVec3;
+        rotation: IQuat;
+        scale: IVec3;
+    }[];
+
+    /** 本批数据范围外的节点或组件引用，资源引用仍保存在 serialized 中 */
+    externalReferences: {
+        /** 对应 serialized 中 $nodeReference 标记的占位 ID */
+        id: string;
+        type: 'node' | 'component';
+        /** 引用目标的原始 UUID，供 'resolve' 策略查找 */
+        uuid: string;
+    }[];
+}
+
+export interface ISerializeNodesParams {
+    paths: string[];
+}
+
+export interface ICreateBySerializedDataParams {
+    data: SerializedNodeData;
+    /** 目标父节点必须已存在，传入 '/' 时使用当前编辑器的根节点 */
+    parentPath: string;
+    /** 插入位置从 0 开始，默认追加到末尾 */
+    siblingIndex?: number;
+    /** 为 true 时恢复保存的世界变换，否则保留序列化数据中的局部变换 */
+    keepWorldTransform?: boolean;
+    /** 默认清空外部引用；'resolve' 会按原始 UUID 在目标 Runtime 中查找，找不到则置空 */
+    externalReferences?: 'resolve' | 'clear';
 }
 
 export enum NodeType {
@@ -308,6 +349,15 @@ export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
  * 节点的相关处理接口
  */
 export interface INodeService extends IServiceEvents {
+    /** 序列化节点及其子树，不修改场景、复制缓存或撤销记录 */
+    serialize(params: ISerializeNodesParams): Promise<SerializedNodeData>;
+
+    /**
+     * 整批创建节点并返回新建根节点的路径
+     * 成功后记为一次撤销操作，失败时回滚本批改动
+     */
+    createBySerializedData(params: ICreateBySerializedDataParams): Promise<string[]>;
+
     /**
      * 创建节点
      * @param params
