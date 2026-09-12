@@ -13,6 +13,7 @@ import { finishSavedLightFXRecording, LightFXResultRetainedError } from './bakin
 import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets';
 import { BaseService, register, Service } from './core';
 import { loadPreviewAsset } from './preview/asset-reload';
+import { validateLightmapGISamples } from '../../common/lightfx-limits';
 
 interface LightmapBinding {
     target: any;
@@ -36,6 +37,8 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     }
 
     async bake(options: ILightmapBakeOptions = {}): Promise<ILightmapBakeResult> {
+        // Scene callers (including PinK) do not necessarily pass through the public API schema.
+        if (options.giSamples !== undefined) validateLightmapGISamples(options.giSamples);
         return lightFXSceneOperation.run('lightmap', 'bake', () => this.bakeExclusive(options));
     }
 

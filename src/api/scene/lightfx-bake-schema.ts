@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_LIGHTMAP_GI_SAMPLES } from '../../core/scene/common/lightfx-limits';
 
 const SaveAndTimeout = {
     saveScene: z.boolean().optional().describe('Save the current scene after applying the bake result; defaults to true'),
@@ -29,7 +30,8 @@ export const SchemaLightmapBakeOptions = z.object({
     resolution: z.union([z.literal(128), z.literal(256), z.literal(512), z.literal(1024), z.literal(2048)]).optional(),
     filter: z.boolean().optional(), highp: z.boolean().optional(),
     giScale: z.number().finite().min(0).max(100).optional(),
-    giSamples: z.number().int().min(1).max(65535).optional(),
+    giSamples: z.number().int().min(1).max(MAX_LIGHTMAP_GI_SAMPLES).optional()
+        .describe('Lightmap GI sampling factor; 1–2590. Large values have quadratic memory and time costs.'),
     giPathLength: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
     aoLevel: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
     aoStrength: z.number().finite().min(0).optional(),

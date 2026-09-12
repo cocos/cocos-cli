@@ -1,7 +1,9 @@
 import { LightFXBuffer } from './buffer';
 import { LIGHTFX_FILE_VERSION, LightFXChunk, LightFXWorld } from './types';
+import { validateLightmapGISamples } from '../../../../common/lightfx-limits';
 
 export function encodeLightFXInput(world: LightFXWorld): Uint8Array {
+    if (world.settings.bakeLightmap) validateLightmapGISamples(world.settings.giSamples);
     const b = new LightFXBuffer(); const s = world.settings;
     b.writeInt32(LIGHTFX_FILE_VERSION); b.writeString(world.name); b.writeFloats([0, 0, 0]); b.writeFloats(s.skyRadiance);
     b.writeInt32(s.msaa); b.writeInt32(s.size); b.writeFloat(s.gamma); b.writeInt8(s.highp ? 1 : 0);

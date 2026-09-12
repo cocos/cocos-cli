@@ -67,6 +67,16 @@ describe('Lightmap result recording targets', () => {
         mockQueryTextureInfo.mockReset().mockResolvedValue({ textures: [], missingTextureUuids: [] });
         mockRemoveLightmapAssets.mockResolvedValue({ deletedTextureUuids: [], retainedTextureUuids: [], failures: [] });
     });
+    it.each([2591, 65535, 0, -1, 25.5, NaN, Infinity])('rejects unsafe GI samples %s before native work or result mutation', async giSamples => {
+        const f = fixture();
+        await expect(f.service.bake({ giSamples })).rejects.toThrow('Lightmap GI Samples must be an integer between 1 and 2590');
+        expect([mockQueryCapabilities, mockBake, mockSave, mockCommit, mockRemoveLightmapAssets, mockUndo.beginRecording,
+            f.model._updateLightmap, f.terrain._updateLightmap].map(mock => mock.mock.calls.length)).toEqual(Array(8).fill(0));
+        expect(f.model.bakeSettings.texture).toBe(f.oldTexture);
+        // Rejection must not leave an operation owner or poison the next bake.
+        await f.service.bake({ giSamples: 25 });
+        expect(mockBake).toHaveBeenCalledTimes(1);
+    });
     it.each([false, true])('records Mesh and Terrain components before scene flags for Bake (save=%s)', async saveScene => {
         const f = fixture();
         await f.service.bake({ saveScene });
