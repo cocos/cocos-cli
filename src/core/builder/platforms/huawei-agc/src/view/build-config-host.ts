@@ -1,6 +1,9 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as vscode from 'vscode';
+import * as pink from 'pink';
+
+const ANDROID_SDK_CONFIG_KEY = 'programManager.androidSDK';
 
 type Bundle = Record<string, unknown>;
 
@@ -53,7 +56,22 @@ function lookup(bundle: Bundle, key: string): string | undefined {
     return typeof cur === 'string' ? cur : undefined;
 }
 
-function getAndroidAPILevels(): number[] {
+async function getConfigurationString(key: string): Promise<string> {
+    const value = await pink.configuration.get(key);
+    return typeof value === 'string' ? value : '';
+}
+
+/**
+ * Resolve the Android SDK path. Prefer the path configured in the pink program
+ * manager (the one the view's 'Set Android SDK' button writes to), then fall
+ * back to the ANDROID_HOME/ANDROID_SDK_ROOT env vars and OS-default locations.
+ */
+async function findSdkPath(): Promise<string> {
+    const configured = await getConfigurationString(ANDROID_SDK_CONFIG_KEY);
+    if (configured) {
+        return configured;
+    }
+
     let sdkPath = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || '';
     if (!sdkPath && process.platform === 'win32' && process.env.LOCALAPPDATA) {
         const defaultSdkPath = path.join(process.env.LOCALAPPDATA, 'Android', 'Sdk');
@@ -67,15 +85,21 @@ function getAndroidAPILevels(): number[] {
             sdkPath = defaultSdkPath;
         }
     }
-    const platformPath = path.join(sdkPath, 'platforms');
-    if (!sdkPath || !fs.existsSync(platformPath)) {
-        return [];
-    }
-    return fs.readdirSync(platformPath)
-        .map((name) => /^android-(\d+)$/.exec(name)?.[1])
-        .filter((level): level is string => !!level && Number(level) >= 19)
-        .map(Number)
-        .sort((a, b) => b - a);
+    return sdkPath;
+}
+
+function getAndroidAPILevels(): Promise<number[]> {
+    return findSdkPath().then((sdkPath) => {
+        const platformPath = path.join(sdkPath, 'platforms');
+        if (!sdkPath || !fs.existsSync(platformPath)) {
+            return [];
+        }
+        return fs.readdirSync(platformPath)
+            .map((name) => /^android-(\d+)$/.exec(name)?.[1])
+            .filter((level): level is string => !!level && Number(level) >= 19)
+            .map(Number)
+            .sort((a, b) => b - a);
+    });
 }
 
 export function activate(context: HostContext): void {
