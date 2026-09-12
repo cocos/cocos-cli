@@ -1,10 +1,12 @@
-import { DirectionalLight, director, gfx, Light, MeshRenderer, MobilityMode, renderer, Scene, SphereLight, SpotLight, Terrain, Texture2D, Vec3 } from 'cc';
-import type { ILightFXTextureSource } from '../../../../common/lightfx-host';
+import { DirectionalLight, director, gfx, Light, MeshRenderer, MobilityMode, renderer, Scene, SphereLight, SpotLight, Terrain, TERRAIN_BLOCK_TILE_COMPLEXITY, Texture2D, Vec3 } from 'cc';
+import type { ILightFXTextureSource, ILightFXSceneStats } from '../../../../common/lightfx-host';
+import { lightmapSceneStats } from './scene-stats';
 import { lightFXBakeHost } from './host';
 import { LightFXBakeTarget, LightFXLight, LightFXMaterial, LightFXMesh, LightFXSettings, LightFXTerrain, LightFXWorld } from './types';
 import { validLightmapUV } from './lightmap-uv';
 
 export interface LightFXExport {
+    sceneStats?: ILightFXSceneStats;
     world: LightFXWorld;
     models: MeshRenderer[];
     terrains: Terrain[];
@@ -37,7 +39,8 @@ export class LightFXExporter {
         const exposure = hdr ? renderer.scene.Camera.standardExposureValue : 1;
         for (const light of world.lights) light.color = light.color.map((value) => value * exposure);
         if (scene.globals.lightProbeInfo.data) for (const probe of scene.globals.lightProbeInfo.data.probes) world.probes.push({ position: [probe.position.x, probe.position.y, probe.position.z], normal: [probe.normal.x, probe.normal.y, probe.normal.z] });
-        return { world, models, terrains, stationaryMainLight, textureSources: [...this.textureSources.values()] };
+        return { world, models, terrains, stationaryMainLight, textureSources: [...this.textureSources.values()],
+            ...(target === 'lightmap' ? { sceneStats: lightmapSceneStats(world, TERRAIN_BLOCK_TILE_COMPLEXITY) } : {}) };
     }
 
     private exportTerrain(terrain: Terrain): LightFXTerrain {

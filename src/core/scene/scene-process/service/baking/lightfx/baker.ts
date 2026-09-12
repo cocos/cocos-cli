@@ -48,7 +48,7 @@ export class LightFXCoordinator {
                 transactionId,
                 target,
                 sceneName: scene.name,
-                ...(target === 'lightmap' ? { sceneUuid: scene.uuid } : {}),
+                ...(target === 'lightmap' ? { sceneUuid: scene.uuid, sceneStats: exported.sceneStats } : {}),
                 textureSources: exported.textureSources,
                 timeoutMs,
                 ...(outputUrl !== undefined ? { outputUrl } : {}),

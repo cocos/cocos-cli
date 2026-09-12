@@ -138,25 +138,51 @@ describe('LightFXBakeHost', () => {
         await host.releaseSceneOperation(token);
     });
 
-    it('keeps Lightmap progress history and reads native statistics before cleanup', async () => {
+    it('assembles product logs from real progress and exported counts, not the verbose native file', async () => {
         jest.spyOn(host as any, 'stageLightmapAssets').mockResolvedValue([]);
         mockRunnerRun.mockImplementationOnce(async ({ cwd, onProgress }: { cwd: string; onProgress: (value: string) => void }) => {
             onProgress('Build lighting 25%');
             onProgress('Build lighting 50%');
             onProgress('Build lighting 100%');
-            await outputFile(join(cwd, 'lfx.log'), 'Build lighting 100%\nBake scene stats: objects 3 lights 1 triangles 224\n');
+            await outputFile(join(cwd, 'lfx.log'), '2026-09-12 Version 382\nCmdLine: /native/LightFX\nStarting thread 0\n');
             await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
         });
         const token = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
-        const { operationId } = await host.begin({ ...token, target: 'lightmap', sceneName: 'Scene', textureSources: [], timeoutMs: 120_000 });
+        const { operationId } = await host.begin({ ...token, target: 'lightmap', sceneName: 'Scene', textureSources: [], timeoutMs: 120_000,
+            sceneStats: { objects: 3, lights: 1, triangles: 224 } });
         await host.appendInput({ operationId, chunkBase64: Buffer.from('input').toString('base64') });
         await host.run({ operationId });
         await host.commit({ operationId });
         expect((await host.queryDiagnostics({ ...token, operationId, target: 'lightmap' }))?.logs).toEqual([
             'Baking started', 'Build lighting 25%', 'Build lighting 50%', 'Build lighting 100%',
+            'The baking is ready to complete and begin generating images.',
             'Bake scene stats: objects 3 lights 1 triangles 224', 'End of the baking.',
         ]);
         await host.releaseSceneOperation(token);
+    });
+
+    it('does not report successful image generation or statistics when native work fails', async () => {
+        mockRunnerRun.mockImplementationOnce(async ({ onLog, onProgress }) => {
+            onLog('Version 382');
+            onLog('Warning: native sample warning');
+            onProgress('Build lighting 25%');
+            throw new Error('native bake failed');
+        });
+        const token = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const { operationId } = await host.begin({ ...token, target: 'lightmap', sceneName: 'Scene', textureSources: [], timeoutMs: 120_000,
+            sceneStats: { objects: 2, lights: 1, triangles: 4108 } });
+        await host.appendInput({ operationId, chunkBase64: Buffer.from('input').toString('base64') });
+        await expect(host.run({ operationId })).rejects.toThrow('native bake failed');
+        expect((await host.queryDiagnostics({ ...token, operationId, target: 'lightmap' }))?.logs)
+            .toEqual(['Baking started', 'Warning: native sample warning', 'Build lighting 25%']);
+        await host.releaseSceneOperation(token);
+    });
+
+    it.each([-1, NaN, 1.5])('rejects malformed exported statistics %s before starting native work', async triangles => {
+        await expect(host.begin({ target: 'lightmap', sceneName: 'Scene', textureSources: [], timeoutMs: 120_000,
+            sceneStats: { objects: 2, lights: 1, triangles } })).rejects.toThrow('exported scene statistics');
+        expect(mockRunnerRun).not.toHaveBeenCalled();
+        expect((await host.queryCapabilities()).busy).toBe(false);
     });
 
     it('reserves before export, rejects missing/wrong ownership and keeps the lease past native commit', async () => {

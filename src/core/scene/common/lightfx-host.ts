@@ -34,6 +34,8 @@ export interface ILightFXHostCapabilities {
 
 /** Native diagnostic data is informational and never controls the bake transaction. */
 export interface ILightFXDiagnostics {
+    /** Internal identity lets terminal readers reject logs from an earlier bake. */
+    operationId?: string;
     version: 1;
     stage: string;
     logs: string[];
@@ -58,7 +60,15 @@ export interface IResolvedLightFXTextureSource {
     fileName: string;
 }
 
+/** Counts from the actual exported world, not the scene hierarchy or the native debug log. */
+export interface ILightFXSceneStats {
+    objects: number;
+    lights: number;
+    triangles: number;
+}
+
 export interface IBeginLightFXBakeOptions {
+    sceneStats?: ILightFXSceneStats;
     /** Stable saved scene identity for exact generated-asset cleanup after reopening. */
     sceneUuid?: string;
     outputUrl?: string;

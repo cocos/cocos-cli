@@ -1,5 +1,4 @@
 import { randomUUID } from 'crypto';
-import { open } from 'fs/promises';
 import {
     appendFile,
     copy,
@@ -49,6 +48,7 @@ type OperationState = 'accepting-input' | 'running' | 'awaiting-commit';
 type OperationTerminalState = 'committed' | 'rolled-back' | 'cancelled' | 'expired';
 
 interface LightFXHostOperation {
+    sceneStats?: IBeginLightFXBakeOptions['sceneStats'];
     id: string;
     target: LightFXBakeTarget;
     sceneName: string;
@@ -145,29 +145,9 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         }
     }
 
-    /** Read native statistics before the temporary workspace is removed; logging cannot fail a bake. */
-    private async readNativeLightmapLog(operation: LightFXHostOperation): Promise<void> {
-        if (operation.target !== 'lightmap') return;
-        try {
-            const file = await open(join(operation.workspace, 'lfx.log'), 'r');
-            try {
-                const buffer = Buffer.alloc(256 * 1024 + 1);
-                const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
-                const text = buffer.subarray(0, Math.min(bytesRead, buffer.length - 1)).toString('utf8');
-                const seen = new Set(this.diagnostics.get(operation.id)!.value.logs);
-                const lines = text.split(/\r?\n/);
-                if (bytesRead === buffer.length) lines.pop();
-                for (const line of lines) {
-                    const clean = this.diagnosticText(operation, line).trim();
-                    if (clean && !seen.has(clean)) { this.appendLightmapLog(operation, clean); seen.add(clean); }
-                }
-                if (bytesRead === buffer.length) this.appendLightmapLog(operation, '[Native log exceeds the preview limit.]');
-            } finally { await file.close(); }
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-                this.appendLightmapLog(operation, '[Unable to read the native baking log.]');
-            }
-        }
+    private lightmapImagesStage(operation: LightFXHostOperation): void {
+        const message = 'The baking is ready to complete and begin generating images.';
+        if (!this.diagnostics.get(operation.id)!.value.logs.includes(message)) this.appendLightmapLog(operation, message);
     }
 
     public async reserveSceneOperation(options: IReserveLightFXSceneOperationOptions): Promise<ILightFXSceneOperationToken> {
@@ -284,6 +264,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
         const targetDir = join(parentDir, version);
         const targetUrl = `${parentUrl}/${version}`;
         const operation: LightFXHostOperation = {
+            sceneStats: options.sceneStats ? { ...options.sceneStats } : undefined,
             id: operationId,
             target: options.target,
             sceneName: options.sceneName,
@@ -309,7 +290,7 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
 
         // Reserve the global operation before the first asynchronous filesystem call.
         this.operation = operation;
-        this.diagnostics.set(operationId, { owner: { operationId, target: options.target, transactionId: options.transactionId }, value: { version: 1, stage: 'accepting-input', logs: [] } });
+        this.diagnostics.set(operationId, { owner: { operationId, target: options.target, transactionId: options.transactionId }, value: { version: 1, operationId, stage: 'accepting-input', logs: [] } });
         if (this.diagnostics.size > MAX_REMEMBERED_OPERATIONS) { this.diagnostics.delete(this.diagnostics.keys().next().value!); }
         if (this.sceneOperation) this.sceneOperation.nativeStarted = true;
         try {
@@ -379,7 +360,12 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                 onLog: message => {
                     if (this.operation !== operation || operation.terminalState) { return; }
                     console.log(`[LightFX] ${message}`);
-                    if (operation.target === 'lightmap') { this.appendLightmapLog(operation, message); return; }
+                    if (operation.target === 'lightmap') {
+                        // Product logs are assembled from actual progress/export/output below.
+                        // Keep native warnings/errors visible; verbose diagnostics remain in lfx.log.
+                        if (/\b(?:error|warning|failed|failure)\b/i.test(message)) this.appendLightmapLog(operation, message);
+                        return;
+                    }
                     const logs = this.diagnostics.get(operation.id)!.value.logs;
                     logs.push(this.diagnosticText(operation, message));
                     if (logs.length > 128) { logs.shift(); }
@@ -388,16 +374,23 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
                     if (this.operation !== operation || operation.terminalState) { return; }
                     const diagnostic = this.diagnostics.get(operation.id)!.value;
                     diagnostic.progress = this.diagnosticText(operation, progress);
-                    if (operation.target === 'lightmap') this.appendLightmapLog(operation, progress);
                     const rate = parseLightFXProgressRate(progress);
+                    if (operation.target === 'lightmap' && rate !== undefined) {
+                        this.appendLightmapLog(operation, progress);
+                        if (rate === 100) this.lightmapImagesStage(operation);
+                    }
                     if (rate === undefined) { delete diagnostic.rate; }
                     else { diagnostic.rate = rate; }
                 },
             });
             this.throwIfTerminated(operation);
-            await this.readNativeLightmapLog(operation);
             const result = decodeLightFXOutput(await readFile(join(operation.outputDir, 'lfx.out')));
             if (operation.target === 'lightmap') {
+                this.lightmapImagesStage(operation);
+                if (operation.sceneStats) {
+                    const { objects, lights, triangles } = operation.sceneStats;
+                    this.appendLightmapLog(operation, `Bake scene stats: objects ${objects} lights ${lights} triangles ${triangles}`);
+                }
                 for (const item of result.meshes) {
                     if (!this.diagnostics.get(operation.id)!.value.logs.some(line => line.startsWith(`Mesh ${item.id}:`))) {
                         this.appendLightmapLog(operation, `Mesh ${item.id}: Index(${item.index}) Offset(${item.offset.join(', ')}) Scale(${item.scale.join(', ')})`);
@@ -664,6 +657,11 @@ export class LightFXBakeHost implements ILightFXBakeHostService {
             throw new Error('Invalid LightFX bake target.');
         }
         this.validateSceneName(options.sceneName);
+        if (options.sceneStats !== undefined && (!options.sceneStats ||
+            !['objects', 'lights', 'triangles'].every(key => Number.isSafeInteger(options.sceneStats![key as keyof typeof options.sceneStats])
+                && options.sceneStats![key as keyof typeof options.sceneStats] >= 0))) {
+            throw new Error('Invalid LightFX exported scene statistics.');
+        }
         if (options.outputUrl !== undefined) {
             const url = options.outputUrl;
             if (options.target !== 'lightmap' || typeof url !== 'string'
