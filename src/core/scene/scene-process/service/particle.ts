@@ -2,7 +2,7 @@
 
 import { Component, Node } from 'cc';
 import { BaseService, register } from './core';
-import { IParticleService } from '../../common';
+import { INodeEvents, IParticleService, NodeEventType } from '../../common';
 
 function getNodeByPath(path: string): Node | null {
     const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
@@ -40,7 +40,7 @@ function getParticleSystemsInChildren(node: Node): Component[] {
 
 // 与 cocos-editor ParticleManager 一致：管理粒子系统在编辑模式下的播放
 @register('Particle')
-export class ParticleService extends BaseService<Record<string, never>> implements IParticleService {
+export class ParticleService extends BaseService<Pick<INodeEvents, 'node:change'>> implements IParticleService {
     private _selectedUUIDs: string[] = [];
     private _stoppedSet = new WeakSet<Component>();
 
@@ -153,16 +153,19 @@ export class ParticleService extends BaseService<Record<string, never>> implemen
             return;
         }
         const ps: any = comp;
-        ps.simulationSpeed = speed;
-
         const node = ps.node;
         const index = node['_components']?.indexOf(ps);
         if (index === -1 || index === undefined) {
             return;
         }
-        const propPath = `__comps__.${index}.simulationSpeed`;
-        const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
-        EditorExtends?.Node?.emit?.('change', node, { propPath });
+        ps.simulationSpeed = speed;
+
+        // Notify the exact property so hosts can refresh it; callers own undo recording.
+        this.emit('node:change', node, {
+            type: NodeEventType.SET_PROPERTY,
+            propPath: `__comps__.${index}.simulationSpeed`,
+            record: false,
+        });
     }
 
     /**

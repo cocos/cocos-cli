@@ -18,10 +18,11 @@
 // 模拟 cc 命名空间，避免引入真实引擎
 const mockComponentManagerGetComponent = jest.fn();
 const mockNodeEmit = jest.fn();
+const mockServiceEmit = jest.fn();
 
 jest.mock('../src/core/scene/scene-process/service/core', () => ({
     BaseService: class {
-        protected emit() {}
+        protected emit(...args: any[]) { mockServiceEmit(...args); }
         protected emitInternal() {}
         broadcast() {}
     },
@@ -87,6 +88,7 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
     beforeEach(() => {
         mockComponentManagerGetComponent.mockReset();
         mockNodeEmit.mockReset();
+        mockServiceEmit.mockReset();
         service = new ParticleService();
         selectedComps = [];
         // mock 私有方法返回选中的粒子组件集合
@@ -142,11 +144,49 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
             service.setPlaySpeed('uuid-1', 2.5);
 
             expect(comp.simulationSpeed).toBe(2.5);
-            expect(mockNodeEmit).toHaveBeenCalledWith(
-                'change',
+            expect(mockServiceEmit).toHaveBeenCalledWith(
+                'node:change',
                 comp.node,
-                { propPath: '__comps__.0.simulationSpeed' },
+                { type: 'set-property', propPath: '__comps__.0.simulationSpeed', record: false },
             );
+            expect(mockNodeEmit).not.toHaveBeenCalled();
+        });
+
+        it('通知准确的组件属性路径，宿主可刷新字段且不会创建不完整的撤销记录', () => {
+            const comp = createFakeParticle();
+            comp.node._components.unshift({});
+            mockComponentManagerGetComponent.mockReturnValue(comp);
+
+            expect(() => service.setPlaySpeed('uuid-1', 0.5)).not.toThrow();
+            expect(mockServiceEmit).toHaveBeenCalledTimes(1);
+            expect(mockServiceEmit).toHaveBeenCalledWith('node:change', comp.node, {
+                type: 'set-property',
+                propPath: '__comps__.1.simulationSpeed',
+                record: false,
+            });
+            expect(mockNodeEmit).not.toHaveBeenCalled();
+            expect(service.queryPlayInfo('uuid-1')?.speed).toBe(0.5);
+        });
+
+        it('已脱离节点的组件不发生部分写入', () => {
+            const comp = createFakeParticle();
+            comp.node._components.length = 0;
+            mockComponentManagerGetComponent.mockReturnValue(comp);
+
+            service.setPlaySpeed('uuid-1', 2);
+
+            expect(comp.simulationSpeed).toBe(1);
+            expect(mockServiceEmit).not.toHaveBeenCalled();
+        });
+
+        it('非 3D 粒子组件不写入速度', () => {
+            const comp = createFakeParticle({ __clsName: 'cc.ParticleSystem2D' });
+            mockComponentManagerGetComponent.mockReturnValue(comp);
+
+            service.setPlaySpeed('not-3d', 2);
+
+            expect(comp.simulationSpeed).toBe(1);
+            expect(mockServiceEmit).not.toHaveBeenCalled();
         });
 
         it('组件不存在时不抛错', () => {
@@ -165,10 +205,10 @@ describe('ParticleService 对齐 cocos-editor ParticleManager', () => {
             service.setPlaySpeed('registered-but-unselected', 3.0);
 
             expect(comp.simulationSpeed).toBe(3.0);
-            expect(mockNodeEmit).toHaveBeenCalledWith(
-                'change',
+            expect(mockServiceEmit).toHaveBeenCalledWith(
+                'node:change',
                 comp.node,
-                { propPath: '__comps__.0.simulationSpeed' },
+                { type: 'set-property', propPath: '__comps__.0.simulationSpeed', record: false },
             );
             expect(selectedComps).toHaveLength(0);
         });
