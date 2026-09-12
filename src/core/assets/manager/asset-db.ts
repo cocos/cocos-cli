@@ -69,9 +69,9 @@ class AssetDBManager extends EventEmitter {
     private state: RefreshState = 'free';
     public assetDBInfo: Record<string, IAssetDBInfo> = {};
     private waitingTaskQueue: IWaitingTaskInfo[] = [];
-    private waitingRefreshAsset: string[] = [];
-    private pendingAutoRefreshResolves: Function[] = [];
-    private autoRefreshTimer?: NodeJS.Timeout;
+    private waringRefreshAsset: string[] = [];
+    private autoRefreshAssetLazyPending = false;
+    private waringRefreshAssetPendingMap = new Map<string, Function[]>();
     private get assetBusy() {
         return this.assetBusyTask.size > 0;
     }
@@ -492,26 +492,44 @@ class AssetDBManager extends EventEmitter {
      * 懒刷新资源，请勿使用，目前的逻辑是针对重刷文件夹定制的
      * @param file 
      */
-    public async autoRefreshAssetLazy(pathOrUrlOrUUID: string) {
-        if (!this.waitingRefreshAsset.includes(pathOrUrlOrUUID)) {
-            this.waitingRefreshAsset.push(pathOrUrlOrUUID);
+    public autoRefreshAssetLazy(pathOrUrlOrUUID: string): Promise<boolean> {
+        if (!this.waringRefreshAsset.includes(pathOrUrlOrUUID)) {
+            this.waringRefreshAsset.push(pathOrUrlOrUUID);
         }
 
-        this.autoRefreshTimer && clearTimeout(this.autoRefreshTimer);
-        return new Promise((resolve) => {
-            this.pendingAutoRefreshResolves.push(resolve);
-            this.autoRefreshTimer = setTimeout(async () => {
-                const taskId = 'autoRefreshAssetLazy' + Date.now();
-                this.assetBusyTask.add(taskId);
-                const files = JSON.parse(JSON.stringify(this.waitingRefreshAsset));
-                this.waitingRefreshAsset.length = 0;
-                await Promise.all(files.map((file: string) => assetdb.refresh(file)));
-                this.assetBusyTask.delete(taskId);
-                this.step();
-                this.pendingAutoRefreshResolves.forEach((resolve) => resolve(true));
-                this.pendingAutoRefreshResolves.length = 0;
-            }, 100);
+        const promise = new Promise<boolean>((resolve) => {
+            const pending = this.waringRefreshAssetPendingMap.get(pathOrUrlOrUUID) || [];
+            pending.push(resolve);
+            this.waringRefreshAssetPendingMap.set(pathOrUrlOrUUID, pending);
         });
+
+        if (this.autoRefreshAssetLazyPending) {
+            return promise;
+        }
+
+        this.autoRefreshAssetLazyPending = true;
+        void (async () => {
+            try {
+                while (this.waringRefreshAsset.length > 0) {
+                    const files = Array.from(this.waringRefreshAsset);
+                    this.waringRefreshAsset.length = 0;
+                    const taskId = 'autoRefreshAssetLazy' + Date.now();
+                    this.assetBusyTask.add(taskId);
+                    await Promise.all(files.map((file) => assetdb.refresh(file)));
+                    this.assetBusyTask.delete(taskId);
+                    this.step();
+
+                    files.forEach((file) => {
+                        const pending = this.waringRefreshAssetPendingMap.get(file);
+                        pending?.forEach((resolve) => resolve(true));
+                        this.waringRefreshAssetPendingMap.delete(file);
+                    });
+                }
+            } finally {
+                this.autoRefreshAssetLazyPending = false;
+            }
+        })();
+        return promise;
     }
 
     /**

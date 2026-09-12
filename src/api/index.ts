@@ -1,3 +1,4 @@
+import '../lib/runtime-module-cache';
 import type { EngineApi } from '../api/engine/engine';
 import type { ProjectApi } from '../api/project/project';
 import type { AssetsApi } from '../api/assets/assets';
@@ -32,19 +33,30 @@ export class CocosAPI {
      * 初始化 API 实例，主要是为了实现按需加载
      */
     private async _init() {
-        const { SceneApi } = await import('../api/scene/scene');
+        // 各模块之间无实例级依赖，可并行加载（模块加载器保证共享依赖只求值一次）
+        const [
+            { SceneApi },
+            { EngineApi },
+            { ProjectApi },
+            { AssetsApi },
+            { BuilderApi },
+            { ConfigurationApi },
+            { SystemApi },
+        ] = await Promise.all([
+            import('../api/scene/scene'),
+            import('../api/engine/engine'),
+            import('../api/project/project'),
+            import('../api/assets/assets'),
+            import('../api/builder/builder'),
+            import('../api/configuration/configuration'),
+            import('../api/system/system'),
+        ]);
         this.scene = new SceneApi();
-        const { EngineApi } = await import('../api/engine/engine');
         this.engine = new EngineApi();
-        const { ProjectApi } = await import('../api/project/project');
         this.project = new ProjectApi();
-        const { AssetsApi } = await import('../api/assets/assets');
         this.assets = new AssetsApi();
-        const { BuilderApi } = await import('../api/builder/builder');
         this.builder = new BuilderApi();
-        const { ConfigurationApi } = await import('../api/configuration/configuration');
         this.configuration = new ConfigurationApi();
-        const { SystemApi } = await import('../api/system/system');
         this.system = new SystemApi();
     }
 
