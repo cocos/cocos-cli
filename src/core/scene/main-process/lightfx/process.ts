@@ -45,7 +45,6 @@ export class LightFXProcess {
         this.settled = false;
         this.closePromise = null;
         await new Promise<void>((resolve, reject) => {
-            let timer: NodeJS.Timeout;
             const finish = async (error?: unknown): Promise<void> => {
                 if (this.settled) {
                     return;
@@ -64,7 +63,7 @@ export class LightFXProcess {
             const succeed = (): void => { void finish(); };
             const abort = (): void => fail(new Error('LightFX bake was cancelled.'));
 
-            timer = setTimeout(() => fail(new Error('LightFX bake timed out.')), options.timeoutMs);
+            const timer = setTimeout(() => fail(new Error('LightFX bake timed out.')), options.timeoutMs);
             options.signal?.addEventListener('abort', abort, { once: true });
 
             void (async () => {
