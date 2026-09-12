@@ -4,6 +4,7 @@ import nodeMgr from '../../node/index';
 import { editorPrefabUtils } from '../../prefab/prefab-editor-utils';
 import { nodeOperation } from '../../prefab/node';
 import { sceneUtils } from '../../scene/utils';
+import { deletedLightmapAssets } from '../../baking/lightfx/deleted-lightmap-assets';
 import {
     createUndoId,
     success,
@@ -75,7 +76,7 @@ export function captureNodeStructureSnapshot(
         return null;
     }
 
-    return {
+    return deletedLightmapAssets.capture(node.scene, {
         uuid: node.uuid,
         path: getNodePath(node) || fallbackPath,
         parentUuid: parent?.uuid ?? null,
@@ -84,7 +85,7 @@ export function captureNodeStructureSnapshot(
         serializedJson,
         prefabAssetUuid: getPrefabAssetUuid(node),
         uuidTree: captureUuidTree(node),
-    };
+    });
 }
 
 function serializeNodeStructure(node: Node, serialization: NodeStructureSerialization): string {
@@ -112,7 +113,7 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
         return failure(meta, `Parent node not found: ${snapshot.parentPath || snapshot.parentUuid || '/'}`);
     }
 
-    const restoredNode = await deserializeNode(snapshot);
+    const restoredNode = await deserializeNode(snapshot, parent.scene);
     if (!restoredNode) {
         return failure(meta, `Failed to deserialize node: ${snapshot.path || snapshot.uuid}`);
     }
@@ -295,7 +296,7 @@ function unregisterNodeTree(node: Node): void {
     }
 }
 
-function deserializeNode(snapshot: INodeStructureSnapshot): Promise<Node | null> {
+function deserializeNode(snapshot: INodeStructureSnapshot, scene: Node | null): Promise<Node | null> {
     return new Promise((resolve) => {
         try {
             const loadWithJson = (cc as any).assetManager?.loadWithJson;
@@ -304,7 +305,7 @@ function deserializeNode(snapshot: INodeStructureSnapshot): Promise<Node | null>
                 return;
             }
 
-            const json = JSON.parse(snapshot.serializedJson);
+            const json = deletedLightmapAssets.filter(scene, JSON.parse(snapshot.serializedJson), 'serialized', snapshot);
             loadWithJson.call((cc as any).assetManager, json, null, (error: Error | null, asset: any) => {
                 if (error) {
                     resolve(null);

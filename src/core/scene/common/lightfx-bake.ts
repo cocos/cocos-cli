@@ -44,6 +44,8 @@ export interface ILightProbeBakeResult {
 }
 
 export interface ILightmapBakeOptions {
+    /** Existing assets directory URL. Each bake publishes an immutable child directory; omitted uses the scene's default. */
+    outputUrl?: string;
     msaa?: 1 | 2 | 4 | 8;
     resolution?: 128 | 256 | 512 | 1024 | 2048;
     filter?: boolean;
@@ -60,8 +62,10 @@ export interface ILightmapBakeOptions {
     timeoutMs?: number;
 }
 
-/** Implementation support, not native executable readiness, task recovery or safe asset deletion. */
+/** Implementation support, not native executable readiness or task recovery. */
 export interface ILightmapBakeCapabilities {
+    /** The actual host accepts a selected assets output directory. */
+    outputDirectory?: true;
     diagnostics?: ILightFXDiagnostics;
     version: 1;
     /** Mesh/Terrain bindings, null references and live blocks are restored with the result history. */
@@ -69,6 +73,8 @@ export interface ILightmapBakeCapabilities {
     sceneTransactionVersion: 1;
     /** The actual host preserves previous textures in immutable per-operation directories. */
     assetVersion: 1;
+    /** Clear saves first, then deletes exact unreferenced immutable LightFX texture assets. */
+    assetCleanupVersion?: 1;
     /** Same-Scene cancellation requires the actual host ownership protocol. */
     cancelVersion?: 1;
     /** Advisory: this Scene has obtained a native Lightmap operation ID. */
@@ -86,8 +92,6 @@ export interface ILightmapBakeResult {
 }
 
 export interface ILightmapBakeInfo {
-    /** Read-only next-bake diagnostics; absent on older runtimes. Does not guarantee image quality. */
-    readiness?: ILightmapReadiness;
     sceneUrl: string;
     baked: boolean;
     meshCount: number;
@@ -98,20 +102,11 @@ export interface ILightmapBakeInfo {
     missingTextureUuids: string[];
 }
 
-export type LightmapObjectIssue = 'inactive' | 'movable' | 'editor-only' | 'disabled' | 'not-participating'
-    | 'missing-mesh' | 'invalid-uv1' | 'skinned-static-pose' | 'material-approximation' | 'terrain-translation-only';
-
-export interface ILightmapReadiness {
-    version: 1;
-    objects: {
-        componentUuid: string;
-        nodeName: string;
-        kind: 'mesh' | 'terrain';
-        receivesLightmap: boolean;
-        castsShadow: boolean;
-        lightmapSize: number;
-        issues: LightmapObjectIssue[];
-    }[];
+export interface ILightmapClearResult {
+    clearedCount: number;
+    deletedAssetCount: number;
+    retainedAssetCount: number;
+    failedAssetCount: number;
 }
 
 export interface ILightFXCancelResult {
@@ -138,7 +133,8 @@ export interface ILightmapBakeService extends IServiceEvents {
     queryCapabilities(): Promise<ILightmapBakeCapabilities>;
     bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
     queryBakeInfo(): Promise<ILightmapBakeInfo>;
-    clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<{ clearedCount: number }>;
+    /** Asset deletion saves the scene; unrelated history is kept, but pre-Clear baked results cannot be restored. */
+    clearBake(options?: { saveScene?: boolean; deleteAssets?: boolean }): Promise<ILightmapClearResult>;
     /** Cancels only this Scene's lightmap bake after native ownership is acquired; otherwise a no-op. */
     cancel(): Promise<ILightFXCancelResult>;
 }

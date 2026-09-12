@@ -45,6 +45,13 @@ describe('LightFX bake API', () => {
         expect(() => SchemaLightmapBakeOptions.parse({ giPathLength: 5 })).toThrow();
         expect(() => SchemaLightmapBakeOptions.parse({ aoLevel: 3 })).toThrow();
     });
+    it('rejects overflowing Lightmap GI samples without restricting probe samples', () => {
+        expect(SchemaLightmapBakeOptions.parse({ giSamples: 2590 })).toEqual({ giSamples: 2590 });
+        for (const giSamples of [2591, 65535, 65536, 0, -1, 25.5, NaN, Infinity]) {
+            expect(SchemaLightmapBakeOptions.safeParse({ giSamples }).success).toBe(false);
+        }
+        expect(SchemaLightProbeBakeOptions.parse({ giSamples: 65535 })).toEqual({ giSamples: 65535 });
+    });
     it('forwards probe bake and wraps success', async () => { const data = { sceneUrl: 'db://assets/a.scene', probeCount: 4, giScale: 1, giSamples: 64, bounces: 1, reduceRinging: 0, showWireframe: true, showConvex: false, lightProbeSphereVolume: 1, durationMs: 10 }; probeBake.mockResolvedValue(data); await expect(new LightFXBakeApi().bakeLightProbes({ saveScene: true })).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data }); expect(probeBake).toHaveBeenCalledWith({ saveScene: true }); });
     it('wraps LightFX failure', async () => { lightmapBake.mockRejectedValue(new Error('LightFX failed')); await expect(new LightFXBakeApi().bakeLightmap({})).resolves.toEqual({ code: COMMON_STATUS.FAIL, reason: 'LightFX failed' }); });
     it('queries the current lightmap bake information', async () => {

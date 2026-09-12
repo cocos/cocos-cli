@@ -5,7 +5,7 @@ import { LightFXExporter, LightFXExport } from './exporter';
 import { lightFXBakeHost } from './host';
 import { lightFXSceneOperation } from './scene-operation';
 import { LightFXBakeTarget, LightFXResult, LightFXSettings } from './types';
-import type { ICancelLightFXOperationOptions, ILightFXDiagnostics } from '../../../../common/lightfx-host';
+import type { ICancelLightFXOperationOptions, ILightFXDiagnostics, IRemoveLightmapAssetsResult } from '../../../../common/lightfx-host';
 
 const INPUT_CHUNK_SIZE = 512 * 1024;
 
@@ -33,20 +33,25 @@ export class LightFXCoordinator {
 
     canCancel(target: LightFXBakeTarget): boolean { return this.operation?.target === target; }
 
-    async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number): Promise<LightFXBakeOutput> {
+    async bake(scene: Scene, target: LightFXBakeTarget, settings: LightFXSettings, timeoutMs: number, outputUrl?: string): Promise<LightFXBakeOutput> {
         if (this.target) throw new Error(`A ${this.target} LightFX bake is already in progress.`);
         this.target = target;
         this.lastOperation = null;
         let operationId: string | undefined;
         try {
+            if (outputUrl !== undefined && (await lightFXBakeHost.queryCapabilities())?.lightmapOutputDirectory !== true) {
+                throw new Error('The LightFX host does not support choosing a Lightmap output directory.');
+            }
             const exported = await new LightFXExporter().export(scene, target, settings);
             const transactionId = lightFXSceneOperation.hostTransactionId;
             ({ operationId } = await lightFXBakeHost.begin({
                 transactionId,
                 target,
                 sceneName: scene.name,
+                ...(target === 'lightmap' ? { sceneUuid: scene.uuid, sceneStats: exported.sceneStats } : {}),
                 textureSources: exported.textureSources,
                 timeoutMs,
+                ...(outputUrl !== undefined ? { outputUrl } : {}),
             }));
             this.operation = { operationId, transactionId, target };
             this.lastOperation = this.operation;
@@ -85,8 +90,13 @@ export class LightFXCoordinator {
         }
     }
 
-    removeLightmapAssets(sceneName: string): Promise<void> {
-        return lightFXBakeHost.removeLightmapAssets({ sceneName, transactionId: lightFXSceneOperation.hostTransactionId });
+    removeLightmapAssets(sceneUuid: string, textureUuids: string[], action: 'bake' | 'clear' = 'clear'): Promise<IRemoveLightmapAssetsResult> {
+        return lightFXBakeHost.removeLightmapAssets({ sceneUuid, textureUuids, transactionId: lightFXSceneOperation.hostTransactionId,
+            ...(action === 'bake' ? { action } : {}) });
+    }
+
+    publishLightmapAssets(operationId: string): Promise<{ textureUrls: string[] }> {
+        return lightFXBakeHost.publishLightmapAssets({ operationId, transactionId: lightFXSceneOperation.hostTransactionId });
     }
 
     async cancel(target: LightFXBakeTarget): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }> {

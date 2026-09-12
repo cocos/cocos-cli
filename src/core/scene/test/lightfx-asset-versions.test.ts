@@ -1,16 +1,19 @@
-import { mkdtemp, outputFile, pathExists, readFile, remove } from 'fs-extra';
+import { ensureDir, existsSync, mkdtemp, outputFile, pathExists, readFile, remove, symlink, move } from 'fs-extra';
+import { randomUUID } from 'crypto';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
 const mockAssets = {
     queryPath: jest.fn(), refreshAsset: jest.fn(), queryUUID: jest.fn(),
     queryAssetMeta: jest.fn(() => ({ userData: { fixAlphaTransparencyArtifacts: false } })),
+    queryAssetInfo: jest.fn(), queryAssetUsers: jest.fn(), removeAsset: jest.fn(), moveAsset: jest.fn(),
 };
 const mockRun = jest.fn();
 jest.mock('../../assets', () => ({ assetManager: mockAssets }));
 jest.mock('../main-process/lightfx/process', () => ({ LightFXProcess: jest.fn(() => ({ run: mockRun, cancel: async () => undefined })) }));
 jest.mock('../main-process/lightfx/output', () => ({ decodeLightFXOutput: () => ({ version: 1, meshes: [], terrains: [], probes: [] }) }));
 import { LightFXBakeHost } from '../main-process/lightfx-bake-host';
+import { LightmapAssetRecord } from '../main-process/lightfx/asset-record';
 
 describe('Immutable Lightmap asset versions', () => {
     let root: string;
@@ -30,16 +33,252 @@ describe('Immutable Lightmap asset versions', () => {
     });
     afterEach(async () => { await host.dispose(); await remove(root); });
 
-    async function bake(bytes: string) {
+    async function bake(bytes: string, outputUrl?: string, sceneUuid?: string, transactionId?: string) {
         mockRun.mockImplementationOnce(async ({ cwd }: { cwd: string }) => {
             await outputFile(join(cwd, 'output', 'lfx.out'), Buffer.alloc(0));
             await outputFile(join(cwd, 'output', 'LFX_Mesh_0000.png'), bytes);
+            await outputFile(join(cwd, 'lfx.log'), `native ${bytes}`);
         });
-        const token = await host.begin(opts);
+        const token = await host.begin({ ...opts, outputUrl, sceneUuid, transactionId });
         await host.appendInput({ ...token, chunkBase64: Buffer.from('input').toString('base64') });
         const output = await host.run(token);
         return { token, url: output.textureUrls[0], path: assetPath(output.textureUrls[0]) };
     }
+
+    function realAssetFiles() {
+        const identities = new Map<string, { uuid: string; file: string; url: string }>();
+        mockAssets.queryUUID.mockImplementation((url: string) => {
+            const existing = [...identities.values()].find(info => info.url === url);
+            if (existing) return existing.uuid;
+            if (!existsSync(assetPath(url))) return null;
+            const uuid = randomUUID();
+            identities.set(uuid, { uuid, url, file: assetPath(url) });
+            return uuid;
+        });
+        mockAssets.queryAssetInfo.mockImplementation((uuid: string) => {
+            const info = identities.get(uuid);
+            return info && existsSync(info.file) ? info : null;
+        });
+        mockAssets.queryAssetUsers.mockReset().mockResolvedValue([]);
+        mockAssets.removeAsset.mockReset().mockImplementation(async (uuid: string) => {
+            const info = identities.get(uuid)!;
+            await remove(info.file);
+            await remove(`${info.file}.meta`);
+            identities.delete(uuid);
+        });
+        mockAssets.moveAsset.mockReset().mockImplementation(async (source: string, target: string) => {
+            const info = [...identities.values()].find(info => info.url === source)!;
+            await move(info.file, assetPath(target), { overwrite: false });
+            info.url = target;
+            info.file = assetPath(target);
+        });
+        return identities;
+    }
+
+    it.each([undefined, 'db://assets', 'db://assets/Chosen'])('publishes fixed current textures with the same UUID and supports Clear after reopening (%s)', async outputUrl => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        if (outputUrl) await ensureDir(assetPath(outputUrl));
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const a = await bake('pixels A', outputUrl, sceneUuid, owner.transactionId);
+        const uuid = [...identities.keys()][0];
+        const request = { ...a.token, ...owner };
+        await expect(host.publishLightmapAssets(request)).rejects.toThrow('ownership');
+        await host.commit(a.token);
+        await expect(host.publishLightmapAssets({ ...request, operationId: randomUUID() })).rejects.toThrow('ownership');
+        const output = await host.publishLightmapAssets(request);
+        const target = `${outputUrl && outputUrl !== 'db://assets' ? outputUrl : 'db://assets/LightFX'}/output/LFX_Mesh_0000.png`;
+        expect(output.textureUrls).toEqual([target]);
+        expect([identities.get(uuid)?.url, await readFile(assetPath(target), 'utf8'), await pathExists(a.path)]).toEqual([target, 'pixels A', false]);
+        const auxRoot = target.slice(0, -'/output/LFX_Mesh_0000.png'.length);
+        expect(await Promise.all(['tmp/lfx.in', 'output/lfx.out', 'lfx.log'].map(path => readFile(assetPath(`${auxRoot}/${path}`), 'utf8'))))
+            .toEqual(['input', '', 'native pixels A']);
+        const auxiliary = await new LightmapAssetRecord(root, sceneUuid).readAuxiliary();
+        expect(auxiliary).toHaveLength(3);
+        await expect(host.publishLightmapAssets(request)).resolves.toEqual(output);
+        await host.releaseSceneOperation(owner);
+        host = new LightFXBakeHost();
+        expect((await host.queryLightmapTextureInfo({ sceneUuid, uuids: [] })).ownedTextureUuids).toEqual([uuid]);
+        const cleared = await host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid] });
+        expect([cleared.deletedTextureUuids, await pathExists(assetPath(target))]).toEqual([[uuid], false]);
+        expect(cleared.deletedAuxiliaryAssetUuids).toEqual(auxiliary);
+        expect(await new LightmapAssetRecord(root, sceneUuid).readAuxiliary()).toEqual([]);
+    });
+
+    it('cleans prior files inside the committed Bake reservation without deleting the new result', async () => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        const a = await bake('pixels A', undefined, sceneUuid);
+        await host.commit(a.token);
+        const oldUuid = [...identities.keys()][0];
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const cleanup = { ...owner, sceneUuid, textureUuids: [oldUuid], action: 'bake' as const };
+        await expect(host.removeLightmapAssets(cleanup)).rejects.toThrow('ownership');
+        const b = await bake('pixels B', undefined, sceneUuid, owner.transactionId);
+        await expect(host.removeLightmapAssets(cleanup)).rejects.toThrow('already in progress');
+        await host.commit(b.token);
+        await expect(host.removeLightmapAssets({ ...cleanup, transactionId: randomUUID() })).rejects.toThrow('ownership');
+        await expect(host.removeLightmapAssets(cleanup)).resolves.toEqual({ deletedTextureUuids: [oldUuid], retainedTextureUuids: [], failures: [] });
+        expect([await pathExists(a.path), await readFile(b.path, 'utf8'), (await host.queryCapabilities()).busy])
+            .toEqual([false, 'pixels B', true]);
+        await host.releaseSceneOperation(owner);
+        expect((await host.queryLightmapTextureInfo({ sceneUuid, uuids: [] })).ownedTextureUuids)
+            .toEqual([...identities.values()].filter(info => info.url.endsWith('.png')).map(info => info.uuid));
+    });
+
+    it('replaces all native products after saving and protects the current set during rebake cleanup', async () => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        const first = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const a = await bake('A', undefined, sceneUuid, first.transactionId);
+        await host.commit(a.token);
+        await host.publishLightmapAssets({ ...a.token, ...first });
+        const oldIds = [...identities.keys()];
+        await host.releaseSceneOperation(first);
+        const second = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const b = await bake('B', undefined, sceneUuid, second.transactionId);
+        await host.commit(b.token);
+        const cleaned = await host.removeLightmapAssets({ ...second, sceneUuid, action: 'bake', textureUuids: [oldIds[0]] });
+        expect([cleaned.deletedTextureUuids, cleaned.deletedAuxiliaryAssetUuids, cleaned.failures])
+            .toEqual([[oldIds[0]], oldIds.slice(1), []]);
+        expect(await pathExists(b.path)).toBe(true);
+        await host.publishLightmapAssets({ ...b.token, ...second });
+        expect(await readFile(assetPath('db://assets/LightFX/lfx.log'), 'utf8')).toBe('native B');
+        expect([...identities.values()].map(info => info.url)).toEqual([
+            'db://assets/LightFX/output/LFX_Mesh_0000.png', 'db://assets/LightFX/tmp/lfx.in',
+            'db://assets/LightFX/output/lfx.out', 'db://assets/LightFX/lfx.log',
+        ]);
+        await host.releaseSceneOperation(second);
+    });
+
+    it('protects native products referenced by the same scene and retries with no texture candidates after restart', async () => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const a = await bake('A', undefined, sceneUuid, owner.transactionId);
+        await host.commit(a.token);
+        await host.publishLightmapAssets({ ...a.token, ...owner });
+        await host.releaseSceneOperation(owner);
+        const [png, ...auxiliary] = [...identities.keys()];
+        mockAssets.queryAssetUsers.mockImplementation(async uuid => auxiliary.includes(uuid) ? [sceneUuid] : []);
+        const result = await host.removeLightmapAssets({ sceneUuid, textureUuids: [png] });
+        expect([result.deletedTextureUuids, result.retainedAuxiliaryAssetUuids]).toEqual([[png], auxiliary]);
+        host = new LightFXBakeHost();
+        mockAssets.queryAssetUsers.mockResolvedValue([]);
+        expect((await host.removeLightmapAssets({ sceneUuid, textureUuids: [] })).deletedAuxiliaryAssetUuids).toEqual(auxiliary);
+        expect(identities.size).toBe(0);
+    });
+
+    it('rolls back only newly staged native products without altering a previous fixed result', async () => {
+        const identities = realAssetFiles(), sceneUuid = randomUUID();
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const a = await bake('A', undefined, sceneUuid, owner.transactionId);
+        await host.commit(a.token);
+        await host.publishLightmapAssets({ ...a.token, ...owner });
+        await host.releaseSceneOperation(owner);
+        const oldAuxiliary = await new LightmapAssetRecord(root, sceneUuid).readAuxiliary();
+        const next = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const b = await bake('B', undefined, sceneUuid, next.transactionId);
+        await host.rollback(b.token);
+        expect(await new LightmapAssetRecord(root, sceneUuid).readAuxiliary()).toEqual(oldAuxiliary);
+        expect(await readFile(assetPath('db://assets/LightFX/lfx.log'), 'utf8')).toBe('native A');
+        expect(await pathExists(b.path)).toBe(false);
+        await host.releaseSceneOperation(next);
+        expect([...identities.values()].filter(info => existsSync(info.file))).toHaveLength(4);
+    });
+
+    it('does not accept rebake cleanup after a rolled-back native operation or without a reservation', async () => {
+        const sceneUuid = randomUUID();
+        const owner = await host.reserveSceneOperation({ target: 'lightmap', action: 'bake' });
+        const b = await bake('pixels B', undefined, undefined, owner.transactionId);
+        await host.rollback(b.token);
+        await expect(host.removeLightmapAssets({ ...owner, sceneUuid, textureUuids: [], action: 'bake' })).rejects.toThrow('ownership');
+        await host.releaseSceneOperation(owner);
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [], action: 'bake' })).rejects.toThrow('ownership');
+    });
+
+    it('remembers unbound products across Host restart and deletes actual files in custom directories', async () => {
+        const identities = realAssetFiles();
+        const sceneUuid = randomUUID();
+        await ensureDir(assetRoot);
+        const a = await bake('pixels A', 'db://assets', sceneUuid);
+        await host.commit(a.token);
+        const b = await bake('pixels B', undefined, sceneUuid);
+        await host.commit(b.token);
+        await host.dispose();
+        host = new LightFXBakeHost();
+        const membership = await host.queryLightmapTextureInfo({ uuids: [], sceneUuid });
+        expect(membership).toEqual({ textures: [], missingTextureUuids: [], ownedTextureUuids: [...identities.keys()] });
+        const cleared = await host.removeLightmapAssets({ sceneUuid, textureUuids: membership.ownedTextureUuids! });
+        expect([cleared.deletedTextureUuids.length, cleared.failures, await pathExists(a.path), await pathExists(b.path)])
+            .toEqual([2, [], false, false]);
+        expect((await host.queryLightmapTextureInfo({ uuids: [], sceneUuid })).ownedTextureUuids).toEqual([]);
+    });
+
+    it('retains externally used products for retry and isolates identical scene names by UUID', async () => {
+        const identities = realAssetFiles();
+        const sceneUuid = randomUUID();
+        const otherScene = randomUUID();
+        const a = await bake('pixels A', undefined, sceneUuid);
+        await host.commit(a.token);
+        const b = await bake('pixels B', undefined, otherScene);
+        await host.commit(b.token);
+        const [aUuid, bUuid] = [...identities.keys()];
+        mockAssets.queryAssetUsers.mockResolvedValueOnce([otherScene]);
+        expect((await host.removeLightmapAssets({ sceneUuid, textureUuids: [aUuid] })).retainedTextureUuids).toEqual([aUuid]);
+        expect((await host.queryLightmapTextureInfo({ uuids: [], sceneUuid })).ownedTextureUuids).toEqual([aUuid]);
+        await host.removeLightmapAssets({ sceneUuid, textureUuids: [aUuid] });
+        expect([await pathExists(a.path), await pathExists(b.path)]).toEqual([false, true]);
+        expect((await host.queryLightmapTextureInfo({ uuids: [], sceneUuid: otherScene })).ownedTextureUuids).toEqual([bUuid]);
+    });
+
+    it('does not count an asset API success when its PNG still exists', async () => {
+        const identities = realAssetFiles();
+        const sceneUuid = randomUUID();
+        const a = await bake('pixels A', undefined, sceneUuid);
+        await host.commit(a.token);
+        mockAssets.removeAsset.mockResolvedValueOnce(undefined);
+        const result = await host.removeLightmapAssets({ sceneUuid, textureUuids: [...identities.keys()] });
+        expect([result.deletedTextureUuids, result.failures[0]?.reason, await pathExists(a.path)])
+            .toEqual([[], 'Lightmap texture file still exists after asset deletion.', true]);
+    });
+
+    it('forgets rolled-back imports without losing earlier product membership', async () => {
+        const identities = realAssetFiles();
+        const sceneUuid = randomUUID();
+        const a = await bake('pixels A', undefined, sceneUuid);
+        await host.commit(a.token);
+        const aUuid = [...identities.keys()][0];
+        const b = await bake('pixels B', undefined, sceneUuid);
+        await host.rollback(b.token);
+        expect((await host.queryLightmapTextureInfo({ uuids: [], sceneUuid })).ownedTextureUuids).toEqual([aUuid]);
+        expect([await pathExists(a.path), await pathExists(b.path)]).toEqual([true, false]);
+    });
+
+    it('keeps a failed legacy bound-asset delete in the record for later retry', async () => {
+        const identities = realAssetFiles();
+        const sceneUuid = randomUUID();
+        // Legacy begin has no scene identity and therefore no generated-asset record yet.
+        const a = await bake('legacy pixels');
+        await host.commit(a.token);
+        const uuid = [...identities.keys()][0];
+        mockAssets.removeAsset.mockRejectedValueOnce(new Error('busy'));
+        const result = await host.removeLightmapAssets({ sceneUuid, textureUuids: [uuid] });
+        expect(result.failures).toEqual([{ uuid, reason: 'busy' }]);
+        const retry = (await new LightFXBakeHost().queryLightmapTextureInfo({ uuids: [], sceneUuid })).ownedTextureUuids!;
+        expect(retry).toEqual([uuid]);
+        await host.removeLightmapAssets({ sceneUuid, textureUuids: retry });
+        expect(await pathExists(a.path)).toBe(false);
+    });
+
+    it('rejects a damaged record before native execution or asset deletion', async () => {
+        const identities = realAssetFiles();
+        const sceneUuid = randomUUID();
+        const a = await bake('keep pixels');
+        await host.commit(a.token);
+        await outputFile(join(root, 'settings', 'lightfx-assets', `${sceneUuid}.json`), '{broken');
+        await expect(host.begin({ ...opts, sceneUuid })).rejects.toThrow();
+        await expect(host.removeLightmapAssets({ sceneUuid, textureUuids: [...identities.keys()] })).rejects.toThrow();
+        expect(mockRun).toHaveBeenCalledTimes(1);
+        expect(await readFile(a.path, 'utf8')).toBe('keep pixels');
+        expect(mockAssets.removeAsset).not.toHaveBeenCalled();
+    });
 
     it('publishes distinct assets across same-name bakes without touching legacy files or earlier versions', async () => {
         const legacy = join(assetRoot, opts.sceneName, 'lightmap', 'LFX_Mesh_0000.png');
@@ -67,12 +306,43 @@ describe('Immutable Lightmap asset versions', () => {
         expect(await pathExists(b.path)).toBe(false);
     });
 
+    it.each(['db://assets', 'db://assets/烘焙结果/Room A'])('publishes and rolls back within the selected directory: %s', async outputUrl => {
+        await ensureDir(join(assetRoot, outputUrl.slice('db://assets'.length)));
+        const a = await bake('custom A', outputUrl);
+        await host.commit(a.token);
+        const b = await bake('custom B', outputUrl);
+        expect(a.url).toBe(`${outputUrl}/bake-${a.token.operationId}/LFX_Mesh_0000.png`);
+        expect(b.url).not.toBe(a.url);
+        await host.rollback(b.token);
+        expect(await readFile(a.path, 'utf8')).toBe('custom A');
+        expect(await pathExists(b.path)).toBe(false);
+        expect(await pathExists(join(assetRoot, opts.sceneName))).toBe(false);
+    });
+
+    it.each(['', '/tmp/results', 'db://assets-other', 'db://assets/../outside', 'db://assets//folder', 'db://assets/folder/', 'db://assets/%2e%2e', 'db://assets/a\\b', 'db://assets/a?b', 'db://assets/a\nb', 'db://assets/a\0b'])('rejects invalid output URL before reserving or writing: %s', async outputUrl => {
+        await expect(host.begin({ ...opts, outputUrl })).rejects.toThrow('output directory');
+        expect((await host.queryCapabilities()).busy).toBe(false);
+        expect(await pathExists(join(root, 'temp'))).toBe(false);
+    });
+
+    it('rejects missing folders, files and symlinks escaping assets without starting native work', async () => {
+        await ensureDir(assetRoot);
+        await outputFile(join(assetRoot, 'file'), 'keep');
+        await symlink(root, join(assetRoot, 'outside'), 'dir');
+        for (const name of ['missing', 'file', 'outside']) {
+            await expect(host.begin({ ...opts, outputUrl: `db://assets/${name}` })).rejects.toThrow();
+            expect((await host.queryCapabilities()).busy).toBe(false);
+        }
+        expect(mockRun).not.toHaveBeenCalled();
+        expect(await readFile(join(assetRoot, 'file'), 'utf8')).toBe('keep');
+    });
+
     it('keeps previous assets when importing a new version fails', async () => {
         const a = await bake('pixels A');
         await host.commit(a.token);
         mockAssets.refreshAsset.mockRejectedValueOnce(new Error('import unavailable'));
         await expect(bake('pixels B')).rejects.toThrow('import unavailable');
         expect(await readFile(a.path, 'utf8')).toBe('pixels A');
-        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
+        await expect(host.queryCapabilities()).resolves.toEqual({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, lightmapOutputDirectory: true, lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1, cancelOwnershipVersion: 1, diagnosticsVersion: 1, busy: false });
     });
 });

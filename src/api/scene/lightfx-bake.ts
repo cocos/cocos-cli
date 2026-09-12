@@ -48,9 +48,14 @@ export class LightFXBakeApi {
 
     @tool('scene-clear-lightmap')
     @title('Clear baked lightmap')
-    @description('Unbind baked lightmaps from the current scene and optionally delete generated assets.')
+    @description('Unbind baked lightmaps and optionally delete unreferenced generated assets. Asset deletion saves the scene and prevents Undo/Redo from restoring pre-Clear baked results; unrelated edit history is preserved.')
     @result(SchemaClearCountResult)
-    clearLightmap(@param(SchemaLightmapClearOptions) options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<CommonResultType<{ clearedCount: number }>> {
+    clearLightmap(@param(SchemaLightmapClearOptions) options: { saveScene?: boolean; deleteAssets?: boolean }): Promise<CommonResultType<{
+        clearedCount: number;
+        deletedAssetCount: number;
+        retainedAssetCount: number;
+        failedAssetCount: number;
+    }>> {
         return execute(() => Scene.LightmapBake.clearBake(options));
     }
 

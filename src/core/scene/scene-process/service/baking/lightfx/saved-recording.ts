@@ -1,21 +1,35 @@
 import type { IUndoService } from '../../../../common';
 
-/** Completes a result recording without treating a later edit as part of its saved result. */
+/** The result is already in Undo history and must not be silently restored by the caller. */
+export class LightFXResultRetainedError extends Error {
+    constructor(stage: 'recording' | 'save', cause: unknown) {
+        super(`LightFX result retained in the scene and Undo history; ${stage} was not confirmed. Check the scene before saving again or undoing. ${cause instanceof Error ? cause.message : String(cause)}`);
+        this.name = 'LightFXResultRetainedError';
+    }
+}
+
+/** Record before attempting I/O: a rejected save may already have written the scene to disk. */
 export async function finishSavedLightFXRecording(
-    undo: Pick<IUndoService, 'endRecording' | 'createCheckpoint' | 'markSaved'>,
+    undo: Pick<IUndoService, 'endRecording' | 'createCheckpoint'>,
     recordingId: string,
     save?: () => Promise<unknown>,
-    commit?: () => Promise<unknown>,
 ): Promise<void> {
-    if (save) await save();
-    const saved = save ? undo.createCheckpoint() : undefined;
-    await undo.endRecording(recordingId);
-    if (commit) await commit();
-    if (!saved) return;
-    const current = undo.createCheckpoint();
-    // Editor.save marks the previous history entry because recording is still
-    // open. Advance that mark only for this exact committed recording. A no-op
-    // recording needs no new mark; edits or history resets during commit do not
-    // belong to the saved result and must remain dirty.
-    if (current.commandId === recordingId && current.generation === saved.generation) undo.markSaved();
+    const before = undo.createCheckpoint();
+    try {
+        await undo.endRecording(recordingId);
+    } catch (error) {
+        const current = undo.createCheckpoint();
+        if (current.commandId === recordingId && current.generation === before.generation) {
+            throw new LightFXResultRetainedError('recording', error);
+        }
+        throw error;
+    }
+    if (save) {
+        try {
+            // Editor.save now marks the completed recording, not its predecessor.
+            await save();
+        } catch (error) {
+            throw new LightFXResultRetainedError('save', error);
+        }
+    }
 }

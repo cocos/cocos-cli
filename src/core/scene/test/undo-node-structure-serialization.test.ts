@@ -68,6 +68,7 @@ jest.mock('../scene-process/service/undo/commands/command-utils-shared', () => (
 
 import { editorExtrasTag } from 'cc';
 import { captureNodeStructureSnapshot } from '../scene-process/service/undo/commands/node-structure-command-utils';
+import { deletedLightmapAssets } from '../scene-process/service/baking/lightfx/deleted-lightmap-assets';
 
 describe('captureNodeStructureSnapshot serialization', () => {
     let mockEditorSerialize: jest.Mock;
@@ -277,8 +278,10 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
         expect(registered[0]._prefab.asset._uuid).toBe('prefab-asset-uuid');
     });
 
-    it('does not register in assetToNodesMap when prefabAssetUuid is absent', async () => {
+    it('filters deleted texture references before loading a historical node without a prefab asset', async () => {
         const parentNode = new MockNode('parent', 'Parent') as any;
+        parentNode.scene = {};
+        deletedLightmapAssets.begin(parentNode.scene, ['deleted'])(['deleted']);
         parentNode.addChild = jest.fn((child: any) => {
             child.parent = parentNode;
             parentNode.children.push(child);
@@ -310,7 +313,7 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
             parentUuid: 'parent',
             parentPath: '/Parent',
             siblingIndex: 0,
-            serializedJson: JSON.stringify({ __type__: 'cc.Node' }),
+            serializedJson: JSON.stringify({ __type__: 'cc.Node', customTexture: { __uuid__: 'deleted@6c48a' }, position: { x: 10 } }),
             uuidTree: { uuid: 'child-node', componentUuids: [], children: [] },
         };
         const meta = { id: 'test:id', label: 'test', type: 'test', scope: {}, timestamp: 1 };
@@ -318,6 +321,7 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
         await restoreNodeStructureSnapshot(snapshot, meta);
 
         expect(mockAssetToNodesMap.size).toBe(0);
+        expect(mockLoadWithJson.mock.calls[0][0]).toEqual({ __type__: 'cc.Node', customTexture: null, position: { x: 10 } });
     });
 
     it('still restores node successfully when prefab asset loading fails', async () => {

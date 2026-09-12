@@ -83,4 +83,16 @@ describe('LightFX cancellation ownership', () => {
         await expect(owner.cancel('light-probe')).resolves.toEqual({ cancelled: false, target: null });
         expect(host.rollback).toHaveBeenCalledWith({ operationId: 'first' });
     });
+
+    it('forwards the selected output directory only after the actual host confirms support', async () => {
+        const owner = new LightFXCoordinator();
+        await expect(owner.bake(scene, 'lightmap', settings, 1000, 'db://assets/Lightmaps')).rejects.toThrow('output directory');
+        expect(mockExport).not.toHaveBeenCalled();
+        expect(host.begin).not.toHaveBeenCalled();
+        expect(owner.activeTarget).toBe(null);
+        jest.mocked(host.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapOutputDirectory: true, busy: true });
+        await owner.bake(scene, 'lightmap', settings, 1000, 'db://assets/Lightmaps');
+        expect(host.begin).toHaveBeenCalledWith(expect.objectContaining({ outputUrl: 'db://assets/Lightmaps', transactionId: 'owner' }));
+        await owner.commit('first');
+    });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_LIGHTMAP_GI_SAMPLES } from '../../core/scene/common/lightfx-limits';
 
 const SaveAndTimeout = {
     saveScene: z.boolean().optional().describe('Save the current scene after applying the bake result; defaults to true'),
@@ -24,11 +25,13 @@ export const SchemaLightProbeBakeResult = z.object({
 });
 
 export const SchemaLightmapBakeOptions = z.object({
+    outputUrl: z.string().optional().describe('Existing output directory under db://assets; each bake creates an immutable child directory. Defaults to the scene lightmap directory.'),
     msaa: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(8)]).optional(),
     resolution: z.union([z.literal(128), z.literal(256), z.literal(512), z.literal(1024), z.literal(2048)]).optional(),
     filter: z.boolean().optional(), highp: z.boolean().optional(),
     giScale: z.number().finite().min(0).max(100).optional(),
-    giSamples: z.number().int().min(1).max(65535).optional(),
+    giSamples: z.number().int().min(1).max(MAX_LIGHTMAP_GI_SAMPLES).optional()
+        .describe('Lightmap GI sampling factor; 1–2590. Large values have quadratic memory and time costs.'),
     giPathLength: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]).optional(),
     aoLevel: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
     aoStrength: z.number().finite().min(0).optional(),
@@ -69,7 +72,13 @@ export const SchemaLightFXCancelResult = z.object({
 
 export const SchemaLightProbeClearOptions = z.object({ saveScene: z.boolean().optional() });
 export const SchemaLightmapClearOptions = z.object({ saveScene: z.boolean().optional(), deleteAssets: z.boolean().optional() });
-export const SchemaClearCountResult = z.object({ probeCount: z.number().int().nonnegative().optional(), clearedCount: z.number().int().nonnegative().optional() });
+export const SchemaClearCountResult = z.object({
+    probeCount: z.number().int().nonnegative().optional(),
+    clearedCount: z.number().int().nonnegative().optional(),
+    deletedAssetCount: z.number().int().nonnegative().optional(),
+    retainedAssetCount: z.number().int().nonnegative().optional(),
+    failedAssetCount: z.number().int().nonnegative().optional(),
+});
 
 export type TLightProbeBakeOptions = z.infer<typeof SchemaLightProbeBakeOptions>;
 export type TLightProbeBakeResult = z.infer<typeof SchemaLightProbeBakeResult>;

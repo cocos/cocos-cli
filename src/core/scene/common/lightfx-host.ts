@@ -16,18 +16,32 @@ export interface ILightFXHostCapabilities {
     sceneTransactionVersion: 1;
     /** Absent on legacy hosts; version 1 publishes immutable per-operation Lightmap assets. */
     lightmapAssetVersion?: 1;
+    /** Accepts an existing assets directory as the Lightmap output parent. */
+    lightmapOutputDirectory?: true;
+    /** Deletes only unreferenced immutable LightFX textures selected by exact UUID. */
+    lightmapAssetCleanupVersion?: 1;
+    /** Supports exact cleanup inside the owning Bake transaction after Scene confirms saving. */
+    lightmapRebakeCleanupVersion?: 1;
+    /** Post-save, UUID-preserving relocation into the current fixed output directory. */
+    lightmapPublicationVersion?: 1;
+    /** Stages, publishes and precisely cleans up native lfx.in/out/log assets. */
+    lightmapAuxiliaryAssetsVersion?: 1;
     /** Version 1 requires the exact native operation, target and scene reservation to cancel. */
     cancelOwnershipVersion?: 1;
     diagnosticsVersion?: 1;
     busy: boolean;
 }
 
-/** Native diagnostic text is informational, never a progress percentage or an instruction. */
+/** Native diagnostic data is informational and never controls the bake transaction. */
 export interface ILightFXDiagnostics {
+    /** Internal identity lets terminal readers reject logs from an earlier bake. */
+    operationId?: string;
     version: 1;
     stage: string;
     logs: string[];
     progress?: string;
+    /** Verified percentage from the native Progress channel; absent for unknown payload formats. */
+    rate?: number;
 }
 
 /** JSON-safe reference to a texture needed by a LightFX input file. */
@@ -46,7 +60,18 @@ export interface IResolvedLightFXTextureSource {
     fileName: string;
 }
 
+/** Counts from the actual exported world, not the scene hierarchy or the native debug log. */
+export interface ILightFXSceneStats {
+    objects: number;
+    lights: number;
+    triangles: number;
+}
+
 export interface IBeginLightFXBakeOptions {
+    sceneStats?: ILightFXSceneStats;
+    /** Stable saved scene identity for exact generated-asset cleanup after reopening. */
+    sceneUuid?: string;
+    outputUrl?: string;
     transactionId?: string;
     target: LightFXBakeTarget;
     sceneName: string;
@@ -101,6 +126,10 @@ export interface ILightFXOperationOptions {
     operationId: string;
 }
 
+export interface IPublishLightmapAssetsOptions extends ILightFXOperationOptions {
+    transactionId: string;
+}
+
 export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions {
     target: LightFXBakeTarget;
     transactionId?: string;
@@ -108,11 +137,25 @@ export interface ICancelLightFXOperationOptions extends ILightFXOperationOptions
 
 export interface IRemoveLightmapAssetsOptions {
     transactionId?: string;
-    sceneName: string;
+    /** Default Clear; Bake cleanup requires its still-held scene reservation. */
+    action?: 'bake' | 'clear';
+    /** Saved scene whose stale dependency entry may be ignored after Scene verified no live reference remains. */
+    sceneUuid: string;
+    textureUuids: string[];
+}
+
+export interface IRemoveLightmapAssetsResult {
+    deletedTextureUuids: string[];
+    retainedTextureUuids: string[];
+    deletedAuxiliaryAssetUuids?: string[];
+    retainedAuxiliaryAssetUuids?: string[];
+    failures: Array<{ uuid: string; reason: string }>;
 }
 
 export interface IQueryLightmapTextureInfoOptions {
     uuids: string[];
+    /** Also return this scene's known generated assets, without adding them to the preview list. */
+    sceneUuid?: string;
 }
 
 export interface ILightmapTextureInfo {
@@ -127,6 +170,7 @@ export interface ILightmapTextureInfo {
 export interface IQueryLightmapTextureInfoResult {
     textures: ILightmapTextureInfo[];
     missingTextureUuids: string[];
+    ownedTextureUuids?: string[];
 }
 
 /**
@@ -145,8 +189,9 @@ export interface ILightFXBakeHostService {
     appendInput(options: IAppendLightFXInputOptions): Promise<void>;
     run(options: IRunLightFXBakeOptions): Promise<IRunLightFXBakeResult>;
     commit(options: ILightFXOperationOptions): Promise<void>;
+    publishLightmapAssets(options: IPublishLightmapAssetsOptions): Promise<{ textureUrls: string[] }>;
     rollback(options: ILightFXOperationOptions): Promise<void>;
     cancel(options?: ICancelLightFXOperationOptions): Promise<{ cancelled: boolean; target: LightFXBakeTarget | null }>;
-    removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<void>;
+    removeLightmapAssets(options: IRemoveLightmapAssetsOptions): Promise<IRemoveLightmapAssetsResult>;
     queryLightmapTextureInfo(options: IQueryLightmapTextureInfoOptions): Promise<IQueryLightmapTextureInfoResult>;
 }

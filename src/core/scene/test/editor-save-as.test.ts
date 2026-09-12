@@ -18,6 +18,7 @@ jest.mock('../scene-process/service/core', () => ({
         protected broadcast() { }
     },
     register: () => (target: unknown) => target,
+    queryRegisteredService: () => undefined,
     Service: {
         Undo: {
             clearHistory: jest.fn(),

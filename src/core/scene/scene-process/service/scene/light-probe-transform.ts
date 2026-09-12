@@ -9,7 +9,7 @@ export function getLightProbeTransformScene(node: Node): Scene | undefined {
 }
 
 /** Keeps the engine's world-position probe convention current after a node transform. */
-export function synchronizeLightProbeTransform(node: Node): void {
+export function synchronizeLightProbeTransform(node: Node, preserveCoefficients = false): void {
     const scene = getLightProbeTransformScene(node);
     if (!scene) return;
     const info = scene.globals.lightProbeInfo;
@@ -20,8 +20,10 @@ export function synchronizeLightProbeTransform(node: Node): void {
     const after = info.data?.probes ?? [];
     if (before.length === after.length && before.every((point, index) => Vec3.strictEquals(point, after[index].position))) return;
     info.update(true);
-    // A changed sample position cannot retain SH baked at the previous location.
-    info.onProbeBakeCleared();
+    // Creator retains every group's baked coefficients when a group/ancestor is translated.
+    // Other edit paths keep their existing invalidation policy until separately verified.
+    if (preserveCoefficients) info.onProbeBakeFinished();
+    else info.onProbeBakeCleared();
 }
 
 /** Adds affected scene snapshots last so Undo restores node poses before probe data. */
