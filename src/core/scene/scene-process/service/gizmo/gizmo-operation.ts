@@ -96,19 +96,17 @@ class GizmoOperation {
     private endProbeRegion(): void {
         this._probeRegionDown = undefined;
         this._probeRegionDragged = false;
-        this._curMouseDownInfos.length = 0;
-        this._gizmoMouseDownEvent = null;
-        this._noGizmoMouseDownEvent = null;
+        this.clearMouseDownState();
         getServiceProp('Gizmo')?.execGizmoMethods('cc.LightProbeGroup', 'endRegion');
         this._hideSelectionRegion();
     }
 
-    // ── light-probe vertex 模式：从「空白/线框处」起手的框选 ──────────────
-    // 命中的是 gizmo（线框等）但不是探针球时，若处于 vertex 模式，也允许在此起手框选，
-    // 这样「点探针拖」与「点空白拖」都能出现白色选区框并框选探针。
-    private _probeRegionActive = false;
-    private _probeRegionDragging = false;
-    private _probeRegionDownEvent: GizmoMouseEvent | null = null;
+    private clearMouseDownState(): void {
+        this._curMouseDownInfos.length = 0;
+        this._gizmoMouseDownEvent = null;
+        this._noGizmoMouseDownEvent = null;
+        this._mouseDownRaycastGizmos = null;
+    }
 
     /**
      * Raycast against gizmo nodes
@@ -203,63 +201,15 @@ class GizmoOperation {
                 this._emitEventToNode(info.node, event);
                 if (event.propagationStopped) break;
             }
-            // light-probe vertex 模式下：若命中的 gizmo 不是探针球（没有探针处理器消费事件，
-            // propagationStopped 仍为 false，例如命中线框），则在此起手框选，
-            // 使「点空白/线框处拖动」也能画白框并框选探针。
-            if (!event.propagationStopped && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
-                const gizmoSvc = getServiceProp('Gizmo');
-                if (gizmoSvc?.queryLightProbeEditMode?.()) {
-                    this._probeRegionActive = true;
-                    this._probeRegionDragging = false;
-                    this._probeRegionDownEvent = event;
-                }
-            }
             return false;
         }
         return true;
-    }
-
-    /** vertex 框选（从 gizmo 起手）：拖动达到阈值即画白框并按矩形框选探针。 */
-    private _handleProbeRegionMove(event: GizmoMouseEvent): void {
-        const down = this._probeRegionDownEvent;
-        if (!down) return;
-        const dx = event.x - down.x;
-        const dy = event.y - down.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (!this._probeRegionDragging && distance < 10) return;
-        this._probeRegionDragging = true;
-
-        const revertX = down.x > event.x;
-        const revertY = down.y < event.y;
-        const left = revertX ? event.x : down.x;
-        const right = revertX ? down.x : event.x;
-        const bottom = revertY ? down.y : event.y;
-        const top = revertY ? event.y : down.y;
-
-        // 画白色选区框（与场景节点框选同一套绘制）。
-        this._showSelectionRegion(left, right, top, bottom);
-        // 每帧 additive=false：以当前矩形为准重算命中集，天然幂等、gizmo 实时居中。
-        getServiceProp('Gizmo')?.regionSelectLightProbes?.(left, right, top, bottom, false);
     }
 
     private _onGizmoMouseUp(event: GizmoMouseEvent): boolean {
         // 与 cocos-editor 一致：相机移动中不处理
         const cameraCtrl = getServiceProp('Camera')?.controller;
         if (cameraCtrl?.isMoving?.()) return true;
-
-        // vertex 框选（从 gizmo 起手）收尾：隐藏白框，重置状态。
-        if (this._probeRegionActive) {
-            const wasDragging = this._probeRegionDragging;
-            this._probeRegionActive = false;
-            this._probeRegionDragging = false;
-            this._probeRegionDownEvent = null;
-            if (wasDragging) {
-                this._hideSelectionRegion();
-                this._curMouseDownInfos.length = 0;
-                return false;
-            }
-            // 未拖动：当作普通点击，继续走下面命中节点的 mouseUp 派发。
-        }
 
         if (this._curMouseDownInfos.length > 0) {
             for (const info of this._curMouseDownInfos) {
@@ -283,11 +233,6 @@ class GizmoOperation {
     }
 
     private _onGizmoMouseMove(event: GizmoMouseEvent, results: RaycastResults) {
-        // vertex 框选（从 gizmo 起手）：优先处理，画白框 + 框选探针。
-        if (this._probeRegionActive) {
-            this._handleProbeRegionMove(event);
-            return;
-        }
         if (this._curMouseDownInfos.length > 0) {
             const map = new Map<Node, Vec3>();
             results.forEach((info: any) => map.set(info.node, info.hitPoint || new Vec3()));
@@ -302,6 +247,8 @@ class GizmoOperation {
     // --- Main event handlers ---
 
     public onMouseDown(event: ISceneMouseEvent): boolean | void {
+        // A fresh press must not inherit a region whose mouse-up was lost outside the view.
+        if (this._probeRegionDown) { this.endProbeRegion(); }
         this._gizmoMoved = false;
         this._anyKeyDown = event.altKey || event.ctrlKey || event.shiftKey || event.metaKey;
 
@@ -318,6 +265,7 @@ class GizmoOperation {
         if (results.length > 0) {
             this._gizmoMouseDownEvent = customEvent;
             const result = this._onGizmoMouseDown(customEvent, results);
+            // Blank-space and unconsumed Gizmo hits share one region state and cleanup path.
             if (!this.beginProbeRegion(customEvent)) { getServiceProp('Gizmo')?.execGizmoMethods('cc.LightProbeGroup', 'endRegion'); }
             return result;
         }
@@ -355,7 +303,7 @@ class GizmoOperation {
         const customEvent = createGizmoMouseEvent('mouseMove', event);
         const probeDown = this._probeRegionDown;
         if (probeDown) {
-            if (!getServiceProp('Gizmo')?.queryLightProbeEditMode?.()) { this.endProbeRegion(); return false; }
+            if (!customEvent.leftButton || !getServiceProp('Gizmo')?.queryLightProbeEditMode?.()) { this.endProbeRegion(); return false; }
             if (Math.hypot(customEvent.x - probeDown.x, customEvent.y - probeDown.y) < 10 && !this._probeRegionDragged) { return false; }
             this._probeRegionDragged = true;
             const left = Math.min(probeDown.x, customEvent.x);
@@ -618,10 +566,12 @@ class GizmoOperation {
     }
 
     public clear() {
-        this._gizmoMouseDownEvent = null;
-        this._noGizmoMouseDownEvent = null;
+        if (this._probeRegionDown) {
+            this.endProbeRegion();
+        } else {
+            this.clearMouseDownState();
+        }
         this._hoverInNodeMap.clear();
-        this._curMouseDownInfos.length = 0;
     }
 }
 

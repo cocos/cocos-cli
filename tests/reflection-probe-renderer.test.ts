@@ -95,7 +95,17 @@ function rendererSocket(options: IMockRendererOptions = {}) {
 }
 
 describe('reflection probe WebGL renderer bridge', () => {
-    beforeEach(() => jest.clearAllMocks());
+    let nowMs: number;
+    let dateNow: jest.SpyInstance<number, []>;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        nowMs = 10_000;
+        // Routing assertions must not depend on whether the real clock ticks during selection.
+        dateNow = jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
+    });
+
+    afterEach(() => dateNow.mockRestore());
 
     it('selects an explicitly requested scene', async () => {
         const other = rendererSocket({ id: 'other', sceneUrl: 'db://assets/Other.scene' });
@@ -189,6 +199,38 @@ describe('reflection probe WebGL renderer bridge', () => {
         expect(visible.emit).not.toHaveBeenCalledWith(
             'scene:capture-reflection-probe',
             expect.anything(),
+            expect.any(Function),
+        );
+    });
+
+    it.each(['capture', 'clear'] as const)('deducts source-selection time from the %s timeout budget', async action => {
+        const source = { runtimeId: 'runtime-a', sceneUuid: 'scene-a', generation: 2 };
+        const active = rendererSocket({ source });
+        const respond = active.emit.getMockImplementation()!;
+        active.emit.mockImplementation((event, request, reply) => {
+            if (event === 'scene:list-reflection-probes') {
+                // Model time spent confirming the source renderer, without a real sleep.
+                nowMs += 123;
+            }
+            respond(event, request, reply);
+        });
+        mockFetchSockets.mockResolvedValue([active]);
+
+        if (action === 'capture') {
+            await reflectionProbeRenderer.captureActive('Probe', 1500, source);
+        } else {
+            await reflectionProbeRenderer.clearActive(true, 1500, source);
+        }
+
+        expect(active.timeout.mock.calls).toEqual([[1500], [1377]]);
+        expect(active.emit).toHaveBeenLastCalledWith(
+            action === 'capture' ? 'scene:capture-reflection-probe' : 'scene:clear-reflection-probes',
+            {
+                sceneUrl: 'db://assets/Target.scene',
+                source,
+                timeoutMs: 1377,
+                ...(action === 'capture' ? { nodePath: 'Probe' } : { saveScene: true }),
+            },
             expect.any(Function),
         );
     });
