@@ -4,6 +4,8 @@ import { LIGHTFX_FILE_VERSION, LightFXChunk, LightFXWorld } from '../scene-proce
 import { createDefaultLightFXSettings } from '../scene-process/service/baking/lightfx/settings';
 import { decodeLightFXOutput } from '../main-process/lightfx/output';
 import { MAX_LIGHTMAP_GI_SAMPLES } from '../common/lightfx-limits';
+import { validLightmapUV } from '../scene-process/service/baking/lightfx/lightmap-uv';
+import { lightmapSceneStats } from '../scene-process/service/baking/lightfx/scene-stats';
 
 describe('LightFX binary format', () => {
     it('uses the last non-overflowing native Lightmap sampling factor', () => {
@@ -51,5 +53,27 @@ describe('LightFX binary format', () => {
         const version = new LightFXBuffer(); version.writeInt32(1); expect(() => decodeLightFXOutput(version.toUint8Array())).toThrow('Unsupported');
         const truncated = new LightFXBuffer(); truncated.writeInt32(LIGHTFX_FILE_VERSION); truncated.writeInt32(LightFXChunk.MESH); expect(() => decodeLightFXOutput(truncated.toUint8Array())).toThrow('truncated');
         const unknown = new LightFXBuffer(); unknown.writeInt32(LIGHTFX_FILE_VERSION); unknown.writeInt32(99); expect(() => decodeLightFXOutput(unknown.toUint8Array())).toThrow('Unknown');
+    });
+});
+
+describe('Lightmap export UV validation', () => {
+    it.each([
+        [null, 3, false], [[0, 0], 3, false], [[0, NaN], 1, false], [[Infinity, 0], 1, false],
+        [[0, 0, 1, 0, 0, 1], 3, true], [new Float32Array([0, 1]), 1, true], [[], 0, false],
+    ])('validates UV1 %p for %p vertices', (uv, count, expected) => {
+        expect(validLightmapUV(uv as number[] | null, count as number)).toBe(expected);
+    });
+});
+
+describe('Lightmap exported scene statistics', () => {
+    it('counts mesh triangles plus full terrain tiles, not packed images or terrain tasks', () => {
+        const world = { meshes: [{ triangles: Array(12) }], terrains: [{ blockCount: [2, 1] }], lights: [{}] } as LightFXWorld;
+        expect(lightmapSceneStats(world, 32)).toEqual({ objects: 2, lights: 1, triangles: 4108 });
+    });
+    it('counts mesh-only and empty exported worlds without inventing objects', () => {
+        const world = { meshes: [{ triangles: Array(12) }, { triangles: Array(200) }, { triangles: Array(12) }], terrains: [], lights: [{}] } as unknown as LightFXWorld;
+        expect(lightmapSceneStats(world, 32)).toEqual({ objects: 3, lights: 1, triangles: 224 });
+        expect(lightmapSceneStats({ meshes: [], terrains: [], lights: [] } as unknown as LightFXWorld, 32))
+            .toEqual({ objects: 0, lights: 0, triangles: 0 });
     });
 });
