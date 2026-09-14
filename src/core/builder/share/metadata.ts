@@ -45,6 +45,26 @@ const PLATFORM_HIDDEN_SCHEMA_OPTIONS: Record<string, string[]> = {
         'nativeCodeBundleMode',
         'gfx-webgl2'
     ],
+    mac: [
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
+    ],
+    ios: [
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
+    ],
+    'huawei-agc': [
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
+    ],
+    ohos: [
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
+    ],
+    'harmonyos-next': [
+        'nativeCodeBundleMode',
+        'gfx-webgl2'
+    ],
 };
 
 function convertBuilderConfigItem(
