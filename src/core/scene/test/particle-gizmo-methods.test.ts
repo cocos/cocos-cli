@@ -1,3 +1,6 @@
+const mockEmit = jest.fn();
+jest.mock('../scene-process/service/core/global-events', () => ({ ServiceEvents: { emit: (...args: unknown[]) => mockEmit(...args) } }));
+
 const mockQueryRegisteredService = jest.fn();
 const mockRegisterGizmo = jest.fn();
 
@@ -24,7 +27,7 @@ jest.mock('../scene-process/service/gizmo/base/gizmo-icon', () => ({
     default: class {},
 }));
 
-import { methods } from '../scene-process/service/gizmo/components/particle-system';
+import { methods, SelectGizmo } from '../scene-process/service/gizmo/components/particle-system';
 
 function createGizmo(nodeUuid: string) {
     let visible = false;
@@ -86,5 +89,43 @@ describe('粒子旧 Gizmo 包围盒方法', () => {
         expect(() => methods.showBoundingBox('target-node', true)).not.toThrow();
         expect(methods.isShowBoundingBox('target-node')).toBeUndefined();
         expect(forEachInstanceList).not.toHaveBeenCalled();
+    });
+});
+
+
+describe('粒子包围盒临时显隐事件', () => {
+    beforeEach(() => { mockEmit.mockClear(); });
+
+    function createLiveGizmo() {
+        return {
+            target: { uuid: 'particle-component', node: { uuid: 'particle-node' }, _isShowBB: false },
+            updateBBControllerData: jest.fn(),
+            showBoundingBox: SelectGizmo.prototype.showBoundingBox,
+        };
+    }
+
+    it('组件入口只在实际变化时发送临时事件，不发送属性或 dirty 事件', () => {
+        const gizmo = createLiveGizmo();
+        gizmo.showBoundingBox(true);
+        gizmo.showBoundingBox(true);
+        gizmo.showBoundingBox(false);
+        expect(mockEmit.mock.calls).toEqual([
+            ['gizmo:particle-bounds-visibility-changed', { componentUuid: 'particle-component', visible: true }],
+            ['gizmo:particle-bounds-visibility-changed', { componentUuid: 'particle-component', visible: false }],
+        ]);
+        expect(gizmo.updateBBControllerData).toHaveBeenCalledTimes(3);
+    });
+
+    it('旧节点 UUID 入口通过同一实例方法发送事件', () => {
+        const gizmo = createLiveGizmo();
+        mockQueryRegisteredService.mockReturnValue({ forEachInstanceList: (_type: string, _name: string, visit: (item: typeof gizmo) => void) => visit(gizmo) });
+        methods.showBoundingBox('particle-node', true);
+        expect(mockEmit.mock.calls).toEqual([['gizmo:particle-bounds-visibility-changed', { componentUuid: 'particle-component', visible: true }]]);
+    });
+
+    it('目标已销毁时不发通知', () => {
+        const gizmo = { target: null, showBoundingBox: SelectGizmo.prototype.showBoundingBox };
+        gizmo.showBoundingBox(true);
+        expect(mockEmit).not.toHaveBeenCalled();
     });
 });

@@ -25,6 +25,7 @@ const MESSAGE_ONLY_EVENTS = [
     'gizmo:pivot-changed',
     'gizmo:view-mode-changed',
     'gizmo:tool-changed',
+    'gizmo:particle-bounds-visibility-changed',
     'scene:dimension-changed',
     'camera:mode-change',
     'camera:projection-changed',

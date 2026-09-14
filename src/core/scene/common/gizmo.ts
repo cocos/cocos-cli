@@ -100,6 +100,8 @@ export type IPublicGizmoService = Pick<IGizmoService,
 >;
 
 export interface IGizmoEvents {
+    /** 粒子包围盒的编辑器临时显隐变化，不表示场景属性修改。 */
+    'gizmo:particle-bounds-visibility-changed': [event: { componentUuid: string; visible: boolean }];
     'gizmo:tool-changed': [name: string];
     'gizmo:coordinate-changed': [];
     'gizmo:pivot-changed': [];

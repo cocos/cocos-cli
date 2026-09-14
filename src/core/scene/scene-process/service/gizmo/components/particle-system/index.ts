@@ -3,6 +3,7 @@
 declare const require: any;
 
 import { Color, geometry, js, Node, ParticleSystem, Quat, Vec3 } from 'cc';
+import { ServiceEvents } from '../../../core/global-events';
 import { queryRegisteredService } from '../../../core/decorator';
 import type { GizmoService } from '../../../gizmo';
 import { registerGizmo } from '../../gizmo-defines';
@@ -490,10 +491,15 @@ class ParticleSystemComponentGizmo extends (GizmoBase as any) {
             return;
         }
         const psComp: ParticleSystem = this.target;
-        if (psComp) {
-            psComp._isShowBB = isShow;
-        }
+        const changed = psComp._isShowBB !== isShow;
+        psComp._isShowBB = isShow;
         this.updateBBControllerData();
+        if (changed) {
+            // 临时显示状态不能走 node:change，否则会触发属性编辑和场景脏标记。
+            ServiceEvents.emit('gizmo:particle-bounds-visibility-changed', {
+                componentUuid: psComp.uuid, visible: isShow,
+            });
+        }
     }
 
     public isShowBoundingBox() {
