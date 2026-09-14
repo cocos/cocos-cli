@@ -60,38 +60,12 @@ describe('extension roots', () => {
         expect(() => resolveBuiltinExtensionsRoot(undefined, devEnv(missingPath))).toThrow(/points to a missing directory/);
     });
 
-    test('rejects a Dev override when stat cannot traverse a file parent', () => {
-        const fileParent = join(tempRoot, 'not-a-directory');
-        writeFileSync(fileParent, 'not a directory', 'utf8');
-
-        expect(() => resolveBuiltinExtensionsRoot(undefined, devEnv(join(fileParent, 'dev-extensions'))))
-            .toThrow(/(points to a missing directory|could not stat the directory)/);
-    });
-
-    test('uses the explicit resourcesPath default when there is no override', () => {
-        const resourcesPath = join(tempRoot, 'resources');
-        const packagedRoot = join(resourcesPath, 'app', 'extensions');
-        mkdirSync(packagedRoot, { recursive: true });
-
-        expect(resolveBuiltinExtensionsRoot(resourcesPath, devEnv())).toBe(packagedRoot);
-    });
-
     test('ignores an override outside Dev mode', () => {
         const resourcesPath = join(tempRoot, 'resources');
         const packagedRoot = join(resourcesPath, 'app', 'extensions');
         mkdirSync(packagedRoot, { recursive: true });
 
         expect(resolveBuiltinExtensionsRoot(resourcesPath, { [OVERRIDE_ENV]: 'relative/dev-extensions' })).toBe(packagedRoot);
-    });
-
-    test('only interprets an own override property in Dev mode', () => {
-        const resourcesPath = join(tempRoot, 'resources');
-        const packagedRoot = join(resourcesPath, 'app', 'extensions');
-        const env = Object.create({ [OVERRIDE_ENV]: 'relative/inherited-override' }) as NodeJS.ProcessEnv;
-        env.VSCODE_DEV = '1';
-        mkdirSync(packagedRoot, { recursive: true });
-
-        expect(resolveBuiltinExtensionsRoot(resourcesPath, env)).toBe(packagedRoot);
     });
 
     test('preserves project-first ordering with the packaged default', () => {

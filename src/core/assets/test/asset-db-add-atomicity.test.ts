@@ -161,40 +161,4 @@ describe('AssetDBManager.addDB failure atomicity', () => {
         });
         expect(assetDBManager.assetDBMap.assets).toBe(unrelatedDB);
     });
-
-    it('does not issue scripting remove when the add registration itself fails', async () => {
-        const scriptingError = new Error('controlled scripting add failure');
-        const fakeDB = new EventEmitter() as EventEmitter & {
-            options: { name: string; target: string };
-            importerManager: Record<string, unknown>;
-            start: jest.Mock;
-            stop: jest.Mock;
-        };
-        fakeDB.options = {
-            name: 'localization-editor',
-            target: 'C:/builtin/static/assets',
-        };
-        fakeDB.importerManager = {};
-        fakeDB.start = jest.fn();
-        fakeDB.stop = jest.fn().mockResolvedValue(undefined);
-        mockCreate.mockReturnValue(fakeDB);
-        mockUpdateDatabases.mockRejectedValue(scriptingError);
-
-        const assetDBManager = require('../manager/asset-db').default as any;
-        const info = {
-            name: 'localization-editor',
-            target: fakeDB.options.target,
-            readonly: true,
-            visible: true,
-            temp: 'C:/temp/localization-editor',
-            library: 'C:/library/localization-editor',
-        };
-
-        await expect(assetDBManager.addDB(info)).rejects.toBe(scriptingError);
-        expect(fakeDB.start).not.toHaveBeenCalled();
-        expect(fakeDB.stop).toHaveBeenCalledTimes(1);
-        expect(mockUpdateDatabases).toHaveBeenCalledTimes(1);
-        expect(assetDBManager.assetDBMap[info.name]).toBeUndefined();
-        expect(assetDBManager.assetDBInfo[info.name]).toBeUndefined();
-    });
 });

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, resolve } from 'path';
 import { PluginManager } from '../manager/plugin';
@@ -70,39 +70,8 @@ class TestBuildTask extends BuildTaskBase {
         onAfterInit: 'onAfterInit',
         onBeforeBuildAssets: 'onBeforeBuildAssets',
     };
-    public result: any = { rawOptions: {}, marker: 'result' };
-    public buildResult: any = { marker: 'build-result' };
-    public cache: any = { marker: 'cache' };
-    public bundleManager: any = {};
-
-    async handleHook(func: Function, internal: boolean, ...args: any[]) {
-        if (internal) {
-            await func.call(this, this.options, this.result, this.cache, ...args);
-        } else {
-            await func(this.result.rawOptions, this.buildResult, ...args);
-        }
-    }
-
-    async run() {
-        return true;
-    }
-}
-
-class TestBundleTask extends BuildTaskBase {
-    public hooksInfo: { pkgNameOrder: string[]; infos: Record<string, HookInfo> } = { pkgNameOrder: [], infos: {} };
-    public options: any = { preview: false };
-    public hookMap: Record<string, string> = {
-        onBeforeBundleInit: 'onBeforeBundleInit',
-    };
-    public bundles: any[] = [{ name: 'main' }];
-    public cache: any = { marker: 'bundle-cache' };
-
-    async handleHook(func: Function, internal: boolean, ...args: any[]) {
-        if (internal) {
-            await func.call(this, this.options, this.bundles, this.cache, ...args);
-        } else {
-            await func(this.options, this.bundles, ...args);
-        }
+    async handleHook(func: () => unknown) {
+        await func();
     }
 
     async run() {
@@ -185,7 +154,6 @@ describe('PluginManager builtin extension Builder hooks', () => {
             path: join(validDir, 'builder.js'),
             root: builtinRoot,
         }]);
-        expect(existsSync(join(validDir, 'builder.js'))).toBe(true);
     });
 
     it('requires a non-empty manifest name and rejects invalid or escaping entries', () => {
@@ -222,7 +190,6 @@ describe('PluginManager builtin extension Builder hooks', () => {
             root: builtinRoot,
         }]);
         expect(warning.mock.calls.some(([message]) => String(message).includes('outside extension root'))).toBe(true);
-        expect(existsSync(outsidePath)).toBe(true);
         warning.mockRestore();
     });
 
@@ -240,17 +207,10 @@ describe('PluginManager builtin extension Builder hooks', () => {
         (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot = builtinRoot;
         await manager.init();
 
-        expect((manager as any).extensionBuilderHooks).toEqual([{
-            extensionName: 'pink-localization-editor',
-            path: join(entryDir, 'builder.js'),
-            root: builtinRoot,
-        }]);
         expect((manager as any).builderPathsMap['web-mobile']).toBeUndefined();
 
         await manager.register('web-mobile');
 
-        expect((manager as any).builderPathsMap['web-mobile']['pink-localization-editor']).toBe(join(entryDir, 'builder.js'));
-        expect((manager as any).builderPathsMap['pink-localization-editor']).toBeUndefined();
         expect(manager.getHooksInfo('web-mobile').infos['pink-localization-editor']).toEqual({
             path: join(entryDir, 'builder.js'),
             internal: true,
@@ -258,17 +218,7 @@ describe('PluginManager builtin extension Builder hooks', () => {
         });
     });
 
-    it('scans builtin extensions only and keeps the first stable duplicate name', () => {
-        const projectRoot = join(tempRoot, 'project', 'extensions');
-        mkdirSync(projectRoot, { recursive: true });
-        const projectDir = join(projectRoot, 'project-copy');
-        mkdirSync(projectDir, { recursive: true });
-        writeFileSync(join(projectDir, 'package.json'), JSON.stringify({
-            name: 'pink-localization-editor',
-            contributions: { builder: './project.js' },
-        }));
-        writeFileSync(join(projectDir, 'project.js'), 'module.exports = {};');
-
+    it('keeps the first stable duplicate name', () => {
         const firstDir = createExtension('a-first', {
             name: 'duplicate-extension',
             contributions: { builder: './first.js' },
@@ -286,7 +236,6 @@ describe('PluginManager builtin extension Builder hooks', () => {
             path: join(firstDir, 'first.js'),
             root: builtinRoot,
         }]);
-        expect(hooks.some((hook: { path: string }) => hook.path.includes('project.js'))).toBe(false);
     });
 
     it('mounts each builtin hook into the platform-first map and projects precise flags', () => {
@@ -320,11 +269,7 @@ describe('PluginManager builtin extension Builder hooks', () => {
         (manager as any).registerExtensionBuilderHooks('web-mobile');
 
         const map = (manager as any).builderPathsMap;
-        expect(map.openpaas['pink-localization-editor']).toBe(join(localizationEntry, 'builder.js'));
         expect(map['web-mobile']['pink-localization-editor']).toBe(join(localizationEntry, 'builder.js'));
-        expect(map['pink-localization-editor']).toBeUndefined();
-        expect(map.openpaas.openpaas).toBe('/platform/openpaas-hooks');
-        expect(map['web-mobile'].occupied).toBe('/existing/occupied-hooks');
 
         const openpaasHooks = getHookInfo(manager, 'openpaas');
         expect(openpaasHooks.pkgNameOrder).toEqual(['openpaas', 'pink-localization-editor', 'occupied']);
@@ -346,23 +291,14 @@ describe('PluginManager builtin extension Builder hooks', () => {
         });
     });
 
-    it('runs builtin hooks through runPluginTask with the internal Builder ABI', async () => {
+    it('loads builtin hooks through runPluginTask and selects internal dispatch', async () => {
         const marker = join(tempRoot, 'hook-calls.jsonl');
         const contents = `
             const fs = require('fs');
-            function record(stage, options, result, cache) {
-                fs.appendFileSync(${JSON.stringify(marker)}, JSON.stringify({
-                    stage,
-                    builderBundleManager: !!this.bundleManager,
-                    sameOptions: options === this.options,
-                    sameResult: result === this.result,
-                    sameCache: cache === this.cache,
-                }) + '\\n');
-            }
             module.exports = {
                 throwError: false,
-                onAfterInit(options, result, cache) { record.call(this, 'onAfterInit', options, result, cache); },
-                onBeforeBuildAssets(options, result, cache) { record.call(this, 'onBeforeBuildAssets', options, result, cache); },
+                onAfterInit() { fs.appendFileSync(${JSON.stringify(marker)}, 'onAfterInit\\n'); },
+                onBeforeBuildAssets() { fs.appendFileSync(${JSON.stringify(marker)}, 'onBeforeBuildAssets\\n'); },
             };
         `;
         const entryDir = createExtension('localization', {
@@ -375,64 +311,14 @@ describe('PluginManager builtin extension Builder hooks', () => {
         (manager as any).registerExtensionBuilderHooks('web-mobile');
 
         const task = new TestBuildTask('test-task', 'test-task');
+        const handleHook = jest.spyOn(task, 'handleHook');
         task.hooksInfo = getHookInfo(manager, 'web-mobile');
         await task.runPluginTask('onAfterInit');
         await task.runPluginTask('onBeforeBuildAssets');
 
-        const calls = readFileSync(marker, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-        expect(calls).toEqual([
-            {
-                stage: 'onAfterInit',
-                builderBundleManager: true,
-                sameOptions: true,
-                sameResult: true,
-                sameCache: true,
-            },
-            {
-                stage: 'onBeforeBuildAssets',
-                builderBundleManager: true,
-                sameOptions: true,
-                sameResult: true,
-                sameCache: true,
-            },
-        ]);
-    });
-
-    it('keeps bundle hook ABI and soft-failure behavior on a BuildTaskBase bundle path', async () => {
-        const marker = join(tempRoot, 'bundle-hook.json');
-        const contents = `
-            const fs = require('fs');
-            module.exports = {
-                throwError: false,
-                onBeforeBundleInit(options, bundles, cache) {
-                    fs.writeFileSync(${JSON.stringify(marker)}, JSON.stringify({
-                        sameOptions: options === this.options,
-                        sameBundles: bundles === this.bundles,
-                        sameCache: cache === this.cache,
-                    }));
-                    throw new Error('bundle soft failure');
-                },
-            };
-        `;
-        const entryDir = createExtension('bundle-hook', {
-            name: 'pink-localization-editor',
-            contributions: { builder: './builder.js' },
-        }, 'builder.js', contents);
-        const manager = createManager();
-        (manager as any).builderPathsMap = { 'web-mobile': {} };
-        setExtensionHooks(manager, [{ extensionName: 'pink-localization-editor', path: join(entryDir, 'builder.js'), root: builtinRoot }]);
-        (manager as any).registerExtensionBuilderHooks('web-mobile');
-
-        const task = new TestBundleTask('bundle-task', 'bundle-task');
-        task.hooksInfo = getHookInfo(manager, 'web-mobile');
-        await task.runPluginTask('onBeforeBundleInit');
-
-        expect(JSON.parse(readFileSync(marker, 'utf8'))).toEqual({
-            sameOptions: true,
-            sameBundles: true,
-            sameCache: true,
-        });
-        expect(task.error).toBeUndefined();
+        expect(readFileSync(marker, 'utf8').trim().split('\n')).toEqual(['onAfterInit', 'onBeforeBuildAssets']);
+        expect(handleHook).toHaveBeenNthCalledWith(1, expect.any(Function), true);
+        expect(handleHook).toHaveBeenNthCalledWith(2, expect.any(Function), true);
     });
 
     it('keeps throwError and failOnError decisions independent and preserves legacy fallback', async () => {

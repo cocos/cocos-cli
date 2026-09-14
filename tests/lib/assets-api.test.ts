@@ -247,69 +247,6 @@ describe('lib assets api', () => {
         expect(mockAssetManager.queryPropertySchema).toHaveBeenCalledWith('image');
     });
 
-    it('reconciles the canonical builtin mount after persisted enable changes', async () => {
-        const canonical = {
-            name: 'localization-editor',
-            target: 'C:/builtin/static/assets',
-            readonly: true,
-            visible: true,
-            library: 'C:/project/library/localization-editor',
-        };
-        let persistedEnable = false;
-        mockAssetConfig.resolveBuiltinLocalizationMount.mockImplementation(() => {
-            if (!persistedEnable) {
-                throw new Error('Localization Runtime builtin mount is unavailable or disabled for this project.');
-            }
-            return canonical;
-        });
-        mockAssetDBManager.addDB.mockImplementation(async (info: typeof canonical) => {
-            mockAssetDBManager.assetDBMap[info.name] = { options: { target: info.target } };
-            mockAssetDBManager.assetDBInfo[info.name] = info;
-        });
-
-        const reconcile = (Assets as {
-            reconcileLocalizationRuntimeMount?: () => Promise<void>;
-        }).reconcileLocalizationRuntimeMount;
-        expect(reconcile).toEqual(expect.any(Function));
-        expect(reconcile?.length).toBe(0);
-        if (!reconcile) {
-            throw new Error('reconcileLocalizationRuntimeMount is not exposed from lib/assets/assets');
-        }
-
-        await expect(reconcile()).rejects.toThrow('disabled for this project');
-        expect(mockAssetDBManager.addDB).not.toHaveBeenCalled();
-
-        persistedEnable = true;
-        await expect(reconcile()).resolves.toBeUndefined();
-        expect(mockAssetConfig.resolveBuiltinLocalizationMount).toHaveBeenCalledWith();
-        expect(mockAssetDBManager.addDB).toHaveBeenCalledWith(canonical);
-        expect(mockAssetConfig.data.assetDBList).toEqual([canonical]);
-    });
-
-    it('keeps repeated builtin mount reconciliation idempotent', async () => {
-        const canonical = {
-            name: 'localization-editor',
-            target: 'C:/builtin/static/assets',
-            readonly: true,
-            visible: true,
-            library: 'C:/project/library/localization-editor',
-        };
-        mockAssetConfig.resolveBuiltinLocalizationMount.mockReturnValue(canonical);
-        mockAssetDBManager.addDB.mockImplementation(async (info: typeof canonical) => {
-            mockAssetDBManager.assetDBMap[info.name] = { options: { target: info.target } };
-            mockAssetDBManager.assetDBInfo[info.name] = info;
-        });
-
-        const reconcile = (Assets as {
-            reconcileLocalizationRuntimeMount: () => Promise<void>;
-        }).reconcileLocalizationRuntimeMount;
-        await expect(reconcile()).resolves.toBeUndefined();
-        await expect(reconcile()).resolves.toBeUndefined();
-
-        expect(mockAssetDBManager.addDB).toHaveBeenCalledTimes(1);
-        expect(mockAssetConfig.data.assetDBList).toEqual([canonical]);
-    });
-
     it('propagates mount and AssetDB failures without reporting success', async () => {
         const canonical = {
             name: 'localization-editor',

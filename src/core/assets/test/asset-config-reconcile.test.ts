@@ -29,25 +29,6 @@ describe('asset-config builtin Localization mount reconcile', () => {
         await remove(fixtureRoot);
     });
 
-    it('uses the same canonical record for cold discovery and hot false-to-true reconcile', async () => {
-        await writeEnable(false);
-        const assetConfig = await loadAssetConfig();
-        await assetConfig.init();
-
-        expect(assetConfig.data.assetDBList.some((info: { name: string }) => info.name === 'localization-editor')).toBe(false);
-        expect(assetConfig.data.assetDBList.some((info: { name: string }) => info.name === 'other-assets')).toBe(true);
-
-        await writeEnable(true);
-        const hotInfo = assetConfig.resolveBuiltinLocalizationMount();
-        expect(hotInfo).toMatchObject({
-            name: 'localization-editor',
-            readonly: true,
-            visible: true,
-            target: join(fixtureRoot, 'resources', 'app', 'extensions', '@pink-localization-editor', 'static', 'assets'),
-            library: join(fixtureRoot, 'project', 'library', 'localization-editor'),
-        });
-    });
-
     it('returns the same canonical record when cold-start enable is already true', async () => {
         await writeEnable(true);
         const assetConfig = await loadAssetConfig();

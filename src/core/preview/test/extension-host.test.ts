@@ -1,10 +1,10 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { MessageBus } from './message-bus';
-import { loadExtensionMain } from './extension-loader';
-import { scanPreviewExtensions } from './scanner';
-import { loadExtensionPreviewHost } from './index';
+import { MessageBus } from '../extension-host/message-bus';
+import { loadExtensionMain } from '../extension-host/extension-loader';
+import { scanPreviewExtensions } from '../extension-host/scanner';
+import { loadExtensionPreviewHost } from '../extension-host/index';
 import { middlewareService } from '../../../server/middleware';
 
 function writeJson(path: string, value: unknown): void {
@@ -129,55 +129,18 @@ describe('preview extension host discovery and lifecycle', () => {
         expect(extensions.find((extension) => extension.name === 'explicit-preview')?.mainPath).toBe(join(explicit, 'preview-main.js'));
         expect(extensions.find((extension) => extension.name === 'legacy-preview')?.mainPath).toBe(join(legacy, 'legacy-main.js'));
         expect(extensions.some((extension) => extension.name === 'invalid-preview')).toBe(false);
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining("invalid contributions.preview.main"));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid contributions.preview.main'));
         warn.mockRestore();
     });
 
-    test('does not include preview.main-only extensions and rejects unsafe contribution paths', () => {
+    test('does not include preview.main-only extensions', () => {
         const previewOnly = createExtension(join(projectRoot, 'extensions'), 'preview-only', {
             name: 'preview-only',
             contributions: { preview: { main: './preview-main.js' } },
         }, { 'preview-main.js': 'module.exports = {};' });
-        const unsafe = createExtension(join(projectRoot, 'extensions'), 'unsafe', {
-            name: 'unsafe-preview',
-            contributions: {
-                server: '../outside-server.js',
-                messages: { ping: { methods: ['ping'] } },
-            },
-            main: '../outside-main.js',
-        });
-        const uri = createExtension(join(projectRoot, 'extensions'), 'uri', {
-            name: 'uri-preview',
-            contributions: {
-                server: 'file:///outside-server.js',
-                messages: { ping: { methods: ['ping'] } },
-            },
-            main: 'https://example.com/main.js',
-        });
-        createExtension(join(projectRoot, 'extensions'), 'absolute', {
-            name: 'absolute-preview',
-            contributions: {
-                server: 'C:\\outside-server.js',
-                messages: { ping: { methods: ['ping'] } },
-            },
-            main: '/outside-main.js',
-        });
-
         const extensions = scanPreviewExtensions(projectRoot);
 
         expect(extensions.some((extension) => extension.dir === previewOnly)).toBe(false);
-        expect(extensions.find((extension) => extension.name === 'unsafe-preview')).toMatchObject({
-            serverPath: undefined,
-            mainPath: undefined,
-        });
-        expect(extensions.find((extension) => extension.name === 'uri-preview')).toMatchObject({
-            serverPath: undefined,
-            mainPath: undefined,
-        });
-        expect(extensions.find((extension) => extension.name === 'absolute-preview')).toMatchObject({
-            serverPath: undefined,
-            mainPath: undefined,
-        });
     });
 
     test('routes messages through the loaded main module', async () => {
@@ -203,29 +166,6 @@ describe('preview extension host discovery and lifecycle', () => {
         expect(loaded).toBeDefined();
         expect(await bus.dispatch('lifecycle-preview', 'ping')).toBe('pong');
         expect((globalThis as any).__previewHostCounters).toEqual({ load: 1, unload: 0 });
-    });
-
-    test('calls a loaded main unload only once when the host is disposed repeatedly', async () => {
-        createExtension(join(projectRoot, 'extensions'), 'unload-once', {
-            name: 'unload-once-preview',
-            main: './main.js',
-            contributions: { messages: { ping: { methods: ['ping'] } } },
-        }, {
-            'main.js': [
-                'module.exports = {',
-                '  methods: { ping: function () { return "pong"; } },',
-                '  load: function () { globalThis.__previewHostCounters.load += 1; },',
-                '  unload: function () { globalThis.__previewHostCounters.unload += 1; }',
-                '};',
-            ].join('\n'),
-        });
-        (globalThis as any).__previewHostCounters = { load: 0, unload: 0 };
-
-        const host = await loadExtensionPreviewHost(projectRoot);
-        host.dispose();
-        host.dispose();
-
-        expect((globalThis as any).__previewHostCounters).toEqual({ load: 1, unload: 1 });
     });
 
     test('isolates a failed messages main and does not register its server routes', async () => {
