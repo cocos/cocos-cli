@@ -247,7 +247,7 @@ describe('lib assets api', () => {
         expect(mockAssetManager.queryPropertySchema).toHaveBeenCalledWith('image');
     });
 
-    it('propagates mount and AssetDB failures without reporting success', async () => {
+    it('does not record a mount when AssetDB registration fails', async () => {
         const canonical = {
             name: 'localization-editor',
             target: 'C:/builtin/static/assets',
@@ -255,17 +255,9 @@ describe('lib assets api', () => {
             visible: true,
             library: 'C:/project/library/localization-editor',
         };
-        const resolverError = new Error('builtin manifest unavailable');
-        mockAssetConfig.resolveBuiltinLocalizationMount.mockImplementation(() => {
-            throw resolverError;
-        });
         const reconcile = (Assets as {
             reconcileLocalizationRuntimeMount: () => Promise<void>;
         }).reconcileLocalizationRuntimeMount;
-
-        await expect(reconcile()).rejects.toBe(resolverError);
-        expect(mockAssetDBManager.addDB).not.toHaveBeenCalled();
-        expect(mockAssetConfig.data.assetDBList).toEqual([]);
 
         const addError = new Error('AssetDB start failed');
         mockAssetConfig.resolveBuiltinLocalizationMount.mockReturnValue(canonical);

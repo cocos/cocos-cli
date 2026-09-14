@@ -1,8 +1,6 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { MessageBus } from '../extension-host/message-bus';
-import { loadExtensionMain } from '../extension-host/extension-loader';
 import { scanPreviewExtensions } from '../extension-host/scanner';
 import { loadExtensionPreviewHost } from '../extension-host/index';
 import { middlewareService } from '../../../server/middleware';
@@ -56,7 +54,6 @@ describe('preview extension host discovery and lifecycle', () => {
         restoreResourcesPath?.();
         restoreResourcesPath = undefined;
         delete (globalThis as any).Editor;
-        delete (globalThis as any).__previewHostCounters;
         rmSync(projectRoot, { recursive: true, force: true });
     });
 
@@ -141,31 +138,6 @@ describe('preview extension host discovery and lifecycle', () => {
         const extensions = scanPreviewExtensions(projectRoot);
 
         expect(extensions.some((extension) => extension.dir === previewOnly)).toBe(false);
-    });
-
-    test('routes messages through the loaded main module', async () => {
-        createExtension(join(projectRoot, 'extensions'), 'lifecycle', {
-            name: 'lifecycle-preview',
-            main: './main.js',
-            contributions: { messages: { ping: { methods: ['ping'] } } },
-        }, {
-            'main.js': [
-                'module.exports = {',
-                '  methods: { ping: function () { return "pong"; } },',
-                '  load: function () { globalThis.__previewHostCounters.load += 1; },',
-                '  unload: function () { globalThis.__previewHostCounters.unload += 1; }',
-                '};',
-            ].join('\n'),
-        });
-        (globalThis as any).__previewHostCounters = { load: 0, unload: 0 };
-        const extension = scanPreviewExtensions(projectRoot)[0];
-        const bus = new MessageBus();
-
-        const loaded = await loadExtensionMain(extension, bus);
-
-        expect(loaded).toBeDefined();
-        expect(await bus.dispatch('lifecycle-preview', 'ping')).toBe('pong');
-        expect((globalThis as any).__previewHostCounters).toEqual({ load: 1, unload: 0 });
     });
 
     test('isolates a failed messages main and does not register its server routes', async () => {

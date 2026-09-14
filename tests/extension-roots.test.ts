@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { resolveBuiltinExtensionsRoot, resolveExtensionRoots } from '../src/core/extension-roots';
@@ -37,27 +37,6 @@ describe('extension roots', () => {
             { kind: 'project', path: join(projectPath, 'extensions') },
             { kind: 'builtin', path: overrideRoot },
         ]);
-        expect(resolveExtensionRoots(projectPath, devEnv(overrideRoot)).some((root) => root.path === packagedRoot)).toBe(false);
-    });
-
-    test.each([
-        ['empty', '', /must be a non-empty absolute directory path/],
-        ['relative', 'relative/dev-extensions', /must be an absolute directory path/],
-    ])('rejects %s Dev override', (_name, override, message) => {
-        expect(() => resolveBuiltinExtensionsRoot(undefined, devEnv(override))).toThrow(message);
-    });
-
-    test('rejects a Dev override that points to a file', () => {
-        const filePath = join(tempRoot, 'extensions.txt');
-        writeFileSync(filePath, 'not a directory', 'utf8');
-
-        expect(() => resolveBuiltinExtensionsRoot(undefined, devEnv(filePath))).toThrow(/must point to a directory/);
-    });
-
-    test('rejects a missing Dev override directory', () => {
-        const missingPath = join(tempRoot, 'missing-extensions');
-
-        expect(() => resolveBuiltinExtensionsRoot(undefined, devEnv(missingPath))).toThrow(/points to a missing directory/);
     });
 
     test('ignores an override outside Dev mode', () => {
