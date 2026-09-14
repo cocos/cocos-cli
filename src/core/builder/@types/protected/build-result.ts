@@ -170,8 +170,6 @@ export interface IBuildHooksInfo {
         path: string;
         /** Whether the hook uses the internal Builder ABI. */
         internal: boolean;
-        /** Whether a hook failure should fail the build; omitted values fall back to internal. */
-        failOnError?: boolean;
     }>;
 }
 

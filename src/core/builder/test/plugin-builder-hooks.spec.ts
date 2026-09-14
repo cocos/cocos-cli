@@ -60,7 +60,6 @@ jest.mock('../../extension-roots', () => ({
 type HookInfo = {
     path: string;
     internal: boolean;
-    failOnError?: boolean;
 };
 
 class TestBuildTask extends BuildTaskBase {
@@ -149,7 +148,6 @@ describe('PluginManager builtin extension Builder hooks', () => {
         expect(manager.getHooksInfo('web-mobile').infos['pink-localization-editor']).toEqual({
             path: join(entryDir, 'builder.js'),
             internal: true,
-            failOnError: false,
         });
     });
 
@@ -211,18 +209,15 @@ describe('PluginManager builtin extension Builder hooks', () => {
         expect(openpaasHooks.infos.openpaas).toEqual({
             path: '/platform/openpaas-hooks',
             internal: true,
-            failOnError: true,
         });
         expect(openpaasHooks.infos['pink-localization-editor']).toEqual({
             path: join(localizationEntry, 'builder.js'),
             internal: true,
-            failOnError: false,
         });
         const webHooks = getHookInfo(manager, 'web-mobile');
         expect(webHooks.infos.occupied).toEqual({
             path: '/existing/occupied-hooks',
             internal: false,
-            failOnError: false,
         });
     });
 
@@ -256,65 +251,32 @@ describe('PluginManager builtin extension Builder hooks', () => {
         expect(handleHook).toHaveBeenNthCalledWith(2, expect.any(Function), true);
     });
 
-    it('keeps throwError and failOnError decisions independent and preserves legacy fallback', async () => {
-        const continueMarker = join(tempRoot, 'continued.txt');
-        const softEntryDir = createExtension('soft', {
-            name: 'soft-extension',
+    it('fails for builtin hook errors and entry loading errors', async () => {
+        const entryDir = createExtension('localization', {
+            name: 'pink-localization-editor',
             contributions: { builder: './builder.js' },
         }, 'builder.js', `
-            const fs = require('fs');
             module.exports = {
                 throwError: false,
-                onAfterInit() { throw new Error('soft failure'); },
-                onBeforeBuildAssets() { fs.writeFileSync(${JSON.stringify(continueMarker)}, 'continued'); },
+                onAfterInit() { throw new Error('builtin failure'); },
             };
-        `);
-        const hardEntryDir = createExtension('hard', {
-            name: 'hard-extension',
-            contributions: { builder: './builder.js' },
-        }, 'builder.js', `
-            module.exports = { throwError: true, onAfterInit() { throw new Error('hard failure'); } };
         `);
         const manager = createManager();
         (manager as any).builderPathsMap = { 'web-mobile': {} };
         setExtensionHooks(manager, [
-            { extensionName: 'soft-extension', path: join(softEntryDir, 'builder.js'), root: builtinRoot },
-            { extensionName: 'hard-extension', path: join(hardEntryDir, 'builder.js'), root: builtinRoot },
+            { extensionName: 'pink-localization-editor', path: join(entryDir, 'builder.js'), root: builtinRoot },
         ]);
         (manager as any).registerExtensionBuilderHooks('web-mobile');
 
-        const softTask = new TestBuildTask('soft-task', 'soft-task');
-        softTask.hooksInfo = {
-            pkgNameOrder: ['soft-extension'],
-            infos: getHookInfo(manager, 'web-mobile').infos,
-        };
-        await softTask.runPluginTask('onAfterInit');
-        await softTask.runPluginTask('onBeforeBuildAssets');
-        expect(softTask.error).toBeUndefined();
-        expect(readFileSync(continueMarker, 'utf8')).toBe('continued');
-
-        const hardTask = new TestBuildTask('hard-task', 'hard-task');
-        hardTask.hooksInfo = {
-            pkgNameOrder: ['hard-extension'],
-            infos: { 'hard-extension': getHookInfo(manager, 'web-mobile').infos['hard-extension'] },
-        };
-        await expect(hardTask.runPluginTask('onAfterInit')).rejects.toThrow('hard failure');
-
-        const legacyEntry = join(tempRoot, 'legacy.js');
-        writeFileSync(legacyEntry, 'module.exports = { throwError: false, onAfterInit() { throw new Error(\'legacy failure\'); } };');
-        const legacyTask = new TestBuildTask('legacy-task', 'legacy-task');
-        legacyTask.hooksInfo = {
-            pkgNameOrder: ['legacy-platform'],
-            infos: { 'legacy-platform': { path: legacyEntry, internal: true } },
-        };
-        await expect(legacyTask.runPluginTask('onAfterInit')).rejects.toThrow('legacy failure');
+        const task = new TestBuildTask('test-task', 'test-task');
+        task.hooksInfo = getHookInfo(manager, 'web-mobile');
+        await expect(task.runPluginTask('onAfterInit')).rejects.toThrow('builtin failure');
+        expect(task.error?.message).toBe('builtin failure');
 
         const missingTask = new TestBuildTask('missing-task', 'missing-task');
-        missingTask.hooksInfo = {
-            pkgNameOrder: ['soft-extension'],
-            infos: { 'soft-extension': { path: join(tempRoot, 'missing.js'), internal: true, failOnError: false } },
-        };
-        await missingTask.runPluginTask('onAfterInit');
-        expect(missingTask.error).toBeUndefined();
+        missingTask.hooksInfo = getHookInfo(manager, 'web-mobile');
+        missingTask.hooksInfo.infos['pink-localization-editor'].path = join(tempRoot, 'missing.js');
+        await expect(missingTask.runPluginTask('onAfterInit')).rejects.toThrow();
+        expect(missingTask.error).toBeDefined();
     });
 });

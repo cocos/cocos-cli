@@ -1321,7 +1321,6 @@ export class PluginManager extends EventEmitter {
             result.infos[pkgName] = {
                 path: platformPaths[pkgName],
                 internal,
-                failOnError: isExtensionHook ? false : internal,
             };
         });
         result.pkgNameOrder = this.sortPkgNameWidthPriority(Object.keys(result.infos));
