@@ -424,6 +424,7 @@ function convertConfigItemSchema(
 
         if (isPlainObject(item.default)) {
             for (const [childKey, childValue] of Object.entries(item.default)) {
+                if (hiddenKeys?.length && hiddenKeys.includes(childKey)) continue;
                 if (!declaredProperties[childKey]) {
                     declaredProperties[childKey] = inferSchemaFromValue(childValue, childKey);
                 }
