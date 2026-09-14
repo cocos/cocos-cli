@@ -53,7 +53,7 @@ describe('asset-config builtin Localization mount reconcile', () => {
         ]);
     });
 
-    it('fails closed when a project extension claims the legacy Localization identity', async () => {
+    it('skips legacy project Localization on cold start and reconcile', async () => {
         await createProjectMount('legacy-localization-editor', {
             name: 'localization-editor',
             readonly: true,
@@ -63,7 +63,9 @@ describe('asset-config builtin Localization mount reconcile', () => {
         const assetConfig = await loadAssetConfig();
         await assetConfig.init();
 
-        expect(() => assetConfig.resolveBuiltinLocalizationMount()).toThrow('project extension conflict');
+        const canonical = assetConfig.resolveBuiltinLocalizationMount();
+        expect(canonical.target).toBe(join(fixtureRoot, 'resources', 'app', 'extensions', '@pink-localization-editor', 'static', 'assets'));
+        expect(assetConfig.data.assetDBList.filter((info: { name: string }) => info.name === 'localization-editor')).toEqual([canonical]);
     });
 
     it('fails closed when builtin identity and mount contribution are not unique', async () => {

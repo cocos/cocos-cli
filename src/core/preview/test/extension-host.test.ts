@@ -57,6 +57,24 @@ describe('preview extension host discovery and lifecycle', () => {
         rmSync(projectRoot, { recursive: true, force: true });
     });
 
+    test('does not execute legacy project Localization routes or messages', async () => {
+        const resourcesRoot = join(projectRoot, 'resources');
+        const builtinRoot = join(resourcesRoot, 'app', 'extensions');
+        mkdirSync(builtinRoot, { recursive: true });
+        restoreResourcesPath = setResourcesPath(resourcesRoot);
+        createExtension(join(projectRoot, 'extensions'), 'localization-editor', {
+            name: 'localization-editor', version: '1.0.4',
+            main: './main.js', contributions: { server: './server.js', messages: { preview: { methods: ['preview'] } } },
+        }, { 'main.js': 'throw new Error("legacy main executed");', 'server.js': 'throw new Error("legacy server executed");' });
+        createExtension(builtinRoot, 'localization', {
+            name: 'pink-localization-editor', version: '0.0.1', contributions: { server: './server.js' },
+        }, { 'server.js': 'module.exports = { get: [{ url: "/__builtin-localization__", handle: (_req, res) => res.end("builtin") }] };' });
+        expect(scanPreviewExtensions(projectRoot).map(extension => extension.name)).toEqual(['pink-localization-editor']);
+        const host = await loadExtensionPreviewHost(projectRoot);
+        expect(host.extensions).toEqual(['pink-localization-editor']);
+        host.dispose();
+    });
+
     test('discovers both roots, keeps project priority, and preserves different identities', () => {
         const resourcesRoot = join(projectRoot, 'resources');
         const builtinExtensionsRoot = join(resourcesRoot, 'app', 'extensions');

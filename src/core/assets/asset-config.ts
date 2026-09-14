@@ -8,6 +8,7 @@ import { Engine } from '../engine';
 import { createImportMetadataNodes } from './metadata';
 import { DEFAULT_CREATE_TEMPLATE_ROOT, resolveImportTemplateRoot } from './import-config-defaults';
 import { resolveBuiltinExtensionsRoot } from '../extension-roots';
+import { isLegacyProjectLocalization } from '../legacy-localization';
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
@@ -112,6 +113,9 @@ function scanExtensionMountCandidates(
             }
             try {
                 const pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8')) as Record<string, any> | null;
+                if (isLegacyProjectLocalization(projectRoot, extDir, pkgJson)) {
+                    continue;
+                }
                 const mount = (pkgJson?.contributions?.['asset-db']?.mount ?? null) as AssetDBMountContribution | null;
                 if (!mount?.path) {
                     continue;
