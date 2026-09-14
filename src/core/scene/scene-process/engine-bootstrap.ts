@@ -10,6 +10,7 @@ import { initLocalI18n } from './i18n';
 import { CUSTOM_PIPELINE_MODULE } from '../../engine/graphics-config';
 import { fetchSceneEditorSettings, syncSceneEditorBundles } from './scene-editor-assets';
 import { installLightProbeNormalReset } from './light-probe-normal-reset';
+import type { IEditorSessionService } from './service/core/editor-session';
 
 import './service';
 
@@ -283,19 +284,46 @@ async function setupBrowserInvokeChannel(serverURL: string) {
             msg: {
                 sceneUrl?: string;
                 module?: 'LightProbeBake' | 'LightmapBake';
-                method?: 'bake' | 'queryBakeInfo' | 'queryCapabilities' | 'clearBake' | 'cancel';
+                method?: 'bake' | 'querySettings' | 'queryBakeInfo' | 'queryCapabilities' | 'clearBake' | 'cancel';
                 args?: unknown[];
             },
             reply: (response: { result?: unknown; sceneUrl?: string; error?: string }) => void,
         ) => {
             try {
                 const methods = msg?.module === 'LightProbeBake'
-                    ? new Set(['bake', 'queryCapabilities', 'clearBake', 'cancel'])
+                    ? new Set(['bake', 'querySettings', 'queryCapabilities', 'clearBake', 'cancel'])
                     : msg?.module === 'LightmapBake'
                         ? new Set(['bake', 'queryCapabilities', 'queryBakeInfo', 'clearBake', 'cancel'])
                         : null;
                 if (!methods?.has(msg.method || '')) {
                     throw new Error('Invalid LightFX scene request.');
+                }
+
+                if (msg.module === 'LightProbeBake' && msg.method === 'querySettings') {
+                    // This frequently polled read must not call queryCurrent(), which
+                    // encodes all baked probes and tetrahedra just to obtain the URL.
+                    const editor = DecoratorService.Editor as typeof DecoratorService.Editor & IEditorSessionService;
+                    const session = editor.getEditorSession();
+                    const scene = cc.director.getScene();
+                    const assertCurrent = () => {
+                        if (!scene || cc.director.getScene() !== scene || !editor.isCurrentEditorSession(session)) {
+                            throw new Error('The source scene changed during the light-probe settings query.');
+                        }
+                    };
+                    assertCurrent();
+                    if (!session.uuid || editor.getCurrentEditorType() !== 'scene') {
+                        throw new Error('Light-probe settings require an open scene.');
+                    }
+                    const assetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [session.uuid]);
+                    assertCurrent();
+                    const sceneUrl = assetInfo?.url;
+                    if (!sceneUrl || sceneUrl !== msg.sceneUrl) {
+                        throw new Error(`The selected scene renderer is not displaying the requested scene: ${msg.sceneUrl || 'unknown'}.`);
+                    }
+                    const result = await DecoratorService.LightProbeBake.querySettings();
+                    assertCurrent();
+                    reply({ result, sceneUrl });
+                    return;
                 }
 
                 const currentSceneUrl = await querySceneUrl();

@@ -23,6 +23,31 @@ MCP API 只负责参数校验和结果封装。场景运行时负责导出场景
 
 ## 运行能力识别
 
+### 光照探针面板设置查询
+
+`Scene.LightProbeBake.querySettings()` 只读当前场景的七个设置及其引擎属性类型、有效只读标记，不导出整个场景，不遍历探针点、球谐系数或四面体，也不调用原生烘焙 Host。
+
+```ts
+const settings = await cli.Scene.LightProbeBake.querySettings();
+// {
+//   giScale: { value: 1, type: 'Float', readonly: false },
+//   giSamples: { value: 1024, type: 'Integer', readonly: false },
+//   bounces: { value: 2, type: 'Integer', readonly: false },
+//   reduceRinging: { value: 0, type: 'Float', readonly: false },
+//   showWireframe: { value: true, type: 'Boolean', readonly: false },
+//   showConvex: { value: false, type: 'Boolean', readonly: false },
+//   lightProbeSphereVolume: { value: 1, type: 'Float', readonly: false }
+// }
+```
+
+MCP 工具为 `scene-query-light-probe-settings`，无参数（输入 `{}`），成功时上述对象位于 `result.data`。返回的是实时值，包括尚未保存的参数修改；不要求已有 Light Probe Group、已生成探针或已完成烘焙。没有打开场景、处于 Prefab 编辑模式或参数数据无效时返回错误，不补造默认值。
+
+`readonly` 合并了字段本身与父级 `lightProbeInfo` 的只读标记，可直接用于面板禁用状态；它不是烘焙任务的忙状态。任务状态仍使用原有状态查询，不能由此接口推断能否启动 Bake/Clear。
+
+Pink 的设置面板应使用本接口替换为读取七个参数而执行的 `Node.query({ path: '/', includeChildren: false })`；后者仍会序列化场景全局的全部探针数据。设置读取与轻量任务状态轮询应分开，面板隐藏时停止不必要的设置刷新。若 Pink 使用自己的 `scene.invoke` 命令映射／白名单，需要将新查询显式映射到 `LightProbeBake.querySettings`；仅更新 CLI 不会自动替换 Pink 的旧查询。
+
+### 烘焙能力
+
 公开 CLI API `Scene.LightProbeBake.queryCapabilities()` 会向实际 Scene renderer（没有 Webview 时为 worker）及其 Node host 查询：
 
 ```ts

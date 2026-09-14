@@ -4,8 +4,8 @@ import { Scene } from '../../core/scene';
 import {
     SchemaClearCountResult, SchemaLightFXCancelResult, SchemaLightmapBakeInfo,
     SchemaLightmapBakeOptions, SchemaLightmapBakeResult,
-    SchemaLightmapClearOptions, SchemaLightProbeBakeOptions, SchemaLightProbeBakeResult, SchemaLightProbeClearOptions,
-    TLightmapBakeInfo, TLightmapBakeOptions, TLightmapBakeResult, TLightProbeBakeOptions, TLightProbeBakeResult,
+    SchemaLightmapClearOptions, SchemaLightProbeBakeOptions, SchemaLightProbeBakeResult, SchemaLightProbeClearOptions, SchemaLightProbeSettings,
+    TLightmapBakeInfo, TLightmapBakeOptions, TLightmapBakeResult, TLightProbeBakeOptions, TLightProbeBakeResult, TLightProbeSettings,
 } from './lightfx-bake-schema';
 
 async function execute<T>(operation: () => Promise<T>): Promise<CommonResultType<T>> {
@@ -14,6 +14,14 @@ async function execute<T>(operation: () => Promise<T>): Promise<CommonResultType
 }
 
 export class LightFXBakeApi {
+    @tool('scene-query-light-probe-settings')
+    @title('Query light probe settings')
+    @description('Read only the seven light-probe panel settings from the active scene, including property types and readonly flags. Does not read baked probe data, modify the scene, or start a bake.')
+    @result(SchemaLightProbeSettings)
+    queryLightProbeSettings(): Promise<CommonResultType<TLightProbeSettings>> {
+        return execute(() => Scene.LightProbeBake.querySettings());
+    }
+
     @tool('scene-bake-light-probes')
     @title('Bake light probes')
     @description('Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.')

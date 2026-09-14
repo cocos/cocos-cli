@@ -4,16 +4,42 @@ import {
     SchemaLightmapBakeInfo,
     SchemaLightmapBakeOptions,
     SchemaLightProbeBakeOptions,
+    SchemaLightProbeSettings,
 } from '../src/api/scene/lightfx-bake-schema';
+import { toolRegistry } from '../src/api/decorator/decorator';
 
-const probeBake = jest.fn(); const lightmapBake = jest.fn(); const queryLightmapBakeInfo = jest.fn();
+const probeBake = jest.fn(); const lightmapBake = jest.fn(); const queryLightmapBakeInfo = jest.fn(); const queryLightProbeSettings = jest.fn();
 const probeCancel = jest.fn(); const lightmapCancel = jest.fn();
-jest.mock('../src/api/decorator/decorator', () => ({ description: () => jest.fn(), param: () => jest.fn(), result: () => jest.fn(), title: () => jest.fn(), tool: () => jest.fn() }));
-jest.mock('../src/core/scene', () => ({ Scene: { LightProbeBake: { bake: (...args: unknown[]) => probeBake(...args), clearBake: jest.fn(), cancel: () => probeCancel() }, LightmapBake: { bake: (...args: unknown[]) => lightmapBake(...args), queryBakeInfo: (...args: unknown[]) => queryLightmapBakeInfo(...args), clearBake: jest.fn(), cancel: () => lightmapCancel() } } }));
+jest.mock('../src/core/scene', () => ({ Scene: { LightProbeBake: { querySettings: (...args: unknown[]) => queryLightProbeSettings(...args), bake: (...args: unknown[]) => probeBake(...args), clearBake: jest.fn(), cancel: () => probeCancel() }, LightmapBake: { bake: (...args: unknown[]) => lightmapBake(...args), queryBakeInfo: (...args: unknown[]) => queryLightmapBakeInfo(...args), clearBake: jest.fn(), cancel: () => lightmapCancel() } } }));
 import { LightFXBakeApi } from '../src/api/scene/lightfx-bake';
 
 describe('LightFX bake API', () => {
-    beforeEach(() => { probeBake.mockReset(); lightmapBake.mockReset(); queryLightmapBakeInfo.mockReset(); probeCancel.mockReset(); lightmapCancel.mockReset(); });
+    beforeEach(() => { probeBake.mockReset(); lightmapBake.mockReset(); queryLightmapBakeInfo.mockReset(); queryLightProbeSettings.mockReset(); probeCancel.mockReset(); lightmapCancel.mockReset(); });
+    it('registers a no-argument settings read and preserves its seven typed fields', async () => {
+        const number = (value: number) => ({ value, type: 'Number', readonly: false });
+        const boolean = (value: boolean) => ({ value, type: 'Boolean', readonly: true });
+        const data = {
+            giScale: number(2), giSamples: number(1024), bounces: number(2), reduceRinging: number(0.02),
+            showWireframe: boolean(true), showConvex: boolean(false), lightProbeSphereVolume: number(3),
+        };
+        expect(SchemaLightProbeSettings.parse(data)).toEqual(data);
+        expect(SchemaLightProbeSettings.safeParse({ ...data, giScale: boolean(true) }).success).toBe(false);
+        expect(SchemaLightProbeSettings.safeParse({ ...data, showWireframe: number(1) }).success).toBe(false);
+        const tool = toolRegistry.get('scene-query-light-probe-settings');
+        expect(tool?.meta).toMatchObject({ methodName: 'queryLightProbeSettings', paramSchemas: [] });
+        expect(tool?.meta.description).toContain('Read only');
+        expect(tool?.meta.returnSchema?.parse({ code: COMMON_STATUS.SUCCESS, data })).toEqual({ code: COMMON_STATUS.SUCCESS, data });
+        queryLightProbeSettings.mockResolvedValue(data);
+        await expect(new LightFXBakeApi().queryLightProbeSettings()).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data });
+        expect(queryLightProbeSettings).toHaveBeenCalledWith();
+        expect(probeBake).not.toHaveBeenCalled();
+        expect(lightmapBake).not.toHaveBeenCalled();
+    });
+    it('reports an unavailable scene from the settings read without starting a bake', async () => {
+        queryLightProbeSettings.mockRejectedValue(new Error('No scene is currently open.'));
+        await expect(new LightFXBakeApi().queryLightProbeSettings()).resolves.toEqual({ code: COMMON_STATUS.FAIL, reason: 'No scene is currently open.' });
+        expect(probeBake).not.toHaveBeenCalled();
+    });
     it.each([true, false])('tries Lightmap cancel only when Probe did not cancel (probe=%s)', async cancelled => {
         const probe = { cancelled, target: cancelled ? 'light-probe' : null };
         const lightmap = { cancelled: true, target: 'lightmap' };

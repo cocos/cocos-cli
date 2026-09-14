@@ -1,4 +1,4 @@
-import { SH, Vec3 } from 'cc';
+import { CCClass, director, js, SH, Vec3 } from 'cc';
 import type {
     ILightFXBakeEvents,
     ILightFXCancelResult,
@@ -6,6 +6,8 @@ import type {
     ILightProbeBakeCapabilities,
     ILightProbeBakeResult,
     ILightProbeBakeService,
+    ILightProbeSetting,
+    ILightProbeSettings,
 } from '../../common';
 import { lightFXCoordinator, LightFXBakeOutput } from './baking/lightfx/baker';
 import { createDefaultLightFXSettings } from './baking/lightfx/settings';
@@ -31,6 +33,45 @@ interface LightProbeSettings {
 
 @register('LightProbeBake')
 export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> implements ILightProbeBakeService {
+    async querySettings(): Promise<ILightProbeSettings> {
+        const scene = director.getScene();
+        if (!scene) throw new Error('No scene is currently open.');
+        if (Service.Editor.getCurrentEditorType() !== 'scene') {
+            throw new Error('Light probe settings can only be queried in a scene editor.');
+        }
+        const info = scene.globals.lightProbeInfo;
+        if (!info) throw new Error('Light probe settings are unavailable in the current scene.');
+
+        // Read only the panel scalars, never info.data or a whole Scene/LightProbeInfo dump.
+        const values = this.getSettings(info);
+        const parent = CCClass.attr(scene.globals.constructor, 'lightProbeInfo');
+        const parentReadonly = !!parent.readonly || !!(parent.hasGetter && !parent.hasSetter);
+        const property = <K extends keyof LightProbeSettings>(key: K): ILightProbeSetting<LightProbeSettings[K]> => {
+            const value = values[key];
+            const expectedType = key === 'showWireframe' || key === 'showConvex' ? 'boolean' : 'number';
+            if (typeof value !== expectedType || (typeof value === 'number' && !Number.isFinite(value))) {
+                throw new Error(`Invalid light probe setting: ${key}.`);
+            }
+            // Preserve scalar dump types and instance overrides without translating or encoding data.
+            const attrs = CCClass.attr(info, key);
+            const type = attrs.ctor ? (js.getClassName(attrs.ctor) || 'Unknown')
+                : attrs.type ? String(attrs.type) : expectedType === 'boolean' ? 'Boolean' : 'Number';
+            return {
+                value, type,
+                readonly: parentReadonly || !!attrs.readonly || !!(attrs.hasGetter && !attrs.hasSetter),
+            };
+        };
+        return {
+            giScale: property('giScale'),
+            giSamples: property('giSamples'),
+            bounces: property('bounces'),
+            reduceRinging: property('reduceRinging'),
+            showWireframe: property('showWireframe'),
+            showConvex: property('showConvex'),
+            lightProbeSphereVolume: property('lightProbeSphereVolume'),
+        };
+    }
+
     async queryCapabilities(): Promise<ILightProbeBakeCapabilities> {
         const host = await lightFXBakeHost.queryCapabilities();
         if (host?.sceneTransactionVersion !== 1 || typeof host.busy !== 'boolean') {

@@ -2,6 +2,9 @@ import { IBaseIdentifier, INodeInfo, ISceneInfo, INodeIdentifier, NodeType, Relo
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { SceneTestEnv } from './scene-test-env';
 import { NodeProxy } from '../main-process/proxy/node-proxy';
+import { LightProbeBakeProxy } from '../main-process/proxy/lightfx-bake-proxy';
+import { Rpc } from '../main-process/rpc';
+import type { IScene } from '../common/editor/scene';
 import { readFileSync } from 'fs-extra';
 import { assetManager } from '../../assets';
 
@@ -30,6 +33,33 @@ describe('EditorProxy Scene 测试', () => {
             }) as ISceneInfo;
             expect(result).toBeDefined();
             expect(result.assetUuid).toBe(identifier.assetUuid);
+        });
+
+        it('querySettings - matches live engine dump metadata without generated probes', async () => {
+            const settings = await LightProbeBakeProxy.querySettings();
+            // NodeProxy strips globals from its public result, so retain the raw Node.query dump.
+            const dump = await Rpc.getInstance().request('Node', 'query', [{
+                path: '/', includeChildren: false, includeComponents: false,
+            }]) as IScene | null;
+            expect(dump).not.toBeNull();
+            const info = dump!._globals.lightProbeInfo;
+            const keys = [
+                'giScale', 'giSamples', 'bounces', 'reduceRinging',
+                'showWireframe', 'showConvex', 'lightProbeSphereVolume',
+            ] as const;
+            // RPC objects have another realm's Object.prototype; compare the exact scalar contract.
+            expect(Reflect.ownKeys(settings).sort()).toStrictEqual([...keys].sort());
+            for (const key of keys) {
+                const actual = settings[key];
+                const property = info.value[key];
+                expect(Reflect.ownKeys(actual).sort()).toStrictEqual(['readonly', 'type', 'value']);
+                expect(actual.value).toBe(property.value);
+                expect(actual.type).toBe(property.type);
+                expect(actual.readonly).toBe(property.readonly === true || info.readonly === true);
+            }
+            expect(settings.reduceRinging.value).toBe(0);
+            expect(settings.showConvex.value).toBe(false);
+            expect(info.value._data?.value ?? null).toBeNull();
         });
 
         it('save - 通过 UUID 保存场景', async () => {

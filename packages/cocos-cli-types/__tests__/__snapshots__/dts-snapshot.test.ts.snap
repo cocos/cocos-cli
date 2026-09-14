@@ -6835,6 +6835,7 @@ export declare interface ILightProbeBakeResult {
     durationMs: number;
 }
 export declare interface ILightProbeBakeService extends IServiceEvents {
+    querySettings(): Promise<ILightProbeSettings>;
     queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
     bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
     clearBake(options?: {
@@ -6843,6 +6844,20 @@ export declare interface ILightProbeBakeService extends IServiceEvents {
         probeCount: number;
     }>;
     cancel(): Promise<ILightFXCancelResult>;
+}
+export declare interface ILightProbeSetting<T extends number | boolean> {
+    value: T;
+    type: string;
+    readonly: boolean;
+}
+export declare interface ILightProbeSettings {
+    giScale: ILightProbeSetting<number>;
+    giSamples: ILightProbeSetting<number>;
+    bounces: ILightProbeSetting<number>;
+    reduceRinging: ILightProbeSetting<number>;
+    showWireframe: ILightProbeSetting<boolean>;
+    showConvex: ILightProbeSetting<boolean>;
+    lightProbeSphereVolume: ILightProbeSetting<number>;
 }
 export declare interface ILODGroupBoundsResult {
     localBoundaryCenter: IVec3;

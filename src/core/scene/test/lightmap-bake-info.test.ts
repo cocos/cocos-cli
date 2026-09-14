@@ -1,5 +1,9 @@
 const mockGetScene = jest.fn();
 const mockQueryLightmapTextureInfo = jest.fn();
+const mockRequest = jest.fn();
+const mockQueryCurrent = jest.fn();
+let mockSession = { uuid: 'scene-asset-uuid' as string | null, generation: 0 };
+let mockEditorType = 'scene';
 const mockMeshRenderer = class MeshRenderer {};
 const mockTerrain = class Terrain {};
 
@@ -25,7 +29,18 @@ jest.mock('../scene-process/service/preview/asset-reload', () => ({
     loadPreviewAsset: jest.fn(),
 }));
 jest.mock('../scene-process/rpc', () => ({
-    Rpc: { getInstance: jest.fn() },
+    Rpc: { getInstance: () => ({ request: mockRequest }) },
+}));
+jest.mock('../scene-process/service/core', () => ({
+    BaseService: class {},
+    register: () => () => undefined,
+    Service: { Editor: {
+        queryCurrent: mockQueryCurrent,
+        getCurrentEditorType: () => mockEditorType,
+        getEditorSession: () => ({ ...mockSession }),
+        isCurrentEditorSession: (session: typeof mockSession) => session.uuid === mockSession.uuid
+            && session.generation === mockSession.generation && mockSession.uuid !== null,
+    } },
 }));
 
 import { LightmapBakeService } from '../scene-process/service/lightmap-bake';
@@ -39,7 +54,15 @@ function node(models: unknown[] = [], terrains: unknown[] = [], children: unknow
 
 describe('LightmapBakeService bake information', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        jest.resetAllMocks();
+        mockSession = { uuid: 'scene-asset-uuid', generation: 0 };
+        mockEditorType = 'scene';
+        mockQueryCurrent.mockImplementation(() => { throw new Error('Result queries must not encode the scene'); });
+        mockRequest.mockResolvedValue({ uuid: mockSession.uuid, url: 'db://assets/Lightmap.scene' });
+        mockQueryLightmapTextureInfo.mockResolvedValue({ textures: [], missingTextureUuids: [] });
+        mockGetScene.mockReturnValue({ ...node(), globals: {
+            get lightProbeInfo() { throw new Error('Result queries must not traverse probe data'); },
+        } });
     });
 
     it('queries unique texture metadata from the current scene bindings', async () => {
@@ -61,6 +84,7 @@ describe('LightmapBakeService bake information', () => {
             globals: {
                 bakedWithHighpLightmap: true,
                 bakedWithStationaryMainLight: false,
+                get lightProbeInfo() { throw new Error('Result queries must not traverse probe data'); },
             },
         };
         mockGetScene.mockReturnValue(scene);
@@ -77,7 +101,6 @@ describe('LightmapBakeService bake information', () => {
         };
         mockQueryLightmapTextureInfo.mockResolvedValue(textureInfo);
         const service = new LightmapBakeService();
-        jest.spyOn(service as any, 'querySceneUrl').mockResolvedValue('db://assets/Lightmap.scene');
 
         await expect(service.queryBakeInfo()).resolves.toEqual({
             sceneUrl: 'db://assets/Lightmap.scene',
@@ -91,5 +114,78 @@ describe('LightmapBakeService bake information', () => {
         expect(mockQueryLightmapTextureInfo).toHaveBeenCalledWith({
             uuids: [meshTexture.uuid, terrainTexture.uuid],
         });
+        expect(mockRequest).toHaveBeenCalledWith('assetManager', 'queryAssetInfo', ['scene-asset-uuid']);
+        expect(mockQueryCurrent).not.toHaveBeenCalled();
+    });
+
+    it('uses current asset metadata on repeated queries without encoding probe data', async () => {
+        const service = new LightmapBakeService();
+        await expect(service.queryBakeInfo()).resolves.toMatchObject({ sceneUrl: 'db://assets/Lightmap.scene', baked: false });
+        mockRequest.mockResolvedValue({ uuid: mockSession.uuid, url: 'db://assets/Renamed.scene' });
+        await expect(service.queryBakeInfo()).resolves.toMatchObject({ sceneUrl: 'db://assets/Renamed.scene', baked: false });
+        expect(mockRequest).toHaveBeenCalledTimes(2);
+        expect(mockQueryCurrent).not.toHaveBeenCalled();
+    });
+
+    it('rejects a closed scene before querying assets', async () => {
+        mockGetScene.mockReturnValue(null);
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('No scene is currently open.');
+        expect(mockRequest).not.toHaveBeenCalled();
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it.each(['prefab', 'unknown'])('does not treat a %s editor as a saved scene', async type => {
+        mockEditorType = type;
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('saved scene asset');
+        expect(mockRequest).not.toHaveBeenCalled();
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it.each([null, { url: 'db://assets/Model.prefab' }])('rejects missing or non-scene asset metadata: %p', async info => {
+        mockRequest.mockResolvedValue(info);
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('saved scene asset');
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it('rejects a same-UUID reload during the asset metadata lookup', async () => {
+        mockRequest.mockImplementation(async () => {
+            mockSession.generation++;
+            return { url: 'db://assets/Lightmap.scene' };
+        });
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('source scene changed');
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it('rejects a replaced Scene instance even if its session identifiers are unchanged', async () => {
+        mockRequest.mockImplementation(async () => {
+            mockGetScene.mockReturnValue({ ...node(), globals: {} });
+            return { uuid: mockSession.uuid, url: 'db://assets/Lightmap.scene' };
+        });
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('source scene changed');
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it('rejects a scene without an open editor session before querying assets', async () => {
+        mockSession.uuid = null;
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('source scene changed');
+        expect(mockRequest).not.toHaveBeenCalled();
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it('propagates asset lookup failures without falling back to a scene dump', async () => {
+        mockRequest.mockRejectedValue(new Error('Asset metadata unavailable'));
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('Asset metadata unavailable');
+        expect(mockQueryCurrent).not.toHaveBeenCalled();
+        expect(mockQueryLightmapTextureInfo).not.toHaveBeenCalled();
+    });
+
+    it('does not combine old bindings with a new scene after texture metadata arrives', async () => {
+        mockQueryLightmapTextureInfo.mockImplementation(async () => {
+            mockSession = { uuid: 'other-scene-uuid', generation: 1 };
+            mockGetScene.mockReturnValue({ ...node(), globals: {} });
+            return { textures: [], missingTextureUuids: [] };
+        });
+        await expect(new LightmapBakeService().queryBakeInfo()).rejects.toThrow('source scene changed');
+        expect(mockQueryCurrent).not.toHaveBeenCalled();
     });
 });

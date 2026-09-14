@@ -3,6 +3,10 @@ import { lightFXBakeRenderer } from '../lightfx-bake-renderer';
 import { Rpc } from '../rpc';
 
 export const LightProbeBakeProxy: IPublicLightProbeBakeService = {
+    querySettings: () => lightFXBakeRenderer.invoke(
+        'LightProbeBake', 'querySettings', [], 30_000,
+        () => Rpc.getInstance().request('LightProbeBake', 'querySettings'),
+    ),
     queryCapabilities: () => lightFXBakeRenderer.invoke(
         'LightProbeBake', 'queryCapabilities', [], 30_000,
         () => Rpc.getInstance().request('LightProbeBake', 'queryCapabilities'),

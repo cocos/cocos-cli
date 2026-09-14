@@ -13,6 +13,24 @@ export interface ILightProbeBakeOptions {
     timeoutMs?: number;
 }
 
+/** One panel setting, including its engine property type and effective editability. */
+export interface ILightProbeSetting<T extends number | boolean> {
+    value: T;
+    type: string;
+    readonly: boolean;
+}
+
+/** Lightweight live settings; excludes generated probes, SH coefficients and tetrahedra. */
+export interface ILightProbeSettings {
+    giScale: ILightProbeSetting<number>;
+    giSamples: ILightProbeSetting<number>;
+    bounces: ILightProbeSetting<number>;
+    reduceRinging: ILightProbeSetting<number>;
+    showWireframe: ILightProbeSetting<boolean>;
+    showConvex: ILightProbeSetting<boolean>;
+    lightProbeSphereVolume: ILightProbeSetting<number>;
+}
+
 /** Versioned implementation support, not native executable readiness or a recoverable task. */
 export interface ILightProbeBakeCapabilities {
     diagnostics?: ILightFXDiagnostics;
@@ -120,6 +138,8 @@ export interface ILightFXBakeEvents {
 }
 
 export interface ILightProbeBakeService extends IServiceEvents {
+    /** Reads only the seven live panel settings; no baking, scene dump or native host request. */
+    querySettings(): Promise<ILightProbeSettings>;
     /** Queries this Scene implementation and its actual host without modifying scene or task state. */
     queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
     bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
@@ -139,5 +159,5 @@ export interface ILightmapBakeService extends IServiceEvents {
     cancel(): Promise<ILightFXCancelResult>;
 }
 
-export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'queryCapabilities' | 'bake' | 'clearBake' | 'cancel'>;
+export type IPublicLightProbeBakeService = Pick<ILightProbeBakeService, 'querySettings' | 'queryCapabilities' | 'bake' | 'clearBake' | 'cancel'>;
 export type IPublicLightmapBakeService = Pick<ILightmapBakeService, 'queryCapabilities' | 'bake' | 'queryBakeInfo' | 'clearBake' | 'cancel'>;

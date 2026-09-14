@@ -24,6 +24,19 @@ export const SchemaLightProbeBakeResult = z.object({
     durationMs: z.number().nonnegative(),
 });
 
+const LightProbeNumberSetting = z.object({ value: z.number(), type: z.string(), readonly: z.boolean() });
+const LightProbeBooleanSetting = z.object({ value: z.boolean(), type: z.string(), readonly: z.boolean() });
+
+export const SchemaLightProbeSettings = z.object({
+    giScale: LightProbeNumberSetting,
+    giSamples: LightProbeNumberSetting,
+    bounces: LightProbeNumberSetting,
+    reduceRinging: LightProbeNumberSetting,
+    showWireframe: LightProbeBooleanSetting,
+    showConvex: LightProbeBooleanSetting,
+    lightProbeSphereVolume: LightProbeNumberSetting,
+});
+
 export const SchemaLightmapBakeOptions = z.object({
     outputUrl: z.string().optional().describe('Existing parent directory under db://assets. Saved results publish into scene-<scene UUID>/output; omitted or db://assets uses db://assets/LightFX as parent. Use returned texture URLs.'),
     msaa: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(8)]).optional(),
@@ -82,6 +95,7 @@ export const SchemaClearCountResult = z.object({
 
 export type TLightProbeBakeOptions = z.infer<typeof SchemaLightProbeBakeOptions>;
 export type TLightProbeBakeResult = z.infer<typeof SchemaLightProbeBakeResult>;
+export type TLightProbeSettings = z.infer<typeof SchemaLightProbeSettings>;
 export type TLightmapBakeOptions = z.infer<typeof SchemaLightmapBakeOptions>;
 export type TLightmapBakeResult = z.infer<typeof SchemaLightmapBakeResult>;
 export type TLightmapBakeInfo = z.infer<typeof SchemaLightmapBakeInfo>;

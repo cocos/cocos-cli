@@ -11,9 +11,10 @@ import { createDefaultLightFXSettings } from './baking/lightfx/settings';
 import { finishSavedLightFXRecording, LightFXResultRetainedError } from './baking/lightfx/saved-recording';
 import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets';
 import { BaseService, register, Service } from './core';
+import type { IEditorSessionService } from './core/editor-session';
 import { loadPreviewAsset } from './preview/asset-reload';
 import { validateLightmapGISamples } from '../../common/lightfx-limits';
-import { runLightFXSceneOperation, type LightFXSceneContext } from './baking/lightfx/scene-context';
+import { captureLightFXScene, runLightFXSceneOperation, type LightFXSceneContext } from './baking/lightfx/scene-context';
 
 interface LightmapBinding {
     target: any;
@@ -175,6 +176,17 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
     async queryBakeInfo(): Promise<ILightmapBakeInfo> {
         const scene = director.getScene() as Scene | null;
         if (!scene) throw new Error('No scene is currently open.');
+        const context = captureLightFXScene(scene);
+        const editor = Service.Editor as typeof Service.Editor & IEditorSessionService;
+        const session = editor.getEditorSession();
+        if (!session.uuid || editor.getCurrentEditorType() !== 'scene') {
+            throw new Error('Lightmaps can only be baked in a saved scene asset.');
+        }
+        // Result polling only needs the URL; queryCurrent() also encodes all probe data.
+        const sceneAssetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [session.uuid]);
+        context.assertCurrent();
+        const sceneUrl = sceneAssetInfo?.url;
+        if (!sceneUrl?.endsWith('.scene')) throw new Error('Lightmaps can only be baked in a saved scene asset.');
 
         const textureUuids = new Set<string>();
         let meshCount = 0;
@@ -203,8 +215,9 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
         const assetInfo = await lightFXBakeHost.queryLightmapTextureInfo({
             uuids: [...textureUuids],
         });
+        context.assertCurrent();
         return {
-            sceneUrl: await this.querySceneUrl(),
+            sceneUrl,
             baked: meshCount > 0 || terrainCount > 0,
             meshCount,
             terrainCount,
