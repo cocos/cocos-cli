@@ -17,16 +17,17 @@ git clone <repository-url>
 cd cocos-cli
 
 # 安装依赖
-npm run init
 npm install
 
-# 下载开发工具（首次运行）
-npm run download-tools
+# 将已准备好的 Engine SDK 放入 packages/engine，或在 CLI 根目录
+# config.local.json 中配置 enginePath；相对路径以该根目录为基准
+npm run setup:cli
 
-# 构建并链接到全局
-npm run build
+# 链接到全局
 npm link
 ```
+
+开发引擎源码时，在缺少源码的情况下显式运行 `npm run fetch:engine`，再运行 `npm run install:engine`，用 `npm run setup:dev` 替代 `setup:cli`。自定义引擎跳过下载。安装依赖不再编译引擎，本机默认地址与 CI 配置见[环境配置说明](../dev/environment-setup.md)。
 
 ### 3. ✅ 验证安装
 

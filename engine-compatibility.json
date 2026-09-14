@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "stable": "~4.0.0",
+  "prereleases": [
+    { "core": "4.0.0", "tag": "alpha", "min": 32, "experimental": false },
+    { "core": "4.1.0", "tag": "alpha", "min": 0, "experimental": true }
+  ],
+  "requiredFiles": {
+    "source": ["cc.config.json", "cocos/core/platform/macro.ts", "editor/engine-features/render-config.json"],
+    "runtime": ["bin/.cache/dev-cli/editor/loader.js", "bin/.editor/web-adapter.js", "bin/.editor/engine-adapter.js", "bin/.declarations/cc.d.ts", "bin/.declarations/cc.editor.d.ts"],
+    "web": ["bin/.cache/dev-cli/web/loader.js"]
+  }
+}

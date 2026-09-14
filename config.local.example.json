@@ -1,3 +1,4 @@
 {
-    "project": "/path/to/your/cocos/project"
+    "project": "/path/to/your/cocos/project",
+    "enginePath": "packages/engine"
 }

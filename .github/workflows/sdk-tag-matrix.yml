@@ -1,0 +1,93 @@
+name: Engine tag SDK matrix
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 19 * * *'
+  repository_dispatch:
+    types: [engine-tag-published]
+
+permissions:
+  contents: read
+
+env:
+  NODE_OPTIONS: --max-old-space-size=8192
+
+concurrency:
+  group: sdk-tag-matrix-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  targets:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.targets.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: targets
+        env:
+          CANDIDATE_REF: ${{ github.event_name == 'pull_request' && github.sha || '' }}
+        run: node -e 'const fs=require("fs");let targets=require("./workflow/sdk-maintained-clis.json");if(!Array.isArray(targets)||!targets.length)throw Error("Empty maintained CLI list");targets=targets.map((target,index)=>({...target,id:"target-"+index,ref:process.env.CANDIDATE_REF||target.ref}));fs.appendFileSync(process.env.GITHUB_OUTPUT,"value="+JSON.stringify(targets)+"\n");'
+
+  test:
+    name: SDK tests (${{ matrix.target.runner }}, ${{ matrix.target.id }})
+    needs: targets
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        target: ${{ fromJson(needs.targets.outputs.targets) }}
+    uses: ./.github/workflows/sdk-target-tests.yml
+    with:
+      target: ${{ toJson(matrix.target) }}
+
+  gate:
+    name: Engine SDK compatibility gate
+    if: always()
+    needs: [targets, test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every stage to succeed
+        env:
+          STAGES: ${{ toJson(needs) }}
+        run: node -e 'const stages=JSON.parse(process.env.STAGES);if(Object.values(stages).some(stage=>stage.result!=="success"))process.exit(1);'
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-plan-*
+          path: plans
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sdk-result-*
+          path: results
+      - name: Reconstruct complete expected coverage
+        env:
+          TARGETS: ${{ needs.targets.outputs.targets }}
+        run: node workflow/sdk-ci-shards.js plan plans matrix.json
+      - name: Require exact coverage and candidate identities
+        run: node workflow/sdk-ci-shards.js aggregate matrix.json results
+
+  verified:
+    needs: [targets, gate]
+    strategy:
+      matrix:
+        target: ${{ fromJson(needs.targets.outputs.targets) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-input-${{ matrix.target.id }}
+          path: bundle
+      - name: Expose the original verified CLI SDK
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-cli-sdk-${{ matrix.target.id }}
+          path: |
+            bundle/cli.tar
+            bundle/manifest.json
+          compression-level: 0
+          if-no-files-found: error

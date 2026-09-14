@@ -145,11 +145,6 @@ export default class AndroidPackTool extends NativePackTool {
                     nativeEnginePath = potentialNativePath;
                     console.log(`[Android] Inferred nativeEnginePath: ${nativeEnginePath}`);
                 }
-            } else if (!nativeEnginePath && !enginePath) {
-                 const cliEnginePath = ps.resolve(__dirname, '../../../../../../../../packages/engine');
-                 if (fs.existsSync(cliEnginePath)) {
-                     // fallback logic placeholder
-                 }
             }
 
             if (nativeEnginePath || this.params.enginePath) {
