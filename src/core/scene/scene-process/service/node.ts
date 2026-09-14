@@ -494,7 +494,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }
 
         const siblingIndex = anchor.getSiblingIndex() + (params.insertSide === 'after' ? 1 : 0);
-        expectedParent.insertChild(node, siblingIndex);
+        node.setParent(expectedParent, params.keepWorldTransform);
+        node.setSiblingIndex(siblingIndex);
     }
 
     async _createNode(

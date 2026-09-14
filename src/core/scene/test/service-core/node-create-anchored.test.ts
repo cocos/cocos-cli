@@ -63,6 +63,25 @@ describe('NodeService anchored creation', () => {
         },
     );
 
+    it('preserves the world transform requested for anchored creation', async () => {
+        const { root, parent, anchor } = createAnchoredTree('Parent');
+        mockGetRootNode.mockReturnValue(root);
+        mockNodeAtPath('/Parent/Anchor', anchor);
+
+        const { NodeService } = require('../../scene-process/service/node');
+        await new NodeService().createByType({
+            path: '/Parent/Anchor',
+            insertSide: 'before',
+            keepWorldTransform: true,
+            name: 'Inserted',
+            nodeType: NodeType.EMPTY,
+        });
+
+        const inserted = parent.children.find(child => child.name === 'Inserted');
+        expect(inserted?.setParent).toHaveBeenCalledWith(parent, true);
+        expect(parent.children.map(child => child.name)).toEqual(['Before', 'Inserted', 'Anchor', 'After']);
+    });
+
     it('keeps direct-parent append behavior for type and asset creation without an insertion side', async () => {
         const root = new MockNode('Root');
         const parent = new MockNode('Parent');
