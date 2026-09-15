@@ -7,8 +7,7 @@ import project from '../project';
 import { Engine } from '../engine';
 import { createImportMetadataNodes } from './metadata';
 import { DEFAULT_CREATE_TEMPLATE_ROOT, resolveImportTemplateRoot } from './import-config-defaults';
-import { resolveBuiltinExtensionsRoot } from '../extension-roots';
-import { isLegacyProjectLocalization } from '../legacy-localization';
+import { isLegacyProjectLocalization, resolveBuiltinExtensionsRoot } from '../extension-roots';
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;

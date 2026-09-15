@@ -1,7 +1,6 @@
 import { join, isAbsolute, relative, resolve, sep } from 'path';
 import { existsSync, readdirSync, readFileSync, realpathSync } from 'fs';
-import { resolveExtensionRoots } from '../../extension-roots';
-import { isLegacyProjectLocalization } from '../../legacy-localization';
+import { isLegacyProjectLocalization, resolveExtensionRoots } from '../../extension-roots';
 
 /**
  * 一个项目扩展的预览相关贡献信息。
