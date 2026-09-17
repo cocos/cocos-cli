@@ -11,6 +11,14 @@ function commandMeta(type: string, terrain: Terrain): IUndoCommandMeta {
     };
 }
 
+/**
+ * Returns a collision-free row-major identity for a bounded integer grid point.
+ * Callers provide clamped coordinates, so x is always in [0, width).
+ */
+function pointKey(x: number, y: number, width: number) {
+    return y * width + x;
+}
+
 export class TerrainHeightData {
     public x = 0;
     public y = 0;
@@ -21,6 +29,11 @@ export class TerrainHeightData {
 export class TerrainHeightOperation {
     protected _terrain: Terrain;
     public data: TerrainHeightData[] = [];
+    /**
+     * Tracks points already captured in data for this operation's Undo/Redo lifetime.
+     * This preserves the first value and insertion order without quadratic duplicate scans.
+     */
+    private readonly _pointKeys = new Set<number>();
     constructor(terrain: Terrain) {
         this._terrain = terrain;
     }
@@ -31,7 +44,9 @@ export class TerrainHeightOperation {
         return this._terrain;
     }
     public push(x: number, y: number, value: number) {
-        if (this.data.some(item => item.x === x && item.y === y)) return;
+        const key = pointKey(x, y, this._terrain.info.vertexCount[0]);
+        if (this._pointKeys.has(key)) return;
+        this._pointKeys.add(key);
         this.data.push(Object.assign(new TerrainHeightData(), { x, y, value }));
     }
     public apply() {
@@ -91,6 +106,11 @@ export class TerrainWeightData {
 export class TerrainWeightOperation {
     protected _terrain: Terrain;
     public data: TerrainWeightData[] = [];
+    /**
+     * Tracks points already captured in data for this operation's Undo/Redo lifetime.
+     * This preserves the first value and insertion order without quadratic duplicate scans.
+     */
+    private readonly _pointKeys = new Set<number>();
     constructor(terrain: Terrain) {
         this._terrain = terrain;
     }
@@ -101,7 +121,10 @@ export class TerrainWeightOperation {
         return this._terrain;
     }
     public push(x: number, y: number, value: Vec4) {
-        if (this.data.some(item => item.x === x && item.y === y)) return;
+        const width = this._terrain.info.weightMapSize * this._terrain.info.blockCount[0];
+        const key = pointKey(x, y, width);
+        if (this._pointKeys.has(key)) return;
+        this._pointKeys.add(key);
         const item = new TerrainWeightData();
         item.x = x;
         item.y = y;
