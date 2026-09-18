@@ -62,29 +62,53 @@ export function getMemorySize() {
  * @param url 
  */
 export function url2uuid(url: string) {
-    const subAssetName: string[] = [];
+    const subAssetNames: string[] = [];
     let uuid = url;
     let wUUID = '';
     while (!(wUUID = queryUUID(uuid)) && uuid !== 'db:/') {
         uuid = uuid.replace(/\/([^/]*)$/, (all: string, name: string) => {
-            subAssetName.splice(0, 0, dbUtils.nameToId(name));
+            subAssetNames.unshift(name);
             return '';
         });
     }
     if (wUUID) {
         const asset = dbQueryAsset(uuid);
-        if (!asset || (asset.isDirectory() && subAssetName.length > 0)) {
+        if (!asset || (asset.isDirectory() && subAssetNames.length > 0)) {
             uuid = '';
         } else {
             uuid = asset.uuid;
-            if (subAssetName.length > 0) {
-                uuid += '@' + subAssetName.join('@');
+            if (subAssetNames.length > 0) {
+                let currentAsset: Asset | VirtualAsset | undefined = asset;
+                const subAssetIds = subAssetNames.map((name) => {
+                    const id = resolveSubAssetId(currentAsset, name);
+                    currentAsset = currentAsset?.subAssets[id];
+                    return id;
+                });
+                uuid += '@' + subAssetIds.join('@');
             }
         }
     } else {
         uuid = '';
     }
     return uuid;
+}
+
+function resolveSubAssetId(asset: Asset | VirtualAsset | undefined, name: string): string {
+    const hashedId = dbUtils.nameToId(name);
+    if (!asset) {
+        return hashedId;
+    }
+
+    const hashedSubAsset = asset.subAssets[hashedId];
+    if (hasSubAssetName(hashedSubAsset, name)) {
+        return hashedId;
+    }
+
+    return Object.keys(asset.subAssets).find((id) => hasSubAssetName(asset.subAssets[id], name)) || hashedId;
+}
+
+function hasSubAssetName(asset: VirtualAsset | undefined, name: string): boolean {
+    return Boolean(asset && (asset.meta.name === name || asset._name === name));
 }
 
 // 检查是否是扩展名的正则判断
