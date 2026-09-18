@@ -1,5 +1,5 @@
 import { COMMON_STATUS, CommonResultType } from '../base/schema-base';
-import { description, param, result, title, tool } from '../decorator/decorator';
+import { description, param, result, title } from '../decorator/decorator';
 import { Scene } from '../../core/scene';
 import {
     SchemaClearCountResult, SchemaLightFXCancelResult, SchemaLightmapBakeInfo,
@@ -14,7 +14,7 @@ async function execute<T>(operation: () => Promise<T>): Promise<CommonResultType
 }
 
 export class LightFXBakeApi {
-    @tool('scene-query-light-probe-settings')
+
     @title('Query light probe settings')
     @description('Read only the seven light-probe panel settings from the active scene, including property types and readonly flags. Does not read baked probe data, modify the scene, or start a bake.')
     @result(SchemaLightProbeSettings)
@@ -22,7 +22,6 @@ export class LightFXBakeApi {
         return execute(() => Scene.LightProbeBake.querySettings());
     }
 
-    @tool('scene-bake-light-probes')
     @title('Bake light probes')
     @description('Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.')
     @result(SchemaLightProbeBakeResult)
@@ -30,7 +29,6 @@ export class LightFXBakeApi {
         return execute(() => Scene.LightProbeBake.bake(options));
     }
 
-    @tool('scene-clear-light-probes')
     @title('Clear baked light probes')
     @description('Clear spherical-harmonic bake results from all light probes in the current scene.')
     @result(SchemaClearCountResult)
@@ -38,7 +36,6 @@ export class LightFXBakeApi {
         return execute(() => Scene.LightProbeBake.clearBake(options));
     }
 
-    @tool('scene-bake-lightmap')
     @title('Bake lightmap')
     @description('Bake the current scene lightmap with LightFX, import generated textures, bind them to renderers and save the scene.')
     @result(SchemaLightmapBakeResult)
@@ -46,7 +43,6 @@ export class LightFXBakeApi {
         return execute(() => Scene.LightmapBake.bake(options));
     }
 
-    @tool('scene-query-lightmap-bake-info')
     @title('Query lightmap bake information')
     @description('Query lightmap textures and bake flags currently bound to meshes and terrains in the active scene.')
     @result(SchemaLightmapBakeInfo)
@@ -54,7 +50,6 @@ export class LightFXBakeApi {
         return execute(() => Scene.LightmapBake.queryBakeInfo());
     }
 
-    @tool('scene-clear-lightmap')
     @title('Clear baked lightmap')
     @description('Unbind baked lightmaps and optionally delete unreferenced generated assets. Asset deletion saves the scene and prevents Undo/Redo from restoring pre-Clear baked results; unrelated edit history is preserved.')
     @result(SchemaClearCountResult)
@@ -67,7 +62,6 @@ export class LightFXBakeApi {
         return execute(() => Scene.LightmapBake.clearBake(options));
     }
 
-    @tool('scene-cancel-lightfx-bake')
     @title('Cancel LightFX bake')
     @description('Cancel the currently running light-probe or lightmap bake.')
     @result(SchemaLightFXCancelResult)

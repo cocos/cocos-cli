@@ -25,7 +25,7 @@ jest.mock('../scene-process/service/baking/lightfx/host', () => ({
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({
     createDefaultLightFXSettings: jest.fn(),
 }));
-jest.mock('../scene-process/service/preview/asset-reload', () => ({
+jest.mock('../scene-process/service/utils/asset-reload', () => ({
     loadPreviewAsset: jest.fn(),
 }));
 jest.mock('../scene-process/rpc', () => ({

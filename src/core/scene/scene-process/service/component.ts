@@ -1,3 +1,4 @@
+import { backendView } from './core/backend-view';
 import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas, Scene, PolygonCollider2D } from 'cc';
 import { Rpc } from '../rpc';
 import { register, Service, BaseService } from './core';
@@ -350,6 +351,10 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * 通过 path 查找组件实例，支持路径、UUID 或 URL
      */
     private async findComponent(path: string): Promise<Component | null> {
+        // Editor-mode engine IDs are compressed UUIDs; consult the registry before
+        // applying the legacy UUID/path heuristic used by runtime-mode components.
+        const registered = compMgr.query(path);
+        if (registered) return registered;
         const isUuid = componentUtils.isUUID(path);
         const isURL = path.startsWith('db://');
 
@@ -1070,7 +1075,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     ): Promise<number> {
         const comp = requireLODGroup(await this.findComponent(options.path), options.path);
         // ICameraService 仅声明公开能力；场景进程实现额外提供编辑器 Camera 组件。
-        const editorCamera = (Service.Camera as any).getCamera?.();
+        const editorCamera = await backendView.getCamera();
         const renderCamera = editorCamera?.camera;
         if (!renderCamera) {
             throw new Error('Editor camera is not ready');

@@ -110,4 +110,10 @@ export async function restoreParticleSystemSnapshot(
             await restore(component, `renderer.${key}`, property);
         }
     }
+    // Trail.enable attaches its model even when the owning component is disabled.
+    // Restore that lifecycle boundary after replaying fields, before the next render.
+    const trail = component.trailModule;
+    if (!component.enabledInHierarchy && trail?.getModel()?.scene) {
+        trail.onDisable();
+    }
 }

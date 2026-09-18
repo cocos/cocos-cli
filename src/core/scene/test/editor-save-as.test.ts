@@ -1,5 +1,12 @@
 const mockRpcRequest = jest.fn();
 
+jest.mock('../scene-process/service/scene/utils', () => ({
+    sceneUtils: { serialize: jest.fn() },
+}));
+jest.mock('../scene-process/service/prefab/prefab-editor-utils', () => ({ editorPrefabUtils: {} }));
+jest.mock('../scene-process/service/dump', () => ({ __esModule: true, default: {} }));
+jest.mock('../scene-process/service/undo/commands/command-utils-shared', () => ({}));
+
 jest.mock('cc', () => ({
     __esModule: true,
     default: { director: { getScene: jest.fn(() => null) } },

@@ -80,4 +80,12 @@ describe('ProcessRPC 双向调用测试', () => {
             rpc.request('node', 'longTask', [], { timeout: 100 })
         ).rejects.toThrow(/RPC request timeout/);
     });
+
+    test('replacing a connection rejects pending calls and keeps subsequent requests usable', async () => {
+        const pending = rpc.request('node', 'longTask', []);
+        const rejected = expect(pending).rejects.toThrow('RPC connection disposed');
+        rpc.attach(child);
+        await rejected;
+        await expect(rpc.request('node', 'createNode', ['AfterReconnect'])).resolves.toBe('Node:AfterReconnect');
+    });
 });

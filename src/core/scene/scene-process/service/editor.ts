@@ -19,6 +19,12 @@ import { Rpc } from '../rpc';
 import { enrichMissingDependencyError } from './error-utils';
 import type { IEditorSessionService, IEditorSessionSnapshot } from './core/editor-session';
 import type { ITerrainService } from '../../common/terrain';
+import type { SceneRenderSnapshot, SceneRecordedChange } from '../../session/protocol';
+import { sceneUtils } from './scene/utils';
+import { editorPrefabUtils } from './prefab/prefab-editor-utils';
+import dumpUtil from './dump';
+import { restoreNodeSnapshotDump, restoreComponentSnapshotDump } from './undo/commands/command-utils-shared';
+import { ServiceEvents } from './core/global-events';
 
 /**
  * EditorAsset - 统一的编辑器管理入口
@@ -156,6 +162,55 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             return editor.serializeCurrent();
         }
         throw new Error('[querySceneSerializedData] 当前没有打开场景');
+    }
+
+    /** Internal transport snapshot; deliberately not exposed as an MCP tool. */
+    queryRenderSnapshot(): SceneRenderSnapshot | null {
+        const root = this.getRootNode();
+        const scene = cc.director.getScene();
+        if (!root || !scene || !this.currentEditorUuid) return null;
+        const kind = this.getCurrentEditorType();
+        if (kind === 'unknown') return null;
+        const encodeMap = (map: Map<string, any>): any[] => [...map].map(([key, value]) => [key, value instanceof Map ? encodeMap(value) : value]);
+        const prefabUUIDs = encodeMap(editorPrefabUtils.storePrefabUUID(scene));
+        const serializedScene = kind === 'prefab'
+            ? EditorExtends.serialize(editorPrefabUtils.generateSceneAsset(scene, root))
+            : sceneUtils.serialize(scene);
+        return { serializedScene, rootUuid: root.uuid, assetUuid: this.currentEditorUuid, kind, prefabUUIDs };
+    }
+
+    /** Apply one remote gesture under the owner's undo recorder. Transport checks the base revision. */
+    async applyRecordedChanges(changes: SceneRecordedChange[], label = 'Editor gesture'): Promise<void> {
+        if (!Array.isArray(changes) || !changes.length || changes.length > 1000) throw new Error('Invalid recorded change set');
+        const scene = cc.director.getScene();
+        const targets = changes.map(change => {
+            if (!change || typeof change.uuid !== 'string' || !['node', 'component'].includes(change.kind) || !change.dump) {
+                throw new Error('Invalid recorded change');
+            }
+            const target = change.kind === 'node' ? EditorExtends.Node.getNode(change.uuid) : EditorExtends.Component.getComponent(change.uuid);
+            const node = change.kind === 'node' ? target as cc.Node : (target as cc.Component)?.node;
+            if (!target || !node || (node !== scene && !node.isChildOf(scene!))) throw new Error(`Recorded target no longer exists: ${change.uuid}`);
+            const before = change.kind === 'node' ? dumpUtil.dumpNode(target as cc.Node) : dumpUtil.dumpComponent(target as cc.Component);
+            return { change, target, node, before: JSON.parse(JSON.stringify(before)) };
+        });
+        const restore = async (item: typeof targets[number], dump: any) => {
+            if (item.change.kind === 'node') {
+                await restoreNodeSnapshotDump(item.target as cc.Node, dump, {
+                    updateNodeName: (uuid, name) => EditorExtends.Node.updateNodeName(uuid, name),
+                });
+            } else await restoreComponentSnapshotDump(item.target as cc.Component, dump);
+        };
+        const recording = Service.Undo.beginRecording(changes.map(change => change.uuid), { label });
+        try {
+            for (const item of targets) await restore(item, item.change.dump);
+            await Service.Undo.endRecording(recording);
+        } catch (error) {
+            try { for (const item of targets) await restore(item, item.before); }
+            finally { Service.Undo.cancelRecording(recording); }
+            throw error;
+        }
+        for (const item of targets) ServiceEvents.emit('node:change', item.node, { source: 'editor-session', type: 'set-property' });
+        Service.Engine.repaintInEditMode();
     }
 
     getRootNode(): cc.Scene | cc.Node | null {

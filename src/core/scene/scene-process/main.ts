@@ -43,6 +43,11 @@ async function startup() {
         nativeBase: assetBase,
         writablePath: join(projectPath, 'temp'),
         enableCustomPipeline: false,
+        enableOffscreenRendering: true,
+        editorMode: true,
+        // Keep existing CLI component execution/setter behavior while enabling
+        // editor-only probe generation and cubemap rendering inside the engine.
+        previewMode: true,
     }, async () => {
         // 导入 service，处理装饰器，捕获开发的 api
         await import('./service');
@@ -63,6 +68,8 @@ async function startup() {
     });
 
     console.log('[Scene] initEngine success');
+    const { gfx } = await import('cc');
+    console.log(`[Scene] Rendering backend: ${gfx.deviceManager.gfxDevice.constructor.name}`);
 
     // 发送消息给父进程
     process.send?.(SceneReadyChannel);

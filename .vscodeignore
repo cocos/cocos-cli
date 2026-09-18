@@ -72,10 +72,16 @@ docs/dev/**
 # ===========================================
 # 工作流和脚本
 # ===========================================
-workflow/!(postinstall|utils|electron-rebuild|node-gyp-rebuild).js
+workflow/!(postinstall|utils|electron-rebuild|node-gyp-rebuild|build-simulator|build-simulator-runtime|simulator-artifact).js
 
 # ===========================================
 # 发布和构建产物
 # ===========================================
 .publish/**
 .cocos/**
+
+# Extracted editor sources and development artifacts are not CLI release content.
+packages/scene-editor/**
+.cache/**
+.test-analysis/**
+plan.md

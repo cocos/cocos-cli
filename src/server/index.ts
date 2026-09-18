@@ -10,6 +10,7 @@ export async function startServer(port?: number, host?: string): Promise<void> {
         await serverService.start(port, host);
     } catch (error) {
         console.error(error);
+        throw error;
     }
 }
 
@@ -21,6 +22,7 @@ export async function stopServer(): Promise<void> {
         await serverService.stop();
     } catch (error) {
         console.error(error);
+        throw error;
     }
 }
 

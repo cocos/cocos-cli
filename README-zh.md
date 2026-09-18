@@ -94,7 +94,7 @@ npm run build:simulator:native
 npm run build:simulator:runtime
 ```
 
-对外接口在 `src/lib/simulator/simulator.ts`（类型声明生成在 `packages/cocos-cli-types/simulator.d.ts`）。简介见 [docs/zh/simulator.md](docs/zh/simulator.md)。
+CLI 仅保留模拟器编译、产物查询与构建事件；预览和会话 API 已抽离到私有编辑器包。对外接口在 `src/lib/simulator/simulator.ts`（类型声明生成在 `packages/cocos-cli-types/simulator.d.ts`）。简介见 [docs/zh/simulator.md](docs/zh/simulator.md)。
 
 ## 🛠️ 开发
 

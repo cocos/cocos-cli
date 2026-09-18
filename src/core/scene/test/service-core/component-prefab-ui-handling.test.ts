@@ -163,6 +163,7 @@ jest.mock('../../scene-process/service/dump', () => ({
 jest.mock('../../scene-process/service/component/index', () => ({
     __esModule: true,
     default: {
+        query: jest.fn(() => null),
         onComponentAddedFromEditor: mockOnComponentAddedFromEditor,
         queryFromPath: mockQueryFromPath,
     },

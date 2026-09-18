@@ -35,6 +35,7 @@ jest.mock('cc', () => {
     }
     class Texture2D {
         constructor(public _uuid = '') { }
+        get uuid() { return this._uuid; }
     }
 
     return { Component, Terrain, TerrainAsset, TerrainInfo, TerrainLayer, Texture2D, TERRAIN_MAX_LAYER_COUNT: 4 };
@@ -50,7 +51,7 @@ jest.mock('../scene-process/service/core', () => ({
     queryRegisteredService: mockQueryRegisteredService,
 }));
 
-jest.mock('../scene-process/service/gizmo/utils/editor-node', () => ({
+jest.mock('../scene-process/service/utils/editor-node', () => ({
     getEditorNodeByUuid: (uuid: string) => mockNodesByUuid.get(uuid) ?? null,
     getEditorNodeByPath: () => null,
 }));
@@ -84,6 +85,7 @@ import type {
 } from '../common/terrain';
 import { TerrainLayerError } from '../common/terrain';
 import { TerrainService } from '../scene-process/service/terrain';
+import { registerTerrainSessionResolver } from '../scene-process/service/core/terrain-session';
 
 function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value));
@@ -230,6 +232,8 @@ function createFixture(nodeUuid = 'node-a', componentUuid = 'terrain-a') {
 
 
 describe('TerrainService target-safe public capability', () => {
+    let releaseView: () => void;
+    afterEach(() => releaseView());
     beforeEach(() => {
         mockNodesByUuid.clear();
         mockEmit.mockReset();
@@ -243,6 +247,31 @@ describe('TerrainService target-safe public capability', () => {
         mockUndo.isApplying.mockReturnValue(false);
         mockConsoleError.mockReset();
         mockConsoleWarn.mockReset();
+        releaseView = registerTerrainSessionResolver(component => mockQueryRegisteredService('Gizmo')?.getComponentGizmo?.(component) ?? null);
+    });
+
+    it('reads and edits actual Terrain data without a view, including undo and stale target rejection', async () => {
+        releaseView();
+        const fixture = createFixture();
+        for (const key of ['tileSize', 'weightMapSize', 'lightMapSize', 'blockCount'] as const) {
+            Object.defineProperty(fixture.terrain, key, { get: () => fixture.state.manage[key] });
+        }
+        mockQueryRegisteredService.mockImplementation(name => name === 'Undo' ? mockUndo : null);
+        const service = new TerrainService();
+        service.select(fixture.target.nodeUuid);
+        expect(service.read(fixture.target)).toMatchObject({ valid: true, manage: fixture.state.manage, mode: 'manage' });
+        expect(service.read(fixture.target)).toMatchObject({ layers: fixture.state.layers });
+        expect(service.readBlock(fixture.target)).toEqual({ valid: true, target: fixture.target, block: null });
+        const before = clone(fixture.state.manage);
+        const next = { ...before, tileSize: 8 };
+        expect(await service.saveManage(fixture.target, next)).toMatchObject({ valid: true, manage: next });
+        await mockUndo.push.mock.calls[0][0].undo();
+        expect(service.read(fixture.target)).toMatchObject({ manage: before });
+        await mockUndo.push.mock.calls[0][0].redo();
+        expect(service.read(fixture.target)).toMatchObject({ manage: next });
+        expect(mockQueryRegisteredService).not.toHaveBeenCalledWith('Gizmo');
+        service.onEditorClosed();
+        expect(service.read(fixture.target)).toEqual({ valid: false, target: fixture.target });
     });
 
     it('publishes only typed target-safe reads and editor-session commands', () => {
@@ -269,6 +298,23 @@ describe('TerrainService target-safe public capability', () => {
         };
 
         expect(assertPublicTerrainInterface).toBeDefined();
+    });
+
+    it('does not apply an awaited brush to a recreated target with the same UUIDs', async () => {
+        const original = createFixture();
+        let current = original;
+        mockQueryRegisteredService.mockReturnValue({ getComponentGizmo: () => current.gizmo });
+        let loaded!: (texture: Texture2D) => void;
+        mockLoadAny.mockImplementation(() => new Promise<Texture2D>(resolve => { loaded = resolve; }));
+        const service = new TerrainService();
+        service.select(original.target.nodeUuid);
+        const request = service.setSculptBrushAsset(original.target, 'texture');
+        service.onEditorClosed();
+        current = createFixture();
+        service.select(current.target.nodeUuid);
+        loaded(new Texture2D());
+        expect(await request).toEqual({ target: original.target, valid: false });
+        expect(current.gizmo.setSculptBrushTexture).not.toHaveBeenCalled();
     });
 
     it('returns one complete, JSON-safe hydration snapshot only for the explicitly selected Terrain', () => {

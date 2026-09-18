@@ -812,13 +812,22 @@ export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
 export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    value: {
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType;
     default?: any;
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    values?: ({
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType)[];
+    lock?: {
+        [key in keyof Vec4]?: IPropertyLock;
+    };
     cid?: string;
     type?: string;
-    ui?: { name: string; data?: any };
+    ui?: {
+        name: string;
+        data?: any;
+    };
     readonly?: boolean;
     visible?: boolean;
     name?: string;
@@ -845,19 +854,21 @@ export declare interface IProperty {
     radian?: boolean;
     multiline?: boolean;
     optionalTypes?: string[];
-    userData?: { [key: string]: any };
+    userData?: {
+        [key: string]: any;
+    };
 }
 export declare interface IPropertyGroupOptions {
-    id: string
-    name: string,
-    displayOrder: number,
-    style: string
+    id: string;
+    name: string;
+    displayOrder: number;
+    style: string;
 }
 export declare type IPropertyLock = {
     default: number;
-    message: string
+    message: string;
 };
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
@@ -1111,6 +1122,7 @@ export declare function querySortedPlugins(filterOptions?: FilterPluginOptions):
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;
+export declare function reconcileLocalizationRuntimeMount(): Promise<void>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo>;
 export declare interface ReloadAnimationGraphOptions {
@@ -4694,6 +4706,8 @@ export declare class PluginManager extends EventEmitter {
     buildTemplateConfigMap: Record<string, BuildTemplateConfig>;
     configMap: Record<string, Record<string, IInternalBuildPluginConfig>>;
     private builderPathsMap;
+    private extensionBuilderHookSlots;
+    private extensionBuilderHooks;
     private customBuildStagesMap;
     protected customBuildStages: Record<string, {
         [pkgName: string]: IBuildStageItem[];
@@ -4706,6 +4720,8 @@ export declare class PluginManager extends EventEmitter {
     init(): Promise<void>;
     registerAllPlatform(): Promise<void>;
     register(platform: string): Promise<void>;
+    private registerExtensionBuilderHooks;
+    private scanBuiltinExtensionBuilderHooks;
     checkPlatform(platform: string): boolean;
     private registerPlatform;
     private internalRegister;
@@ -7088,13 +7104,22 @@ export declare interface IPreviewService extends IMotionPreviewService {
     generateThumbnail(uuid: string, assetType: string, width?: number, height?: number): Promise<any>;
 }
 export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    value: {
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType;
     default?: any;
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    values?: ({
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType)[];
+    lock?: {
+        [key in keyof Vec4]?: IPropertyLock;
+    };
     cid?: string;
     type?: string;
-    ui?: { name: string; data?: any };
+    ui?: {
+        name: string;
+        data?: any;
+    };
     readonly?: boolean;
     visible?: boolean;
     name?: string;
@@ -7121,19 +7146,21 @@ export declare interface IProperty {
     radian?: boolean;
     multiline?: boolean;
     optionalTypes?: string[];
-    userData?: { [key: string]: any };
+    userData?: {
+        [key: string]: any;
+    };
 }
 export declare interface IPropertyGroupOptions {
-    id: string
-    name: string,
-    displayOrder: number,
-    style: string
+    id: string;
+    name: string;
+    displayOrder: number;
+    style: string;
 }
 export declare type IPropertyLock = {
     default: number;
-    message: string
+    message: string;
 };
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IQuat {
     x: number;
     y: number;
@@ -8356,6 +8383,9 @@ export declare interface IFeatureItem extends BaseItem {
 export declare type IFlags = Record<string, boolean | number>;
 export declare type IFlags_2 = Record<string, boolean | number>;
 export declare interface IInitEngineInfo {
+    editorMode?: boolean;
+    previewMode?: boolean;
+    enableOffscreenRendering?: boolean;
     importBase: string;
     nativeBase: string;
     writablePath: string;
@@ -8938,6 +8968,7 @@ export declare namespace Assets {
         init,
         setFileSystemProvider,
         start,
+        reconcileLocalizationRuntimeMount,
         onReady,
         onDBReady,
         onProgress,
@@ -9149,9 +9180,9 @@ export declare interface BitmapFontAssetUserData {
     fontSize: number;
     textureUuid: string;
 }
-export declare function build(enginePath?: string): Promise<void>;
-export declare function buildNative(enginePath?: string): Promise<void>;
-export declare function buildRuntime(enginePath?: string): Promise<void>;
+export declare const build: (enginePath?: string) => Promise<void>;
+export declare const buildNative: (enginePath?: string) => Promise<void>;
+export declare const buildRuntime: (enginePath?: string) => Promise<void>;
 export declare interface CategoryDetail extends CategoryInfo {
     modules: IModules;
 }
@@ -9221,6 +9252,7 @@ export declare interface DirectoryAssetUserData {
     bundleName?: string;
     priority?: number;
 }
+export declare function discoverProjectBackend(project: string): Promise<ProjectBackendDescriptor | null>;
 export declare interface EffectAssetUserData {
     combinations?: any;
     editor?: any;
@@ -9297,6 +9329,7 @@ export declare interface EngineInfo {
     tmpDir: string;
     version: string;
 }
+export declare function ensureProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
 export declare type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
 export declare interface ExecuteAnimationGraphCommandRequest {
     command: AnimationGraphCommand;
@@ -9350,17 +9383,13 @@ export declare function get_2(): Promise<Project_2>;
 export declare function getConfig(useDefault?: boolean): Promise<IEngineConfig>;
 export declare function getConfigPath(scope?: ConfigurationScope): Promise<string>;
 export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext> | undefined;
-export declare function getExecutablePath(enginePath?: string): Promise<string | null>;
+export declare const getExecutablePath: (enginePath?: string) => Promise<string | null>;
 export declare function getInfo(): Promise<EngineInfo>;
 export declare function getInfo_2(): Promise<ProjectInfo>;
-export declare function getManifest(enginePath?: string): Promise<ISimulatorManifest | null>;
+export declare const getManifest: (enginePath?: string) => Promise<ISimulatorManifest | null>;
 export declare function getMetadata(): Promise<ICocosConfigurationNode[]>;
-export declare function getMotionTimelineStats(): Promise<{
-    timeLineLength: number;
-} | null>;
 export declare function getProgrammingFacet(): Promise<ProgrammingFacet>;
 export declare function getRenderConfig(): Promise<ModuleRenderConfig>;
-export declare function getResourcesPath(enginePath?: string): Promise<string>;
 export declare function getStatus(): {
     registered: boolean;
     url?: string;
@@ -9369,9 +9398,7 @@ export declare function getStatus_2(): {
     running: boolean;
     url?: string;
 };
-export declare function getStatus_3(id: string): Promise<ISimulatorSessionInfo | null>;
 export declare function getUrl(): string | undefined;
-export declare function getWritablePath(enginePath?: string): Promise<string>;
 export declare interface GltfAnimationAssetUserData {
     gltfIndex: number;
     events: Array<{
@@ -9445,7 +9472,6 @@ export declare interface GlTFUserData {
         options: LODsOption[];
     };
 }
-export declare function hideMotion(): Promise<void>;
 export declare namespace i18n {
     export {
         i18n_2 as default
@@ -9725,6 +9751,9 @@ export declare interface IGetPostConfig {
     handler: (req: Request_2, res: Response_2, next?: NextFunction) => Promise<void>;
 }
 export declare interface IInitEngineInfo {
+    editorMode?: boolean;
+    previewMode?: boolean;
+    enableOffscreenRendering?: boolean;
     importBase: string;
     nativeBase: string;
     writablePath: string;
@@ -9803,7 +9832,6 @@ export declare function init_4(projectPath: string): Promise<void>;
 export declare function init_5(projectPath: string): Promise<void>;
 export declare function init_6(): Promise<void>;
 export declare function init_7(projectPath: string): Promise<void>;
-export declare function init_8(projectPath: string): Promise<void>;
 export declare function initEngine(enginePath: string, projectPath: string, serverURL?: string): Promise<void>;
 export declare function initProgrammingFacet(): Promise<ProgrammingFacet>;
 export declare interface IPhysicsConfig {
@@ -9847,13 +9875,22 @@ export declare interface IProject {
     updateInfo<T>(keyOrValue: string | ProjectInfo, value?: T): Promise<boolean>;
 }
 export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    value: {
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType;
     default?: any;
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    values?: ({
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType)[];
+    lock?: {
+        [key in keyof Vec4]?: IPropertyLock;
+    };
     cid?: string;
     type?: string;
-    ui?: { name: string; data?: any };
+    ui?: {
+        name: string;
+        data?: any;
+    };
     readonly?: boolean;
     visible?: boolean;
     name?: string;
@@ -9880,19 +9917,21 @@ export declare interface IProperty {
     radian?: boolean;
     multiline?: boolean;
     optionalTypes?: string[];
-    userData?: { [key: string]: any };
+    userData?: {
+        [key: string]: any;
+    };
 }
 export declare interface IPropertyGroupOptions {
-    id: string
-    name: string,
-    displayOrder: number,
-    style: string
+    id: string;
+    name: string;
+    displayOrder: number;
+    style: string;
 }
 export declare type IPropertyLock = {
     default: number;
-    message: string
+    message: string;
 };
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
@@ -9905,7 +9944,7 @@ export declare interface IResolvedCustomJointTextureLayout {
     textureLength: number;
     contents: IResolvedChunkContent[];
 }
-export declare function isBuilt(enginePath?: string): Promise<boolean>;
+export declare const isBuilt: (enginePath?: string) => Promise<boolean>;
 export declare interface ISceneCommandProvider {
     request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
     notify?(module: string, method: string, args?: any[]): void;
@@ -9917,90 +9956,22 @@ export declare interface ISimulatorBuildState {
     state: 'start' | 'success' | 'failed';
     error?: string;
 }
-export declare interface ISimulatorLaunchPreviewOptions extends ISimulatorPrepareOptions, Omit<ISimulatorStartOptions, 'runtimeRoot' | 'entryFile' | 'writablePath'> {
-    port?: number;
-}
-export declare interface ISimulatorLaunchPreviewResult {
-    prepared: ISimulatorPreparedResources;
-    session: ISimulatorSessionInfo;
-}
 export declare interface ISimulatorLogEntry {
-    source: 'simulator' | 'build';
+    source: 'build';
     level: 'log' | 'error';
     message: string;
-    sessionId?: string;
 }
 export declare interface ISimulatorManifest {
     platform: NodeJS.Platform;
+    arch: string;
     bundle: string;
     entry: string;
+    engineVersion?: string;
     builtAt?: string;
+    runtimePath: string;
+    artifactRoot: string;
+    formatVersion: 1;
 }
-export declare interface ISimulatorPreparedResources {
-    runtimeRoot: string;
-    writablePath: string;
-    executablePath: string;
-    projectPath: string;
-    serverURL: string;
-    previewSceneJsonPath: string;
-    settingsPath: string;
-    mainScriptPath: string;
-    applicationScriptPath: string;
-    configPath: string;
-    configPaths: string[];
-}
-export declare interface ISimulatorPrepareOptions {
-    enginePath?: string;
-    projectPath?: string;
-    serverURL?: string;
-    runtimeRoot?: string;
-    writablePath?: string;
-    assetServerURL?: string;
-    startScene?: string;
-    previewSceneJson?: string | Record<string, unknown>;
-    waitForConnect?: boolean;
-    resolution?: ISimulatorResolution;
-    landscape?: boolean;
-    cleanCaches?: boolean;
-}
-export declare interface ISimulatorResolution {
-    width: number;
-    height: number;
-}
-export declare interface ISimulatorSessionInfo {
-    id: string;
-    pid?: number;
-    status: SimulatorStatus;
-    startedAt?: string;
-    readyAt?: string;
-    exitedAt?: string;
-    exitCode?: number | null;
-    signal?: NodeJS.Signals | string | null;
-    runtimeRoot: string;
-    enginePath: string;
-    executablePath: string;
-    args: string[];
-}
-export declare interface ISimulatorStartOptions {
-    runtimeRoot?: string;
-    enginePath?: string;
-    entryFile?: string;
-    writablePath?: string;
-    searchPaths?: string[];
-    resolution?: ISimulatorResolution;
-    scale?: number;
-    landscape?: boolean;
-    portrait?: boolean;
-    showConsole?: boolean;
-    debugLogFile?: string;
-    position?: {
-        x: number;
-        y: number;
-    };
-    bindAddress?: string;
-    env?: Record<string, string | undefined>;
-}
-export declare function isMotionActive(): Promise<boolean>;
 export declare interface ISocketConfig {
     connection: (socket: any) => void;
     disconnect: (socket: any) => void;
@@ -10095,8 +10066,6 @@ export declare interface LabelAtlasAssetUserData {
     spriteFrameUuid: string;
     _fntConfig: FntData;
 }
-export declare function launchPreview(options?: ISimulatorLaunchPreviewOptions): Promise<ISimulatorLaunchPreviewResult>;
-export declare function listSessions(): Promise<ISimulatorSessionInfo[]>;
 export declare interface LODsOption {
     screenRatio: number;
     faceCount: number;
@@ -10221,46 +10190,6 @@ export declare interface ModuleRenderConfig {
     version: string;
     migrationScript?: string;
 }
-export declare interface MotionPreviewDesc {
-    motion: MotionPreviewDescNode | null;
-    variables: MotionPreviewVariable[];
-}
-export declare type MotionPreviewDescNode = {
-    kind: 'clip';
-    clipUuid: string | null;
-} | {
-    kind: 'blend-1d';
-    variable: string | null;
-    value: number;
-    children: {
-        motion: MotionPreviewDescNode | null;
-        threshold: number;
-    }[];
-} | {
-    kind: 'blend-2d';
-    variableX: string | null;
-    valueX: number;
-    variableY: string | null;
-    valueY: number;
-    algorithm?: number;
-    children: {
-        motion: MotionPreviewDescNode | null;
-        threshold: {
-            x: number;
-            y: number;
-        };
-    }[];
-} | {
-    kind: 'blend-direct';
-    children: {
-        motion: MotionPreviewDescNode | null;
-        weight: number;
-    }[];
-};
-export declare interface MotionPreviewVariable {
-    name: string;
-    value: number | null;
-}
 export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
 export declare enum NormalImportSetting {
     optional = 0,
@@ -10279,27 +10208,9 @@ export declare function onCompileStart(listener: (e: {
     taskId?: string;
 }) => void): () => void;
 export declare function onDBReady(listener: (dbInfo: IAssetDBInfo) => void): () => void;
-export declare function onDidChangeBuildState(listener: (state: ISimulatorBuildState) => void): () => void;
-export declare function onDidChangeSession(listener: (session: ISimulatorSessionInfo) => void): () => void;
+export declare const onDidChangeBuildState: (listener: (state: ISimulatorBuildState) => void) => () => void;
 export declare function onDidSave(callback: () => void, scope?: ConfigurationScope): () => void;
-export declare function onLog(listener: (entry: ISimulatorLogEntry) => void): () => void;
-export declare function onMotionMouseDown(action: {
-    x: number;
-    y: number;
-    button: number;
-}): Promise<void>;
-export declare function onMotionMouseMove(action: {
-    movementX: number;
-    movementY: number;
-}): Promise<void>;
-export declare function onMotionMouseUp(action: {
-    x: number;
-    y: number;
-}): Promise<void>;
-export declare function onMotionMouseWheel(action: {
-    wheelDeltaY: number;
-    wheelDeltaX: number;
-}): Promise<void>;
+export declare const onLog: (listener: (entry: ISimulatorLogEntry) => void) => () => void;
 export declare function onPackBuildEnd(listener: (e: {
     targetName: string;
 }) => void): () => void;
@@ -10351,8 +10262,6 @@ export declare interface ParticleAssetUserData {
     rotatePerSVar: number;
     spriteFrameUuid: string;
 }
-export declare function pauseMotion(): Promise<void>;
-export declare function playMotion(): Promise<void>;
 export declare interface PluginScriptInfo {
     file: string;
     uuid: string;
@@ -10372,7 +10281,6 @@ export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
 }
-export declare function prepareResources(options?: ISimulatorPrepareOptions): Promise<ISimulatorPreparedResources>;
 export declare class ProgrammingFacet {
     private _packerDriverUpdateCount;
     private _asyncIteration;
@@ -10415,7 +10323,14 @@ export declare namespace Project {
         open_2 as open,
         close_2 as close,
         getInfo_2 as getInfo,
-        get_2 as get
+        get_2 as get,
+        discoverProjectBackend,
+        ProjectBackendError,
+        ProjectBackendDescriptor,
+        startProjectBackend,
+        ensureProjectBackend,
+        stopProjectBackend,
+        StartProjectBackendOptions
     }
 }
 export declare class Project_2 implements IProject {
@@ -10440,6 +10355,23 @@ export declare class Project_2 implements IProject {
     close(): Promise<boolean>;
     private static generateProjectInfo;
     private isValid;
+}
+export declare interface ProjectBackendDescriptor {
+    protocol: 1;
+    project: string;
+    projectKey: string;
+    ownerId: string;
+    pid: number;
+    url: string;
+    token: string;
+    state: 'initializing' | 'ready' | 'stopping' | 'failed';
+    sceneSession?: SceneSessionDescriptor;
+    mcpUrl?: string;
+}
+export declare class ProjectBackendError extends Error {
+    readonly code: string;
+    readonly backend?: ProjectBackendDescriptor | undefined;
+    constructor(code: string, message: string, backend?: ProjectBackendDescriptor | undefined);
 }
 export declare interface ProjectCreatorInfo {
     version: string;
@@ -10486,10 +10418,6 @@ export declare function queryLayerBuiltin(): Promise<{
 export declare function queryMaterial(uuidOrUrlOrPath: string): Promise<MaterialDump>;
 export declare function queryMaterialAllEffects(): Promise<Record<string, MaterialEffectInfo>>;
 export declare function queryMaterialEffect(effectNameOrUuid: string): Promise<MaterialTechniqueDump[]>;
-export declare function queryMotionImage(info: {
-    width: number;
-    height: number;
-}): Promise<unknown>;
 export declare function queryPath(urlOrUuid: string): Promise<string>;
 export declare function queryPropertySchema(importer: string): Promise<AssetPropertySchemaMap>;
 export declare function querySerializedData(uuidOrUrlOrPath: string): Promise<SerializedAssetQueryResult>;
@@ -10498,6 +10426,7 @@ export declare function querySortingLayerBuiltin(): Promise<readonly __private._
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;
+export declare function reconcileLocalizationRuntimeMount(): Promise<void>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function register(): Promise<string>;
 export declare function register_2(name: string, module: IMiddlewareContribution): Promise<void>;
@@ -10526,31 +10455,35 @@ export declare function saveMaterial(uuidOrUrlOrPath: string, dump: MaterialDump
 export declare function saveSerializedData(uuidOrUrlOrPath: string, patch: SerializedAssetPatch): Promise<SerializedAssetQueryResult>;
 export declare namespace Scene {
     export {
+        startSessionServer,
         init_6 as init,
         startupWorker,
         setCommandProvider,
         resetCommandProvider,
-        showMotion,
-        hideMotion,
-        setMotionModel,
-        setMotionTime,
-        playMotion,
-        pauseMotion,
-        stopMotion,
-        setMotionVariable,
-        setMotionParameter,
-        getMotionTimelineStats,
-        isMotionActive,
-        queryMotionImage,
-        onMotionMouseDown,
-        onMotionMouseMove,
-        onMotionMouseUp,
-        onMotionMouseWheel,
         ISceneCommandProvider,
         SceneCommandProviderRegistration,
         SceneCommandRequestOptions,
-        WorkerSceneCommandProvider
+        WorkerSceneCommandProvider,
+        SceneSessionClient,
+        SceneSessionServerOptions,
+        SceneSessionServer,
+        SceneVersion,
+        SceneCommand,
+        SceneSessionCommand,
+        SceneSessionEvent,
+        SceneSessionSnapshot,
+        SceneRenderSnapshot,
+        SceneRecordedChange,
+        SceneSessionDescriptor,
+        SceneCommandResult,
+        SceneEventBatch,
+        SceneSessionError
     }
+}
+export declare interface SceneCommand {
+    module: string;
+    method: string;
+    args?: unknown[];
 }
 export declare interface SceneCommandProviderRegistration {
     dispose(): void;
@@ -10558,9 +10491,85 @@ export declare interface SceneCommandProviderRegistration {
 export declare interface SceneCommandRequestOptions {
     timeout?: number;
 }
+export declare interface SceneCommandResult {
+    value: unknown;
+    version: SceneVersion;
+}
+export declare interface SceneEventBatch {
+    version: SceneVersion;
+    sequence: number;
+    resync: boolean;
+    events: SceneSessionEvent[];
+}
+export declare interface SceneRecordedChange {
+    uuid: string;
+    kind: 'node' | 'component';
+    dump: any;
+}
+export declare interface SceneRenderSnapshot {
+    serializedScene: string;
+    rootUuid: string;
+    assetUuid: string;
+    kind: 'scene' | 'prefab';
+    prefabUUIDs: unknown;
+}
+export declare class SceneSessionClient {
+    readonly descriptor: SceneSessionDescriptor;
+    constructor(descriptor: SceneSessionDescriptor);
+    snapshot(signal?: AbortSignal): Promise<SceneSessionSnapshot>;
+    command(command: SceneSessionCommand, signal?: AbortSignal): Promise<SceneCommandResult>;
+    events(version: SceneVersion, after: number, signal?: AbortSignal): Promise<SceneEventBatch>;
+    private fetch;
+}
+export declare interface SceneSessionCommand extends SceneCommand {
+    source: string;
+    operationId: string;
+    expected: SceneVersion;
+}
+export declare interface SceneSessionDescriptor {
+    protocol: 1;
+    project: string;
+    url: string;
+    token: string;
+}
+export declare class SceneSessionError extends Error {
+    readonly code: string;
+    constructor(code: string, message: string);
+}
+export declare interface SceneSessionEvent {
+    sequence: number;
+    version: SceneVersion;
+    source?: string;
+    operationId?: string;
+    events: string[];
+}
+export declare interface SceneSessionServer {
+    descriptor: SceneSessionDescriptor;
+    close(): Promise<void>;
+}
+export declare interface SceneSessionServerOptions {
+    project: string;
+    port?: number;
+    allowedOrigins?: string[];
+}
+export declare interface SceneSessionSnapshot {
+    project: string;
+    version: SceneVersion;
+    sequence: number;
+    current: unknown;
+    serializedScene: string | null;
+    render?: SceneRenderSnapshot | null;
+    dirty: boolean;
+    canUndo: boolean;
+    canRedo: boolean;
+}
+export declare interface SceneVersion {
+    epoch: string;
+    revision: number;
+}
 export declare namespace Scripting {
     export {
-        init_8 as init,
+        init_7 as init,
         initProgrammingFacet,
         getProgrammingFacet,
         startCompileScript,
@@ -10612,10 +10621,6 @@ export declare interface SetAnimationGraphInspectorPropertyRequest extends Anima
 }
 export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
 export declare function setFileSystemProvider(provider: IAssetFileSystemProvider): void;
-export declare function setMotionModel(uuid: string): Promise<void>;
-export declare function setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void>;
-export declare function setMotionTime(time: number): Promise<void>;
-export declare function setMotionVariable(name: string, value: number): Promise<void>;
 export declare interface SharedSettings {
     useDefineForClassFields: boolean;
     allowDeclareFields: boolean;
@@ -10631,7 +10636,6 @@ export declare interface SharedSettings {
         url: string;
     };
 }
-export declare function showMotion(desc: MotionPreviewDesc): Promise<boolean>;
 export declare interface SimplifyOptions {
     targetRatio?: number;
     enableSmartLink?: boolean;
@@ -10640,38 +10644,19 @@ export declare interface SimplifyOptions {
 }
 export declare namespace Simulator {
     export {
-        init_7 as init,
+        ISimulatorBuildState,
+        ISimulatorLogEntry,
+        ISimulatorManifest,
         build,
         buildNative,
         buildRuntime,
         isBuilt,
         getManifest,
         getExecutablePath,
-        getResourcesPath,
-        getWritablePath,
-        prepareResources,
-        launchPreview,
-        start_3 as start,
-        stop_3 as stop,
-        stopAll,
-        getStatus_3 as getStatus,
-        listSessions,
-        onDidChangeSession,
         onLog,
-        onDidChangeBuildState,
-        ISimulatorBuildState,
-        ISimulatorLaunchPreviewOptions,
-        ISimulatorLaunchPreviewResult,
-        ISimulatorLogEntry,
-        ISimulatorManifest,
-        ISimulatorPreparedResources,
-        ISimulatorPrepareOptions,
-        ISimulatorResolution,
-        ISimulatorSessionInfo,
-        ISimulatorStartOptions
+        onDidChangeBuildState
     }
 }
-export declare type SimulatorStatus = 'running' | 'stopped';
 export declare interface SpineAssetUserData {
     atlasUuid: string;
 }
@@ -10720,14 +10705,20 @@ export declare interface SpriteFrameVertices {
 }
 export declare function start(): Promise<void>;
 export declare function start_2(port?: number, host?: string): Promise<string>;
-export declare function start_3(options: ISimulatorStartOptions): Promise<ISimulatorSessionInfo>;
 export declare function startCompileScript(assetChanges?: AssetChangeInfo[]): Promise<void>;
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
+export declare function startProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
+export declare interface StartProjectBackendOptions {
+    port?: number;
+    allowedOrigins?: string[];
+    executable?: string;
+    startupTimeoutMs?: number;
+    requireMcp?: boolean;
+}
+export declare function startSessionServer(options: SceneSessionServerOptions): Promise<SceneSessionServer>;
 export declare function startupWorker(projectPath: string): Promise<void>;
 export declare function stop_2(): Promise<void>;
-export declare function stop_3(id: string): Promise<boolean>;
-export declare function stopAll(): Promise<number>;
-export declare function stopMotion(): Promise<void>;
+export declare function stopProjectBackend(backend: ProjectBackendDescriptor): Promise<void>;
 export declare const SUPPORT_CREATE_TYPES: readonly ["animation-clip", "typescript", "auto-atlas", "effect", "scene", "prefab", "material", "texture-cube", "terrain", "physics-material", "label-atlas", "render-texture", "directory", "effect-header"];
 export declare enum TangentImportSetting {
     exclude = 0,
@@ -10819,6 +10810,8 @@ export { }
 exports[`DTS API compatibility project.d.ts should match snapshot 1`] = `
 "export declare function close_2(): Promise<void>;
 export { close_2 as close }
+export declare function discoverProjectBackend(project: string): Promise<ProjectBackendDescriptor | null>;
+export declare function ensureProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
 export declare function get(): Promise<Project>;
 export declare function getInfo(): Promise<ProjectInfo>;
 export declare function init(projectPath: string): Promise<void>;
@@ -10860,6 +10853,23 @@ export declare class Project implements IProject {
     private static generateProjectInfo;
     private isValid;
 }
+export declare interface ProjectBackendDescriptor {
+    protocol: 1;
+    project: string;
+    projectKey: string;
+    ownerId: string;
+    pid: number;
+    url: string;
+    token: string;
+    state: 'initializing' | 'ready' | 'stopping' | 'failed';
+    sceneSession?: SceneSessionDescriptor;
+    mcpUrl?: string;
+}
+export declare class ProjectBackendError extends Error {
+    readonly code: string;
+    readonly backend?: ProjectBackendDescriptor | undefined;
+    constructor(code: string, message: string, backend?: ProjectBackendDescriptor | undefined);
+}
 export declare interface ProjectCreatorInfo {
     version: string;
     dependencies?: {
@@ -10878,16 +10888,27 @@ export declare interface ProjectInfo {
     [key: string]: any;
 }
 export declare type ProjectType = '2d' | '3d';
+export declare interface SceneSessionDescriptor {
+    protocol: 1;
+    project: string;
+    url: string;
+    token: string;
+}
+export declare function startProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
+export declare interface StartProjectBackendOptions {
+    port?: number;
+    allowedOrigins?: string[];
+    executable?: string;
+    startupTimeoutMs?: number;
+    requireMcp?: boolean;
+}
+export declare function stopProjectBackend(backend: ProjectBackendDescriptor): Promise<void>;
 export { }
 "
 `;
 
 exports[`DTS API compatibility scene.d.ts should match snapshot 1`] = `
 "import type { ChildProcess } from 'child_process';
-export declare function getMotionTimelineStats(): Promise<{
-    timeLineLength: number;
-} | null>;
-export declare function hideMotion(): Promise<void>;
 export declare function init(): Promise<void>;
 export declare interface ISceneCommandProvider {
     request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
@@ -10895,85 +10916,97 @@ export declare interface ISceneCommandProvider {
     isConnect?(): boolean | undefined;
     dispose?(): void;
 }
-export declare function isMotionActive(): Promise<boolean>;
-export declare interface MotionPreviewDesc {
-    motion: MotionPreviewDescNode | null;
-    variables: MotionPreviewVariable[];
-}
-export declare type MotionPreviewDescNode = {
-    kind: 'clip';
-    clipUuid: string | null;
-} | {
-    kind: 'blend-1d';
-    variable: string | null;
-    value: number;
-    children: {
-        motion: MotionPreviewDescNode | null;
-        threshold: number;
-    }[];
-} | {
-    kind: 'blend-2d';
-    variableX: string | null;
-    valueX: number;
-    variableY: string | null;
-    valueY: number;
-    algorithm?: number;
-    children: {
-        motion: MotionPreviewDescNode | null;
-        threshold: {
-            x: number;
-            y: number;
-        };
-    }[];
-} | {
-    kind: 'blend-direct';
-    children: {
-        motion: MotionPreviewDescNode | null;
-        weight: number;
-    }[];
-};
-export declare interface MotionPreviewVariable {
-    name: string;
-    value: number | null;
-}
-export declare function onMotionMouseDown(action: {
-    x: number;
-    y: number;
-    button: number;
-}): Promise<void>;
-export declare function onMotionMouseMove(action: {
-    movementX: number;
-    movementY: number;
-}): Promise<void>;
-export declare function onMotionMouseUp(action: {
-    x: number;
-    y: number;
-}): Promise<void>;
-export declare function onMotionMouseWheel(action: {
-    wheelDeltaY: number;
-    wheelDeltaX: number;
-}): Promise<void>;
-export declare function pauseMotion(): Promise<void>;
-export declare function playMotion(): Promise<void>;
-export declare function queryMotionImage(info: {
-    width: number;
-    height: number;
-}): Promise<unknown>;
 export declare function resetCommandProvider(): void;
+export declare interface SceneCommand {
+    module: string;
+    method: string;
+    args?: unknown[];
+}
 export declare interface SceneCommandProviderRegistration {
     dispose(): void;
 }
 export declare interface SceneCommandRequestOptions {
     timeout?: number;
 }
+export declare interface SceneCommandResult {
+    value: unknown;
+    version: SceneVersion;
+}
+export declare interface SceneEventBatch {
+    version: SceneVersion;
+    sequence: number;
+    resync: boolean;
+    events: SceneSessionEvent[];
+}
+export declare interface SceneRecordedChange {
+    uuid: string;
+    kind: 'node' | 'component';
+    dump: any;
+}
+export declare interface SceneRenderSnapshot {
+    serializedScene: string;
+    rootUuid: string;
+    assetUuid: string;
+    kind: 'scene' | 'prefab';
+    prefabUUIDs: unknown;
+}
+export declare class SceneSessionClient {
+    readonly descriptor: SceneSessionDescriptor;
+    constructor(descriptor: SceneSessionDescriptor);
+    snapshot(signal?: AbortSignal): Promise<SceneSessionSnapshot>;
+    command(command: SceneSessionCommand, signal?: AbortSignal): Promise<SceneCommandResult>;
+    events(version: SceneVersion, after: number, signal?: AbortSignal): Promise<SceneEventBatch>;
+    private fetch;
+}
+export declare interface SceneSessionCommand extends SceneCommand {
+    source: string;
+    operationId: string;
+    expected: SceneVersion;
+}
+export declare interface SceneSessionDescriptor {
+    protocol: 1;
+    project: string;
+    url: string;
+    token: string;
+}
+export declare class SceneSessionError extends Error {
+    readonly code: string;
+    constructor(code: string, message: string);
+}
+export declare interface SceneSessionEvent {
+    sequence: number;
+    version: SceneVersion;
+    source?: string;
+    operationId?: string;
+    events: string[];
+}
+export declare interface SceneSessionServer {
+    descriptor: SceneSessionDescriptor;
+    close(): Promise<void>;
+}
+export declare interface SceneSessionServerOptions {
+    project: string;
+    port?: number;
+    allowedOrigins?: string[];
+}
+export declare interface SceneSessionSnapshot {
+    project: string;
+    version: SceneVersion;
+    sequence: number;
+    current: unknown;
+    serializedScene: string | null;
+    render?: SceneRenderSnapshot | null;
+    dirty: boolean;
+    canUndo: boolean;
+    canRedo: boolean;
+}
+export declare interface SceneVersion {
+    epoch: string;
+    revision: number;
+}
 export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
-export declare function setMotionModel(uuid: string): Promise<void>;
-export declare function setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void>;
-export declare function setMotionTime(time: number): Promise<void>;
-export declare function setMotionVariable(name: string, value: number): Promise<void>;
-export declare function showMotion(desc: MotionPreviewDesc): Promise<boolean>;
+export declare function startSessionServer(options: SceneSessionServerOptions): Promise<SceneSessionServer>;
 export declare function startupWorker(projectPath: string): Promise<void>;
-export declare function stopMotion(): Promise<void>;
 export declare class WorkerSceneCommandProvider implements ISceneCommandProvider {
     private readonly rpc;
     constructor(process: ChildProcess | NodeJS.Process);
@@ -11098,115 +11131,35 @@ export { }
 `;
 
 exports[`DTS API compatibility simulator.d.ts should match snapshot 1`] = `
-"export declare function build(enginePath?: string): Promise<void>;
-export declare function buildNative(enginePath?: string): Promise<void>;
-export declare function buildRuntime(enginePath?: string): Promise<void>;
-export declare function getExecutablePath(enginePath?: string): Promise<string | null>;
-export declare function getManifest(enginePath?: string): Promise<ISimulatorManifest | null>;
-export declare function getResourcesPath(enginePath?: string): Promise<string>;
-export declare function getStatus(id: string): Promise<ISimulatorSessionInfo | null>;
-export declare function getWritablePath(enginePath?: string): Promise<string>;
-export declare function init(projectPath: string): Promise<void>;
-export declare function isBuilt(enginePath?: string): Promise<boolean>;
+"export declare const build: (enginePath?: string) => Promise<void>;
+export declare const buildNative: (enginePath?: string) => Promise<void>;
+export declare const buildRuntime: (enginePath?: string) => Promise<void>;
+export declare const getExecutablePath: (enginePath?: string) => Promise<string | null>;
+export declare const getManifest: (enginePath?: string) => Promise<ISimulatorManifest | null>;
+export declare const isBuilt: (enginePath?: string) => Promise<boolean>;
 export declare interface ISimulatorBuildState {
     step: 'native' | 'runtime';
     state: 'start' | 'success' | 'failed';
     error?: string;
 }
-export declare interface ISimulatorLaunchPreviewOptions extends ISimulatorPrepareOptions, Omit<ISimulatorStartOptions, 'runtimeRoot' | 'entryFile' | 'writablePath'> {
-    port?: number;
-}
-export declare interface ISimulatorLaunchPreviewResult {
-    prepared: ISimulatorPreparedResources;
-    session: ISimulatorSessionInfo;
-}
 export declare interface ISimulatorLogEntry {
-    source: 'simulator' | 'build';
+    source: 'build';
     level: 'log' | 'error';
     message: string;
-    sessionId?: string;
 }
 export declare interface ISimulatorManifest {
     platform: NodeJS.Platform;
+    arch: string;
     bundle: string;
     entry: string;
+    engineVersion?: string;
     builtAt?: string;
+    runtimePath: string;
+    artifactRoot: string;
+    formatVersion: 1;
 }
-export declare interface ISimulatorPreparedResources {
-    runtimeRoot: string;
-    writablePath: string;
-    executablePath: string;
-    projectPath: string;
-    serverURL: string;
-    previewSceneJsonPath: string;
-    settingsPath: string;
-    mainScriptPath: string;
-    applicationScriptPath: string;
-    configPath: string;
-    configPaths: string[];
-}
-export declare interface ISimulatorPrepareOptions {
-    enginePath?: string;
-    projectPath?: string;
-    serverURL?: string;
-    runtimeRoot?: string;
-    writablePath?: string;
-    assetServerURL?: string;
-    startScene?: string;
-    previewSceneJson?: string | Record<string, unknown>;
-    waitForConnect?: boolean;
-    resolution?: ISimulatorResolution;
-    landscape?: boolean;
-    cleanCaches?: boolean;
-}
-export declare interface ISimulatorResolution {
-    width: number;
-    height: number;
-}
-export declare interface ISimulatorSessionInfo {
-    id: string;
-    pid?: number;
-    status: SimulatorStatus;
-    startedAt?: string;
-    readyAt?: string;
-    exitedAt?: string;
-    exitCode?: number | null;
-    signal?: NodeJS.Signals | string | null;
-    runtimeRoot: string;
-    enginePath: string;
-    executablePath: string;
-    args: string[];
-}
-export declare interface ISimulatorStartOptions {
-    runtimeRoot?: string;
-    enginePath?: string;
-    entryFile?: string;
-    writablePath?: string;
-    searchPaths?: string[];
-    resolution?: ISimulatorResolution;
-    scale?: number;
-    landscape?: boolean;
-    portrait?: boolean;
-    showConsole?: boolean;
-    debugLogFile?: string;
-    position?: {
-        x: number;
-        y: number;
-    };
-    bindAddress?: string;
-    env?: Record<string, string | undefined>;
-}
-export declare function launchPreview(options?: ISimulatorLaunchPreviewOptions): Promise<ISimulatorLaunchPreviewResult>;
-export declare function listSessions(): Promise<ISimulatorSessionInfo[]>;
-export declare function onDidChangeBuildState(listener: (state: ISimulatorBuildState) => void): () => void;
-export declare function onDidChangeSession(listener: (session: ISimulatorSessionInfo) => void): () => void;
-export declare function onLog(listener: (entry: ISimulatorLogEntry) => void): () => void;
-export declare function prepareResources(options?: ISimulatorPrepareOptions): Promise<ISimulatorPreparedResources>;
-export declare type SimulatorStatus = 'running' | 'stopped';
-export declare function start(options: ISimulatorStartOptions): Promise<ISimulatorSessionInfo>;
-export declare function stop_2(id: string): Promise<boolean>;
-export { stop_2 as stop }
-export declare function stopAll(): Promise<number>;
+export declare const onDidChangeBuildState: (listener: (state: ISimulatorBuildState) => void) => () => void;
+export declare const onLog: (listener: (entry: ISimulatorLogEntry) => void) => () => void;
 export { }
 "
 `;

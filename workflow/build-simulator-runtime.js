@@ -188,6 +188,7 @@ async function buildSimulatorRuntime(enginePath, options = {}) {
     });
 
     console.log(`Simulator runtime prepared at: ${engineOutput}`);
+    await require('./simulator-artifact').writeArtifactManifest(staticDir, engineDir, 'runtime');
     console.log(`Simulator static assets prepared at: ${staticDir}`);
 }
 

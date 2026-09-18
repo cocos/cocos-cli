@@ -10,6 +10,7 @@ import { param } from './decorator/decorator';
 import { SchemaPlatform, TPlatform, SchemaBuildOption, TBuildOption, SchemaPlatformCanMake, TPlatformCanMake, SchemaBuildDest, TBuildDest, SchemaUploadAccessToken, TUploadAccessToken } from './builder/schema';
 
 export class CocosAPI {
+    private launcher?: import('../core/launcher').default;
     public scene!: SceneApi;
     public engine!: EngineApi;
     public project!: ProjectApi;
@@ -54,17 +55,20 @@ export class CocosAPI {
      * @param port 
      */
     public startupMcpServer(@param(SchemaProjectPath) projectPath: TProjectPath, @param(SchemaPort) port?: TPort) {
-        this.startup(projectPath, port);
+        return this.startup(projectPath, port);
     }
 
     /**
      * 启动工程
      */
-    public async startup(@param(SchemaProjectPath) projectPath: TProjectPath, @param(SchemaPort) port?: TPort) {
+    public async startup(@param(SchemaProjectPath) projectPath: TProjectPath, @param(SchemaPort) port?: TPort, options: { allowedOrigins?: string[]; publishReady?: boolean } = {}) {
         const { default: Launcher } = await import('../core/launcher');
         const launcher = new Launcher(projectPath);
-        await launcher.startup(port);
+        await launcher.startup(port, options);
+        this.launcher = launcher;
     }
+
+    public async close(): Promise<void> { await this.launcher?.close(); this.launcher = undefined; }
 
     /**
      * 命令行创建入口
@@ -85,7 +89,8 @@ export class CocosAPI {
     public static async buildProject(projectPath: string, @param(SchemaPlatform) platform: TPlatform, @param(SchemaBuildOption) options: TBuildOption) {
         const { default: Launcher } = await import('../core/launcher');
         const launcher = new Launcher(projectPath);
-        return await launcher.build(platform, options as any);
+        try { return await launcher.build(platform, options as any); }
+        finally { await launcher.close(); }
     }
 
     /**

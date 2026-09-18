@@ -32,7 +32,7 @@ import type {
     ReloadAnimationGraphOptions,
     SetAnimationGraphInspectorPropertyRequest,
 } from './@types/public';
-import type { IProperty } from '../scene/@types/public';
+import type { IProperty } from '../base/property';
 import { deserialize as deserializeAssetSource, i18nTranslate } from './asset-handler/utils';
 import assetOperation from './manager/operation';
 import assetQuery from './manager/query';

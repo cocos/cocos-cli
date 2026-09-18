@@ -1,6 +1,7 @@
 'use strict';
 
 import Time from './engine/time';
+import { updateViews } from './core/view-updates';
 import { Component, director, GeometryRenderer as CCGeometryRenderer, Node } from 'cc';
 import { GeometryRenderer, methods as GeometryMethods } from './engine/geometry_renderer';
 import { BaseService, register } from './core';
@@ -43,7 +44,7 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     private _stateRecord = 0; // 记录当前状态
     private _shouldRepaintInEM = false; // 强制引擎渲染一帧
     private _tickInEM = false;
-    private _tickedFrameInEM = -1;
+    private _insideTick = false;
     private _paused = false;
     private _capture = false;// 抓帧时定时器需要切换
 
@@ -85,8 +86,8 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     public async repaintInEditMode() {
-        // 避免 tickInEditMode() 在同一帧执行时又调到这里，导致下一帧又执行 tickInEditMode，陷入循环
-        if (this._tickedFrameInEM !== director.getTotalFrames()) {
+        // Suppress reentrant updates, but allow a new request after a failed or skipped frame.
+        if (!this._insideTick) {
             this._shouldRepaintInEM = true;
         }
     }
@@ -97,8 +98,7 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
             this._shouldRepaintInEM = false;
             this.tickInEditMode(0);
             this.broadcast('engine:update');
-            try { Service.Camera?.onUpdate?.(0); } catch { /* not registered yet */ }
-            try { Service.Gizmo?.onUpdate?.(0); } catch { /* not registered yet */ }
+            updateViews(0);
             this.broadcast('engine:ticked');
         }
     }
@@ -160,12 +160,10 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     public async syncDesignResolution() {
         try {
             const view = (cc as any).view;
-            if (!view || typeof fetch !== 'function') {
+            if (!view) {
                 return;
             }
-            const serverURL = serviceManager.getServerUrl();
-            const res = await fetch(`${serverURL}/scripting/engine/design-resolution`);
-            const dr = await res.json();
+            const dr = await Rpc.getInstance().request('sceneConfigInstance', 'queryDesignResolution');
             const width = Number(dr?.width);
             const height = Number(dr?.height);
             if (Number.isNaN(width) || Number.isNaN(height)) {
@@ -316,12 +314,13 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     public tickInEditMode(deltaTime: number) {
-        this._tickedFrameInEM = director.getTotalFrames();
-
-        if (this.geometryRenderer) {
-            this.geometryRenderer.flush();
+        this._insideTick = true;
+        try {
+            this.geometryRenderer?.flush();
+            director.tick(deltaTime);
+        } finally {
+            this._insideTick = false;
         }
-        director.tick(deltaTime);
     }
 
     public getGeometryRenderer() {
@@ -400,8 +399,7 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
                 this.broadcast('engine:update');
 
                 // Dispatch per-frame updates to Camera and Gizmo services
-                try { Service.Camera?.onUpdate?.(Time.deltaTime); } catch { /* not registered yet */ }
-                try { Service.Gizmo?.onUpdate?.(Time.deltaTime); } catch { /* not registered yet */ }
+                updateViews(Time.deltaTime);
             }
             this.broadcast('engine:ticked');
         } catch (e) {

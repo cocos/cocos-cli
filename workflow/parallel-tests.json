@@ -42,13 +42,15 @@
     "tests/component-recalculate-lod-group-bounds-api.test.ts",
     "tests/e2e-assets-cleanup.test.ts",
     "tests/e2e-shared-server.test.ts",
-    "tests/input-bridge.test.ts",
     "tests/lib-scene-command-provider.test.ts",
     "tests/scene-open-error-status.test.ts",
-    "tests/reflection-probe-renderer.test.ts",
     "tests/mcp-middleware-tool-call-context.test.ts",
     "tests/mcp-tool-call-context.test.ts",
     "tests/particle-api-mcp.test.ts",
     "tests/particle-service-api.test.ts",
-    "tests/reflection-probe-bake-api.test.ts"
+    "tests/reflection-probe-bake-api.test.ts",
+    "src/core/scene/test/backend-view.test.ts",
+    "src/core/scene/test/view-updates.test.ts",
+    "src/core/scene/test/terrain-session-owner.test.ts",
+    "tests/scene-runtime-resources.test.ts"
 ]

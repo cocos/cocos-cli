@@ -38,13 +38,12 @@
         "compiler:engine": "node --max-old-space-size=8192 workflow/compiler-engine.js --force",
         "build:cc-module": "node workflow/build-cc-module.js",
         "build:asset-db": "npm run build --workspace @cocos/asset-db",
-        "build:static-web": "node workflow/build-scene-bundle.js && node workflow/build-polyfills.js",
         "build:platform-views": "node workflow/build-platform-views.js && node workflow/build-platform-assets.js",
         "build:simulator:native": "node workflow/build-simulator.js",
         "build:simulator:runtime": "node workflow/build-simulator-runtime.js",
         "build:simulator": "npm run build:simulator:native && npm run build:simulator:runtime",
-        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:static-web && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views",
-        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && npm run build:static-web && node workflow/generate-schema.js",
+        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views",
+        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && node workflow/generate-schema.js",
         "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
         "postinstall": "node workflow/postinstall.js",
@@ -52,7 +51,6 @@
         "pack:script": "node workflow/pack-scripts.js",
         "release": "npx --yes gulp release --gulpfile workflow/release.js",
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
-        "start:preview": "node ./dist/cli.js preview --scene-editor",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
         "rebuild": "node workflow/electron-rebuild.js",
@@ -132,11 +130,12 @@
         "@ffprobe-installer/ffprobe": "^1.4.1",
         "@microsoft/api-extractor": "^7.55.0",
         "@modelcontextprotocol/sdk": "^1.18.0",
+        "@napi-rs/canvas": "^1.0.9",
         "@sentry/node": "^10.21.0",
         "@types/semver": "^7.7.1",
         "@types/ws": "^8.18.1",
-        "@types/xxhashjs": "^0.2.4",
         "@types/xml2js": "^0.4.11",
+        "@types/xxhashjs": "^0.2.4",
         "cc": "file:./packages/cc-module",
         "chalk": "^2.4.2",
         "cli-progress": "^3.12.0",
@@ -193,12 +192,369 @@
         "uuid": "^8.3.2",
         "ws": "^8.18.3",
         "xhr2": "^0.2.1",
+        "xml2js": "^0.6.0",
         "xmldom": "^0.1.31",
         "xxhashjs": "^0.2.2",
         "xxtea-node": "^1.1.5",
         "zod": "^3.25.76",
         "zod-to-json-schema": "^3.24.6",
-        "zod-to-ts": "1.1.4",
-        "xml2js": "^0.6.0"
+        "zod-to-ts": "1.1.4"
+    },
+    "exports": {
+        ".": "./dist/index.js",
+        "./package.json": "./package.json",
+        "./dist/*": "./dist/*",
+        "./host/commands/base": {
+            "types": "./dist/commands/base.d.ts",
+            "default": "./dist/commands/base.js"
+        },
+        "./host/core/assets/index": {
+            "types": "./dist/core/assets/index.d.ts",
+            "default": "./dist/core/assets/index.js"
+        },
+        "./host/core/base/editor-shim": {
+            "types": "./dist/core/base/editor-shim.d.ts",
+            "default": "./dist/core/base/editor-shim.js"
+        },
+        "./host/core/base/i18n": {
+            "types": "./dist/core/base/i18n.d.ts",
+            "default": "./dist/core/base/i18n.js"
+        },
+        "./host/core/base/utils/uuid": {
+            "types": "./dist/core/base/utils/uuid.d.ts",
+            "default": "./dist/core/base/utils/uuid.js"
+        },
+        "./host/core/builder/@types/protected": {
+            "types": "./dist/core/builder/@types/protected.d.ts",
+            "default": "./dist/core/builder/@types/protected.js"
+        },
+        "./host/core/builder/index": {
+            "types": "./dist/core/builder/index.d.ts",
+            "default": "./dist/core/builder/index.js"
+        },
+        "./host/core/builder/platforms/web-common/utils": {
+            "types": "./dist/core/builder/platforms/web-common/utils.d.ts",
+            "default": "./dist/core/builder/platforms/web-common/utils.js"
+        },
+        "./host/core/builder/share/common-options-validator": {
+            "types": "./dist/core/builder/share/common-options-validator.d.ts",
+            "default": "./dist/core/builder/share/common-options-validator.js"
+        },
+        "./host/core/configuration/index": {
+            "types": "./dist/core/configuration/index.d.ts",
+            "default": "./dist/core/configuration/index.js"
+        },
+        "./host/core/configuration/script/interface": {
+            "types": "./dist/core/configuration/script/interface.d.ts",
+            "default": "./dist/core/configuration/script/interface.js"
+        },
+        "./host/core/engine/editor-extends/index": {
+            "types": "./dist/core/engine/editor-extends/index.d.ts",
+            "default": "./dist/core/engine/editor-extends/index.js"
+        },
+        "./host/core/engine/editor-extends/utils/deserialize": {
+            "types": "./dist/core/engine/editor-extends/utils/deserialize.d.ts",
+            "default": "./dist/core/engine/editor-extends/utils/deserialize.js"
+        },
+        "./host/core/engine/editor-extends/utils/geometry": {
+            "types": "./dist/core/engine/editor-extends/utils/geometry.d.ts",
+            "default": "./dist/core/engine/editor-extends/utils/geometry.js"
+        },
+        "./host/core/engine/editor-extends/utils/prefab": {
+            "types": "./dist/core/engine/editor-extends/utils/prefab.d.ts",
+            "default": "./dist/core/engine/editor-extends/utils/prefab.js"
+        },
+        "./host/core/engine/editor-extends/utils/serialize/index": {
+            "types": "./dist/core/engine/editor-extends/utils/serialize/index.d.ts",
+            "default": "./dist/core/engine/editor-extends/utils/serialize/index.js"
+        },
+        "./host/core/engine/graphics-config": {
+            "types": "./dist/core/engine/graphics-config.d.ts",
+            "default": "./dist/core/engine/graphics-config.js"
+        },
+        "./host/core/engine/index": {
+            "types": "./dist/core/engine/index.d.ts",
+            "default": "./dist/core/engine/index.js"
+        },
+        "./host/core/extension-roots": {
+            "types": "./dist/core/extension-roots.d.ts",
+            "default": "./dist/core/extension-roots.js"
+        },
+        "./host/core/launcher": {
+            "types": "./dist/core/launcher.d.ts",
+            "default": "./dist/core/launcher.js"
+        },
+        "./host/core/project-backend/ownership": {
+            "types": "./dist/core/project-backend/ownership.d.ts",
+            "default": "./dist/core/project-backend/ownership.js"
+        },
+        "./host/core/project/index": {
+            "types": "./dist/core/project/index.d.ts",
+            "default": "./dist/core/project/index.js"
+        },
+        "./host/core/scene/common/index": {
+            "types": "./dist/core/scene/common/index.d.ts",
+            "default": "./dist/core/scene/common/index.js"
+        },
+        "./host/core/scene/common/operation": {
+            "types": "./dist/core/scene/common/operation.d.ts",
+            "default": "./dist/core/scene/common/operation.js"
+        },
+        "./host/core/scene/common/preview": {
+            "types": "./dist/core/scene/common/preview.d.ts",
+            "default": "./dist/core/scene/common/preview.js"
+        },
+        "./host/core/scene/common/reflection-probe": {
+            "types": "./dist/core/scene/common/reflection-probe.d.ts",
+            "default": "./dist/core/scene/common/reflection-probe.js"
+        },
+        "./host/core/scene/index": {
+            "types": "./dist/core/scene/index.d.ts",
+            "default": "./dist/core/scene/index.js"
+        },
+        "./host/core/scene/main-process/index": {
+            "types": "./dist/core/scene/main-process/index.d.ts",
+            "default": "./dist/core/scene/main-process/index.js"
+        },
+        "./host/core/scene/main-process/rpc": {
+            "types": "./dist/core/scene/main-process/rpc.d.ts",
+            "default": "./dist/core/scene/main-process/rpc.js"
+        },
+        "./host/core/scene/runtime/context": {
+            "types": "./dist/core/scene/runtime/context.d.ts",
+            "default": "./dist/core/scene/runtime/context.js"
+        },
+        "./host/core/scene/runtime/core": {
+            "types": "./dist/core/scene/runtime/core.d.ts",
+            "default": "./dist/core/scene/runtime/core.js"
+        },
+        "./host/core/scene/runtime/resources/index": {
+            "types": "./dist/core/scene/runtime/resources/index.d.ts",
+            "default": "./dist/core/scene/runtime/resources/index.js"
+        },
+        "./host/core/scene/runtime/resources/scene-routes": {
+            "types": "./dist/core/scene/runtime/resources/scene-routes.d.ts",
+            "default": "./dist/core/scene/runtime/resources/scene-routes.js"
+        },
+        "./host/core/scene/runtime/resources/scripting-routes": {
+            "types": "./dist/core/scene/runtime/resources/scripting-routes.d.ts",
+            "default": "./dist/core/scene/runtime/resources/scripting-routes.js"
+        },
+        "./host/core/scene/runtime/resources/settings": {
+            "types": "./dist/core/scene/runtime/resources/settings.d.ts",
+            "default": "./dist/core/scene/runtime/resources/settings.js"
+        },
+        "./host/core/scene/scene-configs": {
+            "types": "./dist/core/scene/scene-configs.d.ts",
+            "default": "./dist/core/scene/scene-configs.js"
+        },
+        "./host/core/scene/scene-process/i18n": {
+            "types": "./dist/core/scene/scene-process/i18n.d.ts",
+            "default": "./dist/core/scene/scene-process/i18n.js"
+        },
+        "./host/core/scene/scene-process/light-probe-normal-reset": {
+            "types": "./dist/core/scene/scene-process/light-probe-normal-reset.d.ts",
+            "default": "./dist/core/scene/scene-process/light-probe-normal-reset.js"
+        },
+        "./host/core/scene/scene-process/rpc": {
+            "types": "./dist/core/scene/scene-process/rpc.d.ts",
+            "default": "./dist/core/scene/scene-process/rpc.js"
+        },
+        "./host/core/scene/scene-process/service/animation/property-commit-event": {
+            "types": "./dist/core/scene/scene-process/service/animation/property-commit-event.d.ts",
+            "default": "./dist/core/scene/scene-process/service/animation/property-commit-event.js"
+        },
+        "./host/core/scene/scene-process/service/component": {
+            "types": "./dist/core/scene/scene-process/service/component.d.ts",
+            "default": "./dist/core/scene/scene-process/service/component.js"
+        },
+        "./host/core/scene/scene-process/service/component/index": {
+            "types": "./dist/core/scene/scene-process/service/component/index.d.ts",
+            "default": "./dist/core/scene/scene-process/service/component/index.js"
+        },
+        "./host/core/scene/scene-process/service/component/utils": {
+            "types": "./dist/core/scene/scene-process/service/component/utils.d.ts",
+            "default": "./dist/core/scene/scene-process/service/component/utils.js"
+        },
+        "./host/core/scene/scene-process/service/core/decorator": {
+            "types": "./dist/core/scene/scene-process/service/core/decorator.d.ts",
+            "default": "./dist/core/scene/scene-process/service/core/decorator.js"
+        },
+        "./host/core/scene/scene-process/service/core/editor-session": {
+            "types": "./dist/core/scene/scene-process/service/core/editor-session.d.ts",
+            "default": "./dist/core/scene/scene-process/service/core/editor-session.js"
+        },
+        "./host/core/scene/scene-process/service/core/global-events": {
+            "types": "./dist/core/scene/scene-process/service/core/global-events.d.ts",
+            "default": "./dist/core/scene/scene-process/service/core/global-events.js"
+        },
+        "./host/core/scene/scene-process/service/core/index": {
+            "types": "./dist/core/scene/scene-process/service/core/index.d.ts",
+            "default": "./dist/core/scene/scene-process/service/core/index.js"
+        },
+        "./host/core/scene/scene-process/service/dump/index": {
+            "types": "./dist/core/scene/scene-process/service/dump/index.d.ts",
+            "default": "./dist/core/scene/scene-process/service/dump/index.js"
+        },
+        "./host/core/scene/scene-process/service/editor": {
+            "types": "./dist/core/scene/scene-process/service/editor.d.ts",
+            "default": "./dist/core/scene/scene-process/service/editor.js"
+        },
+        "./host/core/scene/scene-process/service/editors/index": {
+            "types": "./dist/core/scene/scene-process/service/editors/index.d.ts",
+            "default": "./dist/core/scene/scene-process/service/editors/index.js"
+        },
+        "./host/core/scene/scene-process/service/engine": {
+            "types": "./dist/core/scene/scene-process/service/engine.d.ts",
+            "default": "./dist/core/scene/scene-process/service/engine.js"
+        },
+        "./host/core/scene/scene-process/service/index": {
+            "types": "./dist/core/scene/scene-process/service/index.d.ts",
+            "default": "./dist/core/scene/scene-process/service/index.js"
+        },
+        "./host/core/scene/scene-process/service/message": {
+            "types": "./dist/core/scene/scene-process/service/message.d.ts",
+            "default": "./dist/core/scene/scene-process/service/message.js"
+        },
+        "./host/core/scene/scene-process/service/node": {
+            "types": "./dist/core/scene/scene-process/service/node.d.ts",
+            "default": "./dist/core/scene/scene-process/service/node.js"
+        },
+        "./host/core/scene/scene-process/service/node/index": {
+            "types": "./dist/core/scene/scene-process/service/node/index.d.ts",
+            "default": "./dist/core/scene/scene-process/service/node/index.js"
+        },
+        "./host/core/scene/scene-process/service/node/node-create": {
+            "types": "./dist/core/scene/scene-process/service/node/node-create.d.ts",
+            "default": "./dist/core/scene/scene-process/service/node/node-create.js"
+        },
+        "./host/core/scene/scene-process/service/node/node-type-config": {
+            "types": "./dist/core/scene/scene-process/service/node/node-type-config.d.ts",
+            "default": "./dist/core/scene/scene-process/service/node/node-type-config.js"
+        },
+        "./host/core/scene/scene-process/service/operation/types": {
+            "types": "./dist/core/scene/scene-process/service/operation/types.d.ts",
+            "default": "./dist/core/scene/scene-process/service/operation/types.js"
+        },
+        "./host/core/scene/scene-process/service/prefab": {
+            "types": "./dist/core/scene/scene-process/service/prefab.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/component": {
+            "types": "./dist/core/scene/scene-process/service/prefab/component.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/component.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/node": {
+            "types": "./dist/core/scene/scene-process/service/prefab/node.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/node.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/prefab-editor-utils": {
+            "types": "./dist/core/scene/scene-process/service/prefab/prefab-editor-utils.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/prefab-editor-utils.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/prefab-undo": {
+            "types": "./dist/core/scene/scene-process/service/prefab/prefab-undo.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/prefab-undo.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/soft-reload": {
+            "types": "./dist/core/scene/scene-process/service/prefab/soft-reload.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/soft-reload.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/utils": {
+            "types": "./dist/core/scene/scene-process/service/prefab/utils.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/utils.js"
+        },
+        "./host/core/scene/scene-process/service/prefab/validate-params": {
+            "types": "./dist/core/scene/scene-process/service/prefab/validate-params.d.ts",
+            "default": "./dist/core/scene/scene-process/service/prefab/validate-params.js"
+        },
+        "./host/core/scene/scene-process/service/reference-image": {
+            "types": "./dist/core/scene/scene-process/service/reference-image.d.ts",
+            "default": "./dist/core/scene/scene-process/service/reference-image.js"
+        },
+        "./host/core/scene/scene-process/service/scene/utils": {
+            "types": "./dist/core/scene/scene-process/service/scene/utils.d.ts",
+            "default": "./dist/core/scene/scene-process/service/scene/utils.js"
+        },
+        "./host/core/scene/scene-process/service/service-manager": {
+            "types": "./dist/core/scene/scene-process/service/service-manager.d.ts",
+            "default": "./dist/core/scene/scene-process/service/service-manager.js"
+        },
+        "./host/core/scene/scene-process/service/undo": {
+            "types": "./dist/core/scene/scene-process/service/undo.d.ts",
+            "default": "./dist/core/scene/scene-process/service/undo.js"
+        },
+        "./host/core/scene/scene-process/service/undo/scene-undo-manager": {
+            "types": "./dist/core/scene/scene-process/service/undo/scene-undo-manager.d.ts",
+            "default": "./dist/core/scene/scene-process/service/undo/scene-undo-manager.js"
+        },
+        "./host/core/scene/scene-process/service/utils/asset-reload": {
+            "types": "./dist/core/scene/scene-process/service/utils/asset-reload.d.ts",
+            "default": "./dist/core/scene/scene-process/service/utils/asset-reload.js"
+        },
+        "./host/core/scene/scene-process/service/utils/editor-node": {
+            "types": "./dist/core/scene/scene-process/service/utils/editor-node.d.ts",
+            "default": "./dist/core/scene/scene-process/service/utils/editor-node.js"
+        },
+        "./host/core/scene/scene-process/service/utils/state-machine/finite-state-machine": {
+            "types": "./dist/core/scene/scene-process/service/utils/state-machine/finite-state-machine.d.ts",
+            "default": "./dist/core/scene/scene-process/service/utils/state-machine/finite-state-machine.js"
+        },
+        "./host/core/scene/scene-process/service/utils/state-machine/state-interface": {
+            "types": "./dist/core/scene/scene-process/service/utils/state-machine/state-interface.d.ts",
+            "default": "./dist/core/scene/scene-process/service/utils/state-machine/state-interface.js"
+        },
+        "./host/core/scene/session/client": {
+            "types": "./dist/core/scene/session/client.d.ts",
+            "default": "./dist/core/scene/session/client.js"
+        },
+        "./host/core/scene/session/coordinator": {
+            "types": "./dist/core/scene/session/coordinator.d.ts",
+            "default": "./dist/core/scene/session/coordinator.js"
+        },
+        "./host/core/scene/session/methods": {
+            "types": "./dist/core/scene/session/methods.d.ts",
+            "default": "./dist/core/scene/session/methods.js"
+        },
+        "./host/core/scene/session/protocol": {
+            "types": "./dist/core/scene/session/protocol.d.ts",
+            "default": "./dist/core/scene/session/protocol.js"
+        },
+        "./host/core/scene/session/server": {
+            "types": "./dist/core/scene/session/server.d.ts",
+            "default": "./dist/core/scene/session/server.js"
+        },
+        "./host/core/scripting/index": {
+            "types": "./dist/core/scripting/index.d.ts",
+            "default": "./dist/core/scripting/index.js"
+        },
+        "./host/global": {
+            "types": "./dist/global.d.ts",
+            "default": "./dist/global.js"
+        },
+        "./host/lib/project/project": {
+            "types": "./dist/lib/project/project.d.ts",
+            "default": "./dist/lib/project/project.js"
+        },
+        "./host/lib/simulator/simulator": {
+            "types": "./dist/lib/simulator/simulator.d.ts",
+            "default": "./dist/lib/simulator/simulator.js"
+        },
+        "./host/server/index": {
+            "types": "./dist/server/index.d.ts",
+            "default": "./dist/server/index.js"
+        },
+        "./host/server/interfaces": {
+            "types": "./dist/server/interfaces.d.ts",
+            "default": "./dist/server/interfaces.js"
+        },
+        "./host/server/middleware/index": {
+            "types": "./dist/server/middleware/index.d.ts",
+            "default": "./dist/server/middleware/index.js"
+        },
+        "./host/server/socket": {
+            "types": "./dist/server/socket.d.ts",
+            "default": "./dist/server/socket.js"
+        }
     }
 }

@@ -1,3 +1,5 @@
+import { backendView } from './core/backend-view';
+import { queryRegisteredService } from './core/decorator';
 /** Scene-side reference-image runtime: it renders ephemeral editor nodes from main-process authority state. */
 import { Canvas, CCObject, Color, Layers, Node, Sprite, SpriteFrame, UITransform } from 'cc';
 import {
@@ -302,7 +304,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
 
     private ensureNodes(): void {
         if (this.sprite && this.imageNode && this.canvasNode) return;
-        const background = Service.Gizmo.backgroundNode;
+        const background = queryRegisteredService<any>('Gizmo')?.backgroundNode ?? backendView.getBackground();
         if (!background) throw new Error('Editor gizmo background is unavailable.');
         const flags = CCObject.Flags.DontSave | CCObject.Flags.HideInHierarchy;
         const layer = Layers.Enum.GIZMOS | Layers.Enum.UI_2D | Layers.Enum.IGNORE_RAYCAST;
@@ -528,7 +530,7 @@ export class ReferenceImageService extends BaseService<IReferenceImageEvents> im
 
     private is2D(): boolean {
         try {
-            return Boolean(Service.Gizmo.is2D);
+            return Boolean(queryRegisteredService<any>('Gizmo')?.is2D ?? backendView.is2D);
         } catch {
             return false;
         }

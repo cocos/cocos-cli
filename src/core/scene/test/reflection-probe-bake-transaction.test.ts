@@ -65,8 +65,9 @@ jest.mock('../scene-process/rpc', () => ({
     },
 }));
 
-jest.mock('../scene-process/service/preview/asset-reload', () => ({
+jest.mock('../scene-process/service/utils/asset-reload', () => ({
     removePreviewAssetCache: jest.fn(),
+    refreshAssetBundles: jest.fn().mockResolvedValue(undefined),
 }));
 
 import { register } from '../scene-process/service/core';
@@ -265,6 +266,7 @@ describe('ReflectionProbeBakeHost output ownership', () => {
 });
 
 describe('ReflectionProbeService bake output transaction', () => {
+    const mockSave = jest.fn();
     let applyError: Error | undefined;
     let service: any;
 
@@ -296,6 +298,18 @@ describe('ReflectionProbeService bake output transaction', () => {
         });
 
         service = new ReflectionProbeService();
+        service.capturePixels = jest.fn().mockResolvedValue(CAPTURE_RESULT);
+        service.applyBakedCubemap = jest.fn(async () => { if (applyError) throw applyError; return { applied: true, saved: true }; });
+        service._queryCurrentSceneUrl = jest.fn().mockResolvedValue('db://assets/' + SCENE_NAME + '.scene');
+        @register('Editor')
+        class EditorStub {
+            getEditorSession() { return { uuid: 'scene-a', generation: 1 }; }
+            isCurrentEditorSession() { return true; }
+            save = mockSave;
+        }
+        @register('Undo')
+        class UndoStub { markSaved = jest.fn(); }
+        mockSave.mockReset().mockResolvedValue(undefined);
         jest.spyOn(service, 'broadcast').mockImplementation(() => undefined);
     });
 
@@ -303,13 +317,12 @@ describe('ReflectionProbeService bake output transaction', () => {
         jest.restoreAllMocks();
     });
 
-    it('validates remote task query and cancellation against the WebGL source', async () => {
+    it('validates local task query and cancellation against the Worker scene', async () => {
         const source = { runtimeId: 'renderer-runtime', sceneUuid: 'scene-a', generation: 7 };
         let active = source;
+        service._getSceneIdentity = () => active;
         mockRpcRequest.mockImplementation(async (module: string, method: string) => {
-            if (module === 'reflectionProbeRenderer' && method === 'listActive') {
-                return { rendererId: 'r', sceneUrl: 'db://assets/a.scene', source: active, probes: [] };
-            }
+
             if (module === 'reflectionProbeBakeHost' && method === 'cancel') { return; }
             throw new Error(`Unexpected RPC ${module}.${method}`);
         });
@@ -403,13 +416,13 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect((await service.getTaskState()).status).toBe('cancelled');
         expect((await service.getTaskState()).logs.some((entry: { level: string }) => entry.level === 'error')).toBe(false);
         expect((await service.getTaskState()).logs.some((entry: { message: string }) => entry.message === 'Reflection probe cancelled: Probe')).toBe(true);
-        expect(mockRpcRequest).not.toHaveBeenCalledWith('reflectionProbeRenderer', 'apply', expect.anything());
+        expect(service.applyBakedCubemap).not.toHaveBeenCalled();
     });
 
     it('accepts a batch immediately and appends distinct probes without replaying the current one', async () => {
         let finish!: () => void;
         const probes = [{ nodePath: 'A', componentUuid: 'a' }, { nodePath: 'B', componentUuid: 'b' }];
-        mockRpcRequest.mockResolvedValue({ rendererId: 'r', sceneUrl: 'db://assets/a.scene', probes });
+        service.listBakeableProbes = jest.fn(() => (probes));
         service._bakeOne = jest.fn(async (_options: unknown, selected: { componentUuid: string }) => {
             service._task.current = probes.find((probe) => probe.componentUuid === selected.componentUuid);
             if (selected.componentUuid === 'a') { await new Promise<void>((resolve) => { finish = resolve; }); }
@@ -439,7 +452,7 @@ describe('ReflectionProbeService bake output transaction', () => {
 
     it('propagates a Node host preparation failure without finalizing a transaction', async () => {
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
-            if (serviceName === 'reflectionProbeRenderer' && method === 'captureActive') return CAPTURE_RESULT;
+
             if (serviceName === 'reflectionProbeBakeHost' && method === 'prepare') throw new Error('cmft failed');
             throw new Error(`Unexpected RPC request: ${serviceName}.${method}`);
         });
@@ -479,17 +492,10 @@ describe('ReflectionProbeService bake output transaction', () => {
             { nodePath: 'Probe', componentUuid: 'Comp.1' },
             { nodePath: 'Probe', componentUuid: 'Comp.2' },
         ];
+        service.listBakeableProbes = jest.fn(() => probes);
         mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
-            if (serviceName === 'reflectionProbeRenderer' && method === 'listActive') {
-                return {
-                    rendererId: 'renderer-1',
-                    sceneUrl: `db://assets/${SCENE_NAME}.scene`,
-                    probes,
-                };
-            }
-            if (serviceName === 'reflectionProbeRenderer' && method === 'save') {
-                return undefined;
-            }
+
+
             throw new Error(`Unexpected RPC request: ${serviceName}.${method}`);
         });
         const successfulResult = {
@@ -516,16 +522,12 @@ describe('ReflectionProbeService bake output transaction', () => {
         expect(service._bakeOne).toHaveBeenNthCalledWith(1, expect.objectContaining({
             nodePath: 'Probe',
             saveScene: false,
-        }), expect.objectContaining({ rendererId: 'renderer-1', componentUuid: 'Comp.1' }));
+        }), expect.objectContaining({ rendererId: '', componentUuid: 'Comp.1' }));
         expect(service._bakeOne).toHaveBeenNthCalledWith(2, expect.objectContaining({
             nodePath: 'Probe',
             saveScene: false,
-        }), expect.objectContaining({ rendererId: 'renderer-1', componentUuid: 'Comp.2' }));
-        expect(mockRpcRequest).toHaveBeenCalledWith('reflectionProbeRenderer', 'save', [
-            'renderer-1',
-            `db://assets/${SCENE_NAME}.scene`,
-            expect.any(Number), undefined,
-        ]);
+        }), expect.objectContaining({ rendererId: '', componentUuid: 'Comp.2' }));
+        expect(mockSave).toHaveBeenCalledTimes(1);
     });
 
     it('rejects empty or ambiguous UUID selections before any RPC', async () => {
@@ -536,10 +538,10 @@ describe('ReflectionProbeService bake output transaction', () => {
     });
 
     it('selects and deduplicates component UUIDs despite duplicate node names', async () => {
-        mockRpcRequest.mockResolvedValue({ rendererId: 'renderer-1', sceneUrl: 'db://assets/a.scene', probes: [
+        service.listBakeableProbes = jest.fn(() => ([
             { nodePath: 'Probe', componentUuid: 'Comp.1' },
             { nodePath: 'Probe', componentUuid: 'Comp.2' },
-        ] });
+        ]));
         service._bakeOne = jest.fn().mockResolvedValue({ componentUuid: 'Comp.2' });
         const result = await service.bakeAll({ componentUuids: ['Comp.2', 'Comp.2', 'disabled-or-missing'], saveScene: false });
         expect(service._bakeOne).toHaveBeenCalledTimes(1);
@@ -549,14 +551,10 @@ describe('ReflectionProbeService bake output transaction', () => {
     });
 
     it('stops a probe batch when its selected renderer is no longer available', async () => {
-        mockRpcRequest.mockResolvedValue({
-            rendererId: 'renderer-1',
-            sceneUrl: `db://assets/${SCENE_NAME}.scene`,
-            probes: [
+        service.listBakeableProbes = jest.fn(() => ([
                 { nodePath: 'Probe A', componentUuid: 'Comp.1' },
                 { nodePath: 'Probe B', componentUuid: 'Comp.2' },
-            ],
-        });
+            ]));
         service._bakeOne = jest.fn().mockRejectedValue(
             new Error('The WebGL scene renderer selected for the reflection-probe batch is no longer available.'),
         );
@@ -588,10 +586,7 @@ describe('ReflectionProbeService bake output transaction', () => {
         const sceneUrl = `db://assets/${SCENE_NAME}.scene`;
         const convolutionUrl = `db://assets/${SCENE_NAME}/reflectionProbe_0_convolution`;
         const removed: string[] = [];
-        mockRpcRequest.mockImplementation(async (serviceName: string, method: string, args: unknown[]) => {
-            if (serviceName === 'reflectionProbeRenderer' && method === 'clearActive') {
-                expect(args).toEqual([true, expect.any(Number), undefined]);
-                return {
+        service.clearBakedCubemaps = jest.fn().mockResolvedValue({
                     sceneUrl,
                     sceneName: SCENE_NAME,
                     probes: [{
@@ -602,8 +597,9 @@ describe('ReflectionProbeService bake output transaction', () => {
                     }],
                     clearedCount: 1,
                     saved: true,
-                };
-            }
+                });
+        mockRpcRequest.mockImplementation(async (serviceName: string, method: string, args: unknown[]) => {
+
             if (serviceName === 'assetManager' && method === 'queryAssetInfo') {
                 const urlOrUuid = args[0];
                 if (urlOrUuid === 'cube') return { uuid: 'cube', url: OUTPUT_URL };
@@ -632,9 +628,7 @@ describe('ReflectionProbeService bake output transaction', () => {
 
     it('clears but does not delete a user-owned cubemap', async () => {
         const sceneUrl = `db://assets/${SCENE_NAME}.scene`;
-        mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
-            if (serviceName === 'reflectionProbeRenderer' && method === 'clearActive') {
-                return {
+        service.clearBakedCubemaps = jest.fn().mockResolvedValue({
                     sceneUrl,
                     sceneName: SCENE_NAME,
                     probes: [{
@@ -645,8 +639,9 @@ describe('ReflectionProbeService bake output transaction', () => {
                     }],
                     clearedCount: 1,
                     saved: true,
-                };
-            }
+                });
+        mockRpcRequest.mockImplementation(async (serviceName: string, method: string) => {
+
             if (serviceName === 'assetManager' && method === 'queryAssetInfo') {
                 return { uuid: 'manual', url: 'db://assets/Environment/manual.hdr' };
             }

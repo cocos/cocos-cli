@@ -114,6 +114,7 @@ async function buildNativeSimulator(enginePath) {
     }
 
     console.log(`Native simulator executable prepared at: ${executablePath}`);
+    await require('./simulator-artifact').writeArtifactManifest(releaseDir, engineDir, 'native');
 }
 
 if (require.main === module) {

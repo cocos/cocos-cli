@@ -115,7 +115,7 @@ export class ServiceManager {
     /**
      * 遍历所有已注册的 Service，依次调用 init()（跳过 Engine，它需要单独初始化）
      */
-    async initAllServices() {
+    async initAllServices(options: { strict?: boolean } = {}) {
         for (const service of getServiceAll()) {
             const name = service.constructor.name;
             if (name === 'EngineService') continue;
@@ -123,10 +123,18 @@ export class ServiceManager {
                 try {
                     await service.init();
                 } catch (e) {
+                    if (options.strict) throw new Error(`Scene service initialization failed: ${name}`, { cause: e });
                     console.warn(`[ServiceManager] init failed on ${name}:`, e);
                 }
             }
         }
+    }
+
+    /** Detach this runtime's event forwarding before its Webview is destroyed. */
+    dispose() {
+        this.unregisterAutoForwardEvents();
+        this.initialized = false;
+        this.serverUrl = '';
     }
 
     private registerAutoForwardEvents() {

@@ -7,10 +7,8 @@ import { AssetProxy } from './proxy/asset-proxy';
 import { EngineProxy } from './proxy/engine-proxy';
 import { PrefabProxy } from './proxy/prefab-proxy';
 import { ReflectionProbeProxy } from './proxy/reflection-probe-proxy';
-import { reflectionProbeRenderer } from './reflection-probe-renderer';
 import { ReferenceImageProxy } from './proxy/reference-image-proxy';
 import { LightmapBakeProxy, LightProbeBakeProxy } from './proxy/lightfx-bake-proxy';
-import { PreviewProxy } from './proxy/preview-proxy';
 import { ParticleProxy } from './proxy/particle-proxy';
 
 import { assetManager } from '../../assets';
@@ -27,7 +25,6 @@ export interface IMainModule {
     'programming': typeof scriptManager;
     'sceneConfigInstance': typeof sceneConfigInstance;
     'i18n': typeof i18n;
-    'reflectionProbeRenderer': typeof reflectionProbeRenderer;
     'referenceImageFiles': typeof referenceImageFiles;
     'referenceImageStore': typeof referenceImageStore;
     'lightFXBakeHost': typeof lightFXBakeHost;
@@ -43,7 +40,6 @@ export const Scene = {
     ReferenceImage: ReferenceImageProxy,
     LightProbeBake: LightProbeBakeProxy,
     LightmapBake: LightmapBakeProxy,
-    Preview: PreviewProxy,
     // 粒子系统相关接口（play/pause/stop/restart/setPlaySpeed/queryPlayInfo）
     Particle: ParticleProxy,
     // 节点相关的接口
