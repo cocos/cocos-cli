@@ -7,6 +7,8 @@ import type {
 } from '../../core/scene/main-process/rpc';
 import type { MotionPreviewDesc } from '../../core/scene/common/preview';
 
+export { BUILTIN_NODE_CREATE_TARGETS, type BuiltinNodeCreateEntryId } from '../../core/scene/common/node-create-targets';
+
 export type {
     ISceneCommandProvider,
     SceneCommandProviderRegistration,
