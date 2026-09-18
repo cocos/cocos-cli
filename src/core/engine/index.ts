@@ -4,6 +4,8 @@ import { EngineInfo } from './@types/public';
 import type { IEngineConfig, IEngineProjectConfig, IInitEngineInfo, IJointTextureLayoutPreviewResult } from './@types/config';
 import type { CategoryDetail, IFeatureItem, IModuleConfig, IModuleItem, ModuleRenderConfig } from './@types/modules';
 import { join } from 'path';
+import { GlobalPaths } from '../../global';
+import { selectEnginePath } from './selection';
 import { cloneDeep, merge } from 'lodash';
 import { configurationRegistry, IBaseConfiguration } from '../configuration';
 import { assetManager } from '../assets';
@@ -390,12 +392,19 @@ class EngineManager implements IEngine {
      * TODO 初始化配置等
      */
     async init(enginePath: string) {
+        const selection = selectEnginePath(enginePath);
+        enginePath = selection.path;
         if (this._init) {
             return this;
         }
-        this._info.typescript.builtin = this._info.typescript.path = enginePath;
-        this._info.native.builtin = this._info.native.path = join(enginePath, 'native');
-        this._info.version = await import(join(enginePath, 'package.json')).then((pkg) => pkg.version);
+        this._info.typescript.builtin = join(GlobalPaths.workspace, 'packages', 'engine');
+        this._info.typescript.path = enginePath;
+        this._info.typescript.type = enginePath === this._info.typescript.builtin ? 'builtin' : 'custom';
+        this._info.native.builtin = join(this._info.typescript.builtin, 'native');
+        this._info.native.path = join(enginePath, 'native');
+        this._info.native.type = this._info.typescript.type;
+        this._info.version = selection.version;
+        this._info.revision = selection.revision;
         this._info.tmpDir = join(enginePath, '.temp');
         this._loadEngineI18n(enginePath);
         this.initModuleConfigCache(this._info.typescript.path);
@@ -471,12 +480,16 @@ class EngineManager implements IEngine {
      * @param onAfterGameInit - 在初始化之后需要做的工作
      */
     async initEngine(info: IInitEngineInfo, onBeforeGameInit?: () => Promise<void>, onAfterGameInit?: () => Promise<void>) {
+        const { checkEngineCompatibility, assertRuntimeInterfaces, compatibilityError, readPolicy } = require('../../../workflow/engine-compatibility');
+        const selection = selectEnginePath(this._info.typescript.path);
+        checkEngineCompatibility(selection, GlobalPaths.workspace, 'runtime');
         const { default: preload } = await import('cc/preload');
         await this.importEditorExtensions();
         await preload({
             engineRoot: this._info.typescript.path,
             engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
             writablePath: info.writablePath,
+            validateEngine: (engine: unknown) => assertRuntimeInterfaces(engine, selection, GlobalPaths.workspace),
             requiredModules: [
                 'cc',
                 'cc/editor/populate-internal-constants',
@@ -493,6 +506,9 @@ class EngineManager implements IEngine {
                 'cc/editor/exotic-animation',
                 'cc/editor/color-utils',
             ]
+        }).catch((error: unknown) => {
+            if (error instanceof Error && error.message.startsWith('[Engine compatibility]')) throw error;
+            throw compatibilityError(selection, readPolicy(GlobalPaths.workspace), `Engine preload failed: ${error instanceof Error ? error.message : String(error)}`);
         });
         await this.initEditorExtensions();
 
@@ -689,9 +705,9 @@ class EngineManager implements IEngine {
     }
 
     async querySortingLayerBuiltin() {
-        const { SortingLayers } = await import('cc');
-
-        return SortingLayers.getBuiltinLayers();
+        const engine = await import('cc');
+        const { queryOptionalSortingLayers } = require('../../../workflow/engine-compatibility');
+        return queryOptionalSortingLayers(engine) as ReadonlyArray<{ id: number; name: string; value: number }>;
     }
 }
 
@@ -714,4 +730,9 @@ export async function initEngine(enginePath: string, projectPath: string, server
         nativeBase: serverURL ?? join(projectPath, 'library'),
         writablePath: join(projectPath, 'temp'),
     });
+    const { getEngineSelection } = require('../../global');
+    const { recordInitialization } = require('../../../workflow/engine-diagnostics');
+    const selection = getEngineSelection();
+    const record = recordInitialization(GlobalPaths.workspace, projectPath, selection);
+    console.log(`[Engine SDK] CLI ${record.cli.version}; Engine ${selection.version}; path=${selection.path}; revision=${selection.revision ?? 'unrecorded'}`);
 }
