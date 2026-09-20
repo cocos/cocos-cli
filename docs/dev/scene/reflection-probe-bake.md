@@ -11,6 +11,12 @@ CLI 通过 MCP 工具 `scene-bake-reflection-probe` 烘焙立方体反射探针�
 
 Node 场景进程使用 EmptyDevice，不能进行有效的 GPU 捕获。因此烘焙会将捕获请求转发给浏览器中的 WebGL 场景渲染器。没有可用渲染器时会明确失败，不会回退生成黑图；六面像素全部为空时也会停止并保留已有资源。
 
+## 场景预览球
+
+选中已启用的 Cube 类型反射探针时，CLI Gizmo 在探针世界坐标中心显示预览球，使用 Creator 的内置 Sphere 和 `builtin-reflection-probe-preview` 材质，通过组件的 `previewSphere` 绑定当前 Cubemap。重烘焙或清理沿用引擎的预览更新逻辑；取消选中、禁用组件或切到 Planar 时隐藏并解绑，销毁 Gizmo 时释放辅助节点和自建材质。
+
+预览球属于编辑器 Gizmo，不加入用户探针节点的子树，不在层级面板显示、不保存，也不参与反射探针烘焙。此处只补 Cube 预览球，不增加 Planar 预览平面或 Pink 面板开关。
+
 ## MCP 调用
 
 工具名：`scene-bake-reflection-probe`

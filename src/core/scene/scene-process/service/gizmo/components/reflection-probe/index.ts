@@ -1,6 +1,6 @@
 'use strict';
 
-import { Color, js, Quat, ReflectionProbe, Vec3 } from 'cc';
+import { assetManager, CCObject, Color, instantiate, js, Layers, Material, MeshRenderer, Node, Prefab, Quat, ReflectionProbe, ReflectionProbeType, renderer, Vec3 } from 'cc';
 import GizmoBase from '../../base/gizmo-base';
 import IconGizmoBase from '../../base/gizmo-icon';
 import BoxController from '../../controller/box';
@@ -8,6 +8,7 @@ import { registerGizmo } from '../../gizmo-defines';
 
 const tempVec3 = new Vec3();
 const tempQuat_a = new Quat();
+const SPHERE_PREFAB = '655c9519-1a37-472b-bae6-29fefac0b550';
 
 /**
  * 反射探针（ReflectionProbe）选中 Gizmo：
@@ -20,6 +21,12 @@ class ReflectionProbeComponentGizmo extends GizmoBase<ReflectionProbe> {
     private _size: Vec3 = new Vec3();
     private _scale: Vec3 = new Vec3();
     private _propPath: string | null = null;
+    private _sphere: Node | null = null;
+    private _previewMaterial: Material | null = null;
+    private _previewTarget: ReflectionProbe | null = null;
+    private _previewVisible = false;
+    private _loadingPreview = false;
+    private _destroyed = false;
 
     init() {
         this.createController();
@@ -27,12 +34,100 @@ class ReflectionProbeComponentGizmo extends GizmoBase<ReflectionProbe> {
     }
 
     onShow() {
+        this._previewVisible = true;
         this._controller.show();
         this.updateControllerData();
+        this.loadPreviewSphere();
     }
 
     onHide() {
+        this._previewVisible = false;
         this._controller.hide();
+        this.updatePreviewSphere();
+    }
+
+    onDestroy() {
+        this._destroyed = true;
+        this._previewVisible = false;
+        this.updatePreviewSphere();
+        this._sphere?.destroy();
+        this._sphere = null;
+        this._previewMaterial?.destroy();
+        this._previewMaterial = null;
+    }
+
+    private loadPreviewSphere() {
+        if (this._sphere || this._loadingPreview || this._destroyed) return;
+        this._loadingPreview = true;
+        assetManager.loadAny(SPHERE_PREFAB, (error, prefab) => {
+            this._loadingPreview = false;
+            if (this._destroyed) return;
+            if (error || !(prefab instanceof Prefab)) {
+                console.warn('[ReflectionProbe Gizmo] Failed to load preview sphere:', error ?? 'Invalid sphere prefab');
+                return;
+            }
+            const root = this.getGizmoRoot();
+            if (!root?.isValid) return;
+            const sphere = instantiate(prefab);
+            sphere.active = false;
+            const meshRenderer = sphere.getComponent(MeshRenderer);
+            if (!meshRenderer) {
+                sphere.destroy();
+                return;
+            }
+            const material = new Material();
+            try {
+                material.initialize({ effectName: 'builtin-reflection-probe-preview', technique: 0 });
+                meshRenderer.setSharedMaterial(material, 0);
+                meshRenderer.bakeSettings.reflectionProbe = ReflectionProbeType.BAKED_CUBEMAP;
+                meshRenderer.bakeSettings.bakeToReflectionProbe = false;
+                meshRenderer.bakeSettings.bakeable = false;
+                const markEditorOnly = (node: Node) => {
+                    node.layer = Layers.Enum.IGNORE_RAYCAST | Layers.Enum.GIZMOS;
+                    node._objFlags |= CCObject.Flags.DontSave | CCObject.Flags.HideInHierarchy;
+                    node.children.forEach(markEditorOnly);
+                };
+                markEditorOnly(sphere);
+                sphere.name = 'Reflection Probe Sphere';
+                sphere.parent = root;
+                this._sphere = sphere;
+                this._previewMaterial = material;
+                this.updatePreviewSphere();
+            } catch (error) {
+                this._sphere = null;
+                this._previewMaterial = null;
+                sphere.destroy();
+                material.destroy();
+                console.warn('[ReflectionProbe Gizmo] Failed to create preview sphere:', error);
+                return;
+            }
+            // Lazy access follows the other gizmos and avoids service registration cycles.
+            const { Service } = require('../../../core/decorator');
+            void Service.Engine.repaintInEditMode();
+        });
+    }
+
+    private updatePreviewSphere() {
+        const target = this.target;
+        const visible = this._previewVisible && !this._destroyed && target?.isValid
+            && target.enabledInHierarchy && target.probeType === renderer.scene.ProbeType.CUBE;
+        if (this._previewTarget && (!visible || this._previewTarget !== target)) {
+            if (this._previewTarget.isValid && this._previewTarget.previewSphere === this._sphere) {
+                this._previewTarget.previewSphere = null;
+            }
+            this._previewTarget = null;
+        }
+        if (!this._sphere) return;
+        this._sphere.active = !!visible;
+        if (visible && target) {
+            this._sphere.setWorldPosition(target.node.worldPosition);
+            if (target.previewSphere !== this._sphere) target.previewSphere = this._sphere;
+            this._previewTarget = target;
+        }
+    }
+
+    onUpdate() {
+        this.updatePreviewSphere();
     }
 
     createController() {
@@ -82,6 +177,7 @@ class ReflectionProbeComponentGizmo extends GizmoBase<ReflectionProbe> {
     }
 
     updateControllerData() {
+        this.updatePreviewSphere();
         if (!this._isInitialized || this.target == null) return;
         if (this.target instanceof ReflectionProbe) {
             const node = this.target.node;
@@ -121,7 +217,7 @@ class ReflectionProbeIconGizmo extends IconGizmoBase<ReflectionProbe> {
 }
 
 export const name = js.getClassName(ReflectionProbe);
-// 仅选中 ReflectionProbe 节点时显示影响盒（对齐 Creator 的选中态；图标/预览球后续再加）。
+// 对齐 Creator：选中时显示影响盒及 Cube 预览球，未选中时显示图标。
 export const SelectGizmo = ReflectionProbeComponentGizmo;
 export const IconGizmo = ReflectionProbeIconGizmo;
 export const PersistentGizmo = null;
