@@ -102,6 +102,7 @@ export const NodeProxy: INodeProxy = {
             path: params?.path ?? '',
             includeChildren: params?.includeChildren ?? false,
             includeComponents: params?.includeComponents ?? false,
+            includeLightProbeData: params?.includeLightProbeData,
         }]);
         if (!result) return null;
         return DumpConverter.toNode(result, { path: params?.path });
