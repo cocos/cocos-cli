@@ -153,7 +153,9 @@ class SceneUtil {
     generateNodeDump(node: cc.Node, options?: INodeDumpOptions): INode | IScene {
         const includeChildren = options?.includeChildren ?? true;
         const includeComponents = options?.includeComponents ?? true;
-        const d = dumpUtil.dumpNode(node) as any;
+        // Apply projection before encoding; deleting an already encoded component
+        // does not avoid traversing large probe arrays.
+        const d = dumpUtil.dumpNode(node, options) as any;
 
         d.__path__ = EditorExtends.Node.getNodePath(node);
         const prefab = d.__prefab__ ?? encodePrefab(node as any);

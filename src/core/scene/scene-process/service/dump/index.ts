@@ -5,7 +5,7 @@ import get from 'lodash/get';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeComponent, encodeScene, encodeNode } from './encode';
-import { IComponent, INode, IScene } from '../../../common';
+import { IComponent, INode, IScene, type INodeDumpOptions } from '../../../common';
 import { restoreParticleSystemSnapshot } from './particle-snapshot';
 import {
     NODE_SNAPSHOT_RESTORE_PROPERTY_PATHS,
@@ -37,12 +37,12 @@ class DumpUtil {
      * 生成一个 node 的 dump 数据
      * @param {*} node
      */
-    dumpNode(node: Node, options: { includeComponents?: boolean } = {}): INode | IScene | null {
+    dumpNode(node: Node, options: INodeDumpOptions = {}): INode | IScene | null {
         if (!node) {
             return null;
         }
         if (node instanceof Scene) {
-            return encodeScene(node);
+            return encodeScene(node, options);
         }
         return encodeNode(node, options);
 
