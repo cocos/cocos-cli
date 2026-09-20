@@ -19,6 +19,21 @@ jest.mock('../scene-process/service/core/decorator', () => {
 import { EngineService } from '../scene-process/service/engine';
 import { ServiceEvents } from '../scene-process/service/core/global-events';
 import { queryRegisteredService } from '../scene-process/service/core/decorator';
+import { director } from 'cc';
+
+describe('Engine repaint recovery', () => {
+    it('accepts repaint requests after a failed frame without scheduling recursive repaint', async () => {
+        const service = new EngineService();
+        (director.tick as jest.Mock).mockImplementationOnce(() => {
+            void service.repaintInEditMode();
+            expect((service as any)._shouldRepaintInEM).toBe(false);
+            throw new Error('texture upload failed');
+        });
+        expect(() => service.tickInEditMode(0)).toThrow('texture upload failed');
+        await service.repaintInEditMode();
+        expect((service as any)._shouldRepaintInEM).toBe(true);
+    });
+});
 
 type Group = { index: number; name: string };
 

@@ -72,6 +72,33 @@ describe('SceneWorker', () => {
         expect(mockDisposeModuleMessages).toHaveBeenCalledTimes(2);
     });
 
+    it('retains the worker when forced shutdown cannot confirm exit', async () => {
+        jest.useFakeTimers();
+        try {
+            const worker = new SceneWorker();
+            const process = new MockChildProcess();
+            (worker as any)._process = process;
+            const stopped = worker.stop();
+            jest.advanceTimersByTime(10000);
+            expect(process.kill).toHaveBeenCalledWith('SIGTERM');
+            jest.advanceTimersByTime(5000);
+            await expect(stopped).resolves.toBe(false);
+            expect((worker as any)._process).toBe(process);
+        } finally { jest.useRealTimers(); }
+    });
+
+    it('waits for confirmed exit after a synchronous send failure', async () => {
+        const worker = new SceneWorker();
+        const process = new MockChildProcess();
+        process.send.mockImplementation(() => { throw createEpipeError(); });
+        (worker as any)._process = process;
+        const stopped = worker.stop();
+        expect(process.kill).toHaveBeenCalledWith('SIGTERM');
+        expect((worker as any)._process).toBe(process);
+        process.emit('exit', 0, null);
+        await expect(stopped).resolves.toBe(true);
+    });
+
     it('waits for module message listeners before resolving startup', async () => {
         const worker = new SceneWorker();
         const process = new MockChildProcess();

@@ -36,8 +36,7 @@ import { BaseService, register, Service } from './core';
 import type { IEditorSessionService } from './core/editor-session';
 import { ServiceEvents } from './core/global-events';
 import { Rpc } from '../rpc';
-import { syncSceneEditorBundles } from '../scene-editor-assets';
-import { removePreviewAssetCache } from './preview/asset-reload';
+import { refreshAssetBundles, removePreviewAssetCache } from './utils/asset-reload';
 import { isReflectionProbeTextureCubeImported } from './reflection-probe-import-state';
 
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -138,29 +137,30 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         if (!this._baking) {
             // bakeAll owns errors and terminal state. Acceptance is separate from completion.
             const ready = new Promise<void>((resolve) => { this._taskReady = resolve; });
-            void this.bakeAll(options).catch(() => undefined);
+            // Validation may reject before _runExclusive owns the task; always release acceptance.
+            let acceptanceError: unknown;
+            void this.bakeAll(options).catch(error => { acceptanceError = error; this._taskReady?.(); });
             await ready;
             this._taskReady = undefined;
+            if (acceptanceError) throw acceptanceError;
             return structuredClone(this._task);
         }
         if (this._task.status !== 'baking' || !this._batchProbes || !options.componentUuids) {
             throw new Error('The reflection-probe task cannot accept additional probes right now.');
         }
         const task = this._task;
-        const remote = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
-        const source = options.source ?? (remote ? task.source : this._getSceneIdentity());
-        if (!remote && source) { this.assertSceneIdentity(source); }
+
+        const source = options.source ?? (this._getSceneIdentity());
+        if (source) { this.assertSceneIdentity(source); }
         if (source?.runtimeId !== task.source?.runtimeId || source?.sceneUuid !== task.source?.sceneUuid || source?.generation !== task.source?.generation) {
             throw new Error('Additional probes must belong to the same reflection-probe source scene.');
         }
-        const active: IActiveRendererProbeList = remote
-            ? await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [30_000, source]) as IActiveRendererProbeList
-            : { rendererId: '', sceneUrl: await this._queryCurrentSceneUrl(), source, probes: this.listBakeableProbes() };
+        const active: IActiveRendererProbeList = { rendererId: '', sceneUrl: await this._queryCurrentSceneUrl(), source, probes: this.listBakeableProbes() };
         if (task !== this._task || this._task.status !== 'baking' || !this._batchProbes
             || (this._batchSelection && (active.rendererId !== this._batchSelection.rendererId || active.sceneUrl !== this._batchSelection.sceneUrl))) {
             throw new Error('The reflection-probe task changed before the additional probes could be queued.');
         }
-        if (!remote && source) { this.assertSceneIdentity(source); }
+        if (source) { this.assertSceneIdentity(source); }
         const ids = new Set(options.componentUuids.map((uuid) => uuid.trim()));
         const additions = active.probes.filter((probe) => ids.has(probe.componentUuid));
         if (!additions.length) { throw new Error('No eligible reflection-probe components were selected.'); }
@@ -235,23 +235,12 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
     private readonly _runtimeId = globalThis.crypto.randomUUID();
 
     public async getSceneIdentity(): Promise<IReflectionProbeSceneIdentity> {
-        if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
-            const active = await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [30_000]) as IActiveRendererProbeList;
-            if (!active.source) { throw new Error('The WebGL renderer does not provide a reflection-probe scene identity.'); }
-            return active.source;
-        }
+
         return this._getSceneIdentity();
     }
 
     private async _validateTaskSource(source: IReflectionProbeSceneIdentity): Promise<void> {
-        if (gfx.deviceManager.gfxDevice.gfxAPI !== gfx.API.UNKNOWN) {
-            this.assertSceneIdentity(source);
-            return;
-        }
-        const active = await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [30_000, source]) as IActiveRendererProbeList;
-        if (!active.source || active.source.runtimeId !== source.runtimeId || active.source.sceneUuid !== source.sceneUuid || active.source.generation !== source.generation) {
-            throw new Error('The WebGL scene changed during reflection-probe bake (stale runtime or generation).');
-        }
+        this.assertSceneIdentity(source);
     }
 
     private _getSceneIdentity(): IReflectionProbeSceneIdentity {
@@ -323,19 +312,11 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         this.broadcast('reflection-probe:bake-start', nodePath);
 
         try {
-            const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
-            const source = options.source ?? selection?.source ?? (remoteRenderer ? undefined : this._getSceneIdentity());
-            if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
+
+            const source = options.source ?? selection?.source ?? (this._getSceneIdentity());
+            if (source) { this.assertSceneIdentity(source); }
             const captureTimeoutMs = Math.max(1, deadline - Date.now());
-            const captured = this._validateCapturedFaces(remoteRenderer
-                ? await Rpc.getInstance().request(
-                    'reflectionProbeRenderer',
-                    selection ? 'captureSelected' : 'captureActive',
-                    selection
-                        ? [selection.rendererId, selection.sceneUrl, nodePath, selection.componentUuid, captureTimeoutMs, source]
-                        : [nodePath, captureTimeoutMs, source],
-                )
-                : await this.capturePixels(nodePath, captureTimeoutMs, selection?.componentUuid, source), remoteRenderer);
+            const captured = this._validateCapturedFaces(await this.capturePixels(nodePath, captureTimeoutMs, selection?.componentUuid, source), false);
             const {
                 sceneUrl,
                 componentUuid,
@@ -353,7 +334,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             ) as IPreparedReflectionProbeBake;
             try {
                 this._assertNotCancelled();
-                if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
+                if (source) { this.assertSceneIdentity(source); }
                 const applyOptions: IApplyBakedCubemapOptions = {
                     source,
                     sceneUrl,
@@ -364,15 +345,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
                     saveScene: options.saveScene !== false,
                     timeoutMs: Math.max(1, deadline - Date.now()),
                 };
-                if (remoteRenderer) {
-                    await Rpc.getInstance().request('reflectionProbeRenderer', 'apply', [
-                        captured.rendererId!,
-                        applyOptions,
-                        applyOptions.timeoutMs,
-                    ]);
-                } else {
-                    await this.applyBakedCubemap(applyOptions);
-                }
+                await this.applyBakedCubemap(applyOptions);
                 await Rpc.getInstance().request('reflectionProbeBakeHost', 'commit', [{
                     operationId: prepared.operationId,
                 }]);
@@ -423,14 +396,10 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             throw new Error('Reflection probe batch timeoutMs must be greater than zero.');
         }
         const deadline = started + timeoutMs;
-        const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
-        const source = options.source ?? (remoteRenderer ? undefined : this._getSceneIdentity());
-        if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
-        const active = remoteRenderer
-            ? await Rpc.getInstance().request('reflectionProbeRenderer', 'listActive', [
-                Math.max(1, deadline - Date.now()), options.source,
-            ]) as IActiveRendererProbeList
-            : {
+
+        const source = options.source ?? (this._getSceneIdentity());
+        if (source) { this.assertSceneIdentity(source); }
+        const active = {
                 rendererId: '', source,
                 sceneUrl: await this._queryCurrentSceneUrl(),
                 probes: this.listBakeableProbes(),
@@ -530,17 +499,9 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             this._batchProbes = undefined;
             if (results.length && options.saveScene !== false) {
                 this._assertBeforeDeadline(deadline, 'batch scene save');
-                if (remoteRenderer) {
-                    await Rpc.getInstance().request('reflectionProbeRenderer', 'save', [
-                        active.rendererId,
-                        active.sceneUrl,
-                        Math.max(1, deadline - Date.now()), active.source,
-                    ]);
-                } else {
-                    if (source) { this.assertSceneIdentity(source); }
-                    await Service.Editor.save({});
-                    Service.Undo.markSaved();
-                }
+                if (source) { this.assertSceneIdentity(source); }
+await Service.Editor.save({});
+Service.Undo.markSaved();
             }
 
             this.broadcast('reflection-probe:bake-all-end', results.length, failures.length);
@@ -574,19 +535,14 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
             throw new Error('deleteAssets requires saveScene so the saved scene cannot retain deleted cubemap references.');
         }
         const deadline = started + timeoutMs;
-        const remoteRenderer = gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN;
+
         const failures: IReflectionProbeClearFailure[] = [];
         const deletedAssetUrls: string[] = [];
-        const source = options.source ?? (remoteRenderer ? undefined : this._getSceneIdentity());
-        if (!remoteRenderer && source) { this.assertSceneIdentity(source); }
-        const sceneUrl = remoteRenderer ? '' : await this._queryCurrentSceneUrl();
+        const source = options.source ?? (this._getSceneIdentity());
+        if (source) { this.assertSceneIdentity(source); }
+        const sceneUrl = await this._queryCurrentSceneUrl();
         this._assertClearBeforeDeadline(deadline, 'scene update');
-        const cleared = remoteRenderer
-            ? await Rpc.getInstance().request('reflectionProbeRenderer', 'clearActive', [
-                options.saveScene !== false,
-                Math.max(1, deadline - Date.now()), source,
-            ]) as IClearBakedCubemapsResult
-            : await this.clearBakedCubemaps({
+        const cleared = await this.clearBakedCubemaps({
                 sceneUrl,
                 source,
                 saveScene: options.saveScene !== false,
@@ -761,7 +717,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         source?: IReflectionProbeSceneIdentity,
     ): Promise<ICapturedFaces> {
         if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
-            throw new Error('Reflection-probe pixels cannot be captured with the headless EmptyDevice.');
+            throw new Error('Reflection-probe baking requires the CLI offscreen WebGL backend. Install/rebuild the gl native dependency and provide a supported graphics driver.');
         }
         const captureSource = source ?? this._getSceneIdentity();
         this.assertSceneIdentity(captureSource);
@@ -796,6 +752,12 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         this.assertSceneIdentity(captureSource);
         const captureToken = this._createCaptureToken(node, component);
         const deadline = Date.now() + timeoutMs;
+        if (!(globalThis as any).WebEnv) {
+            // The forward pipeline runs its probe flow while rendering a camera.
+            // A data-only scene may have none after the editor viewport is removed.
+            const { backendView } = await import('./core/backend-view');
+            await backendView.getCamera();
+        }
         component.probe.captureCubemap();
         await this._waitForCapture(component.probe, deadline);
         this.assertSceneIdentity(captureSource);
@@ -821,9 +783,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
     /** Applies an imported TextureCube to the live WebGL scene that captured it. */
     public async applyBakedCubemap(options: IApplyBakedCubemapOptions): Promise<{ applied: true; saved: boolean }> {
-        if (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN) {
-            throw new Error('A reflection-probe cubemap can only be applied by a WebGL scene renderer.');
-        }
+
         if (!options?.sceneUrl || !options.nodePath || !options.componentUuid
             || !options.cubemapUuid || !options.captureToken) {
             throw new Error('Invalid reflection-probe apply request.');
@@ -835,7 +795,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         const deadline = Date.now() + timeoutMs;
         if (options.source) { this.assertSceneIdentity(options.source); }
         await this._assertCurrentScene(options.sceneUrl);
-        await syncSceneEditorBundles(options.serverURL);
+        await refreshAssetBundles(options.serverURL);
         this._assertBeforeDeadline(deadline, 'TextureCube bundle refresh');
         const textureCube = await this._loadTextureCube(options.cubemapUuid, deadline, true);
         if (options.source) { this.assertSceneIdentity(options.source); }
@@ -996,7 +956,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         if (this._baking) {
             throw new Error('A reflection probe bake or clear is already in progress.');
         }
-        const owner = source ?? (gfx.deviceManager.gfxDevice.gfxAPI === gfx.API.UNKNOWN ? undefined : this._getSceneIdentity());
+        const owner = source ?? (this._getSceneIdentity());
         if (owner && gfx.deviceManager.gfxDevice.gfxAPI !== gfx.API.UNKNOWN) { this.assertSceneIdentity(owner); }
         this._baking = true;
         this._cancelRequested = false;
@@ -1058,13 +1018,14 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
         do {
             this._assertNotCancelled();
             this._assertBeforeDeadline(deadline, 'cubemap capture');
-            // Subscribe before requesting a repaint. The browser editor renders
+            // Subscribe before requesting a repaint. The scene backend renders
             // on demand, so subscribing afterwards can miss the only frame and
             // leave the bake waiting for an unrelated future repaint.
             const endFrame = this._waitForEndFrame(deadline);
             await Service.Engine.repaintInEditMode();
             await endFrame;
-        } while (typeof probe.isFinishedRendering === 'function' && !probe.isFinishedRendering());
+        } while (probe.needRender === true
+            || (typeof probe.isFinishedRendering === 'function' && !probe.isFinishedRendering()));
 
         if (!Array.isArray(probe.bakedCubeTextures) || probe.bakedCubeTextures.length !== 6) {
             throw new Error('Reflection probe capture did not produce six render textures.');

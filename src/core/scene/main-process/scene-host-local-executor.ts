@@ -6,7 +6,6 @@ import { sceneConfigInstance } from '../scene-configs';
 import { referenceImageFiles } from './reference-image-files';
 import { referenceImageStore } from './reference-image-store';
 import { lightFXBakeHost } from './lightfx-bake-host';
-import { reflectionProbeRenderer } from './reflection-probe-renderer';
 import { reflectionProbeBakeHost } from './reflection-probe-bake-host';
 
 export interface SceneHostModules {
@@ -17,7 +16,6 @@ export interface SceneHostModules {
     referenceImageFiles: typeof referenceImageFiles;
     referenceImageStore: typeof referenceImageStore;
     lightFXBakeHost: typeof lightFXBakeHost;
-    reflectionProbeRenderer: typeof reflectionProbeRenderer;
     reflectionProbeBakeHost: typeof reflectionProbeBakeHost;
 }
 
@@ -31,7 +29,6 @@ const defaultSceneHostModules: SceneHostModules = {
     referenceImageStore,
     // Native LightFX execution, filesystem staging and Asset DB transactions stay in Node.
     lightFXBakeHost,
-    reflectionProbeRenderer,
     // Filesystem writes, native cmft execution and output transactions must never run in a Webview.
     reflectionProbeBakeHost,
 };

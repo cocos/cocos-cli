@@ -14,6 +14,7 @@ async function execute<T>(operation: () => Promise<T>): Promise<CommonResultType
 }
 
 export class LightFXBakeApi {
+
     @tool('scene-query-light-probe-settings')
     @title('Query light probe settings')
     @description('Read only the seven light-probe panel settings from the active scene, including property types and readonly flags. Does not read baked probe data, modify the scene, or start a bake.')

@@ -55,23 +55,23 @@ export async function listenModuleMessages() {
 
     const onPackBuildEnd = (targetName: string) => {
         if (targetName === 'editor') {
-            void ScriptProxy.investigatePackerDriver();
+            enqueueAssetNotification('script', generation, () => ScriptProxy.investigatePackerDriver());
         }
     };
     const onAssetAdded = (asset: IAsset) => {
         if (isScriptAsset(asset)) {
-            void ScriptProxy.loadScript();
+            enqueueAssetNotification('script', generation, () => ScriptProxy.loadScript());
         }
     };
     const onAssetChanged = (asset: IAsset) => {
         if (isScriptAsset(asset)) {
-            void ScriptProxy.scriptChange();
+            enqueueAssetNotification('script', generation, () => ScriptProxy.scriptChange());
         }
         enqueueAssetNotification(asset.uuid, generation, () => AssetProxy.assetChanged(asset.uuid));
     };
     const onAssetDeleted = (asset: IAsset) => {
         if (isScriptAsset(asset)) {
-            void ScriptProxy.removeScript();
+            enqueueAssetNotification('script', generation, () => ScriptProxy.removeScript());
         }
         enqueueAssetNotification(asset.uuid, generation, () => AssetProxy.assetDeleted(asset.uuid));
     };

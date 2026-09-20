@@ -4,6 +4,12 @@ const broadcast = jest.fn();
 const repaintInEditMode = jest.fn();
 const camera = { is2D: true };
 const gizmo = { is2D: true, backgroundNode: {} };
+jest.mock('../scene-process/service/core/decorator', () => ({
+    queryRegisteredService: (name: string) => name === 'Camera' ? camera : name === 'Gizmo' ? gizmo : null,
+}));
+jest.mock('../scene-process/service/core/backend-view', () => ({
+    backendView: { is2D: true, getBackground: () => ({}) },
+}));
 const editor = {
     getEditorSession: jest.fn(() => ({ uuid: 'scene-a', generation: 1 })),
     isCurrentEditorSession: jest.fn(() => true),

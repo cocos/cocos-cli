@@ -8,7 +8,7 @@ import isEqual from 'lodash/isEqual';
 import { deserialize as deserializeAssetSource } from './asset-handler/utils';
 import type { IAsset } from './@types/protected';
 import type { IAssetInfo } from './@types/public';
-import type { IProperty } from '../scene/@types/public';
+import type { IProperty } from '../base/property';
 import assetOperation from './manager/operation';
 import assetQuery from './manager/query';
 import { serialize as editorSerialize } from '../engine/editor-extends';

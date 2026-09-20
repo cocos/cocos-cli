@@ -20,6 +20,7 @@ jest.mock('../main-process/proxy/script-proxy', () => ({
 }));
 
 import { disposeModuleMessages, listenModuleMessages } from '../main-process/messages';
+import { ScriptProxy } from '../main-process/proxy/script-proxy';
 
 function asset(uuid: string) {
     return { uuid, meta: { importer: 'unknown' } } as any;
@@ -42,6 +43,26 @@ describe('main-process Asset DB notifications', () => {
 
     afterEach(() => {
         disposeModuleMessages();
+    });
+
+    it('handles script RPC rejection and drops pending script work after disposal', async () => {
+        const investigate = ScriptProxy.investigatePackerDriver as jest.Mock;
+        const load = ScriptProxy.loadScript as jest.Mock;
+        let reject!: (error: Error) => void;
+        investigate.mockReturnValueOnce(new Promise<void>((_, fail) => { reject = fail; }));
+        load.mockClear();
+        const report = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            await listenModuleMessages();
+            scriptManager.emit('pack-build-end', 'editor');
+            assetManager.emit('asset-add', { uuid: 'script-id', meta: { importer: 'typescript' } });
+            await flushNotifications();
+            disposeModuleMessages();
+            reject(new Error('RPC connection disposed'));
+            await flushNotifications();
+            expect(report).toHaveBeenCalled();
+            expect(load).not.toHaveBeenCalled();
+        } finally { report.mockRestore(); }
     });
 
     it('does not register a listener after its session has been disposed during module loading', async () => {

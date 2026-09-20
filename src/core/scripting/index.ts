@@ -12,7 +12,7 @@ export const title = 'i18n:builder.tasks.load_script';
 
 let executor: Executor | null = null;
 
-import { GlobalEnv } from '../scene/common/global-env';
+import { GlobalEnv } from '../base/global-env';
 
 const globalEnv = new GlobalEnv();
 

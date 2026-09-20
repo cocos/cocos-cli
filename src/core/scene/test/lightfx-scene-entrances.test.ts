@@ -7,7 +7,7 @@ jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHo
     releaseSceneOperation: jest.fn(async () => undefined),
 } }));
 jest.mock('../scene-process/service/baking/lightfx/settings', () => ({ createDefaultLightFXSettings: jest.fn() }));
-jest.mock('../scene-process/service/preview/asset-reload', () => ({ loadPreviewAsset: jest.fn() }));
+jest.mock('../scene-process/service/utils/asset-reload', () => ({ loadPreviewAsset: jest.fn() }));
 jest.mock('../scene-process/rpc', () => ({ Rpc: { getInstance: jest.fn() } }));
 
 import { LightProbeBakeService } from '../scene-process/service/light-probe-bake';

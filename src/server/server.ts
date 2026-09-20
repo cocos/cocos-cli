@@ -66,6 +66,7 @@ export class ServerService {
     }
 
     async stop(): Promise<void> {
+        if (!this.server) return;
         return new Promise((resolve, reject) => {
             this.server?.close((err?: Error) => {
                 if (err) {

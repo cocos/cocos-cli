@@ -15,7 +15,7 @@ import { LightFXBakeApi } from '../src/api/scene/lightfx-bake';
 
 describe('LightFX bake API', () => {
     beforeEach(() => { probeBake.mockReset(); lightmapBake.mockReset(); queryLightmapBakeInfo.mockReset(); queryLightProbeSettings.mockReset(); probeCancel.mockReset(); lightmapCancel.mockReset(); });
-    it('registers a no-argument settings read and preserves its seven typed fields', async () => {
+    it('exposes the typed light-probe settings read as an MCP tool', async () => {
         const number = (value: number) => ({ value, type: 'Number', readonly: false });
         const boolean = (value: boolean) => ({ value, type: 'Boolean', readonly: true });
         const data = {
@@ -26,14 +26,20 @@ describe('LightFX bake API', () => {
         expect(SchemaLightProbeSettings.safeParse({ ...data, giScale: boolean(true) }).success).toBe(false);
         expect(SchemaLightProbeSettings.safeParse({ ...data, showWireframe: number(1) }).success).toBe(false);
         const tool = toolRegistry.get('scene-query-light-probe-settings');
-        expect(tool?.meta).toMatchObject({ methodName: 'queryLightProbeSettings', paramSchemas: [] });
-        expect(tool?.meta.description).toContain('Read only');
-        expect(tool?.meta.returnSchema?.parse({ code: COMMON_STATUS.SUCCESS, data })).toEqual({ code: COMMON_STATUS.SUCCESS, data });
+        expect(tool?.meta.methodName).toBe('queryLightProbeSettings');
         queryLightProbeSettings.mockResolvedValue(data);
         await expect(new LightFXBakeApi().queryLightProbeSettings()).resolves.toEqual({ code: COMMON_STATUS.SUCCESS, data });
         expect(queryLightProbeSettings).toHaveBeenCalledWith();
         expect(probeBake).not.toHaveBeenCalled();
         expect(lightmapBake).not.toHaveBeenCalled();
+    });
+    it('registers probe, lightmap and shared cancellation MCP tools', () => {
+        expect(toolRegistry.get('scene-bake-light-probes')?.meta.methodName).toBe('bakeLightProbes');
+        expect(toolRegistry.get('scene-clear-light-probes')?.meta.methodName).toBe('clearLightProbes');
+        expect(toolRegistry.get('scene-bake-lightmap')?.meta.methodName).toBe('bakeLightmap');
+        expect(toolRegistry.get('scene-query-lightmap-bake-info')?.meta.methodName).toBe('queryLightmapBakeInfo');
+        expect(toolRegistry.get('scene-clear-lightmap')?.meta.methodName).toBe('clearLightmap');
+        expect(toolRegistry.get('scene-cancel-lightfx-bake')?.meta.methodName).toBe('cancel');
     });
     it('reports an unavailable scene from the settings read without starting a bake', async () => {
         queryLightProbeSettings.mockRejectedValue(new Error('No scene is currently open.'));

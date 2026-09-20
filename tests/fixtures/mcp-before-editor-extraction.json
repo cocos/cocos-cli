@@ -1,0 +1,1454 @@
+[
+  {
+    "name": "apply-prefab-changes",
+    "file": "src/api/scene/prefab.ts",
+    "decorators": [
+      "@tool('apply-prefab-changes')",
+      "@title('Apply Prefab Changes')",
+      "@description('Apply changes from the prefab instance back to the prefab asset')",
+      "@result(SchemaApplyPrefabChangesResult)"
+    ],
+    "parameters": [
+      "@param(SchemaApplyPrefabChangesOptions) options: TApplyPrefabChangesOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TApplyPrefabChangesResult>>"
+  },
+  {
+    "name": "assets-animation-graph-variant-change",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-graph-variant-change')",
+      "@title('Change Animation Graph Variant')",
+      "@description('Update the pending AnimationGraphVariant edit. Changing graphUuid rebuilds the original clip list from the new graph; otherwise clips updates override mappings.')",
+      "@result(SchemaAnimationGraphVariantResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUID) uuid: TUrlOrUUID",
+      "@param(SchemaAnimationGraphVariantDump) dump: TAnimationGraphVariantDump"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationGraphVariantResult>>"
+  },
+  {
+    "name": "assets-animation-graph-variant-query",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-graph-variant-query')",
+      "@title('Query Animation Graph Variant')",
+      "@description('Load an AnimationGraphVariant asset and return its referenced graph UUID, valid clip override rows, and invalid saved override entries.')",
+      "@result(SchemaAnimationGraphVariantResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUID) uuid: TUrlOrUUID"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationGraphVariantResult>>"
+  },
+  {
+    "name": "assets-animation-graph-variant-save",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-graph-variant-save')",
+      "@title('Save Animation Graph Variant')",
+      "@description('Save the pending AnimationGraphVariant edit created by query/change. This method takes only the asset UUID and writes the cached pending dump.')",
+      "@result(SchemaAnimationGraphVariantSaveResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUID) uuid: TUrlOrUUID"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationGraphVariantSaveResult>>"
+  },
+  {
+    "name": "assets-animation-mask-change-dump",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-mask-change-dump')",
+      "@title('Change Animation Mask Dump')",
+      "@description('Apply path-based changes to an AnimationMask stable DTO. recursive defaults to false; pass recursive=true to update descendant paths.')",
+      "@result(SchemaAnimationMaskDump)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath",
+      "@param(SchemaAnimationMaskChanges) changes: TAnimationMaskChanges"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationMaskDump | null>>"
+  },
+  {
+    "name": "assets-animation-mask-clear-nodes",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-mask-clear-nodes')",
+      "@title('Clear Animation Mask Nodes')",
+      "@description('Clear all joint paths from an AnimationMask asset and return the updated stable DTO.')",
+      "@result(SchemaAnimationMaskDump)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationMaskDump | null>>"
+  },
+  {
+    "name": "assets-animation-mask-import-skeleton",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-mask-import-skeleton')",
+      "@title('Import Animation Mask Skeleton')",
+      "@description('Import joint paths from a Prefab or glTF-scene asset into an AnimationMask. Existing joint states are preserved and missing paths are appended as enabled. Pass the glTF-scene sub-asset UUID when possible.')",
+      "@result(SchemaAnimationMaskDump)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath",
+      "@param(SchemaUrlOrUUIDOrPath) skeletonSourceUuid: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationMaskDump | null>>"
+  },
+  {
+    "name": "assets-animation-mask-query",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-mask-query')",
+      "@title('Query Animation Mask')",
+      "@description('Query a .animask AnimationMask asset and return a stable DTO containing joint paths, enabled states, and tree structure. This tool does not expose Creator inspector reflection dump.')",
+      "@result(SchemaAnimationMaskDump)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TAnimationMaskDump | null>>"
+  },
+  {
+    "name": "assets-animation-mask-save",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-animation-mask-save')",
+      "@title('Save Animation Mask')",
+      "@description('Normalize and save the current AnimationMask asset content, then reimport the asset.')",
+      "@result(SchemaVoidResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuid: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TVoidResult>>"
+  },
+  {
+    "name": "assets-copy-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-copy-asset')",
+      "@title('Copy Asset')",
+      "@description('Copy an existing main asset to a new location together with its complete metadata. The copied asset receives new UUIDs while preserving importer settings, userData, subMetas, and internal references. Supports overwrite or automatic rename on conflicts.')",
+      "@result(SchemaAssetInfoResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath",
+      "@param(SchemaTargetPath) target: TDirOrDbPath",
+      "@param(SchemaAssetOperationOption) options?: TAssetOperationOption"
+    ],
+    "returnType": "Promise<CommonResultType<TAssetInfoResult>>"
+  },
+  {
+    "name": "assets-create-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-create-asset')",
+      "@title('Create Asset')",
+      "@description('Create a Cocos asset from file content or a template. Set options.target to an asset-db URL such as db://assets/scripts/GameManager.ts, or to an absolute file path inside an asset database root. Do not pass a web URL or a plain relative path as target.')",
+      "@result(SchemaCreatedAssetResult)"
+    ],
+    "parameters": [
+      "@param(SchemaCreateAssetOptions) options: TCreateAssetOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TCreatedAssetResult>>"
+  },
+  {
+    "name": "assets-create-asset-by-type",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-create-asset-by-type')",
+      "@title('Create Asset By Type')",
+      "@description('Create a new asset at the target path based on the specified asset handler type. Supports creating various resources such as animations, scripts, materials, scenes, prefabs, etc. You can customize file content, template name, or control whether to overwrite or automatically rename via the options parameter. If file content is not specified, the built-in default template for the corresponding type will be used.')",
+      "@result(SchemaCreatedAssetResult)"
+    ],
+    "parameters": [
+      "@param(SchemaSupportCreateType) ccType: TSupportCreateType",
+      "@param(SchemaDirOrDbPath) dirOrUrl: TDirOrDbPath",
+      "@param(SchemaBaseName) baseName: TBaseName",
+      "@param(SchemaCreateAssetByTypeOptions) options?: TCreateAssetByTypeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TCreatedAssetResult>>"
+  },
+  {
+    "name": "assets-delete-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-delete-asset')",
+      "@title('Delete Project Asset')",
+      "@description('Delete specified asset files from the Cocos Creator project. Supports deleting single files or entire directories. Deleted assets will be removed from the asset database, and corresponding .meta files will also be deleted. The deletion operation is irreversible, please use with caution.')",
+      "@result(SchemaDbDirResult)"
+    ],
+    "parameters": [
+      "@param(SchemaDirOrDbPath) dbPath: TDirOrDbPath"
+    ],
+    "returnType": "Promise<CommonResultType<TDbDirResult>>"
+  },
+  {
+    "name": "assets-import-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-import-asset')",
+      "@title('Import External Asset')",
+      "@description('Import external asset files into the project. Copy files from the source path to the target path, and automatically execute the asset import process to generate .meta files and library files. Suitable for introducing images, audio, models, and other resources from outside.')",
+      "@result(SchemaImportedAssetResult)"
+    ],
+    "parameters": [
+      "@param(SchemaSourcePath) source: TDirOrDbPath",
+      "@param(SchemaTargetPath) target: TDirOrDbPath",
+      "@param(SchemaAssetOperationOption) options?: TAssetOperationOption"
+    ],
+    "returnType": "Promise<CommonResultType<TImportedAssetResult>>"
+  },
+  {
+    "name": "assets-material-query",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-material-query')",
+      "@title('Query Material')",
+      "@description('Query a cc.Material asset and return Creator-compatible material dump data. The dump merges effect defaults with values saved in the .mtl file and can be used as the input for assets-material-save.')",
+      "@result(SchemaMaterialResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuidOrUrlOrPath: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TMaterialResult | null>>"
+  },
+  {
+    "name": "assets-material-query-all-effects",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-material-query-all-effects')",
+      "@title('Query Material Effects')",
+      "@description('Query all available cc.EffectAsset entries for assets.material.queryAllEffects. Returns effect UUID, name, hideInEditor flag, and asset path. Use UUID as the stable key when building material effect selectors.')",
+      "@result(SchemaMaterialEffectsResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TMaterialEffectsResult>>"
+  },
+  {
+    "name": "assets-material-query-effect",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-material-query-effect')",
+      "@title('Query Material Effect')",
+      "@description('Query one material Effect by UUID, asset URL/path, or effect name. Returns Creator-compatible technique/pass/property dump data for generating the material inspector UI.')",
+      "@result(SchemaMaterialEffectResult)"
+    ],
+    "parameters": [
+      "@param(SchemaMaterialEffectNameOrUuid) effectNameOrUuid: TMaterialEffectNameOrUuid"
+    ],
+    "returnType": "Promise<CommonResultType<TMaterialEffectResult>>"
+  },
+  {
+    "name": "assets-material-save",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-material-save')",
+      "@title('Save Material')",
+      "@description('Save Creator-compatible material dump data to a cc.Material asset. The implementation writes only modified values, then reimports through AssetDB to keep the database state consistent.')",
+      "@result(SchemaVoidResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuidOrUrlOrPath: TUrlOrUUIDOrPath",
+      "@param(SchemaMaterialDump) dump: TMaterialDump"
+    ],
+    "returnType": "Promise<CommonResultType<TVoidResult>>"
+  },
+  {
+    "name": "assets-move-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-move-asset')",
+      "@title('Move Asset')",
+      "@description('Move assets from the source location to the target location. Supports moving files and folders, with options to overwrite or automatically rename.')",
+      "@result(SchemaAssetInfoResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath",
+      "@param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath",
+      "@param(SchemaAssetMoveOptions) options: TAssetMoveOptions = {}"
+    ],
+    "returnType": "Promise<CommonResultType<TAssetInfoResult>>"
+  },
+  {
+    "name": "assets-query-asset-info",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-asset-info')",
+      "@title('Query Detailed Asset Info')",
+      "@description('Query detailed asset information by URL, UUID, or file path. By default the result includes subAssets; use each sub-asset type (for example type === \"cc.SpriteFrame\") to select the UUID required by a component property. Specify dataKeys, including \"subAssets\" and \"extends\", when an explicit field list is needed.')",
+      "@result(SchemaAssetInfoResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath",
+      "@param(SchemaDataKeys) dataKeys?: TDataKeys"
+    ],
+    "returnType": "Promise<CommonResultType<TAssetInfoResult>>"
+  },
+  {
+    "name": "assets-query-asset-meta",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-asset-meta')",
+      "@title('Query Asset Metadata')",
+      "@description('Query the content of the .meta file of an asset based on its URL, UUID, or file path. Metadata includes asset import configuration, user-defined data, version information, etc.')",
+      "@result(SchemaAssetMetaResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) urlOrUUIDOrPath: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TAssetMetaResult>>"
+  },
+  {
+    "name": "assets-query-asset-user-data-config",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-asset-user-data-config')",
+      "@title('Query Asset User Data Config')",
+      "@description('Query the user data configuration information of the specified asset. Returns the asset\\'s import configuration and user-defined data.')",
+      "@result(z.any().nullable().describe('Asset user data configuration object'))"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) urlOrUuidOrPath: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<any>>"
+  },
+  {
+    "name": "assets-query-create-map",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-create-map')",
+      "@title('Query Creatable Asset Map')",
+      "@description('Get the mapping table of all supported creatable asset types. The returned mapping table contains asset handler names, corresponding engine types, creation menu information, etc., used to understand which types of assets the system supports creating.')",
+      "@result(SchemaCreateMapResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TCreateMapResult>>"
+  },
+  {
+    "name": "assets-query-path",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-path')",
+      "@title('Query Asset File Path')",
+      "@description('Query the actual path of an asset in the file system based on its URL, UUID, or asset-db relative path such as assets/resources/Image/a.png. Returns an absolute path string.')",
+      "@result(SchemaPathResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) urlOrUuid: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TPathResult>>"
+  },
+  {
+    "name": "assets-query-property-schema",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-property-schema')",
+      "@title('Query Asset Import Property Schema')",
+      "@description('Query the import property schema map for a specific asset importer. The result value follows ICocosConfigurationPropertySchema, using fields such as title, type, default, enum, enumDescriptions, minimum, maximum, step, properties, and items.')",
+      "@result(SchemaAssetPropertySchemaResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUserDataHandler) importer: TUserDataHandler"
+    ],
+    "returnType": "Promise<CommonResultType<TAssetPropertySchemaResult>>"
+  },
+  {
+    "name": "assets-query-serialized-data",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-serialized-data')",
+      "@title('Query Serialized Asset Data')",
+      "@description('Query Creator-compatible serialized asset dump data through assets.serializedData.query. Supports only cc.PhysicsMaterial and cc.RenderPipeline in the first batch. The returned dump is the raw IProperty structure consumed by ui-prop type=\"dump\": PhysicsMaterial returns a property map, while RenderPipeline returns one top-level IProperty.')",
+      "@result(SchemaSerializedAssetResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuidOrUrlOrPath: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TSerializedAssetResult>>"
+  },
+  {
+    "name": "assets-query-url",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-url')",
+      "@title('Query Asset URL')",
+      "@description('Query the URL address of an asset in the database based on its file path or UUID. Returns a URL in db:// protocol format.')",
+      "@result(SchemaUrlResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUUIDOrPath) uuidOrPath: TUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TUrlResult>>"
+  },
+  {
+    "name": "assets-query-uuid",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-query-uuid')",
+      "@title('Query Asset UUID')",
+      "@description('Query the UUID of the exact asset addressed by a URL or file path. This does not automatically choose a typed sub-asset: querying an image URL returns its parent ImageAsset UUID. Use assets-query-asset-info and inspect subAssets when a component requires cc.SpriteFrame or another specific Asset type.')",
+      "@result(SchemaUUIDResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrPath) urlOrPath: TUrlOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TUUIDResult>>"
+  },
+  {
+    "name": "assets-refresh",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-refresh')",
+      "@title('Refresh Asset Directory')",
+      "@description('Refresh the specified asset directory in the Cocos Creator project, rescan all asset files in the directory, and update the asset database index. This method needs to be called to synchronize the asset status when asset files are modified externally or new files are added.')",
+      "@result(SchemaRefreshDirResult)"
+    ],
+    "parameters": [
+      "@param(SchemaDirOrDbPath) dir: TDirOrDbPath"
+    ],
+    "returnType": "Promise<CommonResultType<TRefreshDirResult>>"
+  },
+  {
+    "name": "assets-reimport-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-reimport-asset')",
+      "@title('Reimport Asset')",
+      "@description('Force reimport of specified assets. When asset files or import configurations change, call this method to re-execute the import process and update library files and asset information. Commonly used for asset repair or refresh after configuration updates.')",
+      "@result(SchemaReimportResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) pathOrUrlOrUUID: TUrlOrUUIDOrPath"
+    ],
+    "returnType": "Promise<CommonResultType<TReimportResult>>"
+  },
+  {
+    "name": "assets-rename-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-rename-asset')",
+      "@title('Rename Asset')",
+      "@description('Rename the specified asset in its current directory. The source can be a URL, UUID, or path. The newName parameter only changes the asset name and does not move it across directories; use moveAsset for moving. For file assets, include the extension in newName. Supports overwrite or automatic rename on conflicts.')",
+      "@result(SchemaAssetInfoResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath",
+      "@param(SchemaAssetNewName) newName: TAssetNewName",
+      "@param(SchemaAssetRenameOptions) options: TAssetRenameOptions = {}"
+    ],
+    "returnType": "Promise<CommonResultType<TAssetInfoResult>>"
+  },
+  {
+    "name": "assets-save-asset",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-save-asset')",
+      "@title('Save Asset Data')",
+      "@description('Save complete content to an existing asset file. Required arguments: pathOrUrlOrUUID (existing asset URL, UUID, or file path) and data (complete file content). Do not call this tool with empty arguments. This tool does not create new assets or temporary files; create the asset first with assets-create-asset-by-type or assets-create-asset, then call save. For scripts, pass complete syntactically valid content. For scene and prefab assets, pass complete valid Cocos serialized JSON; prefer scene-* tools and scene-save for scene graph edits.')",
+      "@result(SchemaSaveAssetResult)"
+    ],
+    "parameters": [
+      "@param(SchemaSaveAssetPath) pathOrUrlOrUUID: TSaveAssetPath",
+      "@param(SchemaAssetData) data: TAssetData"
+    ],
+    "returnType": "Promise<CommonResultType<TSaveAssetResult>>"
+  },
+  {
+    "name": "assets-save-serialized-data",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-save-serialized-data')",
+      "@title('Save Serialized Asset Data')",
+      "@description('Save Creator-compatible serialized asset dump data through assets.serializedData.save. Supports only cc.PhysicsMaterial and cc.RenderPipeline in the first batch. Prefer passing an IProperty or full dump patch returned by assets-query-serialized-data; unknown fields are rejected, and hidden or readonly fields can only pass through unchanged.')",
+      "@result(SchemaSerializedAssetResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) uuidOrUrlOrPath: TUrlOrUUIDOrPath",
+      "@param(SchemaSerializedAssetPatch) patch: TSerializedAssetPatch"
+    ],
+    "returnType": "Promise<CommonResultType<TSerializedAssetResult>>"
+  },
+  {
+    "name": "assets-update-asset-user-data",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-update-asset-user-data')",
+      "@title('Update Asset User Data')",
+      "@description('Replace the complete userData object of the specified asset in one save. urlOrUuidOrPath accepts an asset URL, UUID, file path, or sub asset UUID in parentUuid@subMetaId format.')",
+      "@result(SchemaUpdateAssetUserDataResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) urlOrUuidOrPath: TUrlOrUUIDOrPath",
+      "@param(SchemaUpdateAssetUserData) userData: TUpdateAssetUserData"
+    ],
+    "returnType": "Promise<CommonResultType<TUpdateAssetUserDataResult>>"
+  },
+  {
+    "name": "assets-update-asset-user-data-by-path",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-update-asset-user-data-by-path')",
+      "@title('Update Asset User Data By Path')",
+      "@description('Update a single path in the userData of the specified asset. urlOrUuidOrPath accepts an asset URL, UUID, file path, or sub asset UUID in parentUuid@subMetaId format.')",
+      "@result(SchemaUpdateAssetUserDataResult)"
+    ],
+    "parameters": [
+      "@param(SchemaUrlOrUUIDOrPath) urlOrUuidOrPath: TUrlOrUUIDOrPath",
+      "@param(SchemaUpdateAssetUserDataPath) path: TUpdateAssetUserDataPath",
+      "@param(SchemaUpdateAssetUserDataValue) value: TUpdateAssetUserDataValue"
+    ],
+    "returnType": "Promise<CommonResultType<TUpdateAssetUserDataResult>>"
+  },
+  {
+    "name": "assets-update-default-user-data",
+    "file": "src/api/assets/assets.ts",
+    "decorators": [
+      "@tool('assets-update-default-user-data')",
+      "@title('Update Default User Data')",
+      "@description('Update the default user data configuration for the specified asset handler. Used to modify the default import settings for assets.')",
+      "@result(z.null().describe('Update operation result (no return value)'))"
+    ],
+    "parameters": [
+      "@param(SchemaUserDataHandler) handler: TUserDataHandler",
+      "@param(SchemaUpdateAssetUserDataPath) path: TUpdateAssetUserDataPath",
+      "@param(SchemaUpdateAssetUserDataValue) value: TUpdateAssetUserDataValue"
+    ],
+    "returnType": "Promise<CommonResultType<null>>"
+  },
+  {
+    "name": "builder-build",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-build')",
+      "@title('Build Project')",
+      "@description('Compile and package the project for the specified platform (e.g. web-mobile, android, ios). This is a BUILD step only — it does NOT launch or run the game. To launch the built game afterward, use builder-run separately.')",
+      "@result(SchemaBuildResult)"
+    ],
+    "parameters": [
+      "@param(SchemaPlatform) platform: TPlatform",
+      "@param(SchemaBuildOption) options?: TBuildOption"
+    ]
+  },
+  {
+    "name": "builder-create-build-template",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-create-build-template')",
+      "@title('Create Build Template')",
+      "@description('Create or update the user build template for a platform or build template display name.')",
+      "@result(SchemaCreateBuildTemplateResult)"
+    ],
+    "parameters": [
+      "@param(SchemaBuildTemplateName) nameOrPlatform: TBuildTemplateName"
+    ],
+    "returnType": "Promise<CommonResultType<TCreateBuildTemplateResult>>"
+  },
+  {
+    "name": "builder-make",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-make')",
+      "@title('Make Build Package')",
+      "@description('Compile the built game package, supported only by some platforms')",
+      "@result(SchemaMakeResult)"
+    ],
+    "parameters": [
+      "@param(SchemaPlatformCanMake) platform: TPlatformCanMake",
+      "@param(SchemaBuildDest) dest: TBuildDest"
+    ]
+  },
+  {
+    "name": "builder-publish",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-publish')",
+      "@title('Publish Build Package')",
+      "@description('Publish a previously uploaded game package, supported only by some platforms. Requires a successful upload stage to have produced a packageId.')",
+      "@result(SchemaPublishResult)"
+    ],
+    "parameters": [
+      "@param(SchemaPlatform) platform: TPlatform",
+      "@param(SchemaBuildDest) dest: TBuildDest"
+    ],
+    "returnType": "Promise<CommonResultType<IPublishResultData>>"
+  },
+  {
+    "name": "builder-query-default-build-config",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-query-default-build-config')",
+      "@title('Get Default Build Config')",
+      "@description('Get default build configuration for platform')",
+      "@result(SchemaBuildConfigResult)"
+    ],
+    "parameters": [
+      "@param(SchemaPlatform) platform: TPlatform"
+    ]
+  },
+  {
+    "name": "builder-run",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-run')",
+      "@title('Run Build Result')",
+      "@description('Launch and run a previously built game package. This is NOT a build step — it requires that builder-build has already completed successfully. Do NOT call this instead of builder-build; the two are separate sequential steps: build first, then run.')",
+      "@result(SchemaBuildResult)"
+    ],
+    "parameters": [
+      "@param(SchemaPlatform) platform: TPlatform",
+      "@param(SchemaBuildDest) dest: TBuildDest"
+    ],
+    "returnType": "Promise<CommonResultType<IRunResultData>>"
+  },
+  {
+    "name": "builder-upload",
+    "file": "src/api/builder/builder.ts",
+    "decorators": [
+      "@tool('builder-upload')",
+      "@title('Upload Build Package')",
+      "@description('Upload a previously built game package, supported only by some platforms')",
+      "@result(SchemaUploadResult)"
+    ],
+    "parameters": [
+      "@param(SchemaPlatform) platform: TPlatform",
+      "@param(SchemaBuildDest) dest: TBuildDest",
+      "@param(SchemaUploadAccessToken) accessToken?: TUploadAccessToken"
+    ],
+    "returnType": "Promise<CommonResultType<IUploadResultData>>"
+  },
+  {
+    "name": "configuration-remigrate",
+    "file": "src/api/configuration/configuration.ts",
+    "decorators": [
+      "@tool('configuration-remigrate')",
+      "@title('Re-migrate configuration')",
+      "@description('Re-migrate and generate settings/profiles cocos.config.json files from the current project')",
+      "@result(SchemaMigrateResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TMigrateResult>>"
+  },
+  {
+    "name": "create-prefab-from-node",
+    "file": "src/api/scene/prefab.ts",
+    "decorators": [
+      "@tool('create-prefab-from-node')",
+      "@title('Convert Node to Prefab Asset')",
+      "@description('Convert the specified node and its children into a prefab asset and save it to the specified path')",
+      "@result(SchemaNode)"
+    ],
+    "parameters": [
+      "@param(SchemaCreatePrefabFromNodeOptions) options: TCreatePrefabFromNodeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNode>>"
+  },
+  {
+    "name": "file-delete-text",
+    "file": "src/api/system/file-editor.ts",
+    "decorators": [
+      "@tool('file-delete-text')",
+      "@title('Delete content between startLine and endLine of the file')",
+      "@description('Delete content between startLine and endLine of the file, return success or failure')",
+      "@result(SchemaFileEditorResult)"
+    ],
+    "parameters": [
+      "@param(SchemaEraseLinesInRangeInfo) param: TEraseLinesInRangeInfo"
+    ],
+    "returnType": "Promise<CommonResultType<TFileEditorResult>>"
+  },
+  {
+    "name": "file-insert-text",
+    "file": "src/api/system/file-editor.ts",
+    "decorators": [
+      "@tool('file-insert-text')",
+      "@title('Insert content before line n of the file')",
+      "@description('Insert content before line n of the file, return success or failure. If the line number is greater than the total number of lines in the file, insert it at the end of the file.')",
+      "@result(SchemaFileEditorResult)"
+    ],
+    "parameters": [
+      "@param(SchemaInsertTextAtLineInfo) param: TInsertTextAtLineInfo"
+    ],
+    "returnType": "Promise<CommonResultType<TFileEditorResult>>"
+  },
+  {
+    "name": "file-query-text",
+    "file": "src/api/system/file-editor.ts",
+    "decorators": [
+      "@tool('file-query-text')",
+      "@title('Query content of specified lines in the file')",
+      "@description('Query content of specified number of lines starting from startLine in the file, return the array of queried content')",
+      "@result(SchemaFileQueryTextResult)"
+    ],
+    "parameters": [
+      "@param(SchemaQueryFileTextInfo) param: TQueryFileTextInfo"
+    ],
+    "returnType": "Promise<CommonResultType<TFileQueryTextResult>>"
+  },
+  {
+    "name": "file-replace-text",
+    "file": "src/api/system/file-editor.ts",
+    "decorators": [
+      "@tool('file-replace-text')",
+      "@title('Replace target text with replacement text in the file')",
+      "@description('Replace target text (including regular expressions) with replacement text in the file. Only replace the unique occurrence of the target text (fail if there are multiple), return success or failure.')",
+      "@result(SchemaFileEditorResult)"
+    ],
+    "parameters": [
+      "@param(SchemaReplaceTextInFileInfo) param: TReplaceTextInFileInfo"
+    ],
+    "returnType": "Promise<CommonResultType<TFileEditorResult>>"
+  },
+  {
+    "name": "is-prefab-instance",
+    "file": "src/api/scene/prefab.ts",
+    "decorators": [
+      "@tool('is-prefab-instance')",
+      "@title('Check if Prefab Instance')",
+      "@description('Check if the specified node is a prefab instance')",
+      "@result(SchemaIsPrefabInstanceResult)"
+    ],
+    "parameters": [
+      "@param(SchemaIsPrefabInstanceOptions) options: TIsPrefabInstanceOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TIsPrefabInstanceResult>>"
+  },
+  {
+    "name": "particle-pause",
+    "file": "src/api/scene/particle.ts",
+    "decorators": [
+      "@tool('particle-pause')",
+      "@title('Pause particle systems')",
+      "@description('Pause the currently selected cc.ParticleSystem components. When a nodePath or uuid is provided, ensure that component is selected first.')",
+      "@result(SchemaParticleActionResult)"
+    ],
+    "parameters": [
+      "@param(SchemaParticleAction) options: TParticleAction"
+    ],
+    "returnType": "Promise<CommonResultType<TParticleActionResult>>"
+  },
+  {
+    "name": "particle-play",
+    "file": "src/api/scene/particle.ts",
+    "decorators": [
+      "@tool('particle-play')",
+      "@title('Play particle systems')",
+      "@description('Play the currently selected cc.ParticleSystem components. When a nodePath or uuid is provided, ensure that component is selected first.')",
+      "@result(SchemaParticleActionResult)"
+    ],
+    "parameters": [
+      "@param(SchemaParticleAction) options: TParticleAction"
+    ],
+    "returnType": "Promise<CommonResultType<TParticleActionResult>>"
+  },
+  {
+    "name": "particle-query-play-info",
+    "file": "src/api/scene/particle.ts",
+    "decorators": [
+      "@tool('particle-query-play-info')",
+      "@title('Query particle system runtime info')",
+      "@description('Get the current simulation speed, elapsed time, alive particle count and playing state of a cc.ParticleSystem component identified by nodePath or uuid.')",
+      "@result(SchemaParticlePlayInfo)"
+    ],
+    "parameters": [
+      "@param(SchemaParticleIdentifier) options: TParticleIdentifier"
+    ],
+    "returnType": "Promise<CommonResultType<TParticlePlayInfo>>"
+  },
+  {
+    "name": "particle-restart",
+    "file": "src/api/scene/particle.ts",
+    "decorators": [
+      "@tool('particle-restart')",
+      "@title('Restart particle systems')",
+      "@description('Restart the currently selected cc.ParticleSystem components (stop then play). When a nodePath or uuid is provided, ensure that component is selected first.')",
+      "@result(SchemaParticleActionResult)"
+    ],
+    "parameters": [
+      "@param(SchemaParticleAction) options: TParticleAction"
+    ],
+    "returnType": "Promise<CommonResultType<TParticleActionResult>>"
+  },
+  {
+    "name": "particle-set-play-speed",
+    "file": "src/api/scene/particle.ts",
+    "decorators": [
+      "@tool('particle-set-play-speed')",
+      "@title('Set particle system simulation speed')",
+      "@description('Set the simulation speed multiplier (1 = normal speed) of a cc.ParticleSystem component identified by nodePath or uuid.')",
+      "@result(SchemaParticlePlayInfo)"
+    ],
+    "parameters": [
+      "@param(SchemaParticleSpeed) options: TParticleSpeed"
+    ],
+    "returnType": "Promise<CommonResultType<TParticlePlayInfo>>"
+  },
+  {
+    "name": "particle-stop",
+    "file": "src/api/scene/particle.ts",
+    "decorators": [
+      "@tool('particle-stop')",
+      "@title('Stop particle systems')",
+      "@description('Stop the currently selected cc.ParticleSystem components. When a nodePath or uuid is provided, ensure that component is selected first.')",
+      "@result(SchemaParticleActionResult)"
+    ],
+    "parameters": [
+      "@param(SchemaParticleAction) options: TParticleAction"
+    ],
+    "returnType": "Promise<CommonResultType<TParticleActionResult>>"
+  },
+  {
+    "name": "reference-image-add",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-add')",
+      "@title('Add and select reference image')",
+      "@description('Validate a local PNG, JPG, or JPEG, add it to the local library, and bind it to the current scene or prefab.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [
+      "@param(SchemaReferenceImagePath) options: TReferenceImagePath"
+    ],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-clear-binding",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-clear-binding')",
+      "@title('Clear current reference image binding')",
+      "@description('Unbind the reference image from the current scene or prefab while preserving the local library and other bindings.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-delete",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-delete')",
+      "@title('Delete reference image')",
+      "@description('Remove a reference image record and all scene bindings. The original local file is not deleted.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [
+      "@param(SchemaReferenceImagePath) options: TReferenceImagePath"
+    ],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-query",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-query')",
+      "@title('Query reference image state')",
+      "@description('Get the current reference-image library, current binding, parameters and effective visibility.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-refresh",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-refresh')",
+      "@title('Refresh current reference image')",
+      "@description('Reload the current reference image from its original local path.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-select",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-select')",
+      "@title('Select reference image')",
+      "@description('Bind an existing reference image to the current scene or prefab.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [
+      "@param(SchemaReferenceImagePath) options: TReferenceImagePath"
+    ],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-set-parameters",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-set-parameters')",
+      "@title('Set reference image parameters')",
+      "@description('Persist finite position or scale values and opacity from 0 to 100 for the image bound to the current scene or prefab.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [
+      "@param(SchemaReferenceImageParameters) patch: TReferenceImageParameters"
+    ],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "reference-image-set-visible",
+    "file": "src/api/scene/reference-image.ts",
+    "decorators": [
+      "@tool('reference-image-set-visible')",
+      "@title('Set reference image visibility')",
+      "@description('Set the persisted desired visibility. Reference images remain hidden while the editor is not in 2D mode.')",
+      "@result(SchemaReferenceImageState)"
+    ],
+    "parameters": [
+      "@param(SchemaReferenceImageVisibility) options: TReferenceImageVisibility"
+    ],
+    "returnType": "Promise<CommonResultType<TReferenceImageState>>"
+  },
+  {
+    "name": "revert-prefab",
+    "file": "src/api/scene/prefab.ts",
+    "decorators": [
+      "@tool('revert-prefab')",
+      "@title('Revert Prefab Instance')",
+      "@description('Revert the prefab instance to the original state of the prefab asset')",
+      "@result(SchemaRevertToPrefabResult)"
+    ],
+    "parameters": [
+      "@param(SchemaRevertToPrefabOptions) options: TRevertToPrefabOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TRevertToPrefabResult>>"
+  },
+  {
+    "name": "scene-add-component",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-add-component')",
+      "@title('Add component')",
+      "@description('Add component to node, input node name, component type, built-in or custom component. Returns all component details on success. Can query all component names via scene-query-all-component')",
+      "@result(SchemaComponentResult)"
+    ],
+    "parameters": [
+      "@param(SchemaAddComponentInfo) addComponentInfo: TAddComponentInfo"
+    ],
+    "returnType": "Promise<CommonResultType<TComponentResult>>"
+  },
+  {
+    "name": "scene-bake-light-probes",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-bake-light-probes')",
+      "@title('Bake light probes')",
+      "@description('Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.')",
+      "@result(SchemaLightProbeBakeResult)"
+    ],
+    "parameters": [
+      "@param(SchemaLightProbeBakeOptions) options: TLightProbeBakeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TLightProbeBakeResult>>"
+  },
+  {
+    "name": "scene-bake-lightmap",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-bake-lightmap')",
+      "@title('Bake lightmap')",
+      "@description('Bake the current scene lightmap with LightFX, import generated textures, bind them to renderers and save the scene.')",
+      "@result(SchemaLightmapBakeResult)"
+    ],
+    "parameters": [
+      "@param(SchemaLightmapBakeOptions) options: TLightmapBakeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TLightmapBakeResult>>"
+  },
+  {
+    "name": "scene-bake-reflection-probe",
+    "file": "src/api/scene/reflection-probe.ts",
+    "decorators": [
+      "@tool('scene-bake-reflection-probe')",
+      "@title('Bake reflection probe')",
+      "@description('Bake a cube reflection probe in the active Pink/browser scene, hot-apply its TextureCube to that same scene, and optionally save it. No scene-open call is required.')",
+      "@result(SchemaReflectionProbeBakeResult)"
+    ],
+    "parameters": [
+      "@param(SchemaReflectionProbeBakeOptions) options: TReflectionProbeBakeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TReflectionProbeBakeResult>>"
+  },
+  {
+    "name": "scene-bake-reflection-probes",
+    "file": "src/api/scene/reflection-probe.ts",
+    "decorators": [
+      "@tool('scene-bake-reflection-probes')",
+      "@title('Bake all reflection probes')",
+      "@description('Bake all active cube reflection probes, or the requested node paths, in the active Pink/browser scene. The scene is saved once after all successful probes are applied; no scene-open call is required.')",
+      "@result(SchemaReflectionProbeBakeAllResult)"
+    ],
+    "parameters": [
+      "@param(SchemaReflectionProbeBakeAllOptions) options: TReflectionProbeBakeAllOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TReflectionProbeBakeAllResult>>"
+  },
+  {
+    "name": "scene-cancel-lightfx-bake",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-cancel-lightfx-bake')",
+      "@title('Cancel LightFX bake')",
+      "@description('Cancel the currently running light-probe or lightmap bake.')",
+      "@result(SchemaLightFXCancelResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<{ cancelled: boolean; target: 'light-probe' | 'lightmap' | null }>>"
+  },
+  {
+    "name": "scene-cancel-reflection-probe-bake",
+    "file": "src/api/scene/reflection-probe.ts",
+    "decorators": [
+      "@tool('scene-cancel-reflection-probe-bake')",
+      "@title('Cancel reflection-probe task')",
+      "@description('Request cancellation of the specified reflection-probe task. A cancelling response is not completion; query until cancelled or another terminal state.')",
+      "@result(SchemaReflectionProbeTaskState)"
+    ],
+    "parameters": [
+      "@param(SchemaReflectionProbeCancelOptions) options: IReflectionProbeCancelOptions"
+    ],
+    "returnType": "Promise<CommonResultType<IReflectionProbeTaskState>>"
+  },
+  {
+    "name": "scene-clear-light-probes",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-clear-light-probes')",
+      "@title('Clear baked light probes')",
+      "@description('Clear spherical-harmonic bake results from all light probes in the current scene.')",
+      "@result(SchemaClearCountResult)"
+    ],
+    "parameters": [
+      "@param(SchemaLightProbeClearOptions) options: { saveScene?: boolean }"
+    ],
+    "returnType": "Promise<CommonResultType<{ probeCount: number }>>"
+  },
+  {
+    "name": "scene-clear-lightmap",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-clear-lightmap')",
+      "@title('Clear baked lightmap')",
+      "@description('Unbind baked lightmaps and optionally delete unreferenced generated assets. Asset deletion saves the scene and prevents Undo/Redo from restoring pre-Clear baked results; unrelated edit history is preserved.')",
+      "@result(SchemaClearCountResult)"
+    ],
+    "parameters": [
+      "@param(SchemaLightmapClearOptions) options: { saveScene?: boolean; deleteAssets?: boolean }"
+    ],
+    "returnType": "Promise<CommonResultType<{\r\n        clearedCount: number;\r\n        deletedAssetCount: number;\r\n        retainedAssetCount: number;\r\n        failedAssetCount: number;\r\n    }>>"
+  },
+  {
+    "name": "scene-clear-reflection-probes",
+    "file": "src/api/scene/reflection-probe.ts",
+    "decorators": [
+      "@tool('scene-clear-reflection-probes')",
+      "@title('Clear all baked reflection probes')",
+      "@description('Clear all baked cubemap bindings in the active Pink/browser scene, optionally delete CLI-generated assets, and save the scene. No scene-open call is required.')",
+      "@result(SchemaReflectionProbeClearResult)"
+    ],
+    "parameters": [
+      "@param(SchemaReflectionProbeClearOptions) options: TReflectionProbeClearOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TReflectionProbeClearResult>>"
+  },
+  {
+    "name": "scene-close",
+    "file": "src/api/scene/scene.ts",
+    "decorators": [
+      "@tool('scene-close')",
+      "@title('Close scene/prefab')",
+      "@description('Close current opened scene/prefab.')",
+      "@result(SchemaCloseResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TCloseResult>>"
+  },
+  {
+    "name": "scene-create",
+    "file": "src/api/scene/scene.ts",
+    "decorators": [
+      "@tool('scene-create')",
+      "@title('Create scene')",
+      "@description('Create new scene asset in project')",
+      "@result(SchemaCreateResult)"
+    ],
+    "parameters": [
+      "@param(SchemaCreateOptions) options: TCreateOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TCreateResult>>"
+  },
+  {
+    "name": "scene-create-node-by-asset",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-create-node-by-asset')",
+      "@title('Create Node By Asset')",
+      "@description('Create a node named name using dbURL asset under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed. Example of resource dbURL format: db://assets/sample.prefab')",
+      "@result(SchemaNodeQueryResult)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeCreateByAsset) options: TCreateNodeByAssetOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNodeDetail>>"
+  },
+  {
+    "name": "scene-create-node-by-type",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-create-node-by-type')",
+      "@title('Create Node By Type')",
+      "@description('Create a node named name with type nodeType under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed.')",
+      "@result(SchemaNodeQueryResult)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeCreateByType) options: TCreateNodeByTypeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNodeDetail>>"
+  },
+  {
+    "name": "scene-create-nodes-by-serialized-data",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-create-nodes-by-serialized-data')",
+      "@title('Create Nodes From Serialized Data')",
+      "@description('Create a batch of nodes in the currently opened destination scene using the complete data returned by scene-serialize-nodes in the same project. The parent must exist. Creates new node and component identities, preserves internal references, asset references, and complete Prefab instances, and resolves name conflicts. External node and component references default to clear; use resolve only when pasting into the source Runtime. Success records one undo operation; failure rolls back the batch. Returns the new root node paths. Does not save the scene automatically; use scene-save to persist the result.')",
+      "@result(SchemaNodeCreateBySerializedDataResult)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeCreateBySerializedData) options: TCreateNodesBySerializedDataOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TCreateNodesBySerializedDataResult>>"
+  },
+  {
+    "name": "scene-delete-component",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-delete-component')",
+      "@title('Remove component')",
+      "@description('Remove node component, returns true on success, false on failure')",
+      "@result(SchemaBooleanResult)"
+    ],
+    "parameters": [
+      "@param(SchemaRemoveComponent) component: TRemoveComponentOptions"
+    ],
+    "returnType": "Promise<CommonResultType<boolean>>"
+  },
+  {
+    "name": "scene-delete-node",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-delete-node')",
+      "@title('Delete Node')",
+      "@description('Delete a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1')",
+      "@result(SchemaNodeDeleteResult)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeDelete) options: TDeleteNodeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNodeDeleteResult>>"
+  },
+  {
+    "name": "scene-erase-lod",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-erase-lod')",
+      "@title('Erase LOD level')",
+      "@description('Erase an LOD level from a cc.LODGroup. Index must identify an existing level, and at least one LOD level must remain.')",
+      "@result(SchemaLODGroupLevelsResult)"
+    ],
+    "parameters": [
+      "@param(SchemaEraseLODOptions) options: TEraseLODOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TLODGroupLevelsResult>>"
+  },
+  {
+    "name": "scene-insert-lod",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-insert-lod')",
+      "@title('Insert LOD level')",
+      "@description('Insert an LOD level into a cc.LODGroup. Index must be from 0 through lodCount, at most 8 levels are allowed, and screenUsagePercentage must be in (0, 1]. Omit screenUsagePercentage to let the engine calculate it.')",
+      "@result(SchemaLODGroupLevelsResult)"
+    ],
+    "parameters": [
+      "@param(SchemaInsertLODOptions) options: TInsertLODOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TLODGroupLevelsResult>>"
+  },
+  {
+    "name": "scene-open",
+    "file": "src/api/scene/scene.ts",
+    "decorators": [
+      "@tool('scene-open')",
+      "@title('Open scene/prefab')",
+      "@description('Open specified scene/prefab asset.')",
+      "@result(SchemaOpenResult)"
+    ],
+    "parameters": [
+      "@param(SchemaOpenOptions) options: TOpenOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TOpenResult>>"
+  },
+  {
+    "name": "scene-query-all-component",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-query-all-component')",
+      "@title('Query all components')",
+      "@description('Query all components, can query component names of all component info')",
+      "@result(SchemaQueryAllComponentResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TQueryAllComponentResult>>"
+  },
+  {
+    "name": "scene-query-component",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-query-component')",
+      "@title('Query component')",
+      "@description('Query a component (NOT a node) on a node. The path must be a component path = node path + \"/\" + component type name, e.g. \"Canvas/Node1/cc.Label\". Do NOT pass a bare node path like \"Canvas/Node1\" — that has no component type suffix and will fail. To query a node use scene-query-node instead.')",
+      "@result(SchemaComponentResult)"
+    ],
+    "parameters": [
+      "@param(SchemaQueryComponent) component: TQueryComponentOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TComponentResult | null>>"
+  },
+  {
+    "name": "scene-query-current",
+    "file": "src/api/scene/scene.ts",
+    "decorators": [
+      "@tool('scene-query-current')",
+      "@title('Get current opened scene/prefab info')",
+      "@description('Get current opened scene/prefab info, if no scene is opened, the data is not returned.')",
+      "@result(SchemaCurrentResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TCurrentResult>>"
+  },
+  {
+    "name": "scene-query-light-probe-settings",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-query-light-probe-settings')",
+      "@title('Query light probe settings')",
+      "@description('Read only the seven light-probe panel settings from the active scene, including property types and readonly flags. Does not read baked probe data, modify the scene, or start a bake.')",
+      "@result(SchemaLightProbeSettings)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TLightProbeSettings>>"
+  },
+  {
+    "name": "scene-query-lightmap-bake-info",
+    "file": "src/api/scene/lightfx-bake.ts",
+    "decorators": [
+      "@tool('scene-query-lightmap-bake-info')",
+      "@title('Query lightmap bake information')",
+      "@description('Query lightmap textures and bake flags currently bound to meshes and terrains in the active scene.')",
+      "@result(SchemaLightmapBakeInfo)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TLightmapBakeInfo>>"
+  },
+  {
+    "name": "scene-query-lod-group-relative-height",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-query-lod-group-relative-height')",
+      "@title('Query LODGroup relative height')",
+      "@description('Query the raw screen-relative height of a cc.LODGroup under the current editor camera. Supports perspective and orthographic cameras; the result is not clamped to [0, 1].')",
+      "@result(SchemaLODGroupRelativeHeightResult)"
+    ],
+    "parameters": [
+      "@param(SchemaQueryLODGroupRelativeHeightOptions) options: TQueryLODGroupRelativeHeightOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TLODGroupRelativeHeightResult>>"
+  },
+  {
+    "name": "scene-query-node",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-query-node')",
+      "@title('Query Node')",
+      "@description('Query a node (NOT a component) in the currently opened scene. The path must be a node path like \"Canvas/Node1\" — do NOT append a component type (e.g. do NOT use \"Canvas/Node1/cc.Label\"). To query a component, use scene-query-component instead.')",
+      "@result(SchemaNodeQueryResult)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeQuery) options: TQueryNodeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNodeDetail>>"
+  },
+  {
+    "name": "scene-query-reflection-probe-bake",
+    "file": "src/api/scene/reflection-probe.ts",
+    "decorators": [
+      "@tool('scene-query-reflection-probe-bake')",
+      "@title('Query reflection-probe task')",
+      "@description('Read the current reflection-probe bake or clear snapshot, including task identity, source scene, queue, progress, logs and terminal state. Does not replay operations.')",
+      "@result(SchemaReflectionProbeTaskState)"
+    ],
+    "parameters": [
+      "@param(SchemaReflectionProbeTaskQuery) options: { source?: IReflectionProbeSceneIdentity }"
+    ],
+    "returnType": "Promise<CommonResultType<IReflectionProbeTaskState>>"
+  },
+  {
+    "name": "scene-recalculate-lod-group-bounds",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-recalculate-lod-group-bounds')",
+      "@title('Recalculate LODGroup bounds')",
+      "@description('Recalculate localBoundaryCenter and objectSize from all Renderers referenced by a cc.LODGroup. The path must identify a cc.LODGroup component, e.g. \"Root/LOD/cc.LODGroup\". Returns zero values when no valid Renderer exists.')",
+      "@result(SchemaLODGroupBoundsResult)"
+    ],
+    "parameters": [
+      "@param(SchemaRecalculateLODGroupBoundsOptions) options: TRecalculateLODGroupBoundsOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TLODGroupBoundsResult>>"
+  },
+  {
+    "name": "scene-regenerate-polygon-2d-points",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-regenerate-polygon-2d-points')",
+      "@title('Regenerate PolygonCollider2D points')",
+      "@description('Regenerate cc.PolygonCollider2D points from the alpha contour of a Sprite on the same node. Falls back to the UITransform rectangle when no usable Sprite source exists. This overwrites the current points and records undo by default.')",
+      "@result(SchemaRegeneratePolygon2DPointsResult)"
+    ],
+    "parameters": [
+      "@param(SchemaRegeneratePolygon2DPointsOptions) options: TRegeneratePolygon2DPointsOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TRegeneratePolygon2DPointsResult>>"
+  },
+  {
+    "name": "scene-reload",
+    "file": "src/api/scene/scene.ts",
+    "decorators": [
+      "@tool('scene-reload')",
+      "@title('Reload scene/prefab')",
+      "@description('Reload scene/prefab')",
+      "@result(SchemaReload)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TReload>>"
+  },
+  {
+    "name": "scene-save",
+    "file": "src/api/scene/scene.ts",
+    "decorators": [
+      "@tool('scene-save')",
+      "@title('Save scene/prefab')",
+      "@description('Save current opened scene/prefab to asset, including scene node structure, component data, asset references etc. Will update .meta file after save.')",
+      "@result(SchemaSaveResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TSaveResult>>"
+  },
+  {
+    "name": "scene-serialize-nodes",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-serialize-nodes')",
+      "@title('Serialize Scene Nodes')",
+      "@description('Serialize nodes and their subtrees from the currently opened source scene as one transferable batch. Removes duplicate selections and descendants already covered by a selected parent, preserving references within the batch. Does not modify the scene, clipboard, or undo history. Keep the complete returned data unchanged, then open the destination scene in the same project and pass it to scene-create-nodes-by-serialized-data. The source scene may be closed after serialization.')",
+      "@result(SchemaSerializedNodeData)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeSerialize) options: TSerializeNodesOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TSerializedNodeData>>"
+  },
+  {
+    "name": "scene-set-component-property",
+    "file": "src/api/scene/component.ts",
+    "decorators": [
+      "@tool('scene-set-component-property')",
+      "@title('Set component property')",
+      "@description('Set component properties. Query scene-query-component first and match each Asset reference to the returned property type. Asset values use { uuid: \"...\" }; uuid may be an exact UUID or db:// URL. If a parent asset has exactly one compatible sub-asset, it is normalized automatically; incompatible or ambiguous references return 400 without modifying the component.')",
+      "@result(SchemaBooleanResult)"
+    ],
+    "parameters": [
+      "@param(SchemaSetPropertyOptions) setPropertyOptions?: TSetPropertyOptions"
+    ],
+    "returnType": "Promise<CommonResultType<boolean>>"
+  },
+  {
+    "name": "scene-start-reflection-probe-bake",
+    "file": "src/api/scene/reflection-probe.ts",
+    "decorators": [
+      "@tool('scene-start-reflection-probe-bake')",
+      "@title('Start or queue reflection-probe baking')",
+      "@description('Accept a reflection-probe bake task immediately, or append selected component UUIDs to the running task. Query the task to observe completion.')",
+      "@result(SchemaReflectionProbeTaskState)"
+    ],
+    "parameters": [
+      "@param(SchemaReflectionProbeBakeAllOptions) options: TReflectionProbeBakeAllOptions"
+    ],
+    "returnType": "Promise<CommonResultType<IReflectionProbeTaskState>>"
+  },
+  {
+    "name": "scene-update-node",
+    "file": "src/api/scene/node.ts",
+    "decorators": [
+      "@tool('scene-update-node')",
+      "@title('Update Node')",
+      "@description('Update a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1')",
+      "@result(SchemaNodeUpdateResult)"
+    ],
+    "parameters": [
+      "@param(SchemaNodeUpdate) options: TUpdateNodeOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNodeUpdateResult>>"
+  },
+  {
+    "name": "system-clear-logs",
+    "file": "src/api/system/system.ts",
+    "decorators": [
+      "@tool('system-clear-logs')",
+      "@title('Clear CLI logs')",
+      "@description('Clear CLI log information')",
+      "@result(SchemaClearLogResult)"
+    ],
+    "parameters": [],
+    "returnType": "Promise<CommonResultType<TClearLogResult>>"
+  },
+  {
+    "name": "system-query-logs",
+    "file": "src/api/system/system.ts",
+    "decorators": [
+      "@tool('system-query-logs')",
+      "@title('Query CLI logs')",
+      "@description('Returns log information generated after executing CLI. The first parameter refers to returning the last n lines of log information, loglevel is the log level to query, such as Error, Warning, Info, Debug, etc.')",
+      "@result(SchemaQueryLogResult)"
+    ],
+    "parameters": [
+      "@param(SchemaQueryLogParamInfo) queryParam: TQueryLogParamInfo"
+    ],
+    "returnType": "Promise<CommonResultType<TQueryLogResult>>"
+  },
+  {
+    "name": "unpack-prefab",
+    "file": "src/api/scene/prefab.ts",
+    "decorators": [
+      "@tool('unpack-prefab')",
+      "@title('Unpack Prefab Instance')",
+      "@description('Unpack the prefab instance, making it a regular node and no longer associated with the prefab asset')",
+      "@result(SchemaNode)"
+    ],
+    "parameters": [
+      "@param(SchemaUnpackPrefabInstanceOptions) options: TUnpackPrefabInstanceOptions"
+    ],
+    "returnType": "Promise<CommonResultType<TNode>>"
+  }
+]

@@ -57,6 +57,8 @@ async function doRegisterMcp(): Promise<string> {
 
 	const serverUrl = getUrl();
 	mcpUrl = `${serverUrl}/mcp`;
+	const { publishMcpEndpoint } = await import('../../core/project-backend/runtime');
+	await publishMcpEndpoint(mcpUrl);
 
 	console.log(`[MCP] Middleware registered at: ${mcpUrl}`);
 	return mcpUrl;

@@ -1,7 +1,7 @@
 import { AssetHandlerType, ISupportCreateType, AssetUserDataMap, IAssetType } from './asset-types';
-import type { IProperty } from '../../scene/@types/public';
+import type { IProperty } from '../../base/property';
 import type { ICocosConfigurationPropertySchema } from '../../configuration/script/metadata';
-export type { IProperty } from '../../scene/@types/public';
+export type { IProperty } from '../../base/property';
 export type {
     IAssetDeleteOptions,
     IAssetFileSystemProvider,

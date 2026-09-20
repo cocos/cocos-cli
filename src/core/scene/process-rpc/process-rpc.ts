@@ -84,6 +84,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
     private msgId = 0;
     private process: NodeJS.Process | ChildProcess | undefined;
     private onMessageBind = this.onMessage.bind(this);
+    private onDisconnectBind = () => this.dispose();
     private serverUrl: string | undefined;
     private isWebMode = false;
 
@@ -119,9 +120,11 @@ export class ProcessRPC<TModules extends Record<string, any>> {
      * 重置消息注册
      */
     public dispose() {
-        this.msgId = 0;
+        // A replaced Worker must reject in-flight calls, otherwise the shared command queue never drains.
+        for (const [id, callback] of this.callbacks) callback({ id, type: 'response', error: 'RPC connection disposed' });
         this.callbacks.clear();
         this.process?.off('message', this.onMessageBind);
+        this.process?.off('disconnect', this.onDisconnectBind);
         this.process = undefined;
         this.serverUrl = undefined;
         this.isWebMode = false;
@@ -142,6 +145,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
             throw new Error('未挂载进程');
         }
         this.process.on('message', this.onMessageBind);
+        this.process.on('disconnect', this.onDisconnectBind);
     }
 
     private async onMessage(msg: RpcMessage) {

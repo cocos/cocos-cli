@@ -3,6 +3,13 @@ import EventEmitter from 'events';
 const mockCreate = jest.fn();
 const mockUpdateDatabases = jest.fn();
 
+// This test isolates rollback after a database start error; its synthetic C:/ paths
+// must not create directories on the machine running the test.
+jest.mock('fs-extra', () => ({
+    ...jest.requireActual('fs-extra'),
+    ensureDirSync: jest.fn(),
+}));
+
 jest.mock('@cocos/asset-db', () => ({
     AssetActionEnum: { add: 0, change: 1, delete: 2, none: 3 },
     create: mockCreate,

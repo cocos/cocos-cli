@@ -281,3 +281,4 @@ describe('Node manager setParent', () => {
         expect(child.setParent).toHaveBeenCalledWith(nextParent, false);
     });
 });
+jest.mock('../scene-process/service/core/backend-view', () => ({ backendView: { is2D: false } }));

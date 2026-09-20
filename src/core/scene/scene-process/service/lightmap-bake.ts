@@ -12,7 +12,7 @@ import { finishSavedLightFXRecording, LightFXResultRetainedError } from './bakin
 import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets';
 import { BaseService, register, Service } from './core';
 import type { IEditorSessionService } from './core/editor-session';
-import { loadPreviewAsset } from './preview/asset-reload';
+import { loadPreviewAsset } from './utils/asset-reload';
 import { validateLightmapGISamples } from '../../common/lightfx-limits';
 import { captureLightFXScene, runLightFXSceneOperation, type LightFXSceneContext } from './baking/lightfx/scene-context';
 

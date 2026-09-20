@@ -51,7 +51,7 @@ class AsyncIterationConcurrency1 {
  */
 const importExceptionLogTag = '::SceneExecutorImportExceptionHandler::';
 
-import { GlobalEnv } from '../../common/global-env';
+import { GlobalEnv } from '../../../base/global-env';
 
 const globalEnv = new GlobalEnv();
 
@@ -60,6 +60,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
     private _executor!: Executor;
 
     private _isInited: boolean = false;
+    private _isWebEnv = false;
 
     private _suspendPromise: Promise<void> | null = null;
 
@@ -108,6 +109,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
 
         const cceModuleMap = await Rpc.getInstance().request('programming', 'queryCCEModuleMap');
         const isWebEnv = typeof (globalThis as any).EditorExtends !== 'undefined' && typeof System !== 'undefined' && typeof System.import === 'function' && !(process as any)?.versions?.node;
+        this._isWebEnv = isWebEnv;
         let loadDynamic: any;
         if (!isWebEnv) {
             const preload = await import('cc/preload');
@@ -233,7 +235,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
                     // Refresh pack import map before reload: after server-side recompilation,
                     // chunk hashes change and the browser's cached import map becomes stale.
                     const serverURL = serviceManager.getServerUrl();
-                    if (serverURL) {
+                    if (this._isWebEnv && serverURL) {
                         try {
                             const res = await fetch(`${serverURL}/scripting/x/pack-import-map-url`);
                             if (res.ok) {

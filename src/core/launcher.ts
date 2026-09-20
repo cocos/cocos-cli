@@ -1,19 +1,14 @@
 import { join } from 'path';
-import { BuildExitCode, IBuildCommandOption, Platform } from './builder/@types/protected';
+import { IBuildCommandOption, Platform } from './builder/@types/protected';
 import utils from './base/utils';
 import { newConsole } from './base/console';
-import { startServer, getServerUrl } from '../server';
+import { startServer } from '../server';
 import { GlobalConfig, GlobalPaths } from '../global';
 import scripting from './scripting';
 import { startupScene } from './scene';
-import { getExternalGamePreviewUrl } from './preview/game-preview-url';
+import { ensureProjectOwnership, releaseProjectOwnership, ProjectBackendError, type ProjectBackendLease } from './project-backend/ownership';
+import { ensureOwnedSceneSession, closeOwnedSceneSession } from './project-backend/runtime';
 
-interface IPreviewStartOptions {
-    port?: number;
-    platform?: Platform | string;
-    open?: boolean;
-    buildOptions?: Partial<IBuildCommandOption>;
-}
 
 
 /**
@@ -21,16 +16,23 @@ interface IPreviewStartOptions {
  * 默认支持几种启动方式：单独导入项目、单独启动项目、单独构建项目
  */
 export default class Launcher {
-    private projectPath: string;
+    protected projectPath: string;
 
     private _init = false;
     private _import = false;
+    private static active: Launcher | undefined;
+    private ownership?: ProjectBackendLease;
+    private importPromise?: Promise<void>;
+    private startupPromise?: Promise<void>;
+    private closePromise?: Promise<void>;
+    private projectOpened = false;
+    private scriptsStarted = false;
+    private assetsStarted = false;
+    private serverStarted = false;
+    private sceneStarted = false;
 
     constructor(projectPath: string) {
         this.projectPath = projectPath;
-        // 初始化日志系统
-        newConsole.init(join(this.projectPath, 'temp', 'logs', 'cocos.log'), true);
-        newConsole.record();
     }
 
     private async init() {
@@ -50,6 +52,7 @@ export default class Launcher {
         // 初始化项目信息
         const { default: Project } = await import('./project');
         await Project.open(this.projectPath);
+        this.projectOpened = true;
         // 初始化引擎
         const { initEngine } = await import('./engine');
         await initEngine(GlobalPaths.enginePath, this.projectPath);
@@ -60,161 +63,67 @@ export default class Launcher {
      * 导入资源
      */
     async import() {
-        if (this._import) {
-            return;
+        if (this.closePromise) throw new Error('Launcher is closed; create a new Launcher');
+        return this.importPromise ??= this.importOwned();
+    }
+
+    private async importOwned() {
+        if (Launcher.active && Launcher.active !== this) throw new ProjectBackendError('PROCESS_PROJECT_CONFLICT', 'Another Launcher already owns this CLI process');
+        Launcher.active = this;
+        try {
+            this.ownership = await ensureProjectOwnership(this.projectPath);
+            this.projectPath = this.ownership.descriptor.project;
+            this.ownership.onShutdown(() => this.close());
+            // Logging also writes project files, so initialize it only after ownership is acquired.
+            newConsole.init(join(this.projectPath, 'temp', 'logs', 'cocos.log'), true);
+            newConsole.record();
+            await this.init();
+            // 在导入资源之前，初始化 scripting 模块，才能正常导入编译脚本
+            const { Engine } = await import('./engine');
+            this.scriptsStarted = true;
+            await scripting.initialize(this.projectPath, GlobalPaths.enginePath, Engine.getConfig().includeModules);
+
+            const { createProgrammingFacet } = await import('./scripting/programming/FacetInstance');
+            await createProgrammingFacet(Engine.getInfo().typescript.path, scripting.projectPath, Engine.getConfig().includeModules);
+
+            // 启动以及初始化资源数据库
+            const { initAssetDB, startAssetDB } = await import('./assets');
+            this.assetsStarted = true;
+            await initAssetDB();
+            await startAssetDB();
+            this._import = true;
+        } catch (error) {
+            if (this.ownership) await this.cleanup().catch(cleanupError => console.error('[Backend] Initialization cleanup failed; ownership retained:', cleanupError));
+            else if (Launcher.active === this) Launcher.active = undefined;
+            throw error;
         }
-        this._import = true;
-        await this.init();
-        // 在导入资源之前，初始化 scripting 模块，才能正常导入编译脚本
-        const { Engine } = await import('./engine');
-        await scripting.initialize(this.projectPath, GlobalPaths.enginePath, Engine.getConfig().includeModules);
-
-        const { createProgrammingFacet } = await import('./scripting/programming/FacetInstance');
-        await createProgrammingFacet(Engine.getInfo().typescript.path, scripting.projectPath, Engine.getConfig().includeModules);
-
-        // 启动以及初始化资源数据库
-        const { initAssetDB, startAssetDB } = await import('./assets');
-        await initAssetDB();
-        await startAssetDB();
     }
 
     /**
      * 启动项目
      */
-    async startup(port?: number) {
-        await this.import();
-        await startServer(port);
-        // 初始化构建
-        const { init: initBuilder } = await import('./builder');
-        await initBuilder();
-
-        // 启动场景进程，需要在 Builder 之后，因为服务器路由场景还没有做前缀约束匹配范围比较广
-        await startupScene(GlobalPaths.enginePath, this.projectPath);
+    async startup(port?: number, options: { allowedOrigins?: string[]; publishReady?: boolean } = {}) {
+        if (this.closePromise) throw new Error('Launcher is closed; create a new Launcher');
+        return this.startupPromise ??= this.startupOwned(port, options);
     }
 
-    async startPreview(options: number | IPreviewStartOptions = {}) {
-        const previewOptions: IPreviewStartOptions = typeof options === 'number' ? { port: options } : options;
-        const platform = previewOptions.platform || previewOptions.buildOptions?.platform || 'web-desktop';
-        if (!platform.startsWith('web')) {
-            throw new Error(`Preview only supports web platforms, got: ${platform}`);
-        }
-
-        GlobalConfig.mode = 'simple';
+    private async startupOwned(port?: number, options: { allowedOrigins?: string[]; publishReady?: boolean } = {}) {
         await this.import();
-        await startServer(previewOptions.port);
-
-        const { init, build } = await import('./builder');
-        await init([platform]);
-
-        const buildOptions: Partial<IBuildCommandOption> = {
-            ...previewOptions.buildOptions,
-            platform,
-            outputName: previewOptions.buildOptions?.outputName || 'preview',
-            taskName: previewOptions.buildOptions?.taskName || 'preview',
-        };
-        if (buildOptions.debug === undefined) {
-            buildOptions.debug = true;
-        }
-
-        const result = await build(platform as Platform, buildOptions);
-        if (result.code !== BuildExitCode.BUILD_SUCCESS) {
-            throw new Error(result.reason || 'Preview build failed.');
-        }
-
-        const previewUrl = result.custom?.previewUrl;
-        if (!previewUrl) {
-            throw new Error('Preview build completed but did not return a preview URL.');
-        }
-
-        console.log(`Preview URL: ${previewUrl}`);
-        if (previewOptions.open !== false) {
-            const { openUrlAsync } = await import('./builder/platforms/web-common/utils');
-            await openUrlAsync(previewUrl);
-        }
-
-        return result;
-    }
-
-    /**
-     * 启动动态游戏预览（只托管不构建，对齐编辑器浏览器预览）。
-     * 与场景编辑器预览的区别：不启动场景进程 / RPC。
-     */
-    async startGamePreview(options: { port?: number; scene?: string; open?: boolean } = {}) {
-        await this.import();
-        await startServer(options.port);
-
-        // getPreviewSettings 需要 builder 初始化
-        const { init: initBuilder } = await import('./builder');
-        await initBuilder();
-
-        const { registerBrowserPreview } = await import('./preview/register');
-        await registerBrowserPreview(this.projectPath);
-
-        const serverUrl = getServerUrl();
-        const url = getExternalGamePreviewUrl(serverUrl, options.scene);
-        console.log(`Game preview: ${url}`);
-        await this.printPreviewScenes(serverUrl, options.scene);
-        if (options.open !== false) {
-            const { openUrlAsync } = await import('./builder/platforms/web-common/utils');
-            await openUrlAsync(url);
-        }
-    }
-
-    /**
-     * 打印当前启动场景与项目内可用场景列表，方便用 ?scene=<url|uuid> 切换。
-     */
-    private async printPreviewScenes(serverUrl: string, scene?: string) {
         try {
-            const { assetManager } = await import('./assets');
-            const { getCachedPreviewSettings } = await import('./preview/preview-settings');
-            const { settings } = await getCachedPreviewSettings(scene || '');
-            const launchUuid = (settings as any)?.launch?.launchScene || '';
-            const launchInfo = launchUuid ? assetManager.queryAssetInfo(launchUuid) : null;
-            console.log(`Launch scene: ${launchInfo?.url || launchUuid || '(none)'}`);
+            this.serverStarted = true;
+            await startServer(port);
+            // 初始化构建
+            const { init: initBuilder } = await import('./builder');
+            await initBuilder();
 
-            const scenes = assetManager.queryAssetInfos({ ccType: 'cc.SceneAsset' });
-            if (scenes && scenes.length) {
-                console.log('Available scenes (switch via ?scene=<url-or-uuid>):');
-                for (const s of scenes) {
-                    console.log(`  ${serverUrl}/?scene=${encodeURIComponent(s.url)}`);
-                }
-            } else {
-                console.log('No scene asset found in project.');
-            }
-        } catch (err) {
-            console.warn('[Preview] Failed to list scenes:', err);
-        }
-    }
-
-    async startSceneEditorPreview(options: number | { port?: number; open?: boolean } = {}) {
-        const opts = typeof options === 'number' ? { port: options } : options;
-        await this.import();
-        await startServer(opts.port);
-        // 初始化构建
-        const { init: initBuilder } = await import('./builder');
-        await initBuilder();
-
-        // initScene() 内部会先注册浏览器游戏预览路由（/ 及资源路由），再注册场景中间件，
-        // 使浏览器预览与场景编辑器共用一台 server 且路由优先级正确（见 scene/index.ts init）。
-        const { init: initScene } = await import('./scene');
-        await initScene();
-
-        // 注册调试用的中间件（仅 preview 模式）
-        const { middlewareService } = await import('../server/middleware');
-        const { default: PreviewDebugMiddleware } = await import('./scene/preview.debug.middleware');
-        middlewareService.register('PreviewDebug', PreviewDebugMiddleware);
-
-        const { Rpc } = await import('./scene/main-process/rpc');
-        await Rpc.startup();
-
-        const serverUrl = getServerUrl();
-        const sceneEditorUrl = `${serverUrl}/scene-editor/`;
-        console.log(`Scene editor preview: ${sceneEditorUrl}`);
-        console.log(`Browser preview: ${serverUrl}/`);
-
-        if (opts.open !== false) {
-            const { openUrlAsync } = await import('./builder/platforms/web-common/utils');
-            await openUrlAsync(sceneEditorUrl);
+            // 启动场景进程，需要在 Builder 之后，因为服务器路由场景还没有做前缀约束匹配范围比较广
+            this.sceneStarted = true;
+            await startupScene(GlobalPaths.enginePath, this.projectPath);
+            await ensureOwnedSceneSession({ project: this.projectPath, allowedOrigins: options.allowedOrigins });
+            if (options.publishReady !== false) await this.ownership!.publish({ state: 'ready' });
+        } catch (error) {
+            await this.cleanup().catch(cleanupError => console.error('[Backend] Startup cleanup failed; ownership retained:', cleanupError));
+            throw error;
         }
     }
 
@@ -282,33 +191,30 @@ export default class Launcher {
     }
 
     async close() {
-        // 释放浏览器预览资源（扩展预览后端 + 热重载监听），对齐 Creator 生命周期
-        try {
-            const { disposeBrowserPreview } = await import('./preview/register');
-            await disposeBrowserPreview();
-        } catch (err) {
-            console.warn('[Preview] dispose failed:', err);
+        return this.closePromise ??= (async () => {
+            await (this.startupPromise ?? this.importPromise)?.catch(() => undefined);
+            await this.cleanup();
+        })();
+    }
+
+    private async cleanup() {
+        if (!this.ownership) return; // A losing Launcher must never stop another owner's singletons.
+        const errors: unknown[] = [];
+        const attempt = async (action: () => Promise<unknown>) => { try { await action(); } catch (error) { errors.push(error); } };
+        await attempt(() => this.ownership!.publish({ state: 'stopping' }));
+        await attempt(() => closeOwnedSceneSession());
+        if (this.sceneStarted) await attempt(async () => { const { sceneWorker } = await import('./scene/main-process/scene-worker'); if (!await sceneWorker.stop()) throw new Error('Scene worker did not stop'); this.sceneStarted = false; });
+        if (this.serverStarted) await attempt(async () => { const { stopServer } = await import('../server'); await stopServer(); this.serverStarted = false; });
+        if (this.assetsStarted) await attempt(async () => { const { stopAssetDB } = await import('./assets'); await stopAssetDB(); this.assetsStarted = false; });
+        if (this.scriptsStarted) await attempt(async () => { await scripting.close(); this.scriptsStarted = false; });
+        if (this.projectOpened) await attempt(async () => { const { default: Project } = await import('./project'); await Project.close(); this.projectOpened = false; });
+        if (errors.length) {
+            await this.ownership.publish({ state: 'failed' }).catch(() => undefined);
+            throw new AggregateError(errors, `Project shutdown failed; backend ownership was not released: ${errors.map(error => error instanceof Error ? error.message : String(error)).join('; ')}`);
         }
-
-        // 关闭服务器
-        const { stopServer } = await import('../server');
-        await stopServer();
-
-        // 关闭场景进程
-        const { sceneWorker } = await import('./scene/main-process/scene-worker');
-        await sceneWorker.stop();
-
-        // 关闭资源数据库
-        const { stopAssetDB } = await import('./assets');
-        await stopAssetDB();
-
-        // 关闭脚本管理器
-        const { default: scripting } = await import('./scripting');
-        await scripting.close();
-
-        // 保存项目配置
-        const { default: Project } = await import('./project');
-        await Project.close();
-        // ----- TODO 可能有的更多其他模块的保存销毁操作 ----
+        await releaseProjectOwnership(this.ownership);
+        this.ownership = undefined;
+        this._init = this._import = false;
+        if (Launcher.active === this) Launcher.active = undefined;
     }
 }

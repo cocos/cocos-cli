@@ -8,6 +8,7 @@ import {
     WorkerSceneCommandProvider,
 } from './scene-command-provider';
 import { SceneHostLocalExecutor } from './scene-host-local-executor';
+import { SceneSessionCoordinator } from '../session/coordinator';
 
 type AnySceneMethod = (...args: any[]) => any;
 type SceneServiceMethod<
@@ -49,6 +50,16 @@ export class RpcProxy implements SceneRpcClient {
     private commandProvider: ISceneCommandProvider | null = null;
     private commandProviderRegistration: SceneCommandProviderRegistration | null = null;
     private hostLocalExecutor: SceneHostLocalExecutor | null = null;
+    private sharedSession: SceneSessionCoordinator | null = null;
+
+    /** Enable shared ownership without changing standalone provider registration. */
+    public getSharedSession(): SceneSessionCoordinator {
+        return this.sharedSession ??= new SceneSessionCoordinator(() => this.commandProvider);
+    }
+
+    public publishSceneEvent(event: string): void {
+        this.sharedSession?.invalidate(event);
+    }
 
     public getInstance(): SceneRpcClient {
         if (!this.hostLocalExecutor) {
@@ -111,12 +122,14 @@ export class RpcProxy implements SceneRpcClient {
                 }
                 this.commandProvider = null;
                 this.commandProviderRegistration = null;
+                this.sharedSession?.reset();
                 this.disposeCommandProvider(provider);
             },
         };
 
         this.commandProvider = provider;
         this.commandProviderRegistration = registration;
+        this.sharedSession?.reset();
         this.disposeCommandProvider(previousProvider);
         console.log('[Node] Scene command provider installed');
         return registration;
@@ -127,6 +140,7 @@ export class RpcProxy implements SceneRpcClient {
         const provider = this.commandProvider;
         this.commandProvider = null;
         this.commandProviderRegistration = null;
+        this.sharedSession?.reset();
         this.disposeCommandProvider(provider);
     }
 
@@ -143,7 +157,7 @@ export class RpcProxy implements SceneRpcClient {
         }
 
         const [args, options] = rest;
-        return provider.request(
+        return (this.sharedSession ?? provider).request(
             String(module),
             String(method),
             (args ?? []) as any[],
@@ -163,7 +177,12 @@ export class RpcProxy implements SceneRpcClient {
         if (!provider.notify) {
             throw new Error('[Node] Scene command provider does not support notify()');
         }
-        provider.notify(String(module), String(method), (args ?? []) as any[]);
+        if (this.sharedSession) {
+            void this.sharedSession.request(String(module), String(method), (args ?? []) as any[])
+                .catch(error => console.error('[Scene session] Notification failed:', error));
+        } else {
+            provider.notify(String(module), String(method), (args ?? []) as any[]);
+        }
     }
 
     public executeLocal(module: string, method: string, args: any[] = []): Promise<any> {

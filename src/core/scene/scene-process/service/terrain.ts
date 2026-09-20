@@ -1,7 +1,8 @@
 import { Component, Terrain, TerrainAsset, TerrainInfo, TerrainLayer, Texture2D, TERRAIN_MAX_LAYER_COUNT } from 'cc';
 import { BaseService, queryRegisteredService, register } from './core';
 import { ServiceEvents } from './core/global-events';
-import { getEditorNodeByUuid, getEditorNodeByPath } from './gizmo/utils/editor-node';
+import { TerrainDataSession, resolveTerrainSession, type TerrainSession } from './core/terrain-session';
+import { getEditorNodeByUuid, getEditorNodeByPath } from './utils/editor-node';
 import { loadAny } from './node/node-create';
 import { sceneAssetBinaryClient } from '../scene-asset-binary-client';
 import { TerrainLayerError } from '../../common';
@@ -26,22 +27,6 @@ import type {
     IUndoRedoResult,
     IUndoService,
 } from '../../common';
-
-interface ITerrainSessionGizmo {
-    target: Terrain | null;
-    readTerrainState(): ITerrainEditorState;
-    setTerrainMode(mode: TerrainEditorMode): void;
-    setTerrainCurrentLayer(currentLayer: number): void;
-    updateTerrainSculptSession(patch: ITerrainSculptSessionPatch): void;
-    setSculptBrushTexture(texture: Texture2D | null): void;
-    setPaintBrushTexture(texture: Texture2D | null): void;
-    updateTerrainPaintSession(patch: ITerrainPaintSessionPatch): void;
-    readTerrainBlock(): ITerrainBlockData | null;
-}
-
-interface IGizmoServiceLookup {
-    getComponentGizmo(component: Component): unknown;
-}
 
 const terrainEditorModes = new Set<TerrainEditorMode>(['manage', 'sculpt', 'paint', 'block']);
 const terrainSculptTools = new Set<NonNullable<ITerrainSculptSessionPatch['tool']>>([
@@ -75,20 +60,6 @@ function isTerrainTarget(value: unknown): value is ITerrainTarget {
     const target = value as Partial<ITerrainTarget>;
     return typeof target.nodeUuid === 'string' && target.nodeUuid.length > 0
         && typeof target.componentUuid === 'string' && target.componentUuid.length > 0;
-}
-
-function isTerrainSessionGizmo(value: unknown): value is ITerrainSessionGizmo {
-    if (!value || typeof value !== 'object') return false;
-    const gizmo = value as Partial<ITerrainSessionGizmo>;
-    return 'target' in gizmo
-        && typeof gizmo.readTerrainState === 'function'
-        && typeof gizmo.setTerrainMode === 'function'
-        && typeof gizmo.setTerrainCurrentLayer === 'function'
-        && typeof gizmo.updateTerrainSculptSession === 'function'
-        && typeof gizmo.setSculptBrushTexture === 'function'
-        && typeof gizmo.setPaintBrushTexture === 'function'
-        && typeof gizmo.updateTerrainPaintSession === 'function'
-        && typeof gizmo.readTerrainBlock === 'function';
 }
 
 function normalizeBrushPatch(value: unknown): ITerrainBrushPatch | undefined {
@@ -227,7 +198,7 @@ function statesEqual(left: unknown, right: unknown): boolean {
  * Terrain asset lifecycle and target-safe editor-session access.
  *
  * The public Terrain capability never exposes gizmos. This service validates the
- * requested node/component pair, adapts the matching internal gizmo, and returns
+ * requested node/component pair, adapts the matching internal session, and returns
  * canonical snapshots for direct Scene-webview access.
  */
 @register('Terrain')
@@ -236,6 +207,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     public readonly editedComponents: Terrain[] = [];
     public readonly selectedComponents: Terrain[] = [];
     private _terrainUndoSequence = 0;
+    private dataSessions = new WeakMap<Terrain, TerrainDataSession>();
 
     init() {
         // SelectionService broadcasts paths, while the old manager received node UUIDs.
@@ -257,17 +229,19 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         return this.terrainOfNode(getEditorNodeByUuid(uuid));
     }
 
-    private resolveTarget(target: ITerrainTarget): { component: Terrain; gizmo: ITerrainSessionGizmo } | null {
+    private resolveTarget(target: ITerrainTarget): { component: Terrain; session: TerrainSession } | null {
         if (!isTerrainTarget(target)) return null;
         const node = getEditorNodeByUuid(target.nodeUuid);
         const component = node?.components?.find((candidate: Component) => candidate.uuid === target.componentUuid
             && this.isTerrainComponent(candidate)) as Terrain | undefined;
         if (!component || component.node !== node || !this.selectedComponents.includes(component)) return null;
 
-        const gizmoService = queryRegisteredService<IGizmoServiceLookup>('Gizmo');
-        const gizmo = gizmoService?.getComponentGizmo(component);
-        if (!isTerrainSessionGizmo(gizmo) || gizmo.target !== component) return null;
-        return { component, gizmo };
+        const session = resolveTerrainSession(component, () => {
+            let data = this.dataSessions.get(component);
+            if (!data) { data = new TerrainDataSession(component); this.dataSessions.set(component, data); }
+            return data;
+        });
+        return session ? { component, session } : null;
     }
 
     private invalidResult(target: ITerrainTarget): ITerrainInvalidSnapshot {
@@ -280,12 +254,12 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         return typeof uuid === 'string' && uuid.length > 0 ? uuid : null;
     }
 
-    private readResolved(target: ITerrainTarget, gizmo: ITerrainSessionGizmo): TerrainReadResult {
+    private readResolved(target: ITerrainTarget, session: TerrainSession): TerrainReadResult {
         return {
             target: copyTarget(target),
             valid: true,
-            assetUuid: this.getTerrainAssetUuid(gizmo.target),
-            ...gizmo.readTerrainState(),
+            assetUuid: this.getTerrainAssetUuid(session.target),
+            ...session.readTerrainState(),
         };
     }
 
@@ -293,14 +267,14 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     public read(target: ITerrainTarget): TerrainReadResult {
         if (!isTerrainTarget(target)) return { target: { nodeUuid: '', componentUuid: '' }, valid: false };
         const resolved = this.resolveTarget(target);
-        return resolved ? this.readResolved(target, resolved.gizmo) : this.invalidResult(target);
+        return resolved ? this.readResolved(target, resolved.session) : this.invalidResult(target);
     }
 
     public setMode(target: ITerrainTarget, mode: TerrainEditorMode): TerrainReadResult {
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
-        if (!terrainEditorModes.has(mode)) return this.readResolved(target, resolved.gizmo);
-        resolved.gizmo.setTerrainMode(mode);
+        if (!terrainEditorModes.has(mode)) return this.readResolved(target, resolved.session);
+        resolved.session.setTerrainMode(mode);
         this.emit('terrain:session-changed', copyTarget(target));
         return this.read(target);
     }
@@ -308,8 +282,8 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     public setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult {
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
-        if (!Number.isInteger(currentLayer) || currentLayer < -1) return this.readResolved(target, resolved.gizmo);
-        resolved.gizmo.setTerrainCurrentLayer(currentLayer);
+        if (!Number.isInteger(currentLayer) || currentLayer < -1) return this.readResolved(target, resolved.session);
+        resolved.session.setTerrainCurrentLayer(currentLayer);
         this.emit('terrain:session-changed', copyTarget(target));
         return this.read(target);
     }
@@ -318,27 +292,27 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const normalized = normalizeSculptPatch(patch);
-        if (!normalized) return this.readResolved(target, resolved.gizmo);
-        resolved.gizmo.updateTerrainSculptSession(normalized);
+        if (!normalized) return this.readResolved(target, resolved.session);
+        resolved.session.updateTerrainSculptSession(normalized);
         this.emit('terrain:session-changed', copyTarget(target));
         return this.read(target);
     }
 
     /** Assigns a validated Texture2D asset to Sculpt, or clears it to restore the circle brush, without creating Scene Undo. */
     public async setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult> {
-        return this.setBrushAsset(target, assetUuid, 'sculpt brush', (gizmo, texture) => gizmo.setSculptBrushTexture(texture));
+        return this.setBrushAsset(target, assetUuid, 'sculpt brush', (session, texture) => session.setSculptBrushTexture(texture));
     }
 
     /** Assigns a validated Texture2D asset to Paint, or clears it to restore the circle brush, without creating Scene Undo. */
     public async setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult> {
-        return this.setBrushAsset(target, assetUuid, 'paint brush', (gizmo, texture) => gizmo.setPaintBrushTexture(texture));
+        return this.setBrushAsset(target, assetUuid, 'paint brush', (session, texture) => session.setPaintBrushTexture(texture));
     }
 
     private async setBrushAsset(
         target: ITerrainTarget,
         assetUuid: string | null,
         usage: string,
-        apply: (gizmo: ITerrainSessionGizmo, texture: Texture2D | null) => void,
+        apply: (session: TerrainSession, texture: Texture2D | null) => void,
     ): Promise<TerrainReadResult> {
         if (assetUuid !== null && (typeof assetUuid !== 'string' || assetUuid.length === 0)) {
             return this.read(target);
@@ -350,8 +324,8 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         if (assetUuid !== null && !texture) return this.read(target);
 
         const resolved = this.resolveTarget(target);
-        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
-        apply(resolved.gizmo, texture);
+        if (!resolved || resolved.component !== initial.component || resolved.session !== initial.session) return this.invalidResult(target);
+        apply(resolved.session, texture);
         this.emit('terrain:session-changed', copyTarget(target));
         return this.read(target);
     }
@@ -360,8 +334,8 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const normalized = normalizePaintPatch(patch);
-        if (!normalized) return this.readResolved(target, resolved.gizmo);
-        resolved.gizmo.updateTerrainPaintSession(normalized);
+        if (!normalized) return this.readResolved(target, resolved.session);
+        resolved.session.updateTerrainPaintSession(normalized);
         this.emit('terrain:session-changed', copyTarget(target));
         return this.read(target);
     }
@@ -371,7 +345,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         if (!isTerrainTarget(target)) return { target: { nodeUuid: '', componentUuid: '' }, valid: false };
         const resolved = this.resolveTarget(target);
         if (!resolved) return this.invalidResult(target);
-        return { target: copyTarget(target), valid: true, block: resolved.gizmo.readTerrainBlock() };
+        return { target: copyTarget(target), valid: true, block: resolved.session.readTerrainBlock() };
     }
 
     /** Commits a full Manage draft as one CLI-owned Terrain mutation and Undo command. */
@@ -381,10 +355,10 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const undoService = this.getTerrainUndoService();
-        if (!undoService) return this.readResolved(target, resolved.gizmo);
+        if (!undoService) return this.readResolved(target, resolved.session);
 
-        const before = copyManageState(resolved.gizmo.readTerrainState().manage);
-        if (statesEqual(before, next)) return this.readResolved(target, resolved.gizmo);
+        const before = copyManageState(resolved.session.readTerrainState().manage);
+        if (statesEqual(before, next)) return this.readResolved(target, resolved.session);
         if (!this.applyTerrainManageState(resolved.component, next)) return this.read(target);
 
         const result = this.read(target);
@@ -404,7 +378,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const initial = this.resolveTarget(target);
         if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const undoService = this.getTerrainUndoService();
-        if (!undoService) return this.readResolved(target, initial.gizmo);
+        if (!undoService) return this.readResolved(target, initial.session);
 
         let assets: ITerrainLayerAssets | null;
         if (usesDefaultLayer) {
@@ -421,8 +395,8 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         }
 
         const resolved = this.resolveTarget(target);
-        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
-        const before = copyLayerStates(resolved.gizmo.readTerrainState().layers);
+        if (!resolved || resolved.component !== initial.component || resolved.session !== initial.session) return this.invalidResult(target);
+        const before = copyLayerStates(resolved.session.readTerrainState().layers);
         if (!this.addTerrainLayer(resolved.component, next, assets)) return this.read(target);
 
         const result = this.read(target);
@@ -440,8 +414,8 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const resolved = this.resolveTarget(target);
         if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const undoService = this.getTerrainUndoService();
-        if (!undoService) return this.readResolved(target, resolved.gizmo);
-        const before = copyLayerStates(resolved.gizmo.readTerrainState().layers);
+        if (!undoService) return this.readResolved(target, resolved.session);
+        const before = copyLayerStates(resolved.session.readTerrainState().layers);
         if (!this.removeTerrainLayer(resolved.component, index)) return this.read(target);
 
         const result = this.read(target);
@@ -461,13 +435,13 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
         const initial = this.resolveTarget(target);
         if (!initial) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
         const undoService = this.getTerrainUndoService();
-        if (!undoService) return this.readResolved(target, initial.gizmo);
+        if (!undoService) return this.readResolved(target, initial.session);
         const assets = await this.loadLayerAssets(next);
         if (!assets) return this.read(target);
 
         const resolved = this.resolveTarget(target);
-        if (!resolved) return isTerrainTarget(target) ? this.invalidResult(target) : this.read(target);
-        const before = copyLayerStates(resolved.gizmo.readTerrainState().layers);
+        if (!resolved || resolved.component !== initial.component || resolved.session !== initial.session) return this.invalidResult(target);
+        const before = copyLayerStates(resolved.session.readTerrainState().layers);
         if (!this.updateTerrainLayer(resolved.component, index, next, assets)) return this.read(target);
 
         const result = this.read(target);
@@ -820,6 +794,7 @@ export class TerrainService extends BaseService<ITerrainEvents> implements ITerr
     public onEditorClosed(): void {
         this.onSelectionClear();
         this.editedComponents.length = 0;
+        this.dataSessions = new WeakMap();
     }
 
     public onEditorDisposed(): void {

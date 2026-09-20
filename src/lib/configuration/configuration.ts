@@ -5,6 +5,8 @@ export { IConfiguration, ConfigurationScope } from '../../core/configuration/scr
 export { IBaseConfiguration } from '../../core/configuration/script/config';
 
 export async function init(projectPath: string): Promise<void> {
+    const { ensureProjectOwnership } = await import('../../core/project-backend/ownership');
+    await ensureProjectOwnership(projectPath);
     const { configurationManager } = await import('../../core/configuration/index');
     return await configurationManager.initialize(projectPath);
 }

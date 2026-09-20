@@ -178,8 +178,10 @@ export class SceneWorker {
         disposeModuleMessages();
         return new Promise<boolean>((resolve) => {
             let settled = false;
+            let forceTimeout: ReturnType<typeof setTimeout> | undefined;
             const cleanup = () => {
                 clearTimeout(timeout);
+                clearTimeout(forceTimeout);
                 process.off('exit', onExit);
                 process.off('error', onError);
             };
@@ -191,11 +193,15 @@ export class SceneWorker {
                 cleanup();
                 resolve(result);
             };
+            const forceStop = () => {
+                if (settled || forceTimeout) return;
+                // Sending a signal does not prove the child has stopped writing.
+                forceTimeout = setTimeout(() => resolveOnce(false), 5000);
+                try { process.kill('SIGTERM'); } catch (_) { resolveOnce(false); }
+            };
             const timeout = setTimeout(() => {
                 console.warn('Scene process stop timed out, force killing...');
-                try { process.kill('SIGTERM'); } catch (e) { /* ignore */ }
-                this.clear();
-                resolveOnce(true);
+                forceStop();
             }, 10000);
 
             const onExit = () => {
@@ -216,9 +222,7 @@ export class SceneWorker {
             try {
                 process.send(SceneWorker.ExitWorkerEvent);
             } catch (e) {
-                try { process.kill('SIGTERM'); } catch (_) { /* ignore */ }
-                this.clear();
-                resolveOnce(true);
+                forceStop();
             }
         });
     }
@@ -305,6 +309,10 @@ export class SceneWorker {
 
         this.process.on('message', (msg: { type: string, event: string, args: any[] }) => {
             if (msg && msg.type === SceneProcessEventTag) {
+                // The shared session forwards invalidation names, not non-serializable engine objects.
+                if (/^(editor:|node:|component:|undo:|dirty:|scene:)/.test(msg.event)) {
+                    Rpc.publishSceneEvent(msg.event);
+                }
                 this.emit(msg.event, ...msg.args);
             }
         });

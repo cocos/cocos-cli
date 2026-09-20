@@ -1,4 +1,6 @@
 import { installSceneEditorShim } from './editor-shim';
+const mockRequest = jest.fn();
+jest.mock('./rpc', () => ({ Rpc: { getInstance: () => ({ request: mockRequest }) } }));
 
 describe('scene-process editor shim', () => {
     let previousEditor: any;
@@ -20,6 +22,16 @@ describe('scene-process editor shim', () => {
         installSceneEditorShim('D:/project');
 
         expect((globalThis as any).Editor.Project.path).toBe('D:/project');
+    });
+
+    it('resolves engine asset metadata through the CLI host without an IDE', async () => {
+        installSceneEditorShim('D:/project');
+        const info = { uuid: 'asset', library: { '.bin': 'asset.bin' } };
+        mockRequest.mockResolvedValueOnce(info);
+        const message = (globalThis as any).Editor.Message;
+        await expect(message.request('asset-db', 'query-asset-info', 'asset')).resolves.toEqual(info);
+        expect(mockRequest).toHaveBeenCalledWith('assetManager', 'queryAssetInfo', ['asset']);
+        await expect(message.request('ide', 'unknown', 'asset')).rejects.toThrow('Unsupported scene engine host request');
     });
 
     it('preserves an existing Editor object while refreshing Project.path', () => {

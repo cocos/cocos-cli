@@ -185,6 +185,19 @@ class SceneConfig {
         return this.configInstance.get(path, scope);
     }
 
+    public async queryDesignResolution() {
+        const { Engine } = await import('../engine');
+        const { configurationManager } = await import('../configuration');
+        const { pathExists, readJSON } = await import('fs-extra');
+        let resolution = Engine.getConfig().designResolution;
+        const configPath = await configurationManager.getConfigPath();
+        if (await pathExists(configPath)) {
+            const disk = (await readJSON(configPath))?.engine?.designResolution;
+            if (typeof disk?.width === 'number' && typeof disk?.height === 'number') resolution = { ...resolution, ...disk };
+        }
+        return resolution;
+    }
+
     public set(path: string, value: any, scope?: ConfigurationScope) {
         return this.configInstance.set(path, value, this.resolveSetScope(path, scope));
     }

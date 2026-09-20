@@ -91,6 +91,19 @@ function fixture(useGPU = false, supportsGPU = true) {
 }
 
 describe('particle snapshot material restoration', () => {
+    it.each([false, true])('keeps restored Trail rendering consistent with enabledInHierarchy=%s', async enabledInHierarchy => {
+        const f = fixture();
+        const model = { scene: {} as object | null };
+        const onDisable = jest.fn(() => { model.scene = null; });
+        Object.assign(f.component, {
+            enabledInHierarchy,
+            trailModule: { getModel: () => model, onDisable },
+        });
+        await f.apply(f.snapshot(false));
+        expect(onDisable).toHaveBeenCalledTimes(enabledInHierarchy ? 0 : 1);
+        expect(Boolean(model.scene)).toBe(enabledInHierarchy);
+    });
+
     it.each(['', 'gpu'])('preserves the CPU material when the inactive GPU material is %s', async gpu => {
         const f = fixture();
         await f.apply(f.snapshot(false, 'cpu', gpu));

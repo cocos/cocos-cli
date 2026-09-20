@@ -10,15 +10,10 @@ export * from './engine';
 export * from './animation';
 export * from './prefab';
 export * from './selection';
-export * from './operation';
+// Input services are registered by the private view runtime.
 export * from './undo';
 export * from './redo';
-export * from './camera';
-export * from './gizmo';
-export * from './scene-view';
 export * from './particle';
-export * from './preview';
-export * from './ui';
 export * from './reflection-probe';
 // Keep a runtime export so the web Scene bundle follows this decorator
 // registration module instead of replacing its CommonJS side-effect import

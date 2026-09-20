@@ -19,6 +19,7 @@ import {
 } from './reflection-probe-schema';
 
 export class ReflectionProbeApi {
+
     @tool('scene-start-reflection-probe-bake')
     @title('Start or queue reflection-probe baking')
     @description('Accept a reflection-probe bake task immediately, or append selected component UUIDs to the running task. Query the task to observe completion.')
