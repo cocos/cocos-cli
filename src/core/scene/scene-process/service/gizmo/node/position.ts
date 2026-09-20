@@ -1,6 +1,6 @@
 'use strict';
 
-import { CCObject, Color, IVec3Like, Layers, Node, Quat, Vec3, Vec4 } from 'cc';
+import { CCObject, Color, IVec3Like, Layers, Node, Quat, Vec3, Vec4, type Component } from 'cc';
 import type { GizmoMouseEvent } from '../utils/defines';
 import TransformBaseGizmo from './transform-base';
 import PositionController from './position-controller';
@@ -108,6 +108,37 @@ class PositionGizmo extends TransformBaseGizmo {
     private _nodeToSnapVertex: Vec3 = new Vec3(0, 0, 0);
     private _gizmoMouseEventListeners: { [key: string]: any } = {};
     private _axisController: OriginAxisController | null = null;
+
+    get target(): Component | null { return super.target; }
+
+    set target(value: Component | null) {
+        if (value !== super.target) this.cancelPendingMove();
+        super.target = value;
+    }
+
+    private cancelPendingMove(): void {
+        if (this._handler) {
+            clearTimeout(this._handler);
+            this._handler = null;
+        }
+    }
+
+    onHide(): void {
+        // The delayed callback reads the current selection. Do not let an old
+        // gesture move a new target after its probe batch / Undo was finished.
+        this.cancelPendingMove();
+        super.onHide();
+    }
+
+    onDestroy(): void {
+        this.cancelPendingMove();
+        super.onDestroy();
+    }
+
+    destroy(): void {
+        this.cancelPendingMove();
+        super.destroy();
+    }
 
     getFirstLockNode(): Node | undefined {
         return this.nodes.find(node => this.isNodeLocked(node));
@@ -397,7 +428,7 @@ class PositionGizmo extends TransformBaseGizmo {
             dif.y = -offset;
         }
 
-        !this.disableUndo && this.onControlUpdate('position');
+        if (!this.disableUndo) this.onControlUpdate('position');
 
         const curPos = new Vec3();
         this.nodes.forEach((node: Node) => {
@@ -415,7 +446,7 @@ class PositionGizmo extends TransformBaseGizmo {
         if (!ArrowKeys.includes(keyCode)) {
             return true;
         }
-        !this.disableUndo && this.onControlEnd('position');
+        if (!this.disableUndo) this.onControlEnd('position');
         return false;
     }
 

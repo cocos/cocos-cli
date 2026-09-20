@@ -56,6 +56,25 @@ describe('Serialized node data with the real engine', () => {
         }
     });
 
+    it('flushes pending light probe transforms before serializing a scene', async () => {
+        const transforms = await import('../scene-process/service/scene/light-probe-transform');
+        const { sceneUtils } = await import('../scene-process/service/scene/utils');
+        const scene = new engine.Scene('SaveDuringProbeDrag');
+        const flush = jest.spyOn(transforms, 'flushLightProbeTransformEdit');
+        const serialize = jest.spyOn(EditorExtends, 'serialize');
+        try {
+            sceneUtils.serialize(scene);
+            expect(flush).toHaveBeenCalledTimes(1);
+            expect(flush).toHaveBeenCalledWith(scene);
+            expect(serialize).toHaveBeenCalledTimes(1);
+            expect(flush.mock.invocationCallOrder[0]).toBeLessThan(serialize.mock.invocationCallOrder[0]);
+        } finally {
+            flush.mockRestore();
+            serialize.mockRestore();
+            scene.destroy();
+        }
+    });
+
     it('preserves cyclic references between roots and components with fresh identities on every creation', async () => {
         const first = new engine.Node('First');
         const second = new engine.Node('Second');

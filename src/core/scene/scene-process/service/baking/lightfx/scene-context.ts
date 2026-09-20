@@ -3,6 +3,7 @@ import { Service } from '../../core';
 import type { IEditorSessionService } from '../../core/editor-session';
 import { lightFXSceneOperation } from './scene-operation';
 import type { LightFXBakeTarget } from './types';
+import { isLightProbeTransformInProgress } from '../../scene/light-probe-transform';
 
 export type LightFXSceneContext = ReturnType<typeof captureLightFXScene>;
 
@@ -12,12 +13,20 @@ export function runLightFXSceneOperation<T>(target: LightFXBakeTarget, action: '
     return lightFXSceneOperation.run(target, action, () => {
         // Inside the reservation's cleanup scope so rejection releases this exact token.
         context.assertCurrent();
+        assertProbeTransformIdle(context.scene);
         return operation(context);
     }, () => {
         const scene = director.getScene();
         if (!scene) throw new Error('No scene is currently open.');
+        assertProbeTransformIdle(scene);
         context = captureLightFXScene(scene);
     });
+}
+
+function assertProbeTransformIdle(scene: Scene): void {
+    if (isLightProbeTransformInProgress(scene)) {
+        throw new Error('Finish moving the light probe group before baking or clearing light probe/lightmap data.');
+    }
 }
 
 /** Pin both the saved editor session and the actual Scene, including same-URL reloads. */

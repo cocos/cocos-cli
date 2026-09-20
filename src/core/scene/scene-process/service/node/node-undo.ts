@@ -1,4 +1,4 @@
-import { Component, Node } from 'cc';
+import { Component, Node, type Scene } from 'cc';
 import { NodeEventType, type IUndoRedoResult, type IUndoScope } from '../../../common';
 import { Service } from '../core';
 import dumpUtil from '../dump';
@@ -8,7 +8,7 @@ import { SnapshotCommand, type ISnapshotAdapter } from '../undo/commands/snapsho
 import type { INodeStructureCaptureTarget } from '../undo/commands/node-structure-command-utils';
 import { createUndoId, restoreNodeSnapshotDump, snapshotMapsEqual } from '../undo/commands/command-utils-shared';
 import { isRootNodePath } from '../../../../engine/editor-extends/manager/path-utils';
-import { withLightProbeTransformScenes } from '../scene/light-probe-transform';
+import { beginLightProbeRestore, captureLightProbeData, getLightProbeSnapshotScenes, restoreLightProbeData, type LightProbeDataSnapshot } from '../scene/light-probe-snapshot';
 
 const NodeMgr = EditorExtends.Node;
 
@@ -16,6 +16,8 @@ export interface INodeSnapshot {
     uuid: string;
     path: string;
     dump: any;
+    /** Only for scenes automatically included to restore affected probe data. */
+    lightProbeData?: LightProbeDataSnapshot;
 }
 
 export interface INodeChildOrderSnapshot {
@@ -94,7 +96,12 @@ export class NodeUndoHelper {
             return mutate();
         }
 
-        const before = this.captureNodeSnapshots(withLightProbeTransformScenes([node]));
+        const before = this.captureNodeSnapshots([node]);
+        for (const scene of getLightProbeSnapshotScenes([node])) {
+            if (scene !== node) {
+                before.set(scene.uuid, this._captureNodeSnapshot(scene, true));
+            }
+        }
         const result = await mutate();
         if (!result) {
             return result;
@@ -105,7 +112,7 @@ export class NodeUndoHelper {
             return result;
         }
 
-        const after = this.captureNodeSnapshots(this.findSnapshotNodes(before));
+        const after = this._recaptureNodeSnapshots(before);
         this.pushNodeSnapshotCommand(options.type, options.label, before, after, options.scope);
         return result;
     }
@@ -116,11 +123,30 @@ export class NodeUndoHelper {
             if (!node?.isValid) {
                 continue;
             }
-            snapshots.set(node.uuid, {
-                uuid: node.uuid,
-                path: NodeMgr.getNodePath(node) ?? '',
-                dump: this._cloneSnapshotDump(dumpUtil.dumpNode(node)),
-            });
+            snapshots.set(node.uuid, this._captureNodeSnapshot(node));
+        }
+        return snapshots;
+    }
+
+    private _captureNodeSnapshot(node: Node, probeDataOnly = false): INodeSnapshot {
+        const identity = { uuid: node.uuid, path: NodeMgr.getNodePath(node) ?? '' };
+        if (probeDataOnly) {
+            return { ...identity, dump: null, lightProbeData: captureLightProbeData(node as Scene) };
+        }
+        return {
+            ...identity,
+            // Node snapshot restoration only restores node properties, not components.
+            dump: this._cloneSnapshotDump(dumpUtil.dumpNode(node, { includeComponents: false })),
+        };
+    }
+
+    private _recaptureNodeSnapshots(before: Map<string, INodeSnapshot>): Map<string, INodeSnapshot> {
+        const snapshots = new Map<string, INodeSnapshot>();
+        for (const snapshot of before.values()) {
+            const node = this._findSnapshotNode(snapshot);
+            if (node) {
+                snapshots.set(node.uuid, this._captureNodeSnapshot(node, 'lightProbeData' in snapshot));
+            }
         }
         return snapshots;
     }
@@ -157,22 +183,30 @@ export class NodeUndoHelper {
 
     captureReparentSnapshots(nodes: Node[]): Map<string, INodeReparentSnapshot> {
         const snapshots = new Map<string, INodeReparentSnapshot>();
-        for (const node of withLightProbeTransformScenes(nodes)) {
+        const explicitNodes = new Set(nodes);
+        const targets = new Set(nodes);
+        for (const scene of getLightProbeSnapshotScenes(nodes)) {
+            targets.delete(scene);
+            targets.add(scene);
+        }
+        for (const node of targets) {
             if (!node?.isValid) {
                 continue;
             }
-            const parent = node.parent as Node | null;
-            snapshots.set(node.uuid, {
-                uuid: node.uuid,
-                path: NodeMgr.getNodePath(node) ?? '',
-                dump: this._cloneSnapshotDump(dumpUtil.dumpNode(node)),
-                parentUuid: parent?.uuid ?? null,
-                parentPath: parent ? (NodeMgr.getNodePath(parent) ?? '/') : '/',
-                siblingIndex: node.getSiblingIndex(),
-                ...(node === node.scene ? { probeScene: true as const } : {}),
-            });
+            snapshots.set(node.uuid, this._captureReparentSnapshot(node, !explicitNodes.has(node)));
         }
         return snapshots;
+    }
+
+    private _captureReparentSnapshot(node: Node, probeDataOnly = false): INodeReparentSnapshot {
+        const parent = node.parent as Node | null;
+        return {
+            ...this._captureNodeSnapshot(node, probeDataOnly),
+            parentUuid: parent?.uuid ?? null,
+            parentPath: parent ? (NodeMgr.getNodePath(parent) ?? '/') : '/',
+            siblingIndex: node.getSiblingIndex(),
+            ...(node === node.scene ? { probeScene: true as const } : {}),
+        };
     }
 
     recordReparentSnapshots(
@@ -184,8 +218,13 @@ export class NodeUndoHelper {
         if (!before || changedUuids.length === 0) {
             return;
         }
-        const afterNodes = this.findSnapshotNodes(before);
-        const after = this.captureReparentSnapshots(afterNodes);
+        const after = new Map<string, INodeReparentSnapshot>();
+        for (const snapshot of before.values()) {
+            const node = this._findSnapshotNode(snapshot);
+            if (node) {
+                after.set(node.uuid, this._captureReparentSnapshot(node, 'lightProbeData' in snapshot));
+            }
+        }
         if (this.snapshotMapsEqual(before, after)) {
             return;
         }
@@ -537,16 +576,23 @@ export class NodeUndoHelper {
 
     private async _applyReparentSnapshots(data: Map<string, INodeReparentSnapshot>): Promise<IUndoRedoResult> {
         const snapshots = [...data.values()].sort((a, b) => Number(!!a.probeScene) - Number(!!b.probeScene) || a.siblingIndex - b.siblingIndex);
-        for (const snapshot of snapshots) {
-            const result = await this._applyReparentSnapshot(snapshot);
-            if (!result.success) {
-                return result;
+        const deferredChanges: (() => void)[] | undefined = snapshots.some(snapshot => 'lightProbeData' in snapshot) ? [] : undefined;
+        const releaseProbeRestores = this._beginProbeRestores(snapshots);
+        try {
+            for (const snapshot of snapshots) {
+                const result = await this._applyReparentSnapshot(snapshot, deferredChanges);
+                if (!result.success) {
+                    return result;
+                }
             }
+            return { success: true };
+        } finally {
+            releaseProbeRestores.reverse().forEach(release => release());
+            deferredChanges?.forEach(notify => notify());
         }
-        return { success: true };
     }
 
-    private async _applyReparentSnapshot(snapshot: INodeReparentSnapshot): Promise<IUndoRedoResult> {
+    private async _applyReparentSnapshot(snapshot: INodeReparentSnapshot, deferredChanges?: (() => void)[]): Promise<IUndoRedoResult> {
         const node = this._findSnapshotNode(snapshot);
         if (!node) {
             return { success: false, reason: `Node not found: ${snapshot.path || snapshot.uuid}` };
@@ -554,8 +600,14 @@ export class NodeUndoHelper {
         if (snapshot.probeScene) {
             if (node !== node.scene) { return { success: false, reason: 'Probe scene snapshot target is not the current scene.' }; }
             try {
-                await this._restoreNodeSnapshotDump(node, snapshot.dump);
-                this._emit('node:change', node, { source: 'undo', type: NodeEventType.COMPONENT_CHANGED });
+                if ('lightProbeData' in snapshot) {
+                    restoreLightProbeData(node as Scene, snapshot.lightProbeData!);
+                } else {
+                    await this._restoreNodeSnapshotDump(node, snapshot.dump);
+                }
+                const notify = () => this._emit('node:change', node, { source: 'undo', type: NodeEventType.COMPONENT_CHANGED });
+                if (deferredChanges) deferredChanges.push(notify);
+                else notify();
                 return { success: true };
             } catch (error) {
                 return { success: false, reason: error instanceof Error ? error.message : String(error) };
@@ -582,13 +634,17 @@ export class NodeUndoHelper {
             }
             await this._restoreNodeSnapshotDump(node, snapshot.dump);
 
-            if (oldParent) {
-                this._emit('node:change', oldParent, { source: 'undo', type: NodeEventType.CHILD_CHANGED });
-            }
-            if (parent !== oldParent) {
-                this._emit('node:change', parent, { source: 'undo', type: NodeEventType.CHILD_CHANGED });
-            }
-            this._emit('node:change', node, { source: 'undo', type: NodeEventType.PARENT_CHANGED });
+            const notify = () => {
+                if (oldParent) {
+                    this._emit('node:change', oldParent, { source: 'undo', type: NodeEventType.CHILD_CHANGED });
+                }
+                if (parent !== oldParent) {
+                    this._emit('node:change', parent, { source: 'undo', type: NodeEventType.CHILD_CHANGED });
+                }
+                this._emit('node:change', node, { source: 'undo', type: NodeEventType.PARENT_CHANGED });
+            };
+            if (deferredChanges) deferredChanges.push(notify);
+            else notify();
             return { success: true };
         } catch (error) {
             return { success: false, reason: error instanceof Error ? error.message : String(error) };
@@ -629,16 +685,24 @@ export class NodeUndoHelper {
     }
 
     private async _applyNodeSnapshots(data: Map<string, INodeSnapshot>): Promise<IUndoRedoResult> {
-        for (const snapshot of data.values()) {
-            const result = await this._applyNodeSnapshot(snapshot);
-            if (!result.success) {
-                return result;
+        const snapshots = [...data.values()].sort((a, b) => Number('lightProbeData' in a) - Number('lightProbeData' in b));
+        const deferredChanges: (() => void)[] | undefined = snapshots.some(snapshot => 'lightProbeData' in snapshot) ? [] : undefined;
+        const releaseProbeRestores = this._beginProbeRestores(snapshots);
+        try {
+            for (const snapshot of snapshots) {
+                const result = await this._applyNodeSnapshot(snapshot, deferredChanges);
+                if (!result.success) {
+                    return result;
+                }
             }
+            return { success: true };
+        } finally {
+            releaseProbeRestores.reverse().forEach(release => release());
+            deferredChanges?.forEach(notify => notify());
         }
-        return { success: true };
     }
 
-    private async _applyNodeSnapshot(snapshot: INodeSnapshot): Promise<IUndoRedoResult> {
+    private async _applyNodeSnapshot(snapshot: INodeSnapshot, deferredChanges?: (() => void)[]): Promise<IUndoRedoResult> {
         const node = this._findSnapshotNode(snapshot);
         if (!node) {
             return { success: false, reason: `Node not found: ${snapshot.path || snapshot.uuid}` };
@@ -646,8 +710,15 @@ export class NodeUndoHelper {
 
         try {
             this._emit('node:before-change', node);
-            await this._restoreNodeSnapshotDump(node, snapshot.dump);
-            this._emit('node:change', node, { source: 'undo', type: NodeEventType.SET_PROPERTY });
+            if ('lightProbeData' in snapshot) {
+                if (node !== node.scene) { return { success: false, reason: 'Probe scene snapshot target is not the current scene.' }; }
+                restoreLightProbeData(node as Scene, snapshot.lightProbeData!);
+            } else {
+                await this._restoreNodeSnapshotDump(node, snapshot.dump);
+            }
+            const notify = () => this._emit('node:change', node, { source: 'undo', type: NodeEventType.SET_PROPERTY });
+            if (deferredChanges) deferredChanges.push(notify);
+            else notify();
             return { success: true };
         } catch (error) {
             return { success: false, reason: error instanceof Error ? error.message : String(error) };
@@ -660,11 +731,25 @@ export class NodeUndoHelper {
         });
     }
 
+    private _beginProbeRestores(snapshots: INodeSnapshot[]): (() => void)[] {
+        const releases: (() => void)[] = [];
+        for (const snapshot of snapshots) {
+            if (!('lightProbeData' in snapshot)) continue;
+            const scene = this._findSnapshotNode(snapshot);
+            if (scene && scene === scene.scene) {
+                releases.push(beginLightProbeRestore(scene as Scene));
+            }
+        }
+        return releases;
+    }
+
     private _findSnapshotNode(snapshot: INodeSnapshot): Node | null {
         const nodeByUuid = NodeMgr.getNode(snapshot.uuid) as Node | null;
         if (nodeByUuid?.isValid) {
             return nodeByUuid;
         }
+        // A scene path such as "/" can resolve to a different scene after a switch.
+        if ('lightProbeData' in snapshot) return null;
         if (snapshot.path) {
             const nodeByPath = NodeMgr.getNodeByPath(snapshot.path) as Node | null;
             return nodeByPath?.isValid ? nodeByPath : null;

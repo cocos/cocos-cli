@@ -6,6 +6,7 @@ import { encodePrefab } from '../dump/encode';
 import type { INode, IPrefab, INodeDumpOptions } from '../../../common';
 import type { IScene } from '../../../common/editor/scene';
 import { preserveLightProbeCoefficients } from './light-probe-data';
+import { flushLightProbeTransformEdit } from './light-probe-transform';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -183,6 +184,7 @@ class SceneUtil {
      * @private
      */
     serialize(scene: cc.Scene) {
+        flushLightProbeTransformEdit(scene);
         const asset = new cc.SceneAsset();
         prefabUtils.gatherPrefabInstanceRoots(scene);
         prefabUtils.removeInvalidPrefabData(scene);

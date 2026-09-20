@@ -3,17 +3,51 @@ let endRecordingPromise: Promise<unknown> | null = null;
 let endRecordingResolve: (() => void) | null = null;
 
 jest.mock('cc', () => {
+    class Vec3 {
+        static ZERO = new Vec3();
+        constructor(public x = 0, public y = 0, public z = 0) {}
+        set(value: Vec3) { this.x = value.x; this.y = value.y; this.z = value.z; return this; }
+        add(value: Vec3) { this.x += value.x; this.y += value.y; this.z += value.z; return this; }
+        equals(value: Vec3) { return this.x === value.x && this.y === value.y && this.z === value.z; }
+    }
     class Node {
         uuid = 'node-uuid';
+        isValid = true;
+        parent = null;
+        components: unknown[] = [];
+        position = new Vec3();
+        getWorldPosition() { return new Vec3().set(this.position); }
+        setWorldPosition = jest.fn((value: Vec3) => this.position.set(value));
     }
     class Component {
         node = new Node();
     }
-    return { Component, Node };
+    return {
+        Component, Node, Scene: class extends Node {}, Vec3, Quat: class { static identity() {} },
+        Layers: { Enum: {}, makeMaskExclude: () => 0 }, CCObject: { Flags: { IsPositionLocked: 1 } },
+    };
 });
+
+jest.mock('../scene-process/service/scene/light-probe-transform', () => ({ beginLightProbeTransformEdit: jest.fn() }));
+jest.mock('../scene-process/service/gizmo/utils/editor-node', () => ({ getEditorNodeByPath: jest.fn() }));
+jest.mock('../scene-process/service/gizmo/node/position-controller', () => ({
+    __esModule: true,
+    default: class {
+        updated = true;
+        transformToolData = { pivot: 'pivot', coordinate: 'global' };
+        getDeltaPosition() { return new (require('cc').Vec3)(1, 0, 0); }
+        setPosition() {}
+        setRotation() {}
+        hide() {}
+    },
+}));
+jest.mock('../scene-process/service/gizmo/controller/origin-axis', () => ({ __esModule: true, default: class {} }));
+jest.mock('../scene-process/service/gizmo/utils/engine-utils', () => ({}));
+jest.mock('../scene-process/service/camera/utils', () => ({ CameraUtils: {} }));
 
 jest.mock('../scene-process/service/core/decorator', () => ({
     Service: {
+        Selection: { query: jest.fn(() => []) },
         Undo: {
             beginRecording: jest.fn(() => 'recording-1'),
             endRecording: jest.fn(() => {
@@ -57,6 +91,176 @@ describe('GizmoBase animation property commit event', () => {
         globalEventEmitter.removeAllListeners('gizmo:control-end');
         globalEventEmitter.removeAllListeners('animation:property-committed');
         globalEventEmitter.removeAllListeners('node:change');
+    });
+
+    describe('node-transform light probe batches', () => {
+        function createTransformGizmo() {
+            const { Component } = require('cc');
+            const TransformBaseGizmo = require('../scene-process/service/gizmo/node/transform-base').default;
+            const { Service } = require('../scene-process/service/core/decorator');
+            const { getEditorNodeByPath } = require('../scene-process/service/gizmo/utils/editor-node');
+            const target = new Component();
+            target.node.uuid = 'ProbeGroup';
+            Service.Selection.query.mockReturnValue(['ProbeGroup']);
+            getEditorNodeByPath.mockReturnValue(target.node);
+            const gizmo = new TransformBaseGizmo(target);
+            gizmo._controller = { hide: jest.fn() };
+            return { gizmo, target, Service };
+        }
+
+        beforeEach(() => {
+            const { beginLightProbeTransformEdit } = require('../scene-process/service/scene/light-probe-transform');
+            beginLightProbeTransformEdit.mockReset();
+        });
+
+        it.each(['position', 'rotation', 'scale'])('captures before %s batching and flushes before after-state capture', async propPath => {
+            const { gizmo, target, Service } = createTransformGizmo();
+            const { beginLightProbeTransformEdit } = require('../scene-process/service/scene/light-probe-transform');
+            const order: string[] = [];
+            const finish = jest.fn(() => order.push('flush'));
+            Service.Undo.beginRecording.mockImplementationOnce(() => { order.push('before'); return 'recording-1'; });
+            Service.Undo.endRecording.mockImplementationOnce(() => { order.push('after'); return Promise.resolve(); });
+            beginLightProbeTransformEdit.mockImplementationOnce(() => { order.push('begin-batch'); return finish; });
+
+            gizmo.onControlUpdate(propPath);
+            gizmo.onControlUpdate(propPath);
+            await gizmo.onControlEnd(propPath);
+            await gizmo.commitChanges();
+
+            expect(order).toEqual(['before', 'begin-batch', 'flush', 'after']);
+            expect(beginLightProbeTransformEdit).toHaveBeenCalledWith([target.node]);
+            expect(finish).toHaveBeenCalledTimes(1);
+            expect(Service.Undo.beginRecording).toHaveBeenCalledTimes(1);
+            expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+            expect(broadcasts).toContainEqual(['gizmo:control-end', propPath]);
+            expect(broadcasts).toContainEqual(['animation:property-committed', {
+                nodePath: 'Canvas/ProbeGroup', propPath, source: 'engine',
+            }]);
+        });
+
+        it.each(['hide', 'target', 'destroy', 'wrapper-destroy'])('finishes an interrupted batch once on %s', async action => {
+            const { gizmo, Service } = createTransformGizmo();
+            const { beginLightProbeTransformEdit } = require('../scene-process/service/scene/light-probe-transform');
+            const finish = jest.fn();
+            beginLightProbeTransformEdit.mockReturnValueOnce(finish);
+            endRecordingPromise = new Promise(resolve => { endRecordingResolve = () => resolve(undefined); });
+            gizmo.onControlUpdate('position');
+            if (action === 'hide') {
+                // onHide normally returns early for the one still-selected node.
+                gizmo.onHide();
+                expect(gizmo._controller.hide).not.toHaveBeenCalled();
+            } else if (action === 'target') {
+                const { Component } = require('cc');
+                const { getEditorNodeByPath } = require('../scene-process/service/gizmo/utils/editor-node');
+                const next = new Component();
+                next.node.uuid = 'Next';
+                getEditorNodeByPath.mockReturnValue(next.node);
+                gizmo.target = next;
+            } else if (action === 'destroy') gizmo.destroy();
+            else gizmo.onDestroy();
+            // The next lifecycle callback can happen while endRecording awaits.
+            gizmo.onDestroy();
+            expect(finish).toHaveBeenCalledTimes(1);
+            expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+            expect(gizmo._isControlBegin).toBe(false);
+
+            endRecordingResolve?.();
+            await new Promise<void>(resolve => setImmediate(resolve));
+
+            expect(broadcasts.filter(([event]) => event === 'animation:property-committed')).toEqual([
+                ['animation:property-committed', { nodePath: 'Canvas/ProbeGroup', propPath: 'position', source: 'engine' }],
+            ]);
+        });
+
+        it('leaves ordinary-node hide and non-transform property recordings unchanged', async () => {
+            const { gizmo, Service } = createTransformGizmo();
+            const { beginLightProbeTransformEdit } = require('../scene-process/service/scene/light-probe-transform');
+            // No probe scene: the helper returns undefined, not a deferred batch.
+            gizmo.onControlUpdate('position');
+            gizmo.onHide();
+            expect(Service.Undo.endRecording).not.toHaveBeenCalled();
+            await gizmo.onControlEnd('position');
+            beginLightProbeTransformEdit.mockClear();
+            gizmo.onControlUpdate('_components.0.size');
+            expect(beginLightProbeTransformEdit).not.toHaveBeenCalled();
+            await gizmo.onControlEnd('_components.0.size');
+            expect(Service.Undo.endRecording).toHaveBeenCalledTimes(2);
+        });
+
+        it('releases the previous gesture without clearing a new batch while Undo is pending', async () => {
+            const { gizmo, Service } = createTransformGizmo();
+            const { beginLightProbeTransformEdit } = require('../scene-process/service/scene/light-probe-transform');
+            const first = jest.fn();
+            const second = jest.fn();
+            beginLightProbeTransformEdit.mockReturnValueOnce(first).mockReturnValueOnce(second);
+            endRecordingPromise = new Promise(resolve => { endRecordingResolve = () => resolve(undefined); });
+            gizmo.onControlUpdate('position');
+            const finishing = gizmo.onControlEnd('position');
+            gizmo.onControlUpdate('position');
+            expect(first).toHaveBeenCalledTimes(1);
+            expect(second).not.toHaveBeenCalled();
+            endRecordingResolve?.();
+            await finishing;
+            await gizmo.onControlEnd('position');
+            expect(second).toHaveBeenCalledTimes(1);
+            expect(Service.Undo.endRecording).toHaveBeenCalledTimes(2);
+        });
+
+        describe('delayed Position moves', () => {
+            beforeEach(() => jest.useFakeTimers());
+            afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
+
+            function scheduleMove() {
+                const { target, Service } = createTransformGizmo();
+                const PositionGizmo = require('../scene-process/service/gizmo/node/position').default;
+                const gizmo = new PositionGizmo(target);
+                gizmo.disableSnap = true;
+                gizmo.createController();
+                const event = { handleName: 'x' };
+                gizmo.onControllerMouseDown(event);
+                gizmo.updateDataFromController(event);
+                expect(jest.getTimerCount()).toBe(1);
+                return { gizmo, target, Service };
+            }
+
+            it.each(['hide', 'target', 'destroy', 'wrapper-destroy'])('clears the pending move before %s flushes Undo', action => {
+                const { beginLightProbeTransformEdit } = require('../scene-process/service/scene/light-probe-transform');
+                const timerCountsAtFlush: number[] = [];
+                const finish = jest.fn(() => { timerCountsAtFlush.push(jest.getTimerCount()); });
+                beginLightProbeTransformEdit.mockReturnValueOnce(finish);
+                const { gizmo, target, Service } = scheduleMove();
+                const { Component } = require('cc');
+                const { getEditorNodeByPath } = require('../scene-process/service/gizmo/utils/editor-node');
+                const next = new Component();
+                next.node.uuid = 'Next';
+
+                if (action === 'hide') gizmo.onHide();
+                else if (action === 'target') gizmo.target = next;
+                else if (action === 'destroy') gizmo.destroy();
+                else gizmo.onDestroy();
+                getEditorNodeByPath.mockReturnValue(next.node);
+                jest.runOnlyPendingTimers();
+                gizmo.onDestroy();
+
+                expect(timerCountsAtFlush).toEqual([0]);
+                expect(target.node.setWorldPosition).not.toHaveBeenCalled();
+                expect(next.node.setWorldPosition).not.toHaveBeenCalled();
+                expect(finish).toHaveBeenCalledTimes(1);
+                expect(Service.Undo.endRecording).toHaveBeenCalledTimes(1);
+            });
+
+            it('keeps the pending move for the same target and applies normal movement', async () => {
+                const { gizmo, target } = scheduleMove();
+
+                gizmo.target = target;
+                jest.advanceTimersByTime(16);
+
+                expect(target.node.setWorldPosition).toHaveBeenCalledTimes(1);
+                expect(target.node.position.x).toBe(1);
+                await gizmo.onControlEnd('position');
+                gizmo.onDestroy();
+            });
+        });
     });
 
     it('broadcasts normalized committed property payload on control end', async () => {

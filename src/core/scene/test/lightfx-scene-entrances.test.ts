@@ -1,5 +1,14 @@
 const mockGetScene = jest.fn();
+const mockProbeTransformInProgress = jest.fn(() => false);
 jest.mock('cc', () => ({ director: { getScene: mockGetScene } }));
+jest.mock('../scene-process/service/scene/light-probe-transform', () => ({ isLightProbeTransformInProgress: mockProbeTransformInProgress }));
+jest.mock('../scene-process/service/core', () => ({
+    ...jest.requireActual('../scene-process/service/core'),
+    Service: { Editor: {
+        getEditorSession: () => ({ uuid: 'scene-uuid', generation: 0 }),
+        isCurrentEditorSession: () => true,
+    } },
+}));
 jest.mock('../scene-process/service/baking/lightfx/baker', () => ({ lightFXCoordinator: { cancel: jest.fn(), canCancel: jest.fn(() => false) } }));
 jest.mock('../scene-process/service/baking/lightfx/host', () => ({ lightFXBakeHost: {
     queryCapabilities: jest.fn(),
@@ -15,8 +24,15 @@ import { LightmapBakeService } from '../scene-process/service/lightmap-bake';
 import { lightFXSceneOperation } from '../scene-process/service/baking/lightfx/scene-operation';
 import { lightFXBakeHost } from '../scene-process/service/baking/lightfx/host';
 import { lightFXCoordinator } from '../scene-process/service/baking/lightfx/baker';
+import { runLightFXSceneOperation } from '../scene-process/service/baking/lightfx/scene-context';
 
 describe('LightFX service entrance ownership', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockGetScene.mockReturnValue(null);
+        mockProbeTransformInProgress.mockReturnValue(false);
+    });
+
     it('advertises directory selection only when the actual host supports it', async () => {
         for (const supported of [false, true]) {
             jest.mocked(lightFXBakeHost.queryCapabilities).mockResolvedValueOnce({ sceneTransactionVersion: 1, lightmapAssetVersion: 1, busy: false, ...(supported ? { lightmapOutputDirectory: true as const } : {}) });
@@ -111,5 +127,52 @@ describe('LightFX service entrance ownership', () => {
             await expect(invoke()).rejects.toThrow('No scene is currently open.');
         }
         expect(mockGetScene).toHaveBeenCalledTimes(4);
+    });
+
+    it('rejects all four entrances during probe dragging before reserving or mutating scene data', async () => {
+        const scene = { uuid: 'scene-uuid' };
+        mockGetScene.mockReturnValue(scene);
+        mockProbeTransformInProgress.mockReturnValue(true);
+        const probe = new LightProbeBakeService();
+        const lightmap = new LightmapBakeService();
+
+        for (const invoke of [() => probe.bake(), () => probe.clearBake(), () => lightmap.bake(), () => lightmap.clearBake()]) {
+            await expect(invoke()).rejects.toThrow('Finish moving the light probe group');
+        }
+
+        expect(mockProbeTransformInProgress).toHaveBeenCalledTimes(4);
+        expect(mockProbeTransformInProgress).toHaveBeenLastCalledWith(scene);
+        expect(lightFXBakeHost.reserveSceneOperation).not.toHaveBeenCalled();
+        expect(lightFXBakeHost.releaseSceneOperation).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['light-probe', 'bake'], ['light-probe', 'clear'], ['lightmap', 'bake'], ['lightmap', 'clear'],
+    ] as const)('releases the exact %s %s reservation if dragging starts while awaiting the host, then permits a retry', async (target, action) => {
+        const scene = { uuid: 'scene-uuid' };
+        mockGetScene.mockReturnValue(scene);
+        const token = { transactionId: `${target}-${action}-owner` };
+        let resolveReservation!: (value: typeof token) => void;
+        jest.mocked(lightFXBakeHost.reserveSceneOperation).mockImplementationOnce(() => new Promise(resolve => {
+            resolveReservation = resolve;
+        }));
+        const operation = jest.fn(async () => 'completed');
+
+        const pending = runLightFXSceneOperation(target, action, operation);
+        expect(lightFXBakeHost.reserveSceneOperation).toHaveBeenCalledWith({ target, action });
+        expect(operation).not.toHaveBeenCalled();
+        mockProbeTransformInProgress.mockReturnValue(true);
+        resolveReservation(token);
+
+        await expect(pending).rejects.toThrow('Finish moving the light probe group');
+        expect(operation).not.toHaveBeenCalled();
+        expect(lightFXBakeHost.releaseSceneOperation).toHaveBeenCalledTimes(1);
+        expect(lightFXBakeHost.releaseSceneOperation).toHaveBeenCalledWith(token);
+
+        mockProbeTransformInProgress.mockReturnValue(false);
+        await expect(runLightFXSceneOperation(target, action, operation)).resolves.toBe('completed');
+        expect(operation).toHaveBeenCalledTimes(1);
+        expect(operation).toHaveBeenCalledWith(expect.objectContaining({ scene }));
+        expect(lightFXBakeHost.releaseSceneOperation).toHaveBeenCalledTimes(2);
     });
 });

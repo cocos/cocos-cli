@@ -9,6 +9,9 @@ import ControllerUtils from '../../utils/controller-utils';
 import { addMeshToNode, create3DNode, getModel, setMeshColor } from '../../utils/engine-utils';
 import { buildLightProbeConvex } from '../../utils/light-probe-convex';
 import { registerGizmo } from '../../gizmo-defines';
+import { NodeEventType, type IChangeNodeOptions } from '../../../../../common/node';
+import { isLightProbeRestoreInProgress } from '../../../scene/light-probe-snapshot';
+import { isLightProbeTransformInProgress } from '../../../scene/light-probe-transform';
 
 // 探针数量超过该阈值时只画包围盒/线框、不逐个建球，避免海量节点
 const MAX_PROBE_DOTS = 4096;
@@ -350,6 +353,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     // 用于检测 undo/redo 等外部改动：外部只改了 target.probes 但没触发引擎重剖分时，
     // 引擎的四面体顶点（info.data.probes）还是旧的 → 线框与探针球脱节。检测到不一致即补一次 onProbeChanged。
     private _engineSyncedPosSig = '';
+    private _engineSyncedWorldPos = '';
     // 重入守卫：_syncEngineIfProbesChanged 调 onProbeChanged 时，引擎可能同步回调
     // lightProbeInfoChanged → updateControllerData → 本方法，形成递归。此标志阻断重入。
     private _syncingEngine = false;
@@ -359,6 +363,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     // 是否处于 Edit Area Box 模式：仅此时才显示可拖绿色包围盒。
     // 选中默认 false（只展示探针球/线框），由后续 T2 的 changeEditMode 驱动。
     private _boxEditMode = false;
+    private _boxDragging = false;
 
     // mouseDown 时捕获
     private _minPos = new Vec3();
@@ -398,8 +403,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     private _probeController: PositionController | null = null;
     // controller 拖动中：各选中探针的本地起点（name → 本地坐标）。
     private _ctrlDragStartLocal = new Map<string, Vec3>();
-    // controller 拖动中的 Undo 记录 id / 属性路径。
-    private _ctrlDragUndoId: string | null = null;
+    // controller 拖动中的属性路径（Undo 由基类统一记录）。
     private _ctrlDragPropPath: string | null = null;
     private _ctrlDragging = false;
     // 拖动中的线框快照：按下时缓存线段拓扑与各端点世界起点，移动时只做「端点 += 世界增量」
@@ -407,6 +411,27 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     private _dragWirePositions: Vec3[] = [];     // 每个线框顶点的世界起点（拷贝，不引用引擎数据）
     private _dragWireIndices: number[] = [];     // 线段索引对（引用 _dragWirePositions）
     private _dragWireMoveMask: boolean[] = [];   // 每个线框顶点是否属于选中探针（需跟随增量移动）
+
+    get target(): LightProbeGroup | null {
+        return super.target;
+    }
+
+    set target(value: LightProbeGroup | null) {
+        if (value !== super.target) this._finishEditingGesture();
+        super.target = value;
+    }
+
+    // GizmoBase.destroy 会先提交 Undo，因此要在进入基类前完成探针/包围盒数据同步。
+    destroy(): void {
+        this._finishEditingGesture();
+        super.destroy();
+    }
+
+    private _finishEditingGesture(): void {
+        // 两个 Up 都先清除 dragging 标记；同步节点事件或重复 teardown 不会再次结束录制。
+        if (this._ctrlDragging) this._onProbeCtrlUp(null);
+        if (this._boxDragging) this.onControllerMouseUp();
+    }
 
     init() {
         this.createController();
@@ -429,7 +454,9 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     }
 
     onHide() {
+        this._finishEditingGesture();
         this._shown = false;
+        this._boxDragging = false;
         this._selected.clear();
         this._controller.hide();
         this._probeController?.hide();
@@ -477,6 +504,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
 
     onControllerMouseDown() {
         if (!this._isInitialized || this.target === null) return;
+        this._boxDragging = true;
         this._minPos.set(this.target.minPos);
         this._maxPos.set(this.target.maxPos);
         this._scale.set(1, 1, 1);
@@ -489,20 +517,11 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     }
 
     onControllerMouseUp() {
-        if (this.target && this._controller.updated) {
-            // 依据新范围重生成探针，并刷新探针球/线框
-            this.target.generateLightProbes();
-            this._rebuildDots(true);
-            this._rebuildWireframe();
-            this.onComponentChanged(this.target.node);
-            // 引擎重剖分四面体是延迟的，稍后补刷一次线框，避免与球错位（对齐 Creator debounce）
-            const target = this.target;
-            setTimeout(() => {
-                if (this.target === target) {
-                    this._rebuildDots(true);
-                    this._rebuildWireframe();
-                }
-            }, 250);
+        if (!this._boxDragging) return;
+        this._boxDragging = false;
+        if (this.target && this.target.isValid !== false && this.target.node.isValid !== false && this._controller.updated) {
+            // 引擎 generateLightProbes 已同步生成并更新四面体，无需延时再重建全部球。
+            this.generateLightProbes();
         }
         this.onControlEnd(this._minPropPath);
         this.onControlEnd(this._maxPropPath);
@@ -513,11 +532,15 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         if (!this.target) return false;
 
         this.target.generateLightProbes();
+        this._engineSyncedPosSig = this._computeProbePosSig();
+        this._engineSyncedWorldPos = this.target.node.worldPosition?.toString?.() ?? '';
         this._probesRef = null;
         this._dotsVolume = -1;
         this._lastInfoSig = '';
         this._rebuildDots(true);
         this._rebuildWireframe();
+        this._rebuildConvex();
+        this._lastInfoSig = this._computeInfoSig();
         this.onComponentChanged(this.target.node);
         return true;
     }
@@ -546,7 +569,8 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         const center = Vec3.multiplyScalar(new Vec3(), Vec3.add(new Vec3(), newMin, newMax), 0.5);
         const size = Vec3.subtract(new Vec3(), newMax, newMin);
         this._controller.updateSize(center, size);
-        this.onComponentChanged(this.target.node);
+        // 和逐探针拖动一样，在松手后通知一次，避免每次 mouseMove 都同步全组探针数据。
+        this._repaint();
     }
 
     updateControllerTransform() {
@@ -617,6 +641,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         if (this._vertexEditMode) {
             this._updateProbeControllerTransform();
         }
+        this._lastInfoSig = this._computeInfoSig();
     }
 
     /**
@@ -626,17 +651,26 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
      */
     private _syncEngineIfProbesChanged(): void {
         if (this._syncingEngine) return;                // 重入守卫：onProbeChanged 可能回调刷新，防止递归卡死
-        if (this._ctrlDragging) return;                 // 拖动中：由拖动管线处理，松手统一同步
+        if (this._ctrlDragging || this._boxDragging) return; // 拖动中：由拖动管线处理，松手统一同步
         if (!this.target) return;
+        // 恢复节点/组件时 Gizmo 可能先创建，此时原始探针数据尚未回填；由恢复结束的
+        // LIGHT_PROBE_CHANGED 统一刷新，不能在中途重剖分覆盖待恢复的数据。
+        if (isLightProbeRestoreInProgress(this.target.node.scene)) return;
+        // Whole-node/ancestor TRS gestures synchronize positions in NodeService;
+        // the gesture owner rebuilds topology once before the Undo end snapshot.
+        if (isLightProbeTransformInProgress(this.target.node.scene)) return;
         const sig = this._computeProbePosSig();
-        if (sig === this._engineSyncedPosSig) return;   // 已同步，无需重剖分
+        const worldPos = this.target.node.worldPosition?.toString?.() ?? '';
+        const positionsChanged = sig !== this._engineSyncedPosSig;
+        if (!positionsChanged && worldPos === this._engineSyncedWorldPos) return;
         // 先记指纹再重剖分：onProbeChanged 内部可能同步回调 lightProbeInfoChanged →
         // updateControllerData → 本方法，若指纹未先更新会无限递归重剖分导致卡死。
         this._engineSyncedPosSig = sig;
+        this._engineSyncedWorldPos = worldPos;
         this._syncingEngine = true;
         try {
             // 探针位置与上次同步给引擎的不一致（外部改动/undo）：让引擎重算四面体，线框才不会脱节。
-            (this.target as any).onProbeChanged?.();
+            (this.target as any).onProbeChanged?.(positionsChanged, false);
         } finally {
             this._syncingEngine = false;
         }
@@ -661,19 +695,26 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this._probesRef = probes;
         this._dotsVolume = volume;
 
-        // 重建前解绑旧球的鼠标事件并清空索引映射（球节点即将被销毁）。
-        this._unbindProbeHandlers();
+        // 同数量的移动、Undo、显示设置变化只更新现有球。重建 1000 个节点/材质
+        // 远比更新位置昂贵，且 removeAllChildren 只会解绑、不会销毁旧节点。
         this._probeIndexByName.clear();
-        this._dotsRoot.removeAllChildren();
-        if (!probes || probes.length === 0 || probes.length > MAX_PROBE_DOTS) return;
+        const count = probes && probes.length <= MAX_PROBE_DOTS ? probes.length : 0;
+        while (this._dotsRoot.children.length > count) {
+            const dot = this._dotsRoot.children[this._dotsRoot.children.length - 1];
+            this._unbindProbeHandler(dot);
+            this._selected.delete(dot.name);
+            dot.parent = null;
+            dot.destroy();
+        }
+        if (!probes || !count) return;
 
         const scale = volume * 0.06;
-        for (let i = 0; i < probes.length; i++) {
-            let dot: Node;
-            if (!this._reuseMesh) {
+        for (let i = 0; i < count; i++) {
+            let dot = this._dotsRoot.children[i];
+            if (!dot && !this._reuseMesh) {
                 dot = ControllerUtils.sphere(Vec3.ZERO, PROBE_SPHERE_BASE_RADIUS, PROBE_COLOR, { depthTestForTriangles: true });
                 this._reuseMesh = getModel(dot)?.mesh;
-            } else {
+            } else if (!dot) {
                 // 复用首个球的 mesh，避免每个探针都新建网格
                 dot = create3DNode();
                 addMeshToNode(dot, this._reuseMesh, { depthTestForTriangles: true });
@@ -769,6 +810,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         if (!this.target || !this._dotsRoot) return;
         const info = this._getLightProbeInfo();
         const data = info?.data;
+        if (info?.showWireframe === false) return;
         if (!data || data.empty?.()) return;
         const vertices = data.probes ?? [];
         const tetrahedrons = data.tetrahedrons ?? [];
@@ -818,6 +860,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
      * 只做端点平移 + drawLines，不重新四面体剖分（拖动小位移拓扑不变），因此实时且不卡。
      */
     private _updateDragWireframe(worldDelta: Vec3): void {
+        if (this._getLightProbeInfo()?.showWireframe === false) return;
         if (!this._wireframeNode || this._dragWirePositions.length === 0 || this._dragWireIndices.length === 0) return;
         const positions: Vec3[] = new Array(this._dragWirePositions.length);
         for (let i = 0; i < this._dragWirePositions.length; i++) {
@@ -837,21 +880,22 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this.updateControllerData();
     }
 
-    onNodeChanged() {
-        // 探针球位于会跟随目标节点变换的 dotsRoot 下，而线框使用世界坐标绘制在
-        // 独立节点上。节点移动时 probes 数组没有变化，updateControllerData 的
-        // 数据签名缓存不会触发线框重建，因此必须主动让引擎刷新四面体数据。
-        // 这也是 NONE 模式下通过全局 position gizmo 移动 LightProbeGroup 的路径。
-        if (!this._ctrlDragging && this.target) {
-            (this.target as any).onProbeChanged?.(false, false);
-            this._rebuildWireframe();
+    onNodeChanged(event?: IChangeNodeOptions) {
+        if (event?.type === NodeEventType.LIGHT_PROBE_CHANGED || event?.type === NodeEventType.LIGHT_PROBE_BAKING_CHANGED) {
+            // 引擎生成/烘焙或 Undo 恢复后才发此事件。再次重剖分会浪费时间，
+            // 而且可能覆盖刚恢复的四面体、法线和烘焙系数。
+            this._engineSyncedPosSig = this._computeProbePosSig();
+            this._engineSyncedWorldPos = this.target?.node.worldPosition?.toString?.() ?? '';
         }
+        if (this._syncingEngine || this._ctrlDragging || this._boxDragging) return;
         this.updateControllerData();
     }
 
     // 探针数据变化（重新生成/烘焙，可能顶点数不变但位置/系数变了）：失效缓存并强制刷新，
     // 避免 onUpdate 的计数签名相同而漏刷。
     onLightProbeChanged() {
+        this._engineSyncedPosSig = this._computeProbePosSig();
+        this._engineSyncedWorldPos = this.target?.node.worldPosition?.toString?.() ?? '';
         this._probesRef = null;
         this._dotsVolume = -1;
         this._lastInfoSig = '';
@@ -862,7 +906,9 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
 
     /** Box 模式变化：门控绿色包围盒显隐并刷新。 */
     boundingBoxEditModeChanged(mode: boolean): void {
+        if (!mode && this._boxDragging) this.onControllerMouseUp();
         this._boxEditMode = mode;
+        if (!mode) this._boxDragging = false;
         if (!this._isInitialized) return;
         if (mode) {
             this.updateControllerData(); // 内部按 _boxEditMode 显示并刷新包围盒
@@ -873,6 +919,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
 
     /** Vertex 模式变化：进入时探针可拖动；退出时清理选中/事件并还原 pivot。（T8a） */
     lightProbeEditModeChanged(mode: boolean): void {
+        if (!mode) this._finishEditingGesture();
         if (!this._isInitialized) {
             if (!mode) {
                 this._boxEditMode = false;
@@ -923,6 +970,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
 
     /** 为单个探针球节点注册鼠标事件（gizmo 射线管线会在球被点中时派发这些事件）。 */
     private _bindProbeHandlers(dot: Node, probeName: string): void {
+        if (this._probeMouseHandlers.has(dot)) return;
         // 交互区分（对齐 Creator）：在探针球上
         // - 按下后【不拖动】直接松手 = 单选（松手时落地）。
         // - 按下后【拖动】 = 框选：以当前选区矩形内的所有探针为准，gizmo 实时移到选中中心。
@@ -945,14 +993,20 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
 
     /** 解绑所有探针球鼠标事件。 */
     private _unbindProbeHandlers(): void {
-        for (const [dot, h] of this._probeMouseHandlers) {
-            if (dot.isValid) {
-                dot.off('mouseDown', h.down);
-                dot.off('mouseMove', h.move);
-                dot.off('mouseUp', h.up);
-            }
+        for (const dot of this._probeMouseHandlers.keys()) {
+            this._unbindProbeHandler(dot);
         }
-        this._probeMouseHandlers.clear();
+    }
+
+    private _unbindProbeHandler(dot: Node): void {
+        const handlers = this._probeMouseHandlers.get(dot);
+        if (!handlers) return;
+        if (dot.isValid) {
+            dot.off('mouseDown', handlers.down);
+            dot.off('mouseMove', handlers.move);
+            dot.off('mouseUp', handlers.up);
+        }
+        this._probeMouseHandlers.delete(dot);
     }
 
     /** 拖动中就地更新已存在探针球的本地坐标（不销毁/重建节点）。 */
@@ -1109,7 +1163,6 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         ctrl.hide();
         this._probeController = ctrl;
         sharedProbeController = ctrl;
-        sharedProbeControllerOwner = this;
         return ctrl;
     }
 
@@ -1138,6 +1191,10 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
      */
     private _updateProbeControllerTransform(): void {
         if (!this._vertexEditMode) return;
+        if (!this.target || this.target.isValid === false || this.target.node.isValid === false) {
+            this._probeController?.hide();
+            return;
+        }
         const ctrl = this._ensureProbeController();
         if (!ctrl) return;
         sharedProbeControllerOwner = GizmoList.find(isActiveProbeGizmo) ?? null;
@@ -1172,13 +1229,8 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         }
         if (this._ctrlDragStartLocal.size === 0) return;
         this._ctrlDragPropPath = this.getCompPropPath('probes');
-        const svc = getService();
-        try {
-            this._ctrlDragUndoId = svc?.Undo?.beginRecording?.([this.target.node.uuid]) ?? null;
-        } catch (e) {
-            this._ctrlDragUndoId = null;
-        }
-        if (this._ctrlDragPropPath) this.onControlUpdate(this._ctrlDragPropPath);
+        // 基类 onControlUpdate 已创建 Undo，不能再额外 beginRecording 同一个节点。
+        this.onControlUpdate(this._ctrlDragPropPath);
         this._ctrlDragging = true;
         // 快照线框拓扑 + 端点世界起点，供拖动中做廉价的「端点跟随增量」重画（不重剖分）。
         this._snapshotDragWireframe();
@@ -1223,7 +1275,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     private _onProbeCtrlUp(_event: any): void {
         if (!this._ctrlDragging) return;
         this._ctrlDragging = false;
-        if (this.target) {
+        if (this.target && this.target.isValid !== false && this.target.node.isValid !== false) {
             // 绝不能用 generateLightProbes()——它会依据包围盒重新生成整组探针，丢弃拖动结果。
             // onProbeChanged() 内部会 syncData + update(true) 做一次四面体重剖分（唯一一次、语义必需）。
             (this.target as any).onProbeChanged?.();
@@ -1234,17 +1286,11 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             this._rebuildWireframe();
             // 拖动结果已同步给引擎：记录已同步位置指纹，避免 _syncEngineIfProbesChanged 重复重剑分。
             this._engineSyncedPosSig = this._computeProbePosSig();
+            this._engineSyncedWorldPos = this.target.node.worldPosition?.toString?.() ?? '';
             this.onComponentChanged(this.target.node);
         }
-        if (this._ctrlDragPropPath) this.onControlEnd(this._ctrlDragPropPath);
+        this.onControlEnd(this._ctrlDragPropPath);
         this._ctrlDragPropPath = null;
-        const svc = getService();
-        try {
-            if (this._ctrlDragUndoId) svc?.Undo?.endRecording?.(this._ctrlDragUndoId);
-        } catch (e) {
-            // ignore
-        }
-        this._ctrlDragUndoId = null;
         this._ctrlDragStartLocal.clear();
         // 释放拖动线框快照。
         this._dragWirePositions = [];
@@ -1464,15 +1510,15 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     // 每帧只做一次廉价签名比较，变化时才刷新，避免每帧重建。
     onUpdate() {
         // 拖动/框选进行中：探针坐标每帧都在变，签名会每帧变化。此时【绝不能】走下面的刷新路径，
-        // 否则 _probesRef=null 会让 _rebuildDots 每帧强制重建全部探针球（removeAllChildren+逐球重建网格/重绑事件），
-        // 极卡。拖动由拖动管线用 _updateDotPositions()/_updateDragWireframe() 就地更新，无需 onUpdate 介入。
-        if (this._ctrlDragging || this._probeBoxSelecting) return;
+        // 拖动由拖动管线用 _updateDotPositions()/_updateDragWireframe() 就地更新，
+        // 无需 onUpdate 再次遍历全部探针、刷新球体和四面体线框。
+        if (!this._shown || this._ctrlDragging || this._boxDragging || this._probeBoxSelecting) return;
         const sig = this._computeInfoSig();
         if (sig === this._lastInfoSig) return;
         this._lastInfoSig = sig;
         // 位置指纹变化可能来自 undo/redo 的原地改写（probes 数组引用不变），
         // 需失效缓存强制重建探针球，否则球不会跟随回退后的坐标。
-        this._probesRef = null;
+        if (this._computeProbePosSig() !== this._engineSyncedPosSig) this._probesRef = null;
         this.updateControllerData();
     }
 
@@ -1516,6 +1562,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     }
 
     onDestroy() {
+        this._finishEditingGesture();
         // 从模块级 GizmoList 移除，避免状态机继续通知已销毁实例。
         const idx = GizmoList.indexOf(this);
         if (idx >= 0) GizmoList.splice(idx, 1);
