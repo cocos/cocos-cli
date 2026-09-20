@@ -1111,6 +1111,7 @@ export declare function querySortedPlugins(filterOptions?: FilterPluginOptions):
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;
+export declare function reconcileLocalizationRuntimeMount(): Promise<void>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo>;
 export declare interface ReloadAnimationGraphOptions {
@@ -4694,6 +4695,8 @@ export declare class PluginManager extends EventEmitter {
     buildTemplateConfigMap: Record<string, BuildTemplateConfig>;
     configMap: Record<string, Record<string, IInternalBuildPluginConfig>>;
     private builderPathsMap;
+    private extensionBuilderHookSlots;
+    private extensionBuilderHooks;
     private customBuildStagesMap;
     protected customBuildStages: Record<string, {
         [pkgName: string]: IBuildStageItem[];
@@ -4706,6 +4709,8 @@ export declare class PluginManager extends EventEmitter {
     init(): Promise<void>;
     registerAllPlatform(): Promise<void>;
     register(platform: string): Promise<void>;
+    private registerExtensionBuilderHooks;
+    private scanBuiltinExtensionBuilderHooks;
     checkPlatform(platform: string): boolean;
     private registerPlatform;
     private internalRegister;
@@ -8938,6 +8943,7 @@ export declare namespace Assets {
         init,
         setFileSystemProvider,
         start,
+        reconcileLocalizationRuntimeMount,
         onReady,
         onDBReady,
         onProgress,
@@ -10498,6 +10504,7 @@ export declare function querySortingLayerBuiltin(): Promise<readonly __private._
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;
+export declare function reconcileLocalizationRuntimeMount(): Promise<void>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function register(): Promise<string>;
 export declare function register_2(name: string, module: IMiddlewareContribution): Promise<void>;
