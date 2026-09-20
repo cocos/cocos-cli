@@ -232,12 +232,10 @@ class GizmoOperation {
         return true;
     }
 
-    private _onGizmoMouseMove(event: GizmoMouseEvent, results: RaycastResults) {
+    private _onGizmoMouseMove(event: GizmoMouseEvent) {
         if (this._curMouseDownInfos.length > 0) {
-            const map = new Map<Node, Vec3>();
-            results.forEach((info: any) => map.set(info.node, info.hitPoint || new Vec3()));
             for (const info of this._curMouseDownInfos) {
-                event.hitPoint = map.get(info.node) || new Vec3();
+                event.hitPoint = info.hitPoint;
                 this._emitEventToNode(info.node, event);
                 if (event.propagationStopped) break;
             }
@@ -314,13 +312,19 @@ class GizmoOperation {
             getServiceProp('Gizmo')?.regionSelectLightProbes?.(left, right, top, bottom, probeDown.ctrlKey || probeDown.metaKey || probeDown.shiftKey);
             return false;
         }
+        // The pressed handle owns the gesture until mouse-up, even when the
+        // pointer leaves it. Controllers use deltas or their own drag plane;
+        // repeatedly picking every probe sphere/line cannot change the owner.
+        if (this._gizmoMouseDownEvent && this._curMouseDownInfos.length > 0) {
+            return this._onGizmoMouseMove(customEvent);
+        }
         const results = this.raycastGizmos(customEvent.x, customEvent.y);
 
         if (this._mouseDownRaycastGizmos && this._mouseDownRaycastGizmos.length > 0) {
             if (!this._gizmoMouseDownEvent) {
                 return this._changeMouseHover(customEvent, results);
             }
-            return this._onGizmoMouseMove(customEvent, results);
+            return this._onGizmoMouseMove(customEvent);
         } else {
             if (!this._noGizmoMouseDownEvent) {
                 return this._changeMouseHover(customEvent, results);
