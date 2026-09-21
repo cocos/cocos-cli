@@ -11,7 +11,7 @@ import { withLightmapTextureType } from './lightmap-metadata';
 
 import { DumpDefines } from './dump-defines';
 import { IProperty } from '../../../@types/public';
-import { IComponent, INode, IPrefab, IScene, ITargetOverrideInfo } from '../../../common';
+import { IComponent, INode, IPrefab, IScene, ITargetOverrideInfo, type INodeDumpOptions } from '../../../common';
 import { prefabUtils } from './../prefab/utils';
 import { Service } from './../core';
 import { MobilityMode, Node, Prefab, Component, js } from 'cc';
@@ -58,15 +58,11 @@ export function encodePrefab(node: Node): IPrefab | null {
     return result;
 }
 
-interface IEncodeNodeOptions {
-    includeComponents?: boolean;
-}
-
 /**
  * 编码一个 node 数据
  * @param node
  */
-export function encodeNode(node: Node, options: IEncodeNodeOptions = {}): INode {
+export function encodeNode(node: Node, options: INodeDumpOptions = {}): INode {
     const includeComponents = options.includeComponents !== false;
     const ctor = node.constructor;
 
@@ -157,7 +153,7 @@ export function encodeNode(node: Node, options: IEncodeNodeOptions = {}): INode 
             node,
         ),
 
-        children: node.children
+        children: (options.includeChildren === false ? [] : node.children)
             .map((child: any) => {
                 if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
                     return;
@@ -223,7 +219,7 @@ export function encodeNode(node: Node, options: IEncodeNodeOptions = {}): INode 
  * 编码一个场景数据
  * @param scene
  */
-export function encodeScene(scene: any): IScene {
+export function encodeScene(scene: any, options: INodeDumpOptions = {}): IScene {
     const ctor = scene.constructor;
 
     const data: IScene = {
@@ -233,7 +229,7 @@ export function encodeScene(scene: any): IScene {
         name: encodeObject(scene.name || ctor.name, { default: null, displayName: 'Name' }),
         uuid: encodeObject(scene.uuid, { default: null, displayName: 'UUID', visible: false }),
         autoReleaseAssets: encodeObject(scene.autoReleaseAssets, { displayName: 'Auto Release Assets', default: false }),
-        children: scene.children
+        children: (options.includeChildren === false ? [] : scene.children)
             .map((child: any) => {
                 if (!child || child.objFlags & cc.Object.Flags.HideInHierarchy) {
                     return;
@@ -254,7 +250,8 @@ export function encodeScene(scene: any): IScene {
     if (scene._globals) {
         scene._globals.constructor.__props__.map((key: string) => {
             const attrs = cc.Class.attr(scene._globals.constructor, key);
-            data._globals[key] = encodeObject(scene._globals[key], attrs, scene._globals);
+            const omitted = key === 'lightProbeInfo' && options.includeLightProbeData === false ? ['data', '_data'] : undefined;
+            data._globals[key] = encodeObject(scene._globals[key], attrs, scene._globals, undefined, undefined, omitted);
         });
     }
 
@@ -621,7 +618,7 @@ function _checkObjFlags(node: any, data: INode) {
  * @param owner 编码对象所属的对象
  * @param objectKey 输出有效信息，当前数据 key，以便问题排查
  */
-export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean): IProperty {
+export function encodeObject(object: any, attributes: any, owner: any = null, objectKey?: string, isTemplate?: boolean, omittedProperties?: readonly string[]): IProperty {
     attributes = withLightProbeCoefficientType(attributes, owner, objectKey);
     attributes = withLightmapTextureType(attributes, owner, objectKey);
     const ctor = dumpUtil.getConstructor(object, attributes);
@@ -634,6 +631,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
             value: {},
         };
         defValue.constructor.__props__.forEach((key: string) => {
+            if (omittedProperties?.includes(key)) return;
             const attrs = cc.Class.attr(defValue.constructor, key);
             const dumpData = encodeObject(defValue[key], attrs, defValue, key);
             if (dumpData.type !== 'Unknown') {
@@ -746,6 +744,7 @@ export function encodeObject(object: any, attributes: any, owner: any = null, ob
                 // 构造器存在，属性也存在
                 const result: { [key: string]: any } = {};
                 ctor.__props__.forEach((key: string) => {
+                    if (omittedProperties?.includes(key)) return;
                     const attrs = cc.Class.attr(object, key); // object 是实例，可能有自定义的 attrs
                     
                     if (attributes.readonly && attributes.readonly.deep){

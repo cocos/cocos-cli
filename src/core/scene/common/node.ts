@@ -153,8 +153,12 @@ export interface ICreateNodePreflightResult {
 
 // generateNodeDump / encode / open 共用的选项
 export interface INodeDumpOptions {
-    includeChildren?: boolean; // true: children 以 INodeIdentifier[] 返回，false/undefined: undefined
-    includeComponents?: boolean; // true: components 以 IComponentIdentifier[] 返回，false/undefined: undefined
+    /** Include child references. Defaults to true. */
+    includeChildren?: boolean;
+    /** Include component property dumps. Defaults to true. */
+    includeComponents?: boolean;
+    /** Include scene light-probe vertices, tetrahedrons and coefficients. Defaults to true. */
+    includeLightProbeData?: boolean;
 }
 
 // 节点查询参数接口

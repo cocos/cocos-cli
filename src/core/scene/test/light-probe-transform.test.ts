@@ -1,6 +1,7 @@
 jest.mock('cc', () => ({
     Vec3: class Vec3 {
         constructor(public x = 0, public y = 0, public z = 0) {}
+        set(v: { x: number; y: number; z: number }) { this.x = v.x; this.y = v.y; this.z = v.z; return this; }
         static clone(v: { x: number; y: number; z: number }) { return new this(v.x, v.y, v.z); }
         static strictEquals(a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) {
             return a.x === b.x && a.y === b.y && a.z === b.z;

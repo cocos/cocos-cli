@@ -413,6 +413,27 @@ describe('Probe editing hot paths', () => {
         expect(probeTarget.onProbeChanged).not.toHaveBeenCalled();
     });
 
+    it('coalesces whole-group visual refreshes into a frame and refreshes the final state synchronously', () => {
+        const { gizmo, probeTarget } = drawableGroup(4);
+        const scene = probeTarget.node.scene;
+        Object.assign(scene, { isValid: true });
+        Object.assign(probeTarget, { isValid: true, enabledInHierarchy: true });
+        Object.assign(probeTarget.node, { isValid: true, getComponentsInChildren: () => [probeTarget] });
+        Object.assign(scene.globals.lightProbeInfo, { data: { probes: probeTarget.probes, tetrahedrons: [] } });
+        gizmo.onNodeChanged({ type: NodeEventType.LIGHT_PROBE_CHANGED });
+        const refresh = jest.spyOn(gizmo, 'updateControllerData');
+        const finish = beginLightProbeTransformEdit([probeTarget.node])!;
+        for (let step = 0; step < 100; step++) gizmo.onNodeChanged({ type: NodeEventType.TRANSFORM_CHANGED });
+        expect(refresh).not.toHaveBeenCalled();
+        gizmo.onUpdate();
+        expect(refresh).toHaveBeenCalledTimes(1);
+        finish();
+        gizmo.onNodeChanged({ type: NodeEventType.LIGHT_PROBE_BAKING_CHANGED });
+        expect(refresh).toHaveBeenCalledTimes(2);
+        gizmo.onUpdate();
+        expect(refresh).toHaveBeenCalledTimes(2);
+    });
+
     it('does not re-tetrahedralize when its Gizmo is first shown during raw Undo restoration', () => {
         const { gizmo, probeTarget } = drawableGroup(1000);
         probeTarget.onProbeChanged = jest.fn();

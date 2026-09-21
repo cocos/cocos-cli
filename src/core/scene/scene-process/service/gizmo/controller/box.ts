@@ -117,19 +117,19 @@ class BoxController extends EditableController {
         if (!this._cubeNodeMR || !this._wireFrameBoxMeshRenderer) {
             return;
         }
+        const geometryChanged = !Vec3.strictEquals(this._center, center) || !Vec3.strictEquals(this._size, size);
         this._center.set(center);
-        if (this._size !== size) {
+        // Callers commonly reuse a temporary Vec3. Own the value so later
+        // changes cannot silently mutate the cached size and its bounds.
+        this._size.set(size);
+        if (geometryChanged) {
             updateBoundingBox(this._cubeNodeMR, Vec3.multiplyScalar(new Vec3(), size, -0.5), Vec3.multiplyScalar(new Vec3(), size, 0.5));
+            updatePositions(this._wireFrameBoxMeshRenderer, ControllerShape.calcBoxPoints(this._center, this._size));
+            updatePositions(this._cubeNodeMR, ControllerShape.calcCubeData(size.x, size.y, size.z, center).positions);
         }
-        this._size = size;
-
-        const positions = ControllerShape.calcBoxPoints(this._center, this._size);
-
-        updatePositions(this._wireFrameBoxMeshRenderer, positions);
         if (this._edit) {
             this.updateEditHandles();
         }
-        updatePositions(this._cubeNodeMR, ControllerShape.calcCubeData(size.x, size.y, size.z, center).positions);
         this.adjustEditHandlesSize();
     }
 

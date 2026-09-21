@@ -2,6 +2,7 @@
 import { Color, IVec3, Material, MeshRenderer, Node, Quat, v3, Vec3 } from 'cc';
 import type { IAddMeshToNodeOption, IAddQuadToNodeOptions, IAddLineToNodeOptions } from './defines';
 import { DynamicMeshPrimitive, IMeshPrimitive } from './defines';
+import { CachedLineGeometry } from './cached-line-geometry';
 
 import ControllerShape from './controller-shape';
 import { ControllerShapeCollider } from './controller-shape-collider';
@@ -18,6 +19,7 @@ import {
 
 const EPSILON = 1e-6;
 const R2D = 180 / Math.PI;
+const probeLineGeometry = new WeakMap<Node, CachedLineGeometry>();
 
 function clamp(v: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, v));
@@ -318,11 +320,19 @@ class ControllerUtils {
         return create3DNode(name);
     }
 
-    public static drawLines(node: Node, vertices: Vec3[], indices: number[], color: Color = Color.RED) {
-        const linesData = ControllerShape.calcLinesData(vertices, indices);
+    public static drawLines(node: Node, vertices: Vec3[], indices: number[], color: Color = Color.RED, reuseBuffers = false) {
+        let primitive: DynamicMeshPrimitive;
+        if (reuseBuffers) {
+            let cached = probeLineGeometry.get(node);
+            if (!cached) { cached = new CachedLineGeometry(); probeLineGeometry.set(node, cached); }
+            cached.update(vertices, indices);
+            primitive = cached;
+        } else {
+            primitive = new DynamicMeshPrimitive(ControllerShape.calcLinesData(vertices, indices));
+        }
         let meshRenderer = node.getComponent(MeshRenderer);
         if (!meshRenderer) {
-            addMeshToNode(node, createDynamicMesh(new DynamicMeshPrimitive(linesData), {
+            addMeshToNode(node, createDynamicMesh(primitive, {
                 maxSubMeshes: 1,
                 maxSubMeshVertices: 1024000,
                 maxSubMeshIndices: 1024000,
@@ -332,7 +342,7 @@ class ControllerUtils {
             });
             meshRenderer = node.getComponent(MeshRenderer);
         } else {
-            updateDynamicMesh(meshRenderer, 0, new DynamicMeshPrimitive(linesData));
+            updateDynamicMesh(meshRenderer, 0, primitive);
         }
         meshRenderer?.onGeometryChanged();
         setMeshColor(node, color);

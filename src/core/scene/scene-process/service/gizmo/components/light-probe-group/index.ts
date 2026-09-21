@@ -1,6 +1,6 @@
 'use strict';
 
-import { Color, js, LightProbeGroup, Node, Quat, Vec3 } from 'cc';
+import { Color, js, Layers, LightProbeGroup, Node, Quat, Vec3 } from 'cc';
 import GizmoBase from '../../base/gizmo-base';
 import IconGizmoBase from '../../base/gizmo-icon';
 import BoxController from '../../controller/box';
@@ -8,6 +8,7 @@ import PositionController from '../../node/position-controller';
 import ControllerUtils from '../../utils/controller-utils';
 import { addMeshToNode, create3DNode, getModel, setMeshColor } from '../../utils/engine-utils';
 import { buildLightProbeConvex } from '../../utils/light-probe-convex';
+import { lightProbeWireframeIndices } from '../../utils/light-probe-wireframe';
 import { registerGizmo } from '../../gizmo-defines';
 import { NodeEventType, type IChangeNodeOptions } from '../../../../../common/node';
 import { isLightProbeRestoreInProgress } from '../../../scene/light-probe-snapshot';
@@ -20,8 +21,6 @@ const PROBE_COLOR = new Color(241, 163, 72); // #F1A348
 const SELECTED_PROBE_COLOR = new Color(64, 170, 202); // #40AACA 选中探针高亮（对齐 Creator SelectedProbeColor）
 const WIREFRAME_COLOR = new Color(252, 231, 196); // #FCE7C4
 const PROBE_SPHERE_BASE_RADIUS = 5;
-// 内部四面体 6 条边
-const TETRAHEDRON_LINES = [0, 1, 0, 2, 0, 3, 1, 2, 1, 3, 2, 3];
 
 const tempQuat_a = new Quat();
 const tempDelta = new Vec3();
@@ -360,6 +359,8 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     // 本 gizmo 是否处于「显示」状态（其节点被选中）。onShow=true / onHide=false。
     // onUpdate 每帧都会跑 updateControllerData，若不按此门控，取消选中后探针球/线框会被重新激活而不消失。
     private _shown = false;
+    private _visualsDirty = false;
+    private _wirePositions: Vec3[] = [];
     // 是否处于 Edit Area Box 模式：仅此时才显示可拖绿色包围盒。
     // 选中默认 false（只展示探针球/线框），由后续 T2 的 changeEditMode 驱动。
     private _boxEditMode = false;
@@ -409,6 +410,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     // 拖动中的线框快照：按下时缓存线段拓扑与各端点世界起点，移动时只做「端点 += 世界增量」
     // 并重画，避免每帧重新四面体剖分（onProbeChanged 的重剖分很贵，才导致松手卡顿）。
     private _dragWirePositions: Vec3[] = [];     // 每个线框顶点的世界起点（拷贝，不引用引擎数据）
+    private _dragWireCurrentPositions: Vec3[] = [];
     private _dragWireIndices: number[] = [];     // 线段索引对（引用 _dragWirePositions）
     private _dragWireMoveMask: boolean[] = [];   // 每个线框顶点是否属于选中探针（需跟随增量移动）
 
@@ -488,13 +490,16 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this._dotsRoot.active = false;
 
         this._wireframeNode = create3DNode('LightProbeWireframe');
+        this._wireframeNode.layer |= Layers.BitMask.IGNORE_RAYCAST;
         this._wireframeNode.parent = gizmoRoot;
         this._wireframeNode.active = false;
 
         this._convexNode = create3DNode('LightProbeConvex');
+        this._convexNode.layer |= Layers.BitMask.IGNORE_RAYCAST;
         this._convexNode.parent = gizmoRoot;
         this._convexNode.active = false;
         this._normalNode = create3DNode('LightProbeConvexNormals');
+        this._normalNode.layer |= Layers.BitMask.IGNORE_RAYCAST;
         this._normalNode.parent = gizmoRoot;
         this._normalNode.active = false;
 
@@ -579,6 +584,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
 
     updateControllerData() {
         if (!this._isInitialized || this.target == null) return;
+        this._visualsDirty = false;
         if (this._boundTarget !== this.target) {
             this._selected.clear();
             this._boundTarget = this.target;
@@ -749,21 +755,10 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             this._wireframeNode.active = false;
             return;
         }
-        const positions: Vec3[] = vertices.map((v: any) => v.position);
-        const indices: number[] = [];
-        const seen = new Set<string>();
-        for (const tet of tetrahedrons) {
-            if (!(tet.isInnerTetrahedron?.() ?? tet.vertex3 >= 0) || tet.vertex3 < 0) continue;
-            const vi = [tet.vertex0, tet.vertex1, tet.vertex2, tet.vertex3];
-            for (let e = 0; e < TETRAHEDRON_LINES.length; e += 2) {
-                const a = vi[TETRAHEDRON_LINES[e]];
-                const b = vi[TETRAHEDRON_LINES[e + 1]];
-                const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                indices.push(a, b);
-            }
-        }
+        const positions = this._wirePositions;
+        positions.length = vertices.length;
+        for (let i = 0; i < vertices.length; i++) positions[i] = vertices[i].position;
+        const indices = lightProbeWireframeIndices(tetrahedrons);
         if (indices.length === 0) {
             this._wireframeNode.active = false;
             return;
@@ -772,7 +767,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this._wireframeNode.setWorldPosition(0, 0, 0);
         this._wireframeNode.setRotationFromEuler(0, 0, 0);
         this._wireframeNode.setWorldScale(1, 1, 1);
-        ControllerUtils.drawLines(this._wireframeNode, positions, indices, WIREFRAME_COLOR);
+        ControllerUtils.drawLines(this._wireframeNode, positions, indices, WIREFRAME_COLOR, true);
     }
 
     private _rebuildConvex(): void {
@@ -790,11 +785,11 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             node.setWorldScale(1, 1, 1);
         }
         if (geometry.indices.length > 0) {
-            ControllerUtils.drawLines(this._convexNode, geometry.positions, geometry.indices, WIREFRAME_COLOR);
+            ControllerUtils.drawLines(this._convexNode, geometry.positions, geometry.indices, WIREFRAME_COLOR, true);
             this._convexNode.active = true;
         }
         if (geometry.normalIndices.length > 0) {
-            ControllerUtils.drawLines(this._normalNode, geometry.normalPositions, geometry.normalIndices, WIREFRAME_COLOR);
+            ControllerUtils.drawLines(this._normalNode, geometry.normalPositions, geometry.normalIndices, WIREFRAME_COLOR, true);
             this._normalNode.active = true;
         }
     }
@@ -805,6 +800,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
      */
     private _snapshotDragWireframe(): void {
         this._dragWirePositions = [];
+        this._dragWireCurrentPositions = [];
         this._dragWireIndices = [];
         this._dragWireMoveMask = [];
         if (!this.target || !this._dotsRoot) return;
@@ -832,6 +828,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         for (const v of vertices) {
             const p: Vec3 = v.position;
             this._dragWirePositions.push(new Vec3(p.x, p.y, p.z));
+            this._dragWireCurrentPositions.push(new Vec3(p.x, p.y, p.z));
             let moves = false;
             for (const sw of selectedWorld) {
                 if (Vec3.squaredDistance(p, sw) <= EPS2) { moves = true; break; }
@@ -839,20 +836,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             this._dragWireMoveMask.push(moves);
         }
 
-        // 线段索引（复用 _rebuildWireframe 的内部四面体去重逻辑）。
-        const seen = new Set<string>();
-        for (const tet of tetrahedrons) {
-            if (!(tet.isInnerTetrahedron?.() ?? tet.vertex3 >= 0) || tet.vertex3 < 0) continue;
-            const vi = [tet.vertex0, tet.vertex1, tet.vertex2, tet.vertex3];
-            for (let e = 0; e < TETRAHEDRON_LINES.length; e += 2) {
-                const a = vi[TETRAHEDRON_LINES[e]];
-                const b = vi[TETRAHEDRON_LINES[e + 1]];
-                const key = a < b ? `${a}-${b}` : `${b}-${a}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                this._dragWireIndices.push(a, b);
-            }
-        }
+        this._dragWireIndices = lightProbeWireframeIndices(tetrahedrons);
     }
 
     /**
@@ -862,18 +846,16 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
     private _updateDragWireframe(worldDelta: Vec3): void {
         if (this._getLightProbeInfo()?.showWireframe === false) return;
         if (!this._wireframeNode || this._dragWirePositions.length === 0 || this._dragWireIndices.length === 0) return;
-        const positions: Vec3[] = new Array(this._dragWirePositions.length);
+        const positions = this._dragWireCurrentPositions;
         for (let i = 0; i < this._dragWirePositions.length; i++) {
             const base = this._dragWirePositions[i];
-            positions[i] = this._dragWireMoveMask[i]
-                ? new Vec3(base.x + worldDelta.x, base.y + worldDelta.y, base.z + worldDelta.z)
-                : base;
+            if (this._dragWireMoveMask[i]) positions[i].set(base.x + worldDelta.x, base.y + worldDelta.y, base.z + worldDelta.z);
         }
         this._wireframeNode.active = true;
         this._wireframeNode.setWorldPosition(0, 0, 0);
         this._wireframeNode.setRotationFromEuler(0, 0, 0);
         this._wireframeNode.setWorldScale(1, 1, 1);
-        ControllerUtils.drawLines(this._wireframeNode, positions, this._dragWireIndices, WIREFRAME_COLOR);
+        ControllerUtils.drawLines(this._wireframeNode, positions, this._dragWireIndices, WIREFRAME_COLOR, true);
     }
 
     onTargetUpdate() {
@@ -888,6 +870,11 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
             this._engineSyncedWorldPos = this.target?.node.worldPosition?.toString?.() ?? '';
         }
         if (this._syncingEngine || this._ctrlDragging || this._boxDragging) return;
+        if (event?.type === NodeEventType.TRANSFORM_CHANGED && this.target && isLightProbeTransformInProgress(this.target.node.scene)) {
+            this._visualsDirty = true;
+            this._repaint();
+            return;
+        }
         this.updateControllerData();
     }
 
@@ -1294,6 +1281,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         this._ctrlDragStartLocal.clear();
         // 释放拖动线框快照。
         this._dragWirePositions = [];
+        this._dragWireCurrentPositions = [];
         this._dragWireIndices = [];
         this._dragWireMoveMask = [];
         // 把 gizmo 移动到探针的新世界中心。
@@ -1513,6 +1501,7 @@ class LightProbeGroupComponentGizmo extends GizmoBase<LightProbeGroup> {
         // 拖动由拖动管线用 _updateDotPositions()/_updateDragWireframe() 就地更新，
         // 无需 onUpdate 再次遍历全部探针、刷新球体和四面体线框。
         if (!this._shown || this._ctrlDragging || this._boxDragging || this._probeBoxSelecting) return;
+        if (this._visualsDirty) { this.updateControllerData(); return; }
         const sig = this._computeInfoSig();
         if (sig === this._lastInfoSig) return;
         this._lastInfoSig = sig;

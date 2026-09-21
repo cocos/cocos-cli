@@ -8,6 +8,7 @@ interface TransformEdit {
 }
 
 const transformEdits = new WeakMap<Scene, TransformEdit>();
+const positionBuffers = new WeakMap<Scene, Vec3[]>();
 
 export function isLightProbeTransformInProgress(scene: Scene): boolean {
     return transformEdits.has(scene);
@@ -88,7 +89,14 @@ export function synchronizeLightProbeTransform(node: Node, preserveCoefficients 
     const scene = getLightProbeTransformScene(node);
     if (!scene) return;
     const info = scene.globals.lightProbeInfo;
-    const before = (info.data?.probes ?? []).map(probe => Vec3.clone(probe.position));
+    let before = positionBuffers.get(scene);
+    if (!before) { before = []; positionBuffers.set(scene, before); }
+    const probes = info.data?.probes ?? [];
+    before.length = probes.length;
+    for (let i = 0; i < probes.length; i++) {
+        if (before[i]) before[i].set(probes[i].position);
+        else before[i] = Vec3.clone(probes[i].position);
+    }
     // The engine knows the registration order and active groups. Do not regenerate
     // local sample points, reorder groups or introduce a second transform convention.
     info.update(false);

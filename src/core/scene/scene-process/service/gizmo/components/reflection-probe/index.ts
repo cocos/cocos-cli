@@ -64,7 +64,6 @@ class ReflectionProbeComponentGizmo extends GizmoBase<ReflectionProbe> {
 
     updateDataFromController() {
         if (this._controller.updated && this.target) {
-            this.onControlUpdate(this._propPath);
             const deltaSize = this._controller.getDeltaSize();
             // size 为半长：手柄位移即半长增量，除以世界缩放换算到本地，不乘 2
             Vec3.divide(deltaSize, deltaSize, this._scale);
@@ -72,6 +71,10 @@ class ReflectionProbeComponentGizmo extends GizmoBase<ReflectionProbe> {
             newSize.x = Math.max(0, newSize.x);
             newSize.y = Math.max(0, newSize.y);
             newSize.z = Math.max(0, newSize.z);
+            // Keep the authoritative size synchronous for Save/Undo, but avoid
+            // rebuilding probe/model data for repeated or clamped pointer input.
+            if (Vec3.strictEquals(this.target.size, newSize)) return;
+            this.onControlUpdate(this._propPath);
             this.target.size = newSize;
             this.onComponentChanged(this.target.node);
         }
