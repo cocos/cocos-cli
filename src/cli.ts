@@ -14,7 +14,7 @@ const program = new Command();
 program
     .name('cocos')
     .description('Cocos CLI tool for project management and building')
-    .version('0.0.1-alpha.42')
+    .version('0.0.1-alpha.43')
     .option('--debug', 'Enable debug mode')
     .option('--no-interactive', 'Disable interactive mode (for CI)')
     .option('--config <path>', 'Specify config file path');
