@@ -32,7 +32,7 @@ it('records before synchronous size changes and skips repeated, unchanged and cl
         set size(value: Vec3) { size = value.clone(); writes.push(size); },
     } as ReflectionProbe;
     const gizmo = new SelectGizmo(target);
-    let delta = new Vec3();
+    const delta = new Vec3();
     Object.assign(gizmo, { _isInitialized: true, _controller: { updated: true, getDeltaSize: () => delta.clone() } });
     (gizmo.onControlUpdate as jest.Mock).mockImplementation(() => before.push(size.clone()));
     gizmo.onControllerMouseDown();
