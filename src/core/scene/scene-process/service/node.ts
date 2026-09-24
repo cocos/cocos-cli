@@ -8,6 +8,14 @@ import {
     type ICreateBySerializedDataParams,
     type SerializedNodeData,
     type ICreateNodePreflightResult,
+    type IBeginCreateDragParams,
+    type IUpdateCreateDragParams,
+    type ICommitCreateDragParams,
+    type ICancelCreateDragParams,
+    type BeginCreateDragResult,
+    type UpdateCreateDragResult,
+    type CommitCreateDragResult,
+    type CancelCreateDragResult,
     type IDeleteNodeParams,
     type IDeleteNodeResult,
     type INode,
@@ -112,6 +120,46 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     };
     private readonly _preflightTokens = new Map<string, ICreatePreflightToken>();
     private _preflightTokenSequence = 0;
+
+    async beginCreateDrag(params: IBeginCreateDragParams): Promise<BeginCreateDragResult> {
+        // TODO: 登记拖拽会话，解析创建目标并准备临时节点
+        console.log('[Node.beginCreateDrag]', params);
+
+        return {
+            ok: false,
+            error: { code: 'UNSUPPORTED', message: 'Scene drag creation is not implemented yet.' },
+        };
+    }
+
+    async updateCreateDrag(params: IUpdateCreateDragParams): Promise<UpdateCreateDragResult> {
+        // TODO: 记录最新鼠标位置，计算落点并更新临时节点
+        console.log('[Node.updateCreateDrag]', params);
+
+        return {
+            ok: false,
+            error: { code: 'UNSUPPORTED', message: 'Scene drag creation is not implemented yet.' },
+        };
+    }
+
+    async commitCreateDrag(params: ICommitCreateDragParams): Promise<CommitCreateDragResult> {
+        // TODO: 处理 Canvas 确认，提交本批节点并记录 Undo，失败时恢复本批改动
+        console.log('[Node.commitCreateDrag]', params);
+
+        return {
+            ok: false,
+            error: { code: 'UNSUPPORTED', message: 'Scene drag creation is not implemented yet.' },
+        };
+    }
+
+    async cancelCreateDrag(params: ICancelCreateDragParams): Promise<CancelCreateDragResult> {
+        // TODO: 结束未提交会话，清理其临时节点和辅助对象
+        console.log('[Node.cancelCreateDrag]', params);
+
+        return {
+            ok: false,
+            error: { code: 'UNSUPPORTED', message: 'Scene drag creation is not implemented yet.' },
+        };
+    }
 
     async serialize(params: ISerializeNodesParams): Promise<SerializedNodeData> {
         if (!Array.isArray(params?.paths) || !params.paths.length) {
