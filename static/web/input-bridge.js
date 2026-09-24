@@ -39,11 +39,15 @@ function setupInputBridge(options) {
         var y = cssY * scale.y;
         var evt = {
             x: x, y: y,
-            clientX: x, clientY: y,
+            // clientX/clientY and movementX/movementY stay in DOM space. The engine's native
+            // input dispatch (input._dispatchMouse*, used by the game view) subtracts the canvas
+            // rect and applies DPR itself, so pre-scaled values would be offset twice.
+            // Editor-side consumers read the render-buffer coordinates in x/y and moveDeltaX/Y.
+            clientX: e.clientX, clientY: e.clientY,
             deltaX: 0, deltaY: 0,
             wheelDeltaX: 0, wheelDeltaY: 0,
             moveDeltaX: cssDeltaX * scale.x, moveDeltaY: cssDeltaY * scale.y,
-            movementX: (e.movementX || 0) * scale.x, movementY: (e.movementY || 0) * scale.y,
+            movementX: e.movementX || 0, movementY: e.movementY || 0,
             leftButton: (e.buttons & 1) !== 0,
             middleButton: (e.buttons & 4) !== 0,
             rightButton: (e.buttons & 2) !== 0,

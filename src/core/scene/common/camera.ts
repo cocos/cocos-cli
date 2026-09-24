@@ -26,6 +26,8 @@ export interface ICameraService {
     setGridColor(color: number[], persist?: boolean): void;
     setOriginAxes2D(config: IOriginAxesConfig): void;
     setOriginAxes3D(config: IOriginAxesConfig): void;
+    /** 2D 标尺可见性（游戏视图播放态隐藏坐标尺数值）。 */
+    setRulerVisible(visible: boolean): void;
     /** Returns the editor camera when it has been created for the active Scene. */
     getCamera(): Camera | undefined;
     onUpdate(deltaTime: number): void;

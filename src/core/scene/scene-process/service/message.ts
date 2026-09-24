@@ -42,7 +42,13 @@ class MessageManager {
 
     // node:change 消息可能每帧都发送(特别是骨骼动画），太频繁造成卡顿，限制发送频率
     public broadcastNodeChangeMsg(...args: any[]) {
-        this._timerUtil.callFunctionLimit(args[0], this.broadcast.bind(this), 'node:change', ...args);
+        // Key by uuid (Creator parity): keying by the node object would pin destroyed nodes in the
+        // throttle map and grow it without bound during long preview sessions (GC pressure).
+        const node = args[0];
+        const key: string = node && typeof node === 'object' && typeof node.uuid === 'string'
+            ? node.uuid
+            : String(node);
+        this._timerUtil.callFunctionLimit(key, this.broadcast.bind(this), 'node:change', ...args);
     }
 }
 

@@ -158,6 +158,25 @@ function getNodePath(node: Node): string {
 }
 const SceneGizmoLayer = Layers.Enum.SCENE_GIZMO;
 
+/**
+ * 场景 Gizmo 相机的渲染优先级。
+ *
+ * 编辑器视图（场景编辑器 webview）沿用 cocos-editor 的高位值，保证世界轴最后绘制。
+ *
+ * 但 gameView（Preview in Editor）下该值会让引擎把此相机的 pass 当成最终输出 pass：
+ * `rendering/custom/executor.ts` 的 `_applyViewport` 仅在 `queue.viewport` 缺失、且
+ * `devicePass.viewport` 为空时才按 `getRenderArea(camera)` 设置视口；最终输出 pass 自带
+ * 全屏 viewport，于是 `camera.rect` 被整段忽略 —— 表现为世界轴脱离右上角、铺满整屏并放大。
+ * 故 gameView 下退回普通优先级（此时该相机只绘制 SCENE_GIZMO 层，无需抢占绘制顺序）。
+ */
+const SCENE_GIZMO_CAMERA_PRIORITY_VIEW = (1 << 30) + (1 << 29);
+const SCENE_GIZMO_CAMERA_PRIORITY_GAME_VIEW = 1;
+
+/** gameView（Preview in Editor）判定，与 ServiceManager 中的判据保持一致。 */
+function isGameView(): boolean {
+    return (globalThis as unknown as { cc?: { GAME_VIEW?: boolean } }).cc?.GAME_VIEW === true;
+}
+
 @register('Gizmo')
 export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoService {
     gizmoRootNode!: Node;
@@ -246,7 +265,7 @@ export class GizmoService extends BaseService<IGizmoEvents> implements IGizmoSer
         camera.far = 1000;
         camera.visibility = SceneGizmoLayer;
         camera.rect = new Rect(0.7, 0.8, 0.2, 0.2);
-        camera.priority = (1 << 30) + (1 << 29);
+        camera.priority = isGameView() ? SCENE_GIZMO_CAMERA_PRIORITY_GAME_VIEW : SCENE_GIZMO_CAMERA_PRIORITY_VIEW;
         camera.clearFlags = gfx.ClearFlagBit.DEPTH_STENCIL;
         if (this.gizmoRootNode) {
             this._worldAxisController = new WorldAxisController(this.gizmoRootNode, camera);

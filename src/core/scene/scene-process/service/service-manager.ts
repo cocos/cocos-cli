@@ -1,6 +1,6 @@
 import { getServiceAll, IServiceEvents, ServiceEvents } from './core';
 import { InternalServiceEvents } from './core/internal-events';
-import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents } from '../../common';
+import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents, NodeEventType } from '../../common';
 import { messageManager } from './message';
 
 type AllEvents = IEditorEvents & INodeEvents & IComponentEvents & IScriptEvents & IAssetEvents & ISelectionEvents;
@@ -146,7 +146,17 @@ export class ServiceManager {
     private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName, broadcastToMessage = true) {
         const isNodeChange = eventType === 'node:change';
         const handler = (...args: any[]) => {
+            // Preview (game view) parity with Creator's PreviewSceneFacade.onNodeChanged: changes that
+            // are NOT SET_PROPERTY (per-frame transform / size / anchor / child / parent …) are
+            // dispatched **only to the gizmo**. Fanning them out to asset / engine / prefab /
+            // mini-preview every frame serializes editor work onto the game thread and drops FPS.
+            const gameView = (globalThis as unknown as { cc?: { GAME_VIEW?: boolean } }).cc?.GAME_VIEW === true;
+            const opts = args[1] as { type?: string } | undefined;
+            const gizmoOnly = isNodeChange && gameView && opts?.type !== NodeEventType.SET_PROPERTY;
             for (const service of getServiceAll() as AutoForwardService[]) {
+                if (gizmoOnly && service.constructor.name !== 'GizmoService') {
+                    continue;
+                }
                 const serviceHandler = service[methodName];
                 if (typeof serviceHandler === 'function') {
                     try {

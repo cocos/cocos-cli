@@ -163,6 +163,50 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? editor.getRootNode() : null;
     }
 
+    /**
+     * 「Preview in Editor」游戏视图：把运行时场景登记为当前 SceneEditor 实体。
+     * PreviewPlay 在 runSceneImmediateByJson 之后、'editor:open' 扇出之前调用，使
+     * queryNodeTree/选择/组件等服务层守卫（getRootNode()/isOpen）对运行场景生效。
+     * 有意不走 open()：无资产 RPC 查询、不清 undo 历史、不发事件（事件由 PreviewPlay
+     * 统一发射，保证 adopt 先于服务扇出）；save 语义由宿主侧 PreviewSession no-op 承担。
+     */
+    public adoptRuntimeScene(scene: cc.Scene, identity?: { url?: string }): void {
+        if (!scene) {
+            return;
+        }
+        const uuid = scene.uuid;
+        let editor = this.editorMap.get(uuid);
+        if (!(editor instanceof SceneEditor)) {
+            editor = this.createEditor('cc.SceneAsset');
+            this.editorMap.set(uuid, editor);
+        }
+        editor.setCurrentOpen({
+            instance: scene,
+            identifier: {
+                assetType: 'cc.SceneAsset',
+                assetName: scene.name || 'RuntimeScene',
+                assetUuid: uuid,
+                assetUrl: identity?.url ?? '',
+            },
+        });
+        this.currentEditorUuid = uuid;
+        this.invalidateEditorSession();
+        this.isOpen = true;
+    }
+
+    /** 释放 adoptRuntimeScene 登记的运行时实体（幂等；不动磁盘、不发事件）。 */
+    public releaseRuntimeScene(): void {
+        const uuid = this.currentEditorUuid;
+        if (uuid) {
+            const editor = this.editorMap.get(uuid);
+            editor?.setCurrentOpen(null);
+            this.editorMap.delete(uuid);
+            this.currentEditorUuid = null;
+        }
+        this.isOpen = false;
+        this.invalidateEditorSession();
+    }
+
     async open(params: IOpenOptions): Promise<TEditorEntity> {
         return this.runLifecycle(() => this.openUnlocked(params));
     }

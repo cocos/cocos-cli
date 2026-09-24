@@ -15,6 +15,7 @@ export * from './camera';
 export * from './gizmo';
 export * from './scene-view';
 export * from './preview';
+export * from './preview-play';
 export * from './ui';
 export * from './reflection-probe';
 export * from './terrain';

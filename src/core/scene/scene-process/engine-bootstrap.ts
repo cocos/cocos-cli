@@ -36,8 +36,18 @@ const DEFERRED_MODULE_CACHE_KEY = '__cocosCliDeferredEngineModules';
 
 export async function startup(options: {
     serverURL: string;
+    /**
+     * 「Preview in Editor」游戏视图模式：调用方（scene-editor-boot.js）在加载引擎前已置
+     * window.isPreviewProcess = true（使 internal:constants 解析出 EDITOR_NOT_IN_PREVIEW=false：
+     * director.tick 派发输入帧、mainLoop 按游戏时钟算 dt）；startup 在引擎模块求值后显式置
+     * cc.GAME_VIEW=true（见下方赋值处注释——上游 global-exports 的自动赋值分支在 dev-cli
+     * 产物上永不执行，且不改引擎源码）。与场景编辑器的其余差异：设计分辨率策略改按预览
+     * settings（_CCSettings.screen）套用，对齐浏览器游戏预览（game-boot.js）的拉伸/留边行为；
+     * 编辑器 tick 不自动恢复，由 PreviewPlay 服务在播放/暂停切换时接管（Engine.pause/resume）。
+     */
+    gameView?: boolean;
 }) {
-    const { serverURL } = options;
+    const { serverURL, gameView } = options;
     const defaultConfig = await fetch(`${serverURL}/scripting/engine/game-config`);
     const config = await defaultConfig.json();
     const modules = await fetch(`${serverURL}/scripting/engine/modules`);
@@ -81,6 +91,23 @@ export async function startup(options: {
             deferredModuleCache[mod] = await System.import(mod);
         } catch (e) {
             console.error('Failed to load engine module:', mod, 'e:', e);
+        }
+    }
+
+    if (gameView) {
+        // 显式置位 cc.GAME_VIEW（此时引擎模块已求值完毕、场景尚未加载）。
+        // 为什么需要手动赋值：dev-cli 引擎产物的 internal:constants 是运行时模块，恒会导出
+        // EDITOR_NOT_IN_PREVIEW（= CC_EDITOR && !isPreviewProcess），使引擎 global-exports 里
+        // 「EDITOR_NOT_IN_PREVIEW === undefined 才按 isPreviewProcess 赋 GAME_VIEW」的分支永不执行。
+        // GAME_VIEW 的全部消费方——node-activator.activateComp/destroyComp、component-scheduler
+        // .enableComp/disableComp/enableInEditor、camera.setDefaultUsage——都是**运行时读取**，
+        // 在这里赋值即可完整生效，无需改动上游引擎源码（packages/engine 保持 pristine，重新同步不丢失）。
+        // 唯一例外：node-dev.ts 的模块级 IS_PREVIEW 捕获仍为 false → Node._onPreDestroy 保留编辑器
+        // undo polyfill（destroy 语义与场景编辑器一致，对 gameplay 影响可忽略；Creator game view
+        // 因引擎构建期常量折叠而无此 polyfill，属已知且接受的差异）。
+        const ccLegacy = (globalThis as any).cc;
+        if (ccLegacy) {
+            ccLegacy.GAME_VIEW = true;
         }
     }
 
@@ -151,16 +178,45 @@ export async function startup(options: {
     const dr = config?.overrideSettings?.screen?.designResolution;
     const drWidth = dr?.width ?? 1280;
     const drHeight = dr?.height ?? 720;
-    const drPolicy = cc.ResolutionPolicy.SHOW_ALL;
+    let drPolicy = cc.ResolutionPolicy.SHOW_ALL;
+    let drApplyWidth = drWidth;
+    let drApplyHeight = drHeight;
     // FIXED_WIDTH / FIXED_HEIGHT should only be used by preview.
-    // There is no preview flow in scene process yet, so keep SHOW_ALL by default.
+    // gameView（Preview in Editor）模式下会按预览 settings 覆盖为项目策略（见下方分支）。
     // if (dr) {
     //     const fw = dr.fitWidth !== false;
     //     const fh = dr.fitHeight === true;
     //     if (fw && !fh) drPolicy = cc.ResolutionPolicy.FIXED_WIDTH;
     //     else if (!fw && fh) drPolicy = cc.ResolutionPolicy.FIXED_HEIGHT;
     // }
-    cc.view.setDesignResolutionSize(drWidth, drHeight, drPolicy);
+    if (gameView) {
+        // 游戏视图（Preview in Editor）：按预览 settings 的设计分辨率策略套用 ResolutionPolicy，
+        // 使拉伸/留边行为与浏览器游戏预览（game-boot.js）和真机构建一致。
+        // settings 里的 policy 已由构建流程从 fitWidth/fitHeight 换算而来；缺省时按同规则推导。
+        // 调用方（previewMain）在 boot 前已门控 window._CCSettings 就绪。
+        try {
+            const previewDr = (globalThis as any)?._CCSettings?.screen?.designResolution ?? dr;
+            if (previewDr) {
+                const pvWidth = Number(previewDr.width) || drWidth;
+                const pvHeight = Number(previewDr.height) || drHeight;
+                let policy = previewDr.policy;
+                if (policy === undefined || policy === null) {
+                    const fw = previewDr.fitWidth !== false;
+                    const fh = previewDr.fitHeight === true;
+                    policy = cc.ResolutionPolicy.SHOW_ALL;
+                    if (fw && !fh) policy = cc.ResolutionPolicy.FIXED_WIDTH;
+                    else if (!fw && fh) policy = cc.ResolutionPolicy.FIXED_HEIGHT;
+                }
+                drPolicy = policy;
+                drApplyWidth = pvWidth;
+                drApplyHeight = pvHeight;
+            }
+        } catch (e) {
+            console.warn('[engine-bootstrap] gameView design resolution failed, fallback SHOW_ALL:', e);
+        }
+    }
+    // 场景编辑器（非 gameView）保持 SHOW_ALL：FIXED_WIDTH / FIXED_HEIGHT 仅用于预览。
+    cc.view.setDesignResolutionSize(drApplyWidth, drApplyHeight, drPolicy);
 
     await cc.game.run();
     // Stop the engine's built-in mainLoop immediately — it would render frames

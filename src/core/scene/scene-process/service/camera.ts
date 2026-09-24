@@ -30,6 +30,14 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     get controller() { return this._controller; }
     get camera() { return this._camera; }
 
+    /**
+     * 2D 标尺（坐标尺数值）可见性。PreviewPlay 播放态隐藏、暂停态恢复；
+     * 场景编辑器默认不受影响（覆写仅存在于预览 webview 自己的服务实例）。
+     */
+    public setRulerVisible(visible: boolean): void {
+        this._controller2D?.setRulerVisible(visible);
+    }
+
     set is2D(value: boolean) {
         if (this._controller && this.is2D === value) return;
         if (this._controller) {

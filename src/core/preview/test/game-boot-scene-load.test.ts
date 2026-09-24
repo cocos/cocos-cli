@@ -9,7 +9,7 @@
  *    fire，错误浮层与重试都不可达；
  *  - 浏览器首屏表现为游戏停在 `cc.game.pause()` 之后、无任何报错。
  *
- * 该文件是有 import 的浏览器 ESM，无法像 preview-inspect 测试那样 new Function 求值执行，
+ * 该文件是有 import 的浏览器 ESM，无法直接 new Function 求值执行，
  * 故这里对源码做结构断言：钉住「回调整体被 try/catch 收敛到 rejectSceneRun」「fetch 响应
  * 先查 ok 再 .json()」「外层 catch 仍 rethrow（IDE 感知失败的契约）」三条不变量。
  */

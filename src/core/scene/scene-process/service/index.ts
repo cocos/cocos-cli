@@ -18,6 +18,7 @@ export * from './gizmo';
 export * from './scene-view';
 export * from './particle';
 export * from './preview';
+export * from './preview-play';
 export * from './ui';
 export * from './reflection-probe';
 // Keep a runtime export so the web Scene bundle follows this decorator

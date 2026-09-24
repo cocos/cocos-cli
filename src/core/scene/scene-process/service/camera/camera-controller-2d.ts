@@ -137,12 +137,23 @@ export class CameraController2D extends CameraControllerBase {
             this._camera.near = this._near;
             this._camera.far = this._far;
             this.onResize();
-            this._ruler?.show(true);
+            this._ruler?.show(this._rulerVisibleOverride ?? true);
             this.showGrid(true);
         } else {
             this._ruler?.show(false);
             this.showGrid(false);
         }
+    }
+
+    /**
+     * 标尺可见性覆写（「Preview in Editor」播放态隐藏坐标尺数值；null = 默认显示）。
+     * 覆写记在控制器上：is2D 切换 / 重新 activate 后仍然生效。
+     */
+    private _rulerVisibleOverride: boolean | null = null;
+
+    public setRulerVisible(visible: boolean): void {
+        this._rulerVisibleOverride = visible;
+        this._ruler?.show(visible);
     }
 
     // ---------- 调整到中心 ----------

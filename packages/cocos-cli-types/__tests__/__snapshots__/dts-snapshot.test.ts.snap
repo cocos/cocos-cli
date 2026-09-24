@@ -6504,6 +6504,7 @@ export declare interface ICameraService {
     setGridColor(color: number[], persist?: boolean): void;
     setOriginAxes2D(config: IOriginAxesConfig): void;
     setOriginAxes3D(config: IOriginAxesConfig): void;
+    setRulerVisible(visible: boolean): void;
     getCamera(): Camera | undefined;
     onUpdate(deltaTime: number): void;
 }
@@ -6633,6 +6634,10 @@ export declare interface IEditorService extends IServiceEvents {
     queryCurrent(): Promise<TEditorEntity | null>;
     querySceneSerializedData(): Promise<string>;
     getRootNode(): TEditorInstance | null;
+    adoptRuntimeScene(scene: Scene, identity?: {
+        url?: string;
+    }): void;
+    releaseRuntimeScene(): void;
     lock(): Promise<void>;
     unlock(): void;
 }
@@ -6641,6 +6646,7 @@ export declare interface IEngineService extends IServiceEvents {
     repaintInEditMode(): Promise<void>;
     pause(): void;
     resume(): void;
+    stopTick(): void;
     initCustomLayer(layers?: ICustomLayerConfig[]): Promise<void>;
     enterAnimationMode(): void;
     exitAnimationMode(): void;
@@ -7089,6 +7095,20 @@ export declare interface IPreviewInstance {
     resetCameraView(): void;
     hide(): void;
 }
+export declare interface IPreviewPlayService extends IServiceEvents {
+    start(serializedSceneJson: string, options?: IPreviewPlayStartOptions): Promise<void>;
+    stop(): Promise<void>;
+    pause(isPause: boolean): Promise<void>;
+    step(): boolean;
+    isPause(): boolean;
+    getState(): PreviewPlayState;
+    setFps(fps: number): void;
+    showState(show: boolean): void;
+}
+export declare interface IPreviewPlayStartOptions {
+    paused?: boolean;
+    sceneUrl?: string;
+}
 export declare interface IPreviewService extends IMotionPreviewService {
     open(uuid: string): Promise<IPreviewInstance | null>;
     generateThumbnail(uuid: string, assetType: string, width?: number, height?: number): Promise<any>;
@@ -7495,6 +7515,7 @@ export declare interface IServiceManager {
     Gizmo: IGizmoService;
     SceneView: ISceneViewService;
     Preview: IPreviewService;
+    PreviewPlay: IPreviewPlayService;
     UI: IUIService;
     ReflectionProbe: IReflectionProbeService;
     ReferenceImage: IReferenceImageService;
@@ -7999,6 +8020,7 @@ export declare enum PrefabState {
     PrefabInstance = 2,
     PrefabLostAsset = 3
 }
+export declare type PreviewPlayState = 'stop' | 'play' | 'pause';
 export declare type ReferenceImageVisibilityReason = 'visible' | 'disabled' | 'no-editor' | 'not-2d' | 'unbound' | 'missing' | 'load-error';
 export declare enum ReloadResult {
     SUCCESS = 0,
