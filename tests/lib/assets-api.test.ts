@@ -1,3 +1,8 @@
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
+import JsZip from 'jszip';
+
 const mockAssetManager = {
     copyAsset: jest.fn(),
     updateUserData: jest.fn(),
@@ -18,6 +23,9 @@ const mockAssetManager = {
     saveAnimationGraph: jest.fn(),
     reloadAnimationGraph: jest.fn(),
     onAnimationGraphChanged: jest.fn(),
+    queryAssetInfo: jest.fn(),
+    queryAssetInfos: jest.fn(),
+    queryAssetDependencies: jest.fn(),
 };
 
 const mockAssetDBManager = {
@@ -77,6 +85,105 @@ describe('lib assets api', () => {
             'db://assets/copied.png',
             { rename: true },
         );
+    });
+
+    it.each([false, true])('exports selected assets, folders, metadata and recursive dependencies as a ZIP (linked root: %s)', async linkedRoot => {
+        const project = mkdtempSync(join(tmpdir(), 'cocos-asset-export-'));
+        try {
+            const assetsRoot = join(project, 'assets');
+            mkdirSync(assetsRoot);
+            const root = linkedRoot ? join(project, 'assets-alias') : assetsRoot;
+            if (linkedRoot) {
+                symlinkSync(assetsRoot, root, 'junction');
+            }
+            const folder = join(root, 'sprites');
+            mkdirSync(folder, { recursive: true });
+            writeFileSync(`${folder}.meta`, 'folder-meta');
+            writeFileSync(join(folder, 'hero.prefab'), 'hero');
+            writeFileSync(join(folder, 'hero.prefab.meta'), 'hero-meta');
+            writeFileSync(join(root, 'texture.png'), 'texture');
+            writeFileSync(join(root, 'texture.png.meta'), 'texture-meta');
+            writeFileSync(join(root, 'material.mtl'), 'material');
+            writeFileSync(join(root, 'material.mtl.meta'), 'material-meta');
+            const folderInfo = { uuid: 'folder', url: 'db://assets/sprites', file: folder, isDirectory: true };
+            const heroInfo = { uuid: 'hero', url: 'db://assets/sprites/hero.prefab', file: join(folder, 'hero.prefab'), isDirectory: false };
+            const textureInfo = { uuid: 'texture', url: 'db://assets/texture.png', file: join(root, 'texture.png'), isDirectory: false };
+            const materialInfo = { uuid: 'material', url: 'db://assets/material.mtl', file: join(root, 'material.mtl'), isDirectory: false };
+            mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
+            mockAssetManager.queryAssetInfos.mockReturnValue([folderInfo, heroInfo, textureInfo, materialInfo]);
+            mockAssetManager.queryAssetInfo.mockImplementation((id: string) => ({
+                folder: folderInfo,
+                hero: heroInfo,
+                texture: textureInfo,
+                material: materialInfo,
+                'db://assets/sprites': folderInfo,
+                'db://assets/sprites/hero.prefab': heroInfo,
+            } as Record<string, unknown>)[id] ?? null);
+            mockAssetManager.queryAssetDependencies.mockImplementation(async (id: string) => ({ hero: ['texture'], texture: ['material'] } as Record<string, string[]>)[id] ?? []);
+
+            const output = join(project, 'package.zip');
+            await expect(Assets.exportAssetPackage(['db://assets/sprites'], output, true)).resolves.toBe(4);
+            const zip = await JsZip.loadAsync(readFileSync(output));
+            await expect(zip.file('sprites/hero.prefab')?.async('string')).resolves.toBe('hero');
+            await expect(zip.file('sprites/hero.prefab.meta')?.async('string')).resolves.toBe('hero-meta');
+            await expect(zip.file('sprites.meta')?.async('string')).resolves.toBe('folder-meta');
+            await expect(zip.file('texture.png')?.async('string')).resolves.toBe('texture');
+            await expect(zip.file('texture.png.meta')?.async('string')).resolves.toBe('texture-meta');
+            await expect(zip.file('material.mtl')?.async('string')).resolves.toBe('material');
+
+            const selectionOnly = join(project, 'selection-only.zip');
+            await expect(Assets.exportAssetPackage(['hero'], selectionOnly, false)).resolves.toBe(1);
+            const selectionZip = await JsZip.loadAsync(readFileSync(selectionOnly));
+            expect(selectionZip.file('texture.png')).toBeNull();
+            expect(selectionZip.file('sprites.meta')).not.toBeNull();
+
+            await expect(Assets.exportAssetPackage(['hero'], output, false)).resolves.toBe(1);
+            const replacedZip = await JsZip.loadAsync(readFileSync(output));
+            expect(replacedZip.file('texture.png')).toBeNull();
+
+            const alias = join(root, 'alias');
+            symlinkSync(folder, alias, 'junction');
+            writeFileSync(`${alias}.meta`, 'alias-meta');
+            const aliasInfo = { ...folderInfo, uuid: 'alias', url: 'db://assets/alias', file: alias };
+            const aliasHeroInfo = { ...heroInfo, url: 'db://assets/alias/hero.prefab', file: join(alias, 'hero.prefab') };
+            mockAssetManager.queryAssetInfos.mockReturnValue([aliasInfo, aliasHeroInfo]);
+            mockAssetManager.queryAssetInfo.mockReturnValue(aliasInfo);
+            await expect(Assets.exportAssetPackage(['db://assets/alias'], output, false)).resolves.toBe(2);
+            const aliasZip = await JsZip.loadAsync(readFileSync(output));
+            expect(Object.keys(aliasZip.files).sort()).toEqual(['alias.meta', 'alias/', 'alias/hero.prefab', 'alias/hero.prefab.meta']);
+            await expect(aliasZip.file('alias.meta')?.async('string')).resolves.toBe('alias-meta');
+            await expect(aliasZip.file('alias/hero.prefab')?.async('string')).resolves.toBe('hero');
+        } finally {
+            rmSync(project, { recursive: true, force: true });
+        }
+    });
+
+    it('rejects invalid selections and unsafe output without writing a ZIP', async () => {
+        const project = mkdtempSync(join(tmpdir(), 'cocos-asset-export-'));
+        try {
+            const root = join(project, 'assets');
+            mkdirSync(root);
+            mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
+            mockAssetManager.queryAssetInfos.mockReturnValue([]);
+            mockAssetManager.queryAssetInfo.mockReturnValue(null);
+            const output = join(project, 'package.zip');
+            await expect(Assets.exportAssetPackage([], output)).rejects.toThrow('Select at least one asset');
+            await expect(Assets.exportAssetPackage(['db://internal/icon'], output)).rejects.toThrow('unknown or non-project');
+            await expect(Assets.exportAssetPackage(['db://assets/missing'], join(root, 'package.zip'))).rejects.toThrow('outside');
+            const alias = join(project, 'assets-alias');
+            symlinkSync(root, alias, 'junction');
+            await expect(Assets.exportAssetPackage(['db://assets/missing'], join(alias, 'package.zip'))).rejects.toThrow('outside');
+            const outside = join(project, 'outside');
+            mkdirSync(outside);
+            writeFileSync(join(outside, 'secret.txt'), 'outside');
+            const external = join(root, 'external');
+            symlinkSync(outside, external, 'junction');
+            mockAssetManager.queryAssetInfo.mockReturnValue({ uuid: 'external', url: 'db://assets/external/secret.txt', file: join(external, 'secret.txt'), isDirectory: false });
+            await expect(Assets.exportAssetPackage(['db://assets/external/secret.txt'], output, false)).rejects.toThrow('outside');
+            expect(existsSync(output)).toBe(false);
+        } finally {
+            rmSync(project, { recursive: true, force: true });
+        }
     });
 
     it('updateAssetUserData delegates complete userData replacement to assetManager', async () => {

@@ -3,7 +3,11 @@ import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, I
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
 import type { AnimGraphVariantDump } from '../../core/assets/animation-graph-variant';
-import { normalize } from 'path';
+import { createReadStream, createWriteStream, existsSync, promises as fs, realpathSync } from 'fs';
+import { dirname, extname, isAbsolute, normalize, relative, resolve, sep } from 'path';
+import { pipeline } from 'stream/promises';
+import { randomUUID } from 'crypto';
+import JsZip from 'jszip';
 
 export type * from '../../core/assets/@types/public';
 export type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType } from '../../core/assets/@types/protected';
@@ -208,6 +212,130 @@ export async function copyAsset(
     options?: AssetOperationOption
 ): Promise<IAssetInfo> {
     return await assetManager.copyAsset(source, target, options);
+}
+
+/**
+ * Export project assets and their metadata as a ZIP package.
+ * @param urls Selected asset database URLs, including folders or sub-assets.
+ * @param destination Absolute path of the output ZIP file outside the asset database.
+ * @param includeDependencies Whether to recursively include referenced project assets.
+ * @returns Number of exported asset files and directories.
+ */
+export async function exportAssetPackage(urls: string[], destination: string, includeDependencies = true): Promise<number> {
+    if (!Array.isArray(urls) || urls.length === 0 || urls.some(url => typeof url !== 'string')) {
+        throw new TypeError('Select at least one asset to export.');
+    }
+    if (typeof destination !== 'string' || !isAbsolute(destination) || extname(destination).toLowerCase() !== '.zip') {
+        throw new TypeError('The export destination must be an absolute .zip file path.');
+    }
+    if (typeof includeDependencies !== 'boolean') {
+        throw new TypeError('includeDependencies must be a boolean.');
+    }
+
+    const database = assetDBManager.assetDBMap.assets;
+    if (!database) {
+        throw new Error('The project asset database is not ready.');
+    }
+    const root = resolve(database.options.target);
+    const realRoot = realpathSync(root);
+    const insideRoot = (file: string, base = root): boolean => {
+        const path = relative(base, file);
+        return path === '' || (!path.startsWith(`..${sep}`) && path !== '..' && !isAbsolute(path));
+    };
+    if (insideRoot(resolve(destination)) || insideRoot(realpathSync(dirname(destination)), realRoot)) {
+        throw new Error('Export the ZIP outside the project assets directory.');
+    }
+
+    const allAssets = assetManager.queryAssetInfos().filter(info => info.url.startsWith('db://assets/') && info.file);
+    const children = new Map<string, IAssetInfo[]>();
+    for (const info of allAssets) {
+        const parent = info.url.slice(0, info.url.lastIndexOf('/'));
+        const siblings = children.get(parent) ?? [];
+        siblings.push(info);
+        children.set(parent, siblings);
+    }
+
+    const resolveMainAsset = (urlOrUUID: string): IAssetInfo | null => {
+        const info = assetManager.queryAssetInfo(urlOrUUID);
+        if (info?.file) {
+            return info;
+        }
+        return info?.uuid.includes('@') ? assetManager.queryAssetInfo(info.uuid.split('@')[0]) : null;
+    };
+    const pending: IAssetInfo[] = [];
+    for (const url of urls) {
+        const info = resolveMainAsset(url);
+        if (!info || (info.url !== 'db://assets' && !info.url.startsWith('db://assets/'))) {
+            throw new Error(`Cannot export an unknown or non-project asset: ${url}`);
+        }
+        pending.push(info);
+    }
+
+    const included = new Map<string, IAssetInfo>();
+    while (pending.length > 0) {
+        const info = pending.pop()!;
+        if (included.has(info.url)) {
+            continue;
+        }
+        included.set(info.url, info);
+        if (info.isDirectory || info.url === 'db://assets') {
+            pending.push(...(children.get(info.url) ?? []));
+        }
+        if (includeDependencies && info.url !== 'db://assets') {
+            for (const uuid of await assetManager.queryAssetDependencies(info.uuid, 'all')) {
+                const dependency = resolveMainAsset(uuid);
+                if (dependency?.url.startsWith('db://assets/')) {
+                    pending.push(dependency);
+                }
+            }
+        }
+    }
+
+    const zip = new JsZip();
+    const added = new Set<string>();
+    const addFile = (file: string, optional = false): void => {
+        if (optional && !existsSync(file)) {
+            return;
+        }
+        const actual = realpathSync(file);
+        if (!insideRoot(actual, realRoot)) {
+            throw new Error(`Asset file is outside the project assets directory: ${file}`);
+        }
+        const entry = relative(root, file).split(sep).join('/');
+        if (!added.has(entry)) {
+            zip.file(entry, createReadStream(file));
+            added.add(entry);
+        }
+    };
+    for (const info of included.values()) {
+        const file = realpathSync(info.file);
+        if (!insideRoot(file, realRoot)) {
+            throw new Error(`Asset file is outside the project assets directory: ${info.file}`);
+        }
+        if (file !== realRoot) {
+            const entry = relative(root, info.file).split(sep).join('/');
+            if (info.isDirectory) {
+                zip.folder(entry);
+            } else {
+                addFile(info.file);
+            }
+            addFile(`${info.file}.meta`);
+            for (let parent = dirname(info.file); parent !== root && insideRoot(parent); parent = dirname(parent)) {
+                zip.folder(relative(root, parent).split(sep).join('/'));
+                addFile(`${parent}.meta`, true);
+            }
+        }
+    }
+
+    const temporary = `${destination}.${randomUUID()}.tmp`;
+    try {
+        await pipeline(zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true }), createWriteStream(temporary));
+        await fs.rename(temporary, destination);
+    } catch (error) {
+        await fs.rm(temporary, { force: true }).catch(cleanupError => console.warn('Failed to remove incomplete asset package:', cleanupError));
+        throw error;
+    }
+    return included.size;
 }
 
 /**
