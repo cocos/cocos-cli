@@ -236,12 +236,13 @@ export async function exportAssetPackage(urls: string[], destination: string, in
     if (!database) {
         throw new Error('The project asset database is not ready.');
     }
-    const root = realpathSync(database.options.target);
-    const insideRoot = (file: string): boolean => {
-        const path = relative(root, file);
+    const root = resolve(database.options.target);
+    const realRoot = realpathSync(root);
+    const insideRoot = (file: string, base = root): boolean => {
+        const path = relative(base, file);
         return path === '' || (!path.startsWith(`..${sep}`) && path !== '..' && !isAbsolute(path));
     };
-    if (insideRoot(resolve(destination)) || insideRoot(realpathSync(dirname(destination)))) {
+    if (insideRoot(resolve(destination)) || insideRoot(realpathSync(dirname(destination)), realRoot)) {
         throw new Error('Export the ZIP outside the project assets directory.');
     }
 
@@ -297,7 +298,7 @@ export async function exportAssetPackage(urls: string[], destination: string, in
             return;
         }
         const actual = realpathSync(file);
-        if (!insideRoot(actual)) {
+        if (!insideRoot(actual, realRoot)) {
             throw new Error(`Asset file is outside the project assets directory: ${file}`);
         }
         const entry = relative(root, file).split(sep).join('/');
@@ -308,10 +309,10 @@ export async function exportAssetPackage(urls: string[], destination: string, in
     };
     for (const info of included.values()) {
         const file = realpathSync(info.file);
-        if (!insideRoot(file)) {
+        if (!insideRoot(file, realRoot)) {
             throw new Error(`Asset file is outside the project assets directory: ${info.file}`);
         }
-        if (file !== root) {
+        if (file !== realRoot) {
             const entry = relative(root, info.file).split(sep).join('/');
             if (info.isDirectory) {
                 zip.folder(entry);
