@@ -1,0 +1,200 @@
+name: Engine SDK tests for one CLI and platform
+
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: CLI ref, platform and Node version to prepare and test
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  NODE_OPTIONS: --max-old-space-size=8192
+
+jobs:
+  build:
+    env:
+      MINIMAL_DOWNLOAD_TOOLS: 'true'
+    runs-on: ${{ fromJson(inputs.target).runner }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ fromJson(inputs.target).node }}
+          cache: npm
+          cache-dependency-path: harness/package-lock.json
+      - name: Install harness dependencies
+        working-directory: harness
+        run: npm ci --ignore-scripts
+      - name: Test matrix orchestration
+        working-directory: harness
+        run: npm run test:sdk-matrix
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJson(inputs.target).ref }}
+          path: candidate
+      - name: Install candidate dependencies
+        working-directory: candidate
+        run: npm ci
+      - name: Fetch development engine
+        working-directory: candidate
+        run: npm run fetch:engine
+      - name: Install development engine dependencies
+        working-directory: candidate
+        run: npm run install:engine
+      - name: Restore test platform tools
+        id: platform-tools-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: candidate/static/tools
+          key: sdk-tools-v2-${{ env.MINIMAL_DOWNLOAD_TOOLS }}-${{ runner.os }}-${{ runner.arch }}-${{ fromJson(inputs.target).node }}-${{ hashFiles('candidate/workflow/download-tools.js', 'harness/workflow/sdk-platform-tools.js') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            sdk-tools-v2-${{ env.MINIMAL_DOWNLOAD_TOOLS }}-${{ runner.os }}-${{ runner.arch }}-${{ fromJson(inputs.target).node }}-${{ hashFiles('candidate/workflow/download-tools.js', 'harness/workflow/sdk-platform-tools.js') }}-
+      - name: Validate platform tools and download missing tools
+        id: platform-tools
+        working-directory: harness
+        run: node workflow/sdk-platform-tools.js ../candidate
+      - name: Save test platform tools
+        if: steps.platform-tools.outputs.changed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: candidate/static/tools
+          key: ${{ steps.platform-tools-cache.outputs.cache-primary-key }}
+      - name: Compile CLI with prepared platform tools
+        working-directory: candidate
+        run: node workflow/setup-dev.js --force
+      - name: Pack exact CLI candidate
+        working-directory: harness
+        run: node workflow/pack-sdk.js --kind cli --source ../candidate --output ../candidate-sdk
+      - name: Freeze all supported engine commits
+        working-directory: harness
+        run: node workflow/sdk-engine-sources.js --cli ../candidate-sdk --plan-only --output ../tag-matrix
+      - name: Bundle shared CLI and prepared test source
+        working-directory: harness
+        env:
+          TARGET: ${{ inputs.target }}
+        run: node workflow/sdk-source-shards.js bundle ../candidate ../candidate-sdk ../tag-matrix ../bundle
+      - name: Upload CLI candidate and frozen source plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-cli-${{ fromJson(inputs.target).id }}
+          path: |
+            bundle/cli.tar
+            bundle/manifest.json
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+      - name: Upload prepared test source
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-tests-${{ fromJson(inputs.target).id }}
+          path: bundle/candidate.tar
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-plan-${{ fromJson(inputs.target).id }}
+          path: bundle/manifest.json
+          if-no-files-found: error
+      - name: Retain source reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-source-${{ fromJson(inputs.target).id }}
+          path: |
+            tag-matrix/source-report.json
+            tag-matrix/git-refs.snapshot.txt
+            tag-matrix/catalog.json
+            tag-matrix/source-*/build.log
+          if-no-files-found: warn
+
+  plan:
+    needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-plan-${{ fromJson(inputs.target).id }}
+          path: plans
+      - id: plan
+        env:
+          TARGETS: ${{ format('[{0}]', inputs.target) }}
+        run: node workflow/sdk-ci-shards.js plan plans matrix.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdk-expected-${{ fromJson(inputs.target).id }}
+          path: matrix.json
+          if-no-files-found: error
+
+  verify:
+    env:
+      SDK_PREPARED_CACHE: 'true'
+    name: Prepare engine and full unit/E2E (${{ matrix.id }}, ${{ matrix.engineVersion }}, ${{ matrix.runner }})
+    needs: plan
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJson(needs.plan.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: harness/package-lock.json
+      - name: Install harness dependencies
+        working-directory: harness
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-cli-${{ matrix.target }}
+          path: bundle
+      - uses: actions/download-artifact@v4
+        with:
+          name: sdk-tests-${{ matrix.target }}
+          path: bundle
+      - name: Prepare only this engine SDK
+        uses: actions/github-script@v7
+        env:
+          SHARD: ${{ toJson(matrix) }}
+        with:
+          script: |
+            // Run inside an action so the cache client inherits its runtime credentials.
+            require('node:child_process').execFileSync('node', ['workflow/sdk-source-shards.js', 'prepare', '../bundle', '../verification'], { cwd: 'harness', stdio: 'inherit', env: process.env });
+      - name: Run complete unit and E2E for this engine
+        working-directory: harness
+        env:
+          SHARD: ${{ toJson(matrix) }}
+        run: node workflow/sdk-source-shards.js verify ../bundle ../verification
+      - name: Retain shard result and test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-result-${{ matrix.id }}
+          path: |
+            verification/sources/source-report.json
+            verification/sources/git-refs.snapshot.txt
+            verification/sources/catalog.json
+            verification/sources/source-*/build.log
+            verification/sources/source-*/cache-input-files.json
+            verification/shard-result.json
+            verification/matrix/report.json
+            verification/matrix/catalog.snapshot.json
+            verification/matrix/pair-*/*.json
+            verification/matrix/pair-*/*.log
+          if-no-files-found: error
+
