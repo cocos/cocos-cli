@@ -171,7 +171,7 @@
       }
     },
     "designResolution": {
-      "title": "设计分辨率",
+      "title": "项目数据",
       "width": {
         "title": "宽度"
       },
@@ -183,6 +183,12 @@
       },
       "fitHeight": {
         "title": "适配高度"
+      },
+      "highQuality": {
+        "title": "3D 高质量模式"
+      },
+      "downloadMaxConcurrency": {
+        "title": "资源下载并发数"
       }
     },
     "splashScreen": {
@@ -238,27 +244,10 @@
       "customPipelinePostProcess": {
         "title": "Post Process Module",
         "description": "是否启用自定义管线后处理模块。"
-      }
-    },
-    "rendering": {
-      "title": "渲染",
+      },
       "renderPipeline": {
-        "title": "渲染管线",
-        "description": "渲染管线 UUID"
-      },
-      "customPipeline": {
-        "title": "自定义管线",
-        "description": "是否使用自定义渲染管线"
-      },
-      "highQuality": {
-        "title": "高画质"
-      },
-      "downloadMaxConcurrency": {
-        "title": "最大下载并发数"
-      },
-      "customJointTextureLayouts": {
-        "title": "自定义骨骼贴图布局",
-        "description": "自定义骨骼动画贴图布局"
+        "title": "渲染管线资源",
+        "description": "渲染管线资源"
       }
     },
     "jointTextureLayout": {

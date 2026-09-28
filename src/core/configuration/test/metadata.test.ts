@@ -87,7 +87,7 @@ describe('configuration metadata', () => {
         await runtime.Engine.init(TestGlobalEnv.engineRoot);
 
         const nodes = await runtime.getMetadata();
-        const engineRenderingNode = findNode(nodes, 'engine.rendering');
+        const projectDataNode = findNode(nodes, 'engine.designResolution');
         const engineJointTextureLayoutNode = findNode(nodes, 'engine.jointTextureLayout');
         const engineModuleNode = findNode(nodes, 'engine.moduleConfig');
         const engineMacroNode = findNode(nodes, 'engine.macroConfig');
@@ -104,7 +104,7 @@ describe('configuration metadata', () => {
             ? jointTextureContentSchema.items[0]
             : jointTextureContentSchema?.items;
 
-        expect(engineRenderingNode.properties['engine.customJointTextureLayouts']).toBeUndefined();
+        expect(projectDataNode.properties['engine.customJointTextureLayouts']).toBeUndefined();
         expect(jointTextureLayoutsProperty.type).toBe('array');
         expect(jointTextureLayoutItemSchema?.type).toBe('object');
         expect(jointTextureLayoutItemSchema?.properties?.textureLength?.type).toBe('number');
@@ -159,18 +159,21 @@ describe('configuration metadata', () => {
         expect(macroCustomItemSchema?.properties?.value?.type).toBe('boolean');
     });
 
-    it('should expose Graphics metadata without duplicating CUSTOM_PIPELINE_NAME', async () => {
+    it('should group Graphics and Project Data settings without duplicating configuration keys', async () => {
         const runtime = await loadFreshRuntime();
         await runtime.project.open(TestGlobalEnv.projectRoot);
         await runtime.Engine.init(TestGlobalEnv.engineRoot);
 
         const nodes = await runtime.getMetadata();
         const engineGraphicsNode = findNode(nodes, 'engine.graphics');
-        const engineRenderingNode = findNode(nodes, 'engine.rendering');
+        const projectDataNode = findNode(nodes, 'engine.designResolution');
         const engineMacroNode = findNode(nodes, 'engine.macroConfig');
         const pipelineProperty = findProperty(engineGraphicsNode, 'engine.graphics.pipeline');
         const pipelineNameProperty = findProperty(engineGraphicsNode, 'engine.macroConfig.CUSTOM_PIPELINE_NAME');
         const postProcessProperty = findProperty(engineGraphicsNode, 'engine.graphics.custom-pipeline-post-process');
+        const renderPipelineProperty = findProperty(engineGraphicsNode, 'engine.renderPipeline');
+        const highQualityProperty = findProperty(projectDataNode, 'engine.highQuality');
+        const downloadMaxConcurrencyProperty = findProperty(projectDataNode, 'engine.downloadMaxConcurrency');
 
         expect(pipelineProperty.type).toBe('string');
         expect(pipelineProperty.enum).toEqual(['custom-pipeline', 'legacy-pipeline']);
@@ -179,9 +182,19 @@ describe('configuration metadata', () => {
         expect(pipelineNameProperty.default).toBe(runtime.Engine.getConfig(true).macroConfig?.CUSTOM_PIPELINE_NAME);
         expect(postProcessProperty.type).toBe('boolean');
         expect(postProcessProperty.default).toBe(runtime.Engine.getConfig(true).graphics?.['custom-pipeline-post-process']);
+        expect(renderPipelineProperty.type).toBe('string');
+        expect(renderPipelineProperty.default).toBe(runtime.Engine.getConfig(true).renderPipeline);
+        expect(highQualityProperty.type).toBe('boolean');
+        expect(highQualityProperty.default).toBe(runtime.Engine.getConfig(true).highQuality);
+        expect(downloadMaxConcurrencyProperty.type).toBe('number');
+        expect(downloadMaxConcurrencyProperty.default).toBe(runtime.Engine.getConfig(true).downloadMaxConcurrency);
+        expect(downloadMaxConcurrencyProperty.minimum).toBe(1);
         expect(engineMacroNode.properties['engine.macroConfig.CUSTOM_PIPELINE_NAME']).toBeUndefined();
-        expect(engineRenderingNode.properties['engine.customPipeline']).toBeUndefined();
+        expect(tryFindNode(nodes, 'engine.rendering')).toBeUndefined();
         expect(countPropertyOccurrences(nodes, 'engine.macroConfig.CUSTOM_PIPELINE_NAME')).toBe(1);
+        expect(countPropertyOccurrences(nodes, 'engine.renderPipeline')).toBe(1);
+        expect(countPropertyOccurrences(nodes, 'engine.highQuality')).toBe(1);
+        expect(countPropertyOccurrences(nodes, 'engine.downloadMaxConcurrency')).toBe(1);
     });
 
     it('should only expose builder platform metadata after the corresponding platform plugin has registered', async () => {
@@ -319,6 +332,7 @@ describe('configuration metadata', () => {
         await runtime.sceneConfigInstance.init();
 
         const nodes = await runtime.getMetadata();
+        const projectDataNode = findNode(nodes, 'engine.designResolution');
         const enginePhysicsNode = findNode(nodes, 'engine.physicsConfig');
         const builderCommonNode = findNode(nodes, 'builder.common');
         const builderCacheNode = findNode(nodes, 'builder.useCacheConfig');
@@ -326,6 +340,10 @@ describe('configuration metadata', () => {
         const scriptNode = findNode(nodes, 'script');
         const sceneTickNode = findNode(nodes, 'scene.tick');
 
+        expect(projectDataNode.title).toBe('项目数据');
+        expect(findProperty(projectDataNode, 'engine.highQuality').title).toBe('3D 高质量模式');
+        expect(findProperty(projectDataNode, 'engine.downloadMaxConcurrency').title).toBe('资源下载并发数');
+        expect(findProperty(findNode(nodes, 'engine.graphics'), 'engine.renderPipeline').title).toBe('渲染管线资源');
         expect(enginePhysicsNode.title).toBe('物理配置');
         expect(findProperty(enginePhysicsNode, 'engine.physicsConfig.gravity').title).toBe('重力');
         expect(findProperty(enginePhysicsNode, 'engine.physicsConfig.gravity').description).toBe('物理世界重力向量');
@@ -362,6 +380,8 @@ describe('configuration metadata', () => {
 
         expect(findNode(zhNodes, 'script').title).toBe('脚本');
         expect(findNode(enNodes, 'script').title).toBe('Script');
+        expect(findNode(zhNodes, 'engine.designResolution').title).toBe('项目数据');
+        expect(findNode(enNodes, 'engine.designResolution').title).toBe('Project Data');
         expect(findProperty(findNode(zhNodes, 'script'), 'script.sortingPlugin').title).toBe('插件脚本排序配置');
         expect(findProperty(findNode(enNodes, 'script'), 'script.sortingPlugin').title).toBe('Plugin Scripts Sorting Config');
         expect(findProperty(findNode(zhNodes, 'builder.common'), 'builder.common.platform').title).toBe('平台');

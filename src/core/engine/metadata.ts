@@ -123,6 +123,17 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 default: options.defaultConfig.designResolution.fitHeight,
                 title: 'i18n:configuration.engine.designResolution.fitHeight.title',
             },
+            'engine.highQuality': {
+                type: 'boolean',
+                default: options.defaultConfig.highQuality,
+                title: 'i18n:configuration.engine.designResolution.highQuality.title',
+            },
+            'engine.downloadMaxConcurrency': {
+                type: 'number',
+                default: options.defaultConfig.downloadMaxConcurrency,
+                minimum: 1,
+                title: 'i18n:configuration.engine.designResolution.downloadMaxConcurrency.title',
+            },
         }, 2),
 
         createNode('engine.splashScreen', 'i18n:configuration.engine.splashScreen.title', 'engine', {
@@ -226,27 +237,13 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.graphics.customPipelinePostProcess.title',
                 description: 'i18n:configuration.engine.graphics.customPipelinePostProcess.description',
             },
-        }, 5),
-
-        createNode('engine.rendering', 'i18n:configuration.engine.rendering.title', 'engine', {
             'engine.renderPipeline': {
                 type: 'string',
                 default: options.defaultConfig.renderPipeline,
-                title: 'i18n:configuration.engine.rendering.renderPipeline.title',
-                description: 'i18n:configuration.engine.rendering.renderPipeline.description',
+                title: 'i18n:configuration.engine.graphics.renderPipeline.title',
+                description: 'i18n:configuration.engine.graphics.renderPipeline.description',
             },
-            'engine.highQuality': {
-                type: 'boolean',
-                default: options.defaultConfig.highQuality,
-                title: 'i18n:configuration.engine.rendering.highQuality.title',
-            },
-            'engine.downloadMaxConcurrency': {
-                type: 'number',
-                default: options.defaultConfig.downloadMaxConcurrency,
-                minimum: 1,
-                title: 'i18n:configuration.engine.rendering.downloadMaxConcurrency.title',
-            },
-        }, 6),
+        }, 5),
 
         createNode('engine.jointTextureLayout', 'i18n:configuration.engine.jointTextureLayout.title', 'engine', {
             'engine.customJointTextureLayouts': arraySchema(objectSchema({
@@ -287,7 +284,7 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.jointTextureLayout.customJointTextureLayouts.title',
                 description: 'i18n:configuration.engine.jointTextureLayout.customJointTextureLayouts.description',
             }),
-        }, 7),
+        }, 6),
 
         createNode('engine.macroConfig', 'i18n:configuration.engine.macroConfig.title', 'engine', {
             ...prefixProperties('engine.macroConfig', macroProperties),
@@ -308,7 +305,7 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.macroConfig.macroCustom.title',
                 description: 'i18n:configuration.engine.macroConfig.macroCustom.description',
             }),
-        }, 8),
+        }, 7),
 
         createNode('engine.customLayers', 'i18n:configuration.engine.layers.customLayers.title', 'engine', {
             'engine.customLayers': {
@@ -317,7 +314,7 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.layers.customLayers.title',
                 description: 'i18n:configuration.engine.layers.customLayers.description',
             },
-        }, 9),
+        }, 8),
 
         createNode('engine.sortingLayers', 'i18n:configuration.engine.layers.sortingLayers.title', 'engine', {
             'engine.sortingLayers': {
@@ -326,7 +323,7 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 title: 'i18n:configuration.engine.layers.sortingLayers.title',
                 description: 'i18n:configuration.engine.layers.sortingLayers.description',
             },
-        }, 10),
+        }, 9),
     ];
 }
 

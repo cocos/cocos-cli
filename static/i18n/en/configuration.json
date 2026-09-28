@@ -171,7 +171,7 @@
       }
     },
     "designResolution": {
-      "title": "Design Resolution",
+      "title": "Project Data",
       "width": {
         "title": "Width"
       },
@@ -183,6 +183,12 @@
       },
       "fitHeight": {
         "title": "Fit Height"
+      },
+      "highQuality": {
+        "title": "3D High Quality Mode"
+      },
+      "downloadMaxConcurrency": {
+        "title": "Resource Download Max Concurrency"
       }
     },
     "splashScreen": {
@@ -238,27 +244,10 @@
       "customPipelinePostProcess": {
         "title": "Post Process Module",
         "description": "Whether to enable the custom pipeline post process module."
-      }
-    },
-    "rendering": {
-      "title": "Rendering",
+      },
       "renderPipeline": {
-        "title": "Render Pipeline",
-        "description": "UUID of the render pipeline"
-      },
-      "customPipeline": {
-        "title": "Custom Pipeline",
-        "description": "Whether to use a custom render pipeline"
-      },
-      "highQuality": {
-        "title": "High Quality"
-      },
-      "downloadMaxConcurrency": {
-        "title": "Max Download Concurrency"
-      },
-      "customJointTextureLayouts": {
-        "title": "Custom Joint Texture Layouts",
-        "description": "Custom skeletal animation texture layouts"
+        "title": "Render Pipeline Asset",
+        "description": "Render pipeline asset"
       }
     },
     "jointTextureLayout": {
