@@ -219,7 +219,6 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 type: 'string',
                 default: options.defaultConfig.graphics?.pipeline ?? 'custom-pipeline',
                 title: 'i18n:configuration.engine.graphics.pipeline.title',
-                description: 'i18n:configuration.engine.graphics.pipeline.description',
                 enum: ['custom-pipeline', 'legacy-pipeline'],
                 enumDescriptions: [
                     'i18n:configuration.engine.graphics.pipeline.options.custom',
@@ -230,19 +229,16 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 type: 'string',
                 default: typeof customPipelineNameDefault === 'string' ? customPipelineNameDefault : 'Builtin',
                 title: 'i18n:configuration.engine.graphics.pipelineName.title',
-                description: 'i18n:configuration.engine.graphics.pipelineName.description',
             },
             'engine.graphics.custom-pipeline-post-process': {
                 type: 'boolean',
                 default: options.defaultConfig.graphics?.['custom-pipeline-post-process'] ?? false,
                 title: 'i18n:configuration.engine.graphics.customPipelinePostProcess.title',
-                description: 'i18n:configuration.engine.graphics.customPipelinePostProcess.description',
             },
             'engine.renderPipeline': {
                 type: 'string',
                 default: options.defaultConfig.renderPipeline,
                 title: 'i18n:configuration.engine.graphics.renderPipeline.title',
-                description: 'i18n:configuration.engine.graphics.renderPipeline.description',
             },
         }, 5),
 
