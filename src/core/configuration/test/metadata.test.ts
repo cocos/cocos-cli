@@ -343,7 +343,11 @@ describe('configuration metadata', () => {
         expect(projectDataNode.title).toBe('项目数据');
         expect(findProperty(projectDataNode, 'engine.highQuality').title).toBe('3D 高质量模式');
         expect(findProperty(projectDataNode, 'engine.downloadMaxConcurrency').title).toBe('资源下载并发数');
-        expect(findProperty(findNode(nodes, 'engine.graphics'), 'engine.renderPipeline').title).toBe('渲染管线资源');
+        const graphicsNode = findNode(nodes, 'engine.graphics');
+        expect(findProperty(graphicsNode, 'engine.graphics.pipeline').description).toContain('重新加载场景编辑器');
+        expect(findProperty(graphicsNode, 'engine.macroConfig.CUSTOM_PIPELINE_NAME').title).toBe('Pipeline Name（仅新管线）');
+        expect(findProperty(graphicsNode, 'engine.graphics.custom-pipeline-post-process').title).toBe('Post Process Module（仅新管线）');
+        expect(findProperty(graphicsNode, 'engine.renderPipeline').title).toBe('渲染管线资源（仅原管线）');
         expect(enginePhysicsNode.title).toBe('物理配置');
         expect(findProperty(enginePhysicsNode, 'engine.physicsConfig.gravity').title).toBe('重力');
         expect(findProperty(enginePhysicsNode, 'engine.physicsConfig.gravity').description).toBe('物理世界重力向量');

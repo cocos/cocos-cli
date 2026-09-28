@@ -219,6 +219,7 @@ export function createEngineMetadataNodes(options: IEngineMetadataOptions): ICoc
                 type: 'string',
                 default: options.defaultConfig.graphics?.pipeline ?? 'custom-pipeline',
                 title: 'i18n:configuration.engine.graphics.pipeline.title',
+                description: 'i18n:configuration.engine.graphics.pipeline.description',
                 enum: ['custom-pipeline', 'legacy-pipeline'],
                 enumDescriptions: [
                     'i18n:configuration.engine.graphics.pipeline.options.custom',

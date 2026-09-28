@@ -232,22 +232,23 @@
       "title": "图形",
       "pipeline": {
         "title": "渲染管线",
+        "description": "切换后需重新加载场景编辑器；如无法单独重新加载，请重启 PinK。",
         "options": {
           "custom": "Render Pipeline (New)",
           "legacy": "Render Pipeline (Legacy)"
         }
       },
       "pipelineName": {
-        "title": "Pipeline Name",
-        "description": "自定义渲染管线名称，对应 engine.macroConfig.CUSTOM_PIPELINE_NAME。"
+        "title": "Pipeline Name（仅新管线）",
+        "description": "仅新渲染管线生效；原管线无需设置。对应 engine.macroConfig.CUSTOM_PIPELINE_NAME。"
       },
       "customPipelinePostProcess": {
-        "title": "Post Process Module",
-        "description": "是否启用自定义管线后处理模块。"
+        "title": "Post Process Module（仅新管线）",
+        "description": "仅新渲染管线生效，控制自定义管线后处理模块。"
       },
       "renderPipeline": {
-        "title": "渲染管线资源",
-        "description": "渲染管线资源"
+        "title": "渲染管线资源（仅原管线）",
+        "description": "仅原渲染管线生效；新管线无需设置此资源。"
       }
     },
     "jointTextureLayout": {

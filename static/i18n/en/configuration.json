@@ -232,22 +232,23 @@
       "title": "Graphics",
       "pipeline": {
         "title": "Render Pipeline",
+        "description": "Reload the scene editor after switching pipelines. If it cannot be reloaded separately, restart PinK.",
         "options": {
           "custom": "Render Pipeline (New)",
           "legacy": "Render Pipeline (Legacy)"
         }
       },
       "pipelineName": {
-        "title": "Pipeline Name",
-        "description": "Custom render pipeline name, backed by engine.macroConfig.CUSTOM_PIPELINE_NAME."
+        "title": "Pipeline Name (New Pipeline Only)",
+        "description": "Only applies to the new render pipeline; the legacy pipeline does not need this setting. Backed by engine.macroConfig.CUSTOM_PIPELINE_NAME."
       },
       "customPipelinePostProcess": {
-        "title": "Post Process Module",
-        "description": "Whether to enable the custom pipeline post process module."
+        "title": "Post Process Module (New Pipeline Only)",
+        "description": "Only applies to the new render pipeline; controls its post process module."
       },
       "renderPipeline": {
-        "title": "Render Pipeline Asset",
-        "description": "Render pipeline asset"
+        "title": "Render Pipeline Asset (Legacy Pipeline Only)",
+        "description": "Only applies to the legacy render pipeline; the new pipeline does not need this asset."
       }
     },
     "jointTextureLayout": {
