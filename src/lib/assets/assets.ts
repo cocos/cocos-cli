@@ -255,8 +255,7 @@ export async function exportAssetPackage(urls: string[], destination: string, in
         children.set(parent, siblings);
     }
 
-    const resolveMainAsset = (urlOrUUID: string): IAssetInfo | null => {
-        const info = assetManager.queryAssetInfo(urlOrUUID);
+    const resolveMainAsset = (info: IAssetInfo | null): IAssetInfo | null => {
         if (info?.file) {
             return info;
         }
@@ -264,30 +263,48 @@ export async function exportAssetPackage(urls: string[], destination: string, in
     };
     const pending: IAssetInfo[] = [];
     for (const url of urls) {
-        const info = resolveMainAsset(url);
-        if (!info || (info.url !== 'db://assets' && !info.url.startsWith('db://assets/'))) {
+        const selectedInfo = assetManager.queryAssetInfo(url);
+        const info = resolveMainAsset(selectedInfo);
+        if (!selectedInfo || !info || (info.url !== 'db://assets' && !info.url.startsWith('db://assets/'))) {
             throw new Error(`Cannot export an unknown or non-project asset: ${url}`);
         }
-        pending.push(info);
+        pending.push(selectedInfo);
     }
 
     const included = new Map<string, IAssetInfo>();
+    const visited = new Set<string>();
     while (pending.length > 0) {
-        const info = pending.pop()!;
-        if (included.has(info.url)) {
+        const referenceInfo = pending.pop()!;
+        if (visited.has(referenceInfo.uuid)) {
             continue;
         }
-        included.set(info.url, info);
-        if (info.isDirectory || info.url === 'db://assets') {
-            pending.push(...(children.get(info.url) ?? []));
+        visited.add(referenceInfo.uuid);
+        const info = resolveMainAsset(referenceInfo);
+        if (!info || (info.url !== 'db://assets' && !info.url.startsWith('db://assets/'))) {
+            continue;
         }
+
+        if (!included.has(info.url)) {
+            included.set(info.url, info);
+            if (info.isDirectory || info.url === 'db://assets') {
+                pending.push(...(children.get(info.url) ?? []));
+            }
+        }
+
         if (includeDependencies && info.url !== 'db://assets') {
-            for (const uuid of await assetManager.queryAssetDependencies(info.uuid, 'all')) {
-                const dependency = resolveMainAsset(uuid);
-                if (dependency?.url.startsWith('db://assets/')) {
-                    pending.push(dependency);
+            for (const uuid of await assetManager.queryAssetDependencies(referenceInfo.uuid, 'all')) {
+                const dependencyInfo = assetManager.queryAssetInfo(uuid);
+                const dependency = resolveMainAsset(dependencyInfo);
+                if (dependencyInfo && dependency?.url.startsWith('db://assets/')) {
+                    pending.push(dependencyInfo);
                 }
             }
+        }
+
+        // Virtual sub-assets share their source file with the parent asset, but can have
+        // dependencies of their own. Traverse both the virtual asset and its parent.
+        if (referenceInfo.uuid !== info.uuid) {
+            pending.push(info);
         }
     }
 

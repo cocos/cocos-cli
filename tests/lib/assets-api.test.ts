@@ -158,6 +158,55 @@ describe('lib assets api', () => {
         }
     });
 
+    it('traverses virtual sub-asset dependencies before including the parent file', async () => {
+        const project = mkdtempSync(join(tmpdir(), 'cocos-asset-export-'));
+        try {
+            const root = join(project, 'assets');
+            mkdirSync(root);
+            const sceneFile = join(root, 'scene.scene');
+            const modelFile = join(root, 'model.gltf');
+            const textureFile = join(root, 'texture.png');
+            writeFileSync(sceneFile, 'scene');
+            writeFileSync(`${sceneFile}.meta`, 'scene-meta');
+            writeFileSync(modelFile, 'model');
+            writeFileSync(`${modelFile}.meta`, 'model-meta');
+            writeFileSync(textureFile, 'texture');
+            writeFileSync(`${textureFile}.meta`, 'texture-meta');
+
+            const sceneInfo = { uuid: 'scene', url: 'db://assets/scene.scene', file: sceneFile, isDirectory: false };
+            const modelInfo = { uuid: 'model', url: 'db://assets/model.gltf', file: modelFile, isDirectory: false };
+            const materialInfo = { uuid: 'model@material', url: 'db://assets/model.gltf/material', file: '', isDirectory: false };
+            const textureInfo = { uuid: 'texture', url: 'db://assets/texture.png', file: textureFile, isDirectory: false };
+            const infosById = {
+                scene: sceneInfo,
+                [sceneInfo.url]: sceneInfo,
+                model: modelInfo,
+                [modelInfo.url]: modelInfo,
+                'model@material': materialInfo,
+                [materialInfo.url]: materialInfo,
+                texture: textureInfo,
+                [textureInfo.url]: textureInfo,
+            };
+            mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
+            mockAssetManager.queryAssetInfos.mockReturnValue([sceneInfo, modelInfo, textureInfo]);
+            mockAssetManager.queryAssetInfo.mockImplementation((id: string) => (infosById as Record<string, unknown>)[id] ?? null);
+            mockAssetManager.queryAssetDependencies.mockImplementation(async (id: string) => ({
+                scene: ['model@material'],
+                'model@material': ['texture'],
+            } as Record<string, string[]>)[id] ?? []);
+
+            const output = join(project, 'package.zip');
+            await expect(Assets.exportAssetPackage([sceneInfo.url], output, true)).resolves.toBe(3);
+            const zip = await JsZip.loadAsync(readFileSync(output));
+            await expect(zip.file('model.gltf')?.async('string')).resolves.toBe('model');
+            await expect(zip.file('texture.png')?.async('string')).resolves.toBe('texture');
+            await expect(zip.file('texture.png.meta')?.async('string')).resolves.toBe('texture-meta');
+            expect(mockAssetManager.queryAssetDependencies).toHaveBeenCalledWith('model@material', 'all');
+        } finally {
+            rmSync(project, { recursive: true, force: true });
+        }
+    });
+
     it('rejects invalid selections and unsafe output without writing a ZIP', async () => {
         const project = mkdtempSync(join(tmpdir(), 'cocos-asset-export-'));
         try {
