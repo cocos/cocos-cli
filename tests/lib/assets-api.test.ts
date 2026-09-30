@@ -42,6 +42,13 @@ const mockAssetConfig = {
     resolveBuiltinLocalizationMount: jest.fn(),
 };
 
+const mockScriptManager = { queryScriptDependencies: jest.fn() };
+
+jest.mock('../../src/core/scripting', () => ({
+    __esModule: true,
+    default: mockScriptManager,
+}));
+
 jest.mock('../../src/core/assets', () => ({
     assetDBManager: mockAssetDBManager,
     assetManager: mockAssetManager,
@@ -92,12 +99,12 @@ describe('lib assets api', () => {
         try {
             const assetsRoot = join(project, 'assets');
             mkdirSync(assetsRoot);
+            mkdirSync(join(assetsRoot, 'sprites'));
             const root = linkedRoot ? join(project, 'assets-alias') : assetsRoot;
             if (linkedRoot) {
                 symlinkSync(assetsRoot, root, 'junction');
             }
             const folder = join(root, 'sprites');
-            mkdirSync(folder, { recursive: true });
             writeFileSync(`${folder}.meta`, 'folder-meta');
             writeFileSync(join(folder, 'hero.prefab'), 'hero');
             writeFileSync(join(folder, 'hero.prefab.meta'), 'hero-meta');
@@ -109,6 +116,7 @@ describe('lib assets api', () => {
             const heroInfo = { uuid: 'hero', url: 'db://assets/sprites/hero.prefab', file: join(folder, 'hero.prefab'), isDirectory: false };
             const textureInfo = { uuid: 'texture', url: 'db://assets/texture.png', file: join(root, 'texture.png'), isDirectory: false };
             const materialInfo = { uuid: 'material', url: 'db://assets/material.mtl', file: join(root, 'material.mtl'), isDirectory: false };
+            const rootInfo = { uuid: 'root', url: 'db://assets', file: root, isDirectory: true };
             mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
             mockAssetManager.queryAssetInfos.mockReturnValue([folderInfo, heroInfo, textureInfo, materialInfo]);
             mockAssetManager.queryAssetInfo.mockImplementation((id: string) => ({
@@ -116,6 +124,7 @@ describe('lib assets api', () => {
                 hero: heroInfo,
                 texture: textureInfo,
                 material: materialInfo,
+                'db://assets': rootInfo,
                 'db://assets/sprites': folderInfo,
                 'db://assets/sprites/hero.prefab': heroInfo,
             } as Record<string, unknown>)[id] ?? null);
@@ -131,6 +140,9 @@ describe('lib assets api', () => {
             await expect(zip.file('texture.png.meta')?.async('string')).resolves.toBe('texture-meta');
             await expect(zip.file('material.mtl')?.async('string')).resolves.toBe('material');
 
+            await expect(Assets.exportAssetPackage(['db://assets'], output, false)).resolves.toBe(4);
+            expect(Object.keys((await JsZip.loadAsync(readFileSync(output))).files).sort()).toEqual(Object.keys(zip.files).sort());
+
             const selectionOnly = join(project, 'selection-only.zip');
             await expect(Assets.exportAssetPackage(['hero'], selectionOnly, false)).resolves.toBe(1);
             const selectionZip = await JsZip.loadAsync(readFileSync(selectionOnly));
@@ -142,7 +154,7 @@ describe('lib assets api', () => {
             expect(replacedZip.file('texture.png')).toBeNull();
 
             const alias = join(root, 'alias');
-            symlinkSync(folder, alias, 'junction');
+            symlinkSync(join(assetsRoot, 'sprites'), join(assetsRoot, 'alias'), 'junction');
             writeFileSync(`${alias}.meta`, 'alias-meta');
             const aliasInfo = { ...folderInfo, uuid: 'alias', url: 'db://assets/alias', file: alias };
             const aliasHeroInfo = { ...heroInfo, url: 'db://assets/alias/hero.prefab', file: join(alias, 'hero.prefab') };
@@ -202,6 +214,43 @@ describe('lib assets api', () => {
             await expect(zip.file('texture.png')?.async('string')).resolves.toBe('texture');
             await expect(zip.file('texture.png.meta')?.async('string')).resolves.toBe('texture-meta');
             expect(mockAssetManager.queryAssetDependencies).toHaveBeenCalledWith('model@material', 'all');
+        } finally {
+            rmSync(project, { recursive: true, force: true });
+        }
+    });
+
+    it('exports recursive script imports, excludes external modules and propagates query failures', async () => {
+        const project = mkdtempSync(join(tmpdir(), 'cocos-asset-export-'));
+        try {
+            const root = join(project, 'assets');
+            mkdirSync(root);
+            const infos = ['scene.scene', 'A.ts', 'B.ts', 'C.ts'].map(name => {
+                const file = join(root, name);
+                writeFileSync(file, name);
+                writeFileSync(`${file}.meta`, `${name}-meta`);
+                return { uuid: name, url: `db://assets/${name}`, file, isDirectory: false, type: name.endsWith('.ts') ? 'cc.Script' : 'cc.Scene' };
+            });
+            const external = { uuid: 'external', url: 'db://internal/engine.ts', file: join(project, 'engine.ts'), type: 'cc.Script' };
+            mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
+            mockAssetManager.queryAssetInfos.mockReturnValue(infos);
+            mockAssetManager.queryAssetInfo.mockImplementation((id: string) => [...infos, external].find(info => [info.uuid, info.url, info.file].includes(id)) ?? null);
+            mockAssetManager.queryAssetDependencies.mockImplementation(async (id: string) => id === 'scene.scene' ? ['A.ts'] : []);
+            mockScriptManager.queryScriptDependencies.mockImplementation(async (file: string) => ({
+                [infos[1].file]: [infos[2].file, external.file],
+                [infos[2].file]: [infos[3].file, infos[1].file],
+            } as Record<string, string[]>)[file] ?? []);
+
+            const output = join(project, 'package.zip');
+            await expect(Assets.exportAssetPackage([infos[0].url], output)).resolves.toBe(4);
+            const zip = await JsZip.loadAsync(readFileSync(output));
+            expect(Object.keys(zip.files).sort()).toEqual(infos.flatMap(info => [info.uuid, `${info.uuid}.meta`]).sort());
+            mockScriptManager.queryScriptDependencies.mockClear();
+            await expect(Assets.exportAssetPackage([infos[1].url], output, false)).resolves.toBe(1);
+            expect(mockScriptManager.queryScriptDependencies).not.toHaveBeenCalled();
+            mockScriptManager.queryScriptDependencies.mockRejectedValueOnce(new Error('script graph unavailable'));
+            const failedOutput = join(project, 'failed.zip');
+            await expect(Assets.exportAssetPackage([infos[1].url], failedOutput)).rejects.toThrow('script graph unavailable');
+            expect(existsSync(failedOutput)).toBe(false);
         } finally {
             rmSync(project, { recursive: true, force: true });
         }

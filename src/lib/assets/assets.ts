@@ -292,7 +292,12 @@ export async function exportAssetPackage(urls: string[], destination: string, in
         }
 
         if (includeDependencies && info.url !== 'db://assets') {
-            for (const uuid of await assetManager.queryAssetDependencies(referenceInfo.uuid, 'all')) {
+            const dependencies = await assetManager.queryAssetDependencies(referenceInfo.uuid, 'all');
+            if (referenceInfo.type === 'cc.Script') {
+                const { default: scriptManager } = await import('../../core/scripting');
+                dependencies.push(...await scriptManager.queryScriptDependencies(referenceInfo.file));
+            }
+            for (const uuid of dependencies) {
                 const dependencyInfo = assetManager.queryAssetInfo(uuid);
                 const dependency = resolveMainAsset(dependencyInfo);
                 if (dependencyInfo && dependency?.url.startsWith('db://assets/')) {
@@ -324,12 +329,14 @@ export async function exportAssetPackage(urls: string[], destination: string, in
             added.add(entry);
         }
     };
+    let exportedCount = 0;
     for (const info of included.values()) {
         const file = realpathSync(info.file);
         if (!insideRoot(file, realRoot)) {
             throw new Error(`Asset file is outside the project assets directory: ${info.file}`);
         }
         if (file !== realRoot) {
+            exportedCount++;
             const entry = relative(root, info.file).split(sep).join('/');
             if (info.isDirectory) {
                 zip.folder(entry);
@@ -352,7 +359,7 @@ export async function exportAssetPackage(urls: string[], destination: string, in
         await fs.rm(temporary, { force: true }).catch(cleanupError => console.warn('Failed to remove incomplete asset package:', cleanupError));
         throw error;
     }
-    return included.size;
+    return exportedCount;
 }
 
 /**
