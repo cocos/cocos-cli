@@ -41,6 +41,7 @@ export class CameraController2D extends CameraControllerBase {
     private _ruler!: Ruler2D;
     private _contentRect!: Rect;
     private _scale2D = 1;
+    private _active = false;
 
     protected _wheelSpeed = 6;
     protected _near = 1;
@@ -92,7 +93,7 @@ export class CameraController2D extends CameraControllerBase {
         this._gridMeshComp.node.active = false;
         this._initGrid();
         this._ruler = new Ruler2D();
-        this._ruler.onNeedRedraw = () => this._refreshRuler();
+        this._ruler.onNeedRedraw = () => this._refreshGridAndRuler();
         this._ruler.init();
         this._initMode();
         this.initOriginAxis();
@@ -129,6 +130,7 @@ export class CameraController2D extends CameraControllerBase {
     // ---------- active ----------
 
     set active(value: boolean) {
+        this._active = value;
         if (value) {
             // 正交投影
             this._camera.projection = Camera.ProjectionType.ORTHO;
@@ -278,19 +280,12 @@ export class CameraController2D extends CameraControllerBase {
             this._posAnim = tweenPosition(startPos, targetPos, 300);
             this._posAnim.step((pos: Vec3) => {
                 this.node.setWorldPosition(pos);
-                this._refreshRuler();
+                this._refreshGridAndRuler();
             });
         }
 
         this._updateOrthoHeight(scale);
-        this._refreshRuler();
-
-        try {
-            const { Service } = require('../core/decorator');
-            Service.Engine?.repaintInEditMode?.();
-        } catch (e) {
-            // Engine may not be ready
-        }
+        this._refreshGridAndRuler();
     }
 
     // ---------- 更新正交高度 ----------
@@ -303,17 +298,19 @@ export class CameraController2D extends CameraControllerBase {
 
     // ---------- 网格数据更新 ----------
 
-    private _updateGridData() {
-        this._grid.updateRange();
+    private _updateGridData(view: IRulerView) {
+        const left = view.xMin;
+        const right = view.xMax;
+        const top = view.yMax;
+        const bottom = view.yMin;
+
+        // 宿主可独立调整相机 viewport，网格范围和密度必须跟随实际投影
+        this._grid.hTicks?.range(left, right, Math.abs(view.toX(right) - view.toX(left)));
+        this._grid.vTicks?.range(bottom, top, Math.abs(view.toY(top) - view.toY(bottom)));
 
         const positions: number[] = [];
         const colors: number[] = [];
         const indices: number[] = [];
-
-        const left = this._grid.left;
-        const right = this._grid.right;
-        const top = this._grid.top;
-        const bottom = this._grid.bottom;
 
         const r = this._lineColor.r / 255;
         const g = this._lineColor.g / 255;
@@ -384,28 +381,38 @@ export class CameraController2D extends CameraControllerBase {
     }
 
     updateGrid() {
-        if (!this._gridMeshComp) return;
+        // 2D/3D 共用相机，非激活时不能用 3D 投影计算 2D 刻度范围
+        if (!this._active || !this._gridMeshComp) {
+            return;
+        }
 
-        const { positions, colors, indices } = this._updateGridData();
+        const view = this._rulerView();
+        const { positions, colors, indices } = this._updateGridData(view);
 
         CameraUtils.updateVBAttr(this._gridMeshComp, 'a_position', positions);
         CameraUtils.updateVBAttr(this._gridMeshComp, gfx.AttributeName.ATTR_COLOR, colors);
         CameraUtils.updateIB(this._gridMeshComp, indices);
 
-        this.updateOriginAxis();
-        this._ruler?.updateTicks(this._grid, this._rulerView());
+        this.updateOriginAxis(view);
+        this._ruler?.updateTicks(this._grid, view);
     }
 
     /**
-     * 相机更新后立即用最新矩阵刷新刻度。
-     * 各交互流程（缩放/拖拽/复位/resize）都以 adjustCamera 收尾，
-     * 在此处重画可保证刻度不再滞后一帧。
+     * 相机或宿主视口变化后同步刷新网格和刻度
+     *
+     * 缩放、平移和聚焦动画都会改变可见范围，需要在相机更新后重建网格
      */
-    private _refreshRuler(): void {
-        if (!this._ruler || !this._grid) {
+    private _refreshGridAndRuler(): void {
+        if (!this._active || !this._grid) {
             return;
         }
-        this._ruler.updateTicks(this._grid, this._rulerView());
+        this.updateGrid();
+        try {
+            const { Service } = require('../core/decorator');
+            Service.Engine?.repaintInEditMode?.();
+        } catch {
+            // 引擎服务可能尚未就绪
+        }
     }
 
     /**
@@ -466,13 +473,16 @@ export class CameraController2D extends CameraControllerBase {
         }
     }
 
-    updateOriginAxis() {
-        if (!this._originAxisHorizontalMeshComp?.node?.active) return;
+    updateOriginAxis(view?: IRulerView) {
+        if (!this._active || !this._originAxisHorizontalMeshComp?.node?.active) {
+            return;
+        }
 
-        const left = this._grid.left;
-        const right = this._grid.right;
-        const top = this._grid.top;
-        const bottom = this._grid.bottom;
+        view ??= this._rulerView();
+        const left = view.xMin;
+        const right = view.xMax;
+        const top = view.yMax;
+        const bottom = view.yMin;
 
         const positions: number[] = [];
         const colors: number[] = [];
