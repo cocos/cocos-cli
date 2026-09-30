@@ -176,7 +176,10 @@ describe('lib assets api', () => {
             const root = join(project, 'assets');
             mkdirSync(root);
             const sceneFile = join(root, 'scene.scene');
-            const modelFile = join(root, 'model.gltf');
+            const folder = join(root, 'models');
+            mkdirSync(folder);
+            writeFileSync(`${folder}.meta`, 'folder-meta');
+            const modelFile = join(folder, 'model.gltf');
             const textureFile = join(root, 'texture.png');
             writeFileSync(sceneFile, 'scene');
             writeFileSync(`${sceneFile}.meta`, 'scene-meta');
@@ -186,10 +189,14 @@ describe('lib assets api', () => {
             writeFileSync(`${textureFile}.meta`, 'texture-meta');
 
             const sceneInfo = { uuid: 'scene', url: 'db://assets/scene.scene', file: sceneFile, isDirectory: false };
-            const modelInfo = { uuid: 'model', url: 'db://assets/model.gltf', file: modelFile, isDirectory: false };
-            const materialInfo = { uuid: 'model@material', url: 'db://assets/model.gltf/material', file: '', isDirectory: false };
+            const rootInfo = { uuid: 'root', url: 'db://assets', file: root, isDirectory: true };
+            const folderInfo = { uuid: 'folder', url: 'db://assets/models', file: folder, isDirectory: true };
+            const modelInfo = { uuid: 'model', url: 'db://assets/models/model.gltf', file: modelFile, isDirectory: false };
+            const materialInfo = { uuid: 'model@material', url: 'db://assets/models/model.gltf/material', file: '', isDirectory: false };
             const textureInfo = { uuid: 'texture', url: 'db://assets/texture.png', file: textureFile, isDirectory: false };
             const infosById = {
+                [rootInfo.url]: rootInfo,
+                [folderInfo.url]: folderInfo,
                 scene: sceneInfo,
                 [sceneInfo.url]: sceneInfo,
                 model: modelInfo,
@@ -200,7 +207,7 @@ describe('lib assets api', () => {
                 [textureInfo.url]: textureInfo,
             };
             mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
-            mockAssetManager.queryAssetInfos.mockReturnValue([sceneInfo, modelInfo, textureInfo]);
+            mockAssetManager.queryAssetInfos.mockReturnValue([rootInfo, folderInfo, sceneInfo, modelInfo, materialInfo, textureInfo]);
             mockAssetManager.queryAssetInfo.mockImplementation((id: string) => (infosById as Record<string, unknown>)[id] ?? null);
             mockAssetManager.queryAssetDependencies.mockImplementation(async (id: string) => ({
                 scene: ['model@material'],
@@ -210,10 +217,21 @@ describe('lib assets api', () => {
             const output = join(project, 'package.zip');
             await expect(Assets.exportAssetPackage([sceneInfo.url], output, true)).resolves.toBe(3);
             const zip = await JsZip.loadAsync(readFileSync(output));
-            await expect(zip.file('model.gltf')?.async('string')).resolves.toBe('model');
+            await expect(zip.file('models/model.gltf')?.async('string')).resolves.toBe('model');
             await expect(zip.file('texture.png')?.async('string')).resolves.toBe('texture');
             await expect(zip.file('texture.png.meta')?.async('string')).resolves.toBe('texture-meta');
             expect(mockAssetManager.queryAssetDependencies).toHaveBeenCalledWith('model@material', 'all');
+            for (const [selection, count] of [[folderInfo.url, 3], [rootInfo.url, 4], [modelInfo.url, 2]] as const) {
+                await expect(Assets.exportAssetPackage([selection], output, true)).resolves.toBe(count);
+                const selectedZip = await JsZip.loadAsync(readFileSync(output));
+                await expect(selectedZip.file('texture.png')?.async('string')).resolves.toBe('texture');
+                await expect(selectedZip.file('texture.png.meta')?.async('string')).resolves.toBe('texture-meta');
+                expect(selectedZip.file('models/model.gltf/material')).toBeNull();
+            }
+            mockAssetManager.queryAssetDependencies.mockClear();
+            await expect(Assets.exportAssetPackage([folderInfo.url], output, false)).resolves.toBe(2);
+            expect((await JsZip.loadAsync(readFileSync(output))).file('texture.png')).toBeNull();
+            expect(mockAssetManager.queryAssetDependencies).not.toHaveBeenCalled();
         } finally {
             rmSync(project, { recursive: true, force: true });
         }

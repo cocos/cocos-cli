@@ -246,7 +246,7 @@ export async function exportAssetPackage(urls: string[], destination: string, in
         throw new Error('Export the ZIP outside the project assets directory.');
     }
 
-    const allAssets = assetManager.queryAssetInfos().filter(info => info.url.startsWith('db://assets/') && info.file);
+    const allAssets = assetManager.queryAssetInfos().filter(info => info.url.startsWith('db://assets/'));
     const children = new Map<string, IAssetInfo[]>();
     for (const info of allAssets) {
         const parent = info.url.slice(0, info.url.lastIndexOf('/'));
@@ -286,7 +286,7 @@ export async function exportAssetPackage(urls: string[], destination: string, in
 
         if (!included.has(info.url)) {
             included.set(info.url, info);
-            if (info.isDirectory || info.url === 'db://assets') {
+            if (includeDependencies || info.isDirectory || info.url === 'db://assets') {
                 pending.push(...(children.get(info.url) ?? []));
             }
         }
