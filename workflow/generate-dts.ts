@@ -11,12 +11,12 @@ import type {
     ExtractorResult,
     IConfigFile,
 } from '@microsoft/api-extractor';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 // 带 .ts 扩展名：worker 内以 ESM 加载，Node ESM 解析不会自动补 .ts；显式扩展名在
 // 主线程(tsx CLI) / worker(tsx ESM) 下都能解析。workflow/ 不在 tsc 编译范围，不影响构建。
 import { normalizeDtsRollupContent } from './generate-dts-postprocess.ts';
-import { Worker, isMainThread } from 'worker_threads';
+import { isMainThread } from 'worker_threads';
 
 const execAsync = promisify(exec);// Dynamically build the real PlatformType union from @cocos/ccbuild enums.
 // This is needed because api-extractor incorrectly resolves
@@ -311,68 +311,45 @@ async function generate() {
     console.log('\nAll DTS generation tasks completed.');
 }
 
-// api-extractor + TypeScript 在复杂类型图上会深递归。Windows 主线程的 OS 栈在链接期固定
-// （约 1MB），用命令行 --stack-size 放大 V8 栈会超过真实 OS 栈，深递归时冲破 OS guard page →
-// 0xC0000409 (STATUS_STACK_BUFFER_OVERRUN) 硬崩溃（不可捕获，且时好时坏）。
-// 这里把实际工作放到 worker 线程：worker 的 OS 线程栈按 stackSizeMb 分配、V8 栈限额随之匹配，
-// 两者一致，跨平台都不会再栈溢出崩溃（真超限只会抛可捕获的 RangeError）。
-// stackSizeMb / maxOldGenerationSizeMb 取代命令行的 --stack-size / --max-old-space-size，
-// 成为栈/堆大小的唯一来源，避免两个数不一致又崩。
+// Supervise extraction in a separate process: a native worker crash can terminate
+// its entire Node process before worker error/exit handlers can report it.
 if (isMainThread) {
-    // worker 入口指向 .mjs 引导文件（Node 原生认识的扩展名），由它用 tsx 编程式 API 注册 loader
-    // 后再 import 本 .ts。不能把 .ts 直接作为 worker 入口：那依赖 tsx 对 worker_threads 的自动 patch
-    // 或 execArgv 挂 tsx，二者在部分环境（如 CI）下都不生效，会报 ERR_UNKNOWN_FILE_EXTENSION ".ts"。
-    // 用 cwd 拼路径而非 __filename：ESM 作用域无 __filename，且 npm 以仓库根为 cwd。
-    // worker 堆由 resourceLimits 控制，无需继承 --max-old-space-size。
     const workerPath = path.join(projectRoot, 'workflow', 'generate-dts-worker.mjs');
-
-    // 单次运行 worker，resolve 为退出码；worker 内未捕获异常走 reject。
-    const runWorkerOnce = (): Promise<number> => new Promise((resolve, reject) => {
-        const worker = new Worker(workerPath, {
-            resourceLimits: {
-                stackSizeMb: 64,
-                maxOldGenerationSizeMb: 4096,
-            },
-        });
-        worker.on('error', reject);
-        worker.on('exit', (code) => resolve(code ?? 0));
+    const runWorkerOnce = (): Promise<{ code: number; signal: NodeJS.Signals | null }> => new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, ['--import', 'tsx', workerPath], { stdio: 'inherit' });
+        child.on('error', reject);
+        child.on('exit', (code, signal) => resolve({ code: code ?? 1, signal }));
     });
 
-    // 原生崩溃判定：退出码非 0 且非 1。api-extractor + TypeScript 在复杂类型图上会触发 Windows
-    // 上不可捕获的原生硬崩（0xC0000374 堆损坏 / 0xC0000409 栈溢出，退出码是 3221226xxx 这类大
-    // NTSTATUS 值），且时好时坏、重跑即过。而 generate() 内部抛错后是 process.exit(1) 的确定性
-    // 失败，重试只会重复同样的错误、掩盖真正问题，所以只对“原生崩溃码”重试。
-    const isNativeCrash = (code: number): boolean => code !== 0 && code !== 1;
-
-    const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
     void (async () => {
-        const MAX_ATTEMPTS = 3;
-        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-            let code: number;
+        const maxAttempts = 3;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            let result: Awaited<ReturnType<typeof runWorkerOnce>>;
             try {
-                code = await runWorkerOnce();
-            } catch (err) {
-                // worker 内未捕获异常：确定性错误，不重试。
-                console.error(err);
+                result = await runWorkerOnce();
+            } catch (error) {
+                console.error(error);
                 process.exit(1);
             }
-
-            if (code === 0) process.exit(0);
-            if (!isNativeCrash(code)) process.exit(code); // 应用层确定性失败：直接失败。
-
-            const hex = (code >>> 0).toString(16).toUpperCase().padStart(8, '0');
-            console.error(`[generate-dts] DTS worker 原生崩溃，退出码 ${code} (0x${hex})，第 ${attempt}/${MAX_ATTEMPTS} 次尝试`);
-            if (attempt === MAX_ATTEMPTS) {
-                console.error(`[generate-dts] 已重试 ${MAX_ATTEMPTS} 次仍崩溃，放弃。`);
-                process.exit(code);
+            if (result.code === 0 && !result.signal) {
+                process.exit(0);
             }
-            await sleep(1000);
+            const nativeCrash = result.signal === 'SIGSEGV' || result.signal === 'SIGABRT'
+                || (process.platform === 'win32' && (result.code >>> 0) >= 0x80000000);
+            if (!nativeCrash) {
+                console.error(`[generate-dts] Extraction process exited with code ${result.code}, signal ${result.signal ?? 'none'}.`);
+                process.exit(result.code);
+            }
+            const hex = (result.code >>> 0).toString(16).toUpperCase().padStart(8, '0');
+            console.error(`[generate-dts] Native crash: code ${result.code} (0x${hex}), signal ${result.signal ?? 'none'}, attempt ${attempt}/${maxAttempts}.`);
+            if (attempt === maxAttempts) {
+                process.exit(1);
+            }
         }
     })();
 } else {
-    generate().catch(err => {
-        console.error(err);
+    generate().catch(error => {
+        console.error(error);
         process.exit(1);
     });
 }
