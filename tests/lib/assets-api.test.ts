@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, symlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import JsZip from 'jszip';
@@ -26,6 +26,7 @@ const mockAssetManager = {
     queryAssetInfo: jest.fn(),
     queryAssetInfos: jest.fn(),
     queryAssetDependencies: jest.fn(),
+    querySortedPlugins: jest.fn(() => [] as Array<{ uuid: string }>),
 };
 
 const mockAssetDBManager = {
@@ -64,6 +65,7 @@ import * as Assets from '../../src/lib/assets/assets';
 describe('lib assets api', () => {
     afterEach(() => {
         jest.clearAllMocks();
+        mockAssetManager.querySortedPlugins.mockReturnValue([]);
         mockAssetDBManager.ready = true;
         mockAssetDBManager.assetDBMap = {};
         mockAssetDBManager.assetDBInfo = {};
@@ -274,6 +276,40 @@ describe('lib assets api', () => {
         }
     });
 
+    it('includes project plugins and metadata only when dependencies are enabled', async () => {
+        const project = mkdtempSync(join(tmpdir(), 'cocos-plugin-export-'));
+        try {
+            const root = join(project, 'assets');
+            mkdirSync(root);
+            const scene = { uuid: 'scene', url: 'db://assets/scene.scene', file: join(root, 'scene.scene'), type: 'cc.Scene', isDirectory: false };
+            const plugin = { uuid: 'plugin', url: 'db://assets/plugin.js', file: join(root, 'plugin.js'), type: 'cc.Script', isDirectory: false };
+            const pluginMeta = JSON.stringify({ userData: { isPlugin: true, loadPluginInWeb: true, executionScope: 'global' } });
+            for (const info of [scene, plugin]) {
+                writeFileSync(info.file, info.uuid);
+                writeFileSync(`${info.file}.meta`, info === plugin ? pluginMeta : 'scene-meta');
+            }
+            const internalPlugin = { ...plugin, uuid: 'internal', url: 'db://internal/internal.js', file: join(project, 'internal.js') };
+            mockAssetDBManager.assetDBMap.assets = { options: { target: root } };
+            mockAssetManager.queryAssetInfos.mockReturnValue([scene, plugin]);
+            mockAssetManager.queryAssetInfo.mockImplementation((id: string) => [scene, plugin, internalPlugin].find(info => info.uuid === id) ?? null);
+            mockAssetManager.queryAssetDependencies.mockResolvedValue([]);
+            mockAssetManager.querySortedPlugins.mockReturnValue([{ uuid: plugin.uuid }, { uuid: internalPlugin.uuid }]);
+            mockScriptManager.queryScriptDependencies.mockRejectedValue(new Error('Plugins have no module graph'));
+            const output = join(project, 'package.zip');
+            await expect(Assets.exportAssetPackage(['scene'], output, true)).resolves.toBe(2);
+            const zip = await JsZip.loadAsync(readFileSync(output));
+            await expect(zip.file('plugin.js.meta')?.async('string')).resolves.toBe(pluginMeta);
+            expect(zip.file('internal.js')).toBeNull();
+            expect(mockScriptManager.queryScriptDependencies).not.toHaveBeenCalled();
+            await expect(Assets.exportAssetPackage(['scene'], output, false)).resolves.toBe(1);
+            expect((await JsZip.loadAsync(readFileSync(output))).file('plugin.js')).toBeNull();
+            await expect(Assets.exportAssetPackage(['plugin'], output, false)).resolves.toBe(1);
+            await expect((await JsZip.loadAsync(readFileSync(output))).file('plugin.js.meta')?.async('string')).resolves.toBe(pluginMeta);
+        } finally {
+            rmSync(project, { recursive: true, force: true });
+        }
+    });
+
     it('rejects invalid selections and unsafe output without writing a ZIP', async () => {
         const project = mkdtempSync(join(tmpdir(), 'cocos-asset-export-'));
         try {
@@ -296,6 +332,20 @@ describe('lib assets api', () => {
             symlinkSync(outside, external, 'junction');
             mockAssetManager.queryAssetInfo.mockReturnValue({ uuid: 'external', url: 'db://assets/external/secret.txt', file: join(external, 'secret.txt'), isDirectory: false });
             await expect(Assets.exportAssetPackage(['db://assets/external/secret.txt'], output, false)).rejects.toThrow('outside');
+            const source = join(root, 'valid.txt');
+            writeFileSync(source, 'valid');
+            const validInfo = { uuid: 'valid', url: 'db://assets/valid.txt', file: source, isDirectory: false };
+            mockAssetManager.queryAssetInfo.mockReturnValue({ ...validInfo, file: join(alias, 'valid.txt') });
+            await expect(Assets.exportAssetPackage(['valid'], output, false)).rejects.toThrow('outside');
+            mockAssetManager.queryAssetInfo.mockReturnValue(validInfo);
+            await expect(Assets.exportAssetPackage(['valid'], output, false)).rejects.toThrow();
+            writeFileSync(`${source}.meta`, 'valid-meta');
+            const directoryOutput = join(project, 'directory.zip');
+            mkdirSync(directoryOutput);
+            writeFileSync(join(directoryOutput, 'keep.txt'), 'keep');
+            await expect(Assets.exportAssetPackage(['valid'], directoryOutput, false)).rejects.toThrow();
+            expect(readFileSync(join(directoryOutput, 'keep.txt'), 'utf8')).toBe('keep');
+            expect(readdirSync(project).some(name => name.endsWith('.tmp'))).toBe(false);
             expect(existsSync(output)).toBe(false);
         } finally {
             rmSync(project, { recursive: true, force: true });

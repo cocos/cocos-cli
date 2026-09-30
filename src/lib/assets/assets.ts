@@ -216,9 +216,11 @@ export async function copyAsset(
 
 /**
  * Export project assets and their metadata as a ZIP package.
+ * Plugin scripts can use globals without recorded dependencies. Their metadata is preserved,
+ * but project-level plugin load order must be configured separately in the destination project.
  * @param urls Selected asset database URLs, including folders or sub-assets.
  * @param destination Absolute path of the output ZIP file outside the asset database.
- * @param includeDependencies Whether to recursively include referenced project assets.
+ * @param includeDependencies Whether to include referenced project assets and all project plugin scripts.
  * @returns Number of exported asset files and directories.
  */
 export async function exportAssetPackage(urls: string[], destination: string, includeDependencies = true): Promise<number> {
@@ -271,6 +273,15 @@ export async function exportAssetPackage(urls: string[], destination: string, in
         pending.push(selectedInfo);
     }
 
+    const plugins = includeDependencies ? assetManager.querySortedPlugins() : [];
+    const pluginUuids = new Set(plugins.map(plugin => plugin.uuid));
+    for (const plugin of plugins) {
+        const info = assetManager.queryAssetInfo(plugin.uuid);
+        if (info?.url.startsWith('db://assets/')) {
+            pending.push(info);
+        }
+    }
+
     const included = new Map<string, IAssetInfo>();
     const visited = new Set<string>();
     while (pending.length > 0) {
@@ -293,7 +304,7 @@ export async function exportAssetPackage(urls: string[], destination: string, in
 
         if (includeDependencies && info.url !== 'db://assets') {
             const dependencies = await assetManager.queryAssetDependencies(referenceInfo.uuid, 'all');
-            if (referenceInfo.type === 'cc.Script') {
+            if (referenceInfo.type === 'cc.Script' && !pluginUuids.has(referenceInfo.uuid)) {
                 const { default: scriptManager } = await import('../../core/scripting');
                 dependencies.push(...await scriptManager.queryScriptDependencies(referenceInfo.file));
             }
@@ -314,25 +325,24 @@ export async function exportAssetPackage(urls: string[], destination: string, in
     }
 
     const zip = new JsZip();
-    const added = new Set<string>();
+    const added = new Map<string, string>();
     const addFile = (file: string, optional = false): void => {
         if (optional && !existsSync(file)) {
             return;
         }
         const actual = realpathSync(file);
-        if (!insideRoot(actual, realRoot)) {
+        if (!insideRoot(resolve(file)) || !insideRoot(actual, realRoot)) {
             throw new Error(`Asset file is outside the project assets directory: ${file}`);
         }
         const entry = relative(root, file).split(sep).join('/');
         if (!added.has(entry)) {
-            zip.file(entry, createReadStream(file));
-            added.add(entry);
+            added.set(entry, file);
         }
     };
     let exportedCount = 0;
     for (const info of included.values()) {
         const file = realpathSync(info.file);
-        if (!insideRoot(file, realRoot)) {
+        if (!insideRoot(resolve(info.file)) || !insideRoot(file, realRoot)) {
             throw new Error(`Asset file is outside the project assets directory: ${info.file}`);
         }
         if (file !== realRoot) {
@@ -353,6 +363,9 @@ export async function exportAssetPackage(urls: string[], destination: string, in
 
     const temporary = `${destination}.${randomUUID()}.tmp`;
     try {
+        for (const [entry, file] of added) {
+            zip.file(entry, createReadStream(file));
+        }
         await pipeline(zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true }), createWriteStream(temporary));
         await fs.rename(temporary, destination);
     } catch (error) {
