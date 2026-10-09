@@ -463,15 +463,17 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
             type === NodeEventType.CHILD_CHANGED) {
             // 与 cocos-editor 一致：这些类型不需要重新检查状态
         } else {
-            this.checkToSetAnimState([node]);
+            // Node changes can arrive after selection (including throttled changes
+            // from other nodes). Only the current selection owns preview ticking.
+            this.checkToSetAnimState(this._getSelectedNodes());
         }
         void this.repaintInEditMode();
     }
 
     onComponentAdded(comp: Component) {
-        const nodeUuids = Service.Selection?.query?.() ?? [];
-        if (comp.node && nodeUuids.includes(comp.node.uuid)) {
-            this.checkToSetAnimState([comp.node]);
+        const nodes = this._getSelectedNodes();
+        if (comp.node && nodes.includes(comp.node)) {
+            this.checkToSetAnimState(nodes);
             if (this._isParticleSystem3D(comp) && !(comp as any).isPlaying) {
                 (comp as any).play();
             }
@@ -480,15 +482,24 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
     }
 
     onComponentRemoved(comp: Component) {
-        const nodeUuids = Service.Selection?.query?.() ?? [];
-        if (comp.node && nodeUuids.includes(comp.node.uuid)) {
-            this.checkToSetAnimState([comp.node]);
+        const nodes = this._getSelectedNodes();
+        if (comp.node && nodes.includes(comp.node)) {
+            this.checkToSetAnimState(nodes);
         }
         void this.repaintInEditMode();
     }
 
     onSetPropertyComponent() {
         void this.repaintInEditMode();
+    }
+
+    private _getSelectedNodes(): Node[] {
+        const nodes: Node[] = [];
+        for (const path of Service.Selection?.query?.() ?? []) {
+            const node = this._getNodeByPath(path);
+            if (node) nodes.push(node);
+        }
+        return nodes;
     }
 
     // 与 cocos-editor SceneSelection 一致：选中/反选时检查粒子/地形组件
