@@ -17,6 +17,7 @@ program
     .version('0.0.1-alpha.43')
     .option('--debug', 'Enable debug mode')
     .option('--no-interactive', 'Disable interactive mode (for CI)')
+    .option('--profile', 'Generate a build profile report (profile-*.json next to the build log)')
     .option('--config <path>', 'Specify config file path');
 
 // 全局错误处理
@@ -42,6 +43,12 @@ program.configureHelp({
     sortSubcommands: true,
     subcommandTerm: (cmd) => cmd.name()
 });
+
+// 开启构建性能 Profile 报告（对所有构建相关命令生效，等价于 COCOS_BUILD_PROFILE=1）
+// 注意：需要在 parse 之前设置，因为 async action 在 parse() 返回前就会开始执行
+if (process.argv.includes('--profile')) {
+    process.env.COCOS_BUILD_PROFILE = '1';
+}
 
 // 解析命令行参数
 try {

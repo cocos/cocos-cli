@@ -5,6 +5,7 @@ import { CCEnvConstants, getCCEnvConstants } from './build-time-constants';
 import { buildScriptCommand, buildSystemJsCommand, IBuildScriptFunctionOption, TransformOptions } from './build-script';
 import { ensureDir, pathExists, writeFile } from 'fs-extra';
 import { workerManager } from '../../../worker-pools/sub-process-manager';
+import { profiled } from '../../../../profile';
 import { buildAssetLibrary } from '../../manager/asset-library';
 import * as babel from '@babel/core';
 import babelPresetEnv from '@babel/preset-env';
@@ -175,7 +176,7 @@ export class ScriptBuilder {
                 cwd: project.path,
             }
         });
-        const res = await workerManager.runTask('build-script', 'buildScriptCommand', [buildScriptOptions], scriptBuilderLogDestMap.get(this));
+        const res = await profiled('subprocess:build-script', () => workerManager.runTask('build-script', 'buildScriptCommand', [buildScriptOptions], scriptBuilderLogDestMap.get(this)));
         if (res) {
             if (res.scriptPackages) {
                 this.scriptPackages.push(...res.scriptPackages);
@@ -197,7 +198,7 @@ export class ScriptBuilder {
             name: 'build-script',
             path: join(__dirname, './build-script'),
         });
-        return await workerManager.runTask('build-script', 'buildPolyfillsCommand', [options, dest], getScriptWorkerLogDest(options));
+        return await profiled('subprocess:build-polyfills', () => workerManager.runTask('build-script', 'buildPolyfillsCommand', [options, dest], getScriptWorkerLogDest(options)));
     }
 
     static async buildSystemJs(options: IBuildSystemJsOption) {
@@ -205,7 +206,7 @@ export class ScriptBuilder {
             name: 'build-script',
             path: join(__dirname, './build-script'),
         });
-        return await workerManager.runTask('build-script', 'buildSystemJsCommand', [options], getScriptWorkerLogDest(options));
+        return await profiled('subprocess:build-systemjs', () => workerManager.runTask('build-script', 'buildSystemJsCommand', [options], getScriptWorkerLogDest(options)));
     }
 
     static async outputImportMap(importMap: ImportMap, options: IImportMapOptions) {
