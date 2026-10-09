@@ -31,18 +31,30 @@ runs:
       shell: bash
       run: npm i -g node-gyp
 
-    - name: Init
-      shell: bash
-      run: npm run init
-    
     - name: Install dependencies
       shell: bash
-      env:
-        # postinstall still prepares the engine, cc modules, i18n types and tools.
-        # Build the CLI once, in the explicit step below, after tools are ready.
-        COCOS_SKIP_POSTINSTALL_BUILD: 'true'
-        COCOS_STRICT_TOOL_DOWNLOADS: 'true'
       run: npm ci
+
+    - name: Test SDK install and packaging workflows
+      shell: bash
+      run: |
+        npm run test:install-workflow
+        npm run test:pack-sdk
+        npm run test:engine-compatibility
+
+    - name: Fetch engine source explicitly
+      shell: bash
+      run: npm run update:repos
+
+    - name: Install engine source dependencies explicitly
+      shell: bash
+      run: npm run install:engine
+    
+    - name: Prepare engine and CLI explicitly
+      shell: bash
+      env:
+        COCOS_STRICT_TOOL_DOWNLOADS: 'true'
+      run: node workflow/setup-dev.js --force
 
     - name: Save npm downloads
       if: steps.npm-cache.outputs.cache-hit != 'true'
@@ -57,8 +69,10 @@ runs:
       with:
         path: static/tools
         key: ${{ steps.tools-cache.outputs.cache-primary-key }}
-    
-    - name: Build project
+
+    - name: Test engine selection
       shell: bash
-      run: npm run build
+      run: |
+        npm run test:engine-selection
+        npm run test:engine-diagnostics
 

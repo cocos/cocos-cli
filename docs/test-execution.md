@@ -53,13 +53,13 @@ E2E 仍以单 worker 执行。共享服务中的当前场景和资源状态不�
 
 ## CI 构建
 
-共享 `setup-env` action 在安装步骤设置 `COCOS_SKIP_POSTINSTALL_BUILD=true`。postinstall 仍编译引擎、生成 cc 模块和 i18n 类型、下载工具；CLI 在后续 `Build project` 步骤构建一次。
+共享 `setup-env` action 先安装 CLI 依赖，再显式获取并安装引擎，通过 `setup-dev.js` 准备引擎、cc 模块、CLI 和工具。CLI 只构建一次。
 
-该开关只在安装步骤生效。本地安装仍执行完整 postinstall。使用共享 setup 的 workflow 无需再次从根目录执行 `npm ci`。
+`npm ci` / `npm i` 不编译引擎或 CLI，也不下载工具；本地开发需显式执行 setup 命令。`COCOS_SKIP_POSTINSTALL_BUILD` 不再需要。使用共享 setup 的 workflow 无需再次从根目录执行 `npm ci`。
 
 共享 setup 缓存 npm 下载目录和 `static/tools`，安装与构建步骤仍每次执行。npm 缓存按系统、架构、Node 版本、根 lockfile 和 `repo.json` 区分；依赖变化时可以复用同平台的已下载包。工具缓存按系统、架构、minimal 模式和下载脚本内容精确匹配，不回退到旧版本工具。
 
-CI 工具下载失败会终止安装，缓存仅在安装成功后保存，并在测试开始前完成保存。引擎源码、编译产物、`node_modules` 和测试项目不缓存。首次运行填充缓存，后续命中时才可评估收益；比较环境准备总耗时时需包含缓存恢复与保存的时间。
+CI 工具下载失败会终止显式准备，缓存仅在准备成功后保存，并在测试开始前完成保存。引擎源码、编译产物、`node_modules` 和测试项目不缓存。首次运行填充缓存，后续命中时才可评估收益；比较环境准备总耗时时需包含缓存恢复与保存的时间。
 
 ## 耗时对比
 
@@ -77,3 +77,5 @@ npm run test:serial -- --json --outputFile=serial-results.json --logHeapUsage
 ```
 
 比较 `testResults[].perfStats`，并区分首次运行和重复运行。失败导致的超时不应作为正常用例性能。
+
+全版本 SDK 矩阵保留完整 JSON 报告，因此按测试调度器约定使用完整串行 unit；常规 PR unit 使用并行组加串行组。

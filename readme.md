@@ -37,20 +37,36 @@ For native development, please refer to the [Native Development Setup Guide](htt
 
    ```bash
    npm install -g node-gyp
-   npm run init
    npm install
    ```
 
-3. **Build and link globally**
+3. **Select an engine, prepare the CLI and link globally**
+
+   Put a prepared Engine SDK in `packages/engine`, or set `enginePath` in the CLI root's ignored `config.local.json`:
+
+   ```json
+   {
+     "project": "D:/Demo/cocos/NewProject",
+     "enginePath": "D:/Cocos/code/cocos-cli/packages/engine"
+   }
+   ```
+
+   Relative engine paths resolve from the CLI root, regardless of the current working directory. Omit `enginePath` to use `packages/engine`. Preserve your existing `project` value.
 
    ```bash
-   npm run build
+   npm run setup:cli
    npm link
    ```
+
+   For engine source development, explicitly run `npm run fetch:engine` (only when source is missing), `npm run install:engine`, then `npm run setup:dev` instead of `setup:cli`. A custom engine is managed separately; skip `fetch:engine` for it.
+
+`npm install` / `npm ci` install dependencies without compiling or downloading the engine. `setup:cli` builds the CLI and downloads development tools using a prepared engine; `setup:dev` also compiles engine source. `npm run init` is a compatibility alias for `setup:cli`. See [environment setup](docs/dev/environment-setup.md) for CI and update behavior.
 
 ## 🚀 Quick Start
 
 See [Quick Start Guide](docs/en/quick-start.md) for detailed usage steps.
+
+Use `--engine-path "D:/engines/custom engine"` to override the runtime engine. Precedence: command line > `engineSdk.path` in the project's `settings/cocos.config.json` > the CLI's local `enginePath` > `packages/engine`. Optional project `engineSdk.version` / `revision` pin the exact SDK identity. See [environment setup](docs/dev/environment-setup.md).
 
 ## 📚 Commands
 
