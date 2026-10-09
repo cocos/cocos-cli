@@ -646,6 +646,10 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session || this._session.clipUuid !== uuid || !this._animationStates.get(uuid)) {
             return false;
         }
+        // External imports must refresh clean clips; keep unsaved edits and self-save callbacks intact.
+        if (!this._isAnimationSessionDirty(this._session) && !this._shouldSuppressSelfSavedClipRefresh(uuid)) {
+            return false;
+        }
         this._rebindCurrentAnimationStateClip(uuid);
         return true;
     }
@@ -782,9 +786,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
             return;
         }
 
-        const currentState = this._animationStates.get(uuid);
-        if (currentState) {
-            this._rebindCurrentAnimationStateClip(uuid);
+        if (this.preserveCurrentClipAssetForChange(uuid)) {
             return;
         }
 
@@ -797,7 +799,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         if (!this._session || this._session.clipUuid !== uuid) {
             return;
         }
-        if (this._shouldSuppressSelfSavedClipRefresh(uuid)) {
+        if (this.preserveCurrentClipAssetForChange(uuid) || this._shouldSuppressSelfSavedClipRefresh(uuid)) {
             return;
         }
         const rootNode = this._getSessionRootNode();
