@@ -528,6 +528,7 @@ export declare interface ExecuteAssetDBScriptMethodOptions {
     method: string;
     args?: any[];
 }
+export declare function exportAssetPackage(urls: string[], destination: string, includeDependencies?: boolean): Promise<number>;
 export declare interface FileNameCheckConfig {
     regStr: string;
     failedType: 'error' | 'warn' | 'info',
@@ -2555,6 +2556,7 @@ export declare interface IBuildCommonOptions {
     preview?: boolean;
     stage?: string;
     buildMode?: 'normal' | 'bundle' | 'script';
+    isApiBuild?: boolean;
     nextStages?: string[];
     subTaskPlatforms?: string[];
     subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
@@ -8981,6 +8983,7 @@ export declare namespace Assets {
         createAsset,
         importAsset,
         copyAsset,
+        exportAssetPackage,
         reimportAsset,
         saveAsset,
         querySerializedData,
@@ -9337,6 +9340,7 @@ export declare interface ExecuteAssetDBScriptMethodOptions {
     method: string;
     args?: any[];
 }
+export declare function exportAssetPackage(urls: string[], destination: string, includeDependencies?: boolean): Promise<number>;
 export declare interface Features {
     [feature: string]: IModuleItem;
 }

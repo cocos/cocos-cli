@@ -17,7 +17,10 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await build(platform, options);
+            const res = await build(platform, {
+                ...options,
+                isApiBuild: true,
+            });
             ret.data = res as TBuildResultData;
             if (res.code !== BuildExitCode.BUILD_SUCCESS) {
                 ret.code = COMMON_STATUS.FAIL;

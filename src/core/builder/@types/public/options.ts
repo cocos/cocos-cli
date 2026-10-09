@@ -184,6 +184,11 @@ export interface IBuildCommonOptions {
     preview?: boolean;
     stage?: string; // 构建阶段指定，默认为 build 可指定为 make/run 等
     buildMode?: 'normal' | 'bundle' | 'script';
+    /**
+     * Whether the build was initiated by the API module.
+     * @default false
+     */
+    isApiBuild?: boolean;
     nextStages?: string[];
     subTaskPlatforms?: string[];
     subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
