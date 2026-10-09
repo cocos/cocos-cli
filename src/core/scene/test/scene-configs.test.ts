@@ -1,10 +1,12 @@
-import { configurationRegistry } from '../../configuration';
+import { configurationRegistry, configurationManager } from '../../configuration';
 import { sceneConfigInstance, ISceneConfig } from '../scene-configs';
 
 describe('SceneConfig', () => {
     let saveSpy: jest.SpyInstance;
+    let configPathSpy: jest.SpyInstance;
 
     beforeEach(async () => {
+        configPathSpy = jest.spyOn(configurationManager, 'getConfigPath').mockResolvedValue('');
         await sceneConfigInstance.init();
         const instance = configurationRegistry.getInstance('scene')!;
         saveSpy = jest.spyOn(instance, 'save').mockResolvedValue(true);
@@ -12,6 +14,7 @@ describe('SceneConfig', () => {
 
     afterEach(async () => {
         saveSpy.mockRestore();
+        configPathSpy.mockRestore();
         await configurationRegistry.unregister('scene');
     });
 

@@ -1,4 +1,5 @@
-import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../configuration';
+import { configurationRegistry, configurationManager, ConfigurationScope, IBaseConfiguration } from '../configuration';
+import { migrateCreatorSceneView } from './creator-view-migration';
 import { createSceneMetadataNodes } from './metadata';
 import type { IReferenceImageConfig } from './common/reference-image';
 
@@ -83,6 +84,8 @@ export interface ISceneConfig {
      * 记录过相机视角信息的节点 uuid 列表，运行期由 Camera 服务写入。
      */
     'camera-uuids'?: string[];
+    /** Version of the one-time import from Creator's personal scene profile. */
+    creatorViewMigrationVersion?: number;
     /** Personal editor-only reference-image library and Scene bindings; never committed with Scene data. */
     referenceImage?: IReferenceImageConfig;
 }
@@ -152,6 +155,11 @@ class SceneConfig {
             nodes: () => createSceneMetadataNodes(this.defaultConfig),
         });
         await this._migratePersonalKeysToLocal();
+        try {
+            await migrateCreatorSceneView(this.configInstance, await configurationManager.getConfigPath('local'));
+        } catch (error) {
+            console.warn('[SceneConfig] Failed to migrate Creator view settings:', error);
+        }
     }
 
     /**
