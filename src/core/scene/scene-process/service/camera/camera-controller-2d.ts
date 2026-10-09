@@ -211,7 +211,6 @@ export class CameraController2D extends CameraControllerBase {
         const gridY = ((this._size.height - contentHeight) / 2 - contentY * scale) * this._grid.yDirection;
         this._grid.xAxisSync(gridX, scale);
         this._grid.yAxisSync(gridY, scale);
-        this.updateGrid();
         this.adjustCamera(immediate);
 
         if (contentBounds) {
@@ -299,18 +298,18 @@ export class CameraController2D extends CameraControllerBase {
     // ---------- 网格数据更新 ----------
 
     private _updateGridData(view: IRulerView) {
-        const left = view.xMin;
-        const right = view.xMax;
-        const top = view.yMax;
-        const bottom = view.yMin;
-
-        // 宿主可独立调整相机 viewport，网格范围和密度必须跟随实际投影
-        this._grid.hTicks?.range(left, right, Math.abs(view.toX(right) - view.toX(left)));
-        this._grid.vTicks?.range(bottom, top, Math.abs(view.toY(top) - view.toY(bottom)));
+        this._grid.updateRange(view);
 
         const positions: number[] = [];
         const colors: number[] = [];
         const indices: number[] = [];
+
+        const { xMin: left, xMax: right, yMin: top, yMax: bottom } = view;
+        // 与 Creator 一致，将线段两端延伸到视图外，避免边沿露出端点。
+        const lineLeft = Math.fround(Math.min(left, right)) - 100;
+        const lineRight = Math.fround(Math.max(left, right)) + 100;
+        const lineTop = Math.fround(Math.min(top, bottom)) - 100;
+        const lineBottom = Math.fround(Math.max(top, bottom)) + 100;
 
         const r = this._lineColor.r / 255;
         const g = this._lineColor.g / 255;
@@ -330,12 +329,12 @@ export class CameraController2D extends CameraControllerBase {
                     if (idx + 2 > _maxTicks * _maxTicks) break;
                     // 如果显示了中心轴，就跳过绘制网格的垂直中线
                     if (this.originAxisY_Visible && 0 === tick) continue;
-                    // 竖线：固定 x，从 bottom 到 top
-                    positions.push(tick, bottom);
+                    // 竖线：固定 x，两端延伸到视图外
+                    positions.push(tick, lineTop);
                     colors.push(r, g, b, alpha);
                     idx++;
 
-                    positions.push(tick, top);
+                    positions.push(tick, lineBottom);
                     colors.push(r, g, b, alpha);
                     idx++;
                 }
@@ -354,11 +353,11 @@ export class CameraController2D extends CameraControllerBase {
                     // 如果显示了中心轴，就跳过绘制网格的横向中线
                     if (this.originAxisX_Visible && 0 === tick) continue;
                     // 横线：固定 y，从 left 到 right
-                    positions.push(left, tick);
+                    positions.push(lineLeft, tick);
                     colors.push(r, g, b, alpha);
                     idx++;
 
-                    positions.push(right, tick);
+                    positions.push(lineRight, tick);
                     colors.push(r, g, b, alpha);
                     idx++;
                 }
@@ -598,7 +597,6 @@ export class CameraController2D extends CameraControllerBase {
         this._grid.yAxisScaleAt(py, newScale);
 
         this.setScale2D(newScale);
-        this.updateGrid();
         this.adjustCamera();
     }
 
@@ -702,14 +700,12 @@ export class CameraController2D extends CameraControllerBase {
         const height = this._size.height;
         this._grid.resize(width, height);
         this._ruler?.resize();
-        this.updateGrid();
         this.adjustCamera();
     }
 
     // ---------- refresh ----------
 
     refresh() {
-        this.updateGrid();
         this.adjustCamera();
         try {
             const { Service } = require('../core/decorator');
@@ -736,7 +732,6 @@ export class CameraController2D extends CameraControllerBase {
         this._grid.yAxisScaleAt(py, finalScale);
 
         this.setScale2D(finalScale);
-        this.updateGrid();
         this.adjustCamera();
     }
 
@@ -753,7 +748,6 @@ export class CameraController2D extends CameraControllerBase {
     }
 
     onDesignResolutionChange() {
-        this.updateGrid();
         this.adjustCamera();
     }
 }

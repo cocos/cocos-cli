@@ -119,6 +119,12 @@ describe('SceneConfig', () => {
     });
 
     describe('set with scope', () => {
+        it('records the creation template locally without replacing an existing hint', async () => {
+            await sceneConfigInstance.recordInitialView('new-scene', '2d');
+            await sceneConfigInstance.recordInitialView('new-scene', '3d');
+            expect(await sceneConfigInstance.get('sceneView.initialModes.new-scene', 'local')).toBe('2d');
+            expect(saveSpy).toHaveBeenLastCalledWith('local');
+        });
         it('should write personal keys to local scope when scope is omitted', async () => {
             await sceneConfigInstance.set('camera.fov', 60);
 

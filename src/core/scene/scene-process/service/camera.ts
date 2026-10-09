@@ -24,6 +24,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     private _currentUuid = '';
     private _cameraInfos: Record<string, any> = {};
     private _cameraUuids: string[] = [];
+    private _initialViewModes: Record<string, '2d' | '3d'> = {};
 
     get controller2D() { return this._controller2D; }
     get controller3D() { return this._controller3D; }
@@ -39,22 +40,45 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     }
 
     set is2D(value: boolean) {
-        if (this._controller && this.is2D === value) return;
+        this._setViewMode(value, true);
+    }
+
+    private _setViewMode(value: boolean, restoreDefaultFocus: boolean): void {
+        if (this._controller && this.is2D === value) {
+            // The toolbar reads Gizmo state, which may have been restored before
+            // the camera was ready. Reconcile it even when no controller switch is needed.
+            this._syncGizmoViewMode(value);
+            return;
+        }
+        // An unsaved scene has no view to restore on its first 2D -> 3D switch.
+        // Start from the visible 2D pose instead of the unused 3D home rotation.
+        const initial3DView = restoreDefaultFocus && !value && this.is2D
+            && !this._controllerFirstChange && this._currentUuid && !this._cameraInfos[this._currentUuid]
+            && this._initialViewModes[this._currentUuid] !== '3d'
+            ? this.getCurCameraInfo() : undefined;
         if (this._controller) {
             this._controller.active = false;
         }
         this._controller = value ? this._controller2D : this._controller3D;
         // 先同步 ttd.is2D 再激活控制器，确保 gizmo adjustControllerSize 使用正确的维度状态
+        this._syncGizmoViewMode(value);
+        this._controller.active = true;
+        if (restoreDefaultFocus && !this._controllerFirstChange && this._currentUuid) {
+            if (initial3DView) {
+                this.focus(null, initial3DView, true);
+            } else {
+                this.defaultFocus(this._currentUuid);
+            }
+            this._controllerFirstChange = true;
+        }
+        Service.Engine.repaintInEditMode();
+    }
+
+    private _syncGizmoViewMode(value: boolean): void {
         const ttd = Service.Gizmo?.transformToolData;
         if (ttd && ttd.is2D !== value) {
             ttd.is2D = value;
         }
-        this._controller.active = true;
-        if (!this._controllerFirstChange && this._currentUuid) {
-            this.defaultFocus(this._currentUuid);
-            this._controllerFirstChange = true;
-        }
-        Service.Engine.repaintInEditMode();
     }
 
     get is2D() { return this._controller === this._controller2D; }
@@ -194,6 +218,8 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             const cameraUuids = await rpc.request('sceneConfigInstance', 'get', ['camera-uuids', 'local']);
             this._cameraInfos = (cameraInfos as Record<string, any>) || {};
             this._cameraUuids = (cameraUuids as string[]) || [];
+            const sceneView = await rpc.request('sceneConfigInstance', 'get', ['sceneView', 'local']) as { initialModes?: Record<string, '2d' | '3d'> } | undefined;
+            this._initialViewModes = sceneView?.initialModes || {};
         } catch {
             // camera-infos 不存在时使用默认空值
         }
@@ -207,8 +233,10 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
     }
 
     private _applyGizmoViewMode(config: Partial<IGizmoConfig>): void {
-        if (config.is2D !== undefined && this.is2D !== config.is2D) {
-            this.is2D = config.is2D;
+        if (config.is2D !== undefined) {
+            // Loading the saved mode is not the user's first view switch.
+            // _restoreCameraView focuses after the camera records have loaded.
+            this._setViewMode(config.is2D, false);
         }
     }
 
@@ -323,6 +351,7 @@ export class CameraService extends BaseService<ICameraEvents> implements ICamera
             this.focus(null, cameraInfo, true);
         } else {
             const rootNode = Service.Editor?.getRootNode?.() as any;
+            // Match Creator: without a saved view, focus using the current orientation.
             let uuids: string[] | null = rootNode?.uuid ? [rootNode.uuid] : null;
             if (this.is2D && rootNode) {
                 const canvas = rootNode.getComponentInChildren?.(Canvas);

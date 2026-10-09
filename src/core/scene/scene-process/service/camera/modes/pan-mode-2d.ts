@@ -31,7 +31,6 @@ class PanMode2D extends ModeBase2D {
         const dx = event.moveDeltaX;
         const dy = event.moveDeltaY;
         this._cameraCtrl.grid.pan(dx, dy);
-        this._cameraCtrl.updateGrid();
         this._cameraCtrl.adjustCamera();
         return false;
     }

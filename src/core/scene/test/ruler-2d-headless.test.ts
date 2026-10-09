@@ -1,4 +1,34 @@
 import { Ruler2D, buildRulerView } from '../scene-process/service/camera/ruler-2d';
+import Grid from '../scene-process/service/camera/grid';
+
+describe('2D grid render viewport coverage', () => {
+    it.each([0.02, 1, 40, 10000])('covers the actual viewport at scale %s after zoom and pan', (scale) => {
+        const grid = new Grid(600, 400);
+        grid.setScaleH([5, 2], 0.01, 5000);
+        grid.setMappingH(0, 1, 1);
+        grid.setScaleV([5, 2], 0.01, 5000);
+        grid.setMappingV(1, 0, 1);
+        grid.xAxisSync(300 - 5337 * scale, scale);
+        grid.yAxisSync(-200 + 455 * scale, scale);
+        // Host resized the render target without resizing the controller's cached Grid.
+        const camera = {
+            width: 1200, height: 700,
+            worldToScreen: (out: any, p: any) => {
+                out.x = 600 + (p.x - 5337) * scale;
+                out.y = 350 + (p.y - 455) * scale;
+                return out;
+            },
+        };
+        const view = buildRulerView(camera, { width: 600, height: 400 }, { orthoHeight: 200, x: 5337, y: 455 });
+        grid.updateRange(view);
+        expect(grid.hTicks!.minValue).toBe(Math.fround(view.xMin));
+        expect(grid.hTicks!.maxValue).toBe(Math.fround(view.xMax));
+        expect(grid.vTicks!.minValue).toBe(Math.fround(view.yMin));
+        expect(grid.vTicks!.maxValue).toBe(Math.fround(view.yMax));
+        expect(grid.hTicks!.pixelRange).toBeCloseTo(1200);
+        expect(grid.vTicks!.pixelRange).toBeCloseTo(700);
+    });
+});
 
 /**
  * 回归护栏（PR #914 review P1）：headless 场景进程提供 mock document，

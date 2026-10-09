@@ -1,4 +1,5 @@
 import LinearTicks from './linear-ticks';
+import type { IRulerView } from '../ruler-2d';
 
 function clamp(val: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, val));
@@ -211,7 +212,12 @@ class Grid {
     get top() { return this.pixelToValueV ? this.pixelToValueV(0) : 0; }
     get bottom() { return this.pixelToValueV ? this.pixelToValueV(this._canvasHeight) : 0; }
 
-    updateRange() {
+    updateRange(view?: IRulerView) {
+        if (view) {
+            this.hTicks?.range(view.xMin, view.xMax, Math.abs(view.toX(view.xMax) - view.toX(view.xMin)));
+            this.vTicks?.range(view.yMin, view.yMax, Math.abs(view.toY(view.yMax) - view.toY(view.yMin)));
+            return;
+        }
         if (this.hTicks) this.hTicks.range(this.left, this.right, this._canvasWidth);
         if (this.vTicks) this.vTicks.range(this.top, this.bottom, this._canvasHeight);
     }

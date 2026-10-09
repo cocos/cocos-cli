@@ -29,6 +29,13 @@ class MockColor {
 
 class MockController {
     activeValues: boolean[] = [];
+    node = {
+        getWorldPosition: () => ({ x: 640, y: 360, z: 5000 }),
+        getWorldRotation: () => ({ x: 0, y: 0, z: 0, w: 1 }),
+    };
+    sceneViewCenter = { x: 0, y: 0, z: 0 };
+    contentRect = { x: 0, y: 0, width: 1280, height: 720 };
+    scale2D = 1;
     init = jest.fn();
     on = jest.fn();
     updateGrid = jest.fn();
@@ -36,6 +43,7 @@ class MockController {
     refresh = jest.fn();
     focus = jest.fn();
     showGrid = jest.fn();
+    reset = jest.fn();
     isGridVisible = true;
     lineColor: any;
 
@@ -57,6 +65,7 @@ jest.mock('cc', () => ({
     Color: MockColor,
     Layers: { Enum: { EDITOR: 1, IGNORE_RAYCAST: 2 } },
     Vec3: class {},
+    Quat: { IDENTITY: { x: 0, y: 0, z: 0, w: 1 } },
     gfx: {},
 }));
 
@@ -89,7 +98,7 @@ jest.mock('../scene-process/service/camera/utils', () => ({
             far: 10000,
             fov: 45,
             near: 0.01,
-            node: {},
+            node: { setWorldRotation: jest.fn() },
         })),
     },
 }));
@@ -169,11 +178,92 @@ describe('CameraService view mode config', () => {
         expect(defaultFocus).not.toHaveBeenCalled();
 
         resolveGizmoConfig({ is2D: true });
-        await Promise.resolve();
-        await Promise.resolve();
+        await new Promise(resolve => setImmediate(resolve));
 
         expect(camera.is2D).toBe(true);
         expect(defaultFocus).toHaveBeenCalledWith('scene-uuid');
+    });
+
+    it('reconciles stale toolbar dimension when reopening in the same 3D mode', async () => {
+        mockRpcRequest.mockImplementation((_service, _method, args) => {
+            if (args[0] === 'gizmo') return Promise.resolve({ is2D: false });
+            return Promise.resolve(undefined);
+        });
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        camera.onEditorOpened();
+        await new Promise(resolve => setImmediate(resolve));
+        expect(camera.is2D).toBe(false);
+
+        // The UI reads Gizmo state, which can be populated before the camera is ready.
+        mockService.Gizmo.transformToolData.is2D = true;
+        camera.controller3D.activeValues.length = 0;
+        camera.onEditorOpened();
+        await new Promise(resolve => setImmediate(resolve));
+
+        expect(camera.is2D).toBe(false);
+        expect(mockService.Gizmo.transformToolData.is2D).toBe(false);
+        expect(camera.controller3D.activeValues).toEqual([]);
+    });
+
+    it('restores the saved front view on the first manual 2D to 3D switch', async () => {
+        const frontView = {
+            position: { x: 640, y: 360, z: 5000 },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+        };
+        let resolveViews!: (value: any) => void;
+        const views = new Promise(resolve => { resolveViews = resolve; });
+        mockRpcRequest.mockImplementation((_service, _method, args) => {
+            if (args[0] === 'gizmo') return Promise.resolve({ is2D: true });
+            if (args[0] === 'camera-infos') return views;
+            return Promise.resolve(undefined);
+        });
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        camera.onEditorOpened();
+        await new Promise(resolve => setImmediate(resolve));
+        expect(camera.is2D).toBe(true);
+        expect(camera.controller2D.focus).not.toHaveBeenCalled();
+
+        resolveViews({ 'scene-uuid': frontView });
+        await new Promise(resolve => setImmediate(resolve));
+        expect(camera.controller2D.focus).toHaveBeenCalledWith(null, frontView, true);
+        camera.is2D = false;
+        expect(camera.controller3D.focus).toHaveBeenCalledWith(null, frontView, true);
+
+        camera.controller2D.focus.mockClear();
+        camera.controller3D.focus.mockClear();
+        camera.is2D = true;
+        camera.is2D = false;
+        expect(camera.controller2D.focus).not.toHaveBeenCalled();
+        expect(camera.controller3D.focus).not.toHaveBeenCalled();
+    });
+
+    it('starts a new scene in its current front view on the first 2D to 3D switch', async () => {
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        camera.onEditorOpened();
+        await new Promise(resolve => setImmediate(resolve));
+        const frontView = {
+            position: { x: 640, y: 360, z: 5000 },
+            rotation: { x: 0, y: 0, z: 0, w: 1 },
+        };
+        const capture = jest.spyOn(camera, 'getCurCameraInfo').mockImplementation(() => {
+            expect(camera.is2D).toBe(true);
+            return frontView;
+        });
+        camera.is2D = false;
+        expect(capture).toHaveBeenCalledTimes(1);
+        expect(camera.controller3D.focus).toHaveBeenCalledWith(null, frontView, true);
+
+        camera.controller3D.focus.mockClear();
+        camera.is2D = true;
+        camera.is2D = false;
+        expect(capture).toHaveBeenCalledTimes(1);
+        expect(camera.controller3D.focus).not.toHaveBeenCalled();
     });
 
     it('loads merged gizmo config without applying origin axes in CameraService', async () => {
@@ -195,6 +285,26 @@ describe('CameraService view mode config', () => {
         expect(mockRpcRequest).not.toHaveBeenCalledWith('sceneConfigInstance', 'get', ['gizmo', 'local']);
         expect(camera.controller2D.updateOriginAxisByConfig).not.toHaveBeenCalled();
         expect(camera.controller3D.updateOriginAxisByConfig).not.toHaveBeenCalled();
+    });
+
+    it.each(['2d', '3d'] as const)('preserves the current direction when opening a new %s template in 3D', async (mode) => {
+        const canvas = { node: { uuid: 'canvas' } };
+        mockService.Editor.getRootNode.mockReturnValue({ uuid: 'root', getComponentInChildren: () => canvas });
+        mockRpcRequest.mockImplementation((_service, _method, args) => {
+            if (args[0] === 'gizmo') return Promise.resolve({ is2D: false });
+            if (args[0] === 'sceneView') return Promise.resolve({ initialModes: { 'scene-uuid': mode } });
+            return Promise.resolve(undefined);
+        });
+        const { CameraService } = require('../scene-process/service/camera');
+        const camera = new CameraService();
+        camera.init();
+        camera.onEditorOpened();
+        await new Promise(resolve => setImmediate(resolve));
+        expect(camera.is2D).toBe(false);
+        expect(camera.camera.node.setWorldRotation).not.toHaveBeenCalled();
+        expect(camera.controller3D.reset).not.toHaveBeenCalled();
+        expect(camera.controller3D.focus).toHaveBeenCalledWith(['root'], undefined, true);
+        mockService.Editor.getRootNode.mockReturnValue(null);
     });
 
     it('keeps the inactive controller grid hidden when origin axes are updated externally', () => {
