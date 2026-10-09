@@ -13,6 +13,7 @@ import utils from '../base/utils';
 import { middlewareService } from '../../server/middleware/core';
 import BuildMiddleware from './build.middleware';
 import { BuildGlobalInfo } from './share/global';
+import { buildProfiler } from './profile';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheOptions, ClearCacheResult } from './cache';
 
@@ -93,10 +94,17 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
     const startTime = Date.now();
     let buildSuccess = true;
     const restoreLogSink = newConsole.createLogSinkRestorer();
+    let profileResult: { code?: number; reason?: string; dest?: string } = {};
 
     // 显示构建开始信息
     try {
         const builder = await createBuildTask(platform, options);
+        buildProfiler.beginBuild({
+            taskId: builder.options?.taskId,
+            taskName: builder.options?.taskName,
+            platform,
+            logDest: builder.options?.logDest,
+        });
         newConsole.buildStart(platform);
 
         // 监听构建进度
@@ -113,6 +121,9 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         newConsole.buildComplete(platform, duration, buildSuccess);
         builder.buildExitRes.dest = utils.Path.resolveToUrl(builder.buildExitRes.dest, 'project');
         console.debug(JSON.stringify(builder.buildExitRes));
+        profileResult = buildSuccess
+            ? { code: builder.buildExitRes.code, dest: builder.buildExitRes.dest }
+            : { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed!' };
         return buildSuccess ? builder.buildExitRes : { code: BuildExitCode.BUILD_FAILED, reason: 'Build failed!' };
     } catch (error: any) {
         buildSuccess = false;
@@ -124,8 +135,10 @@ export async function build<P extends Platform>(platform: P, options?: IBuildCom
         if (errorCode === BuildExitCode.BUILD_SUCCESS) {
             errorCode = BuildExitCode.BUILD_FAILED;
         }
+        profileResult = { code: errorCode, reason: error?.message || String(error) };
         return { code: errorCode as Exclude<BuildExitCode, BuildExitCode.BUILD_SUCCESS>, reason: error?.message || String(error) };
     } finally {
+        await buildProfiler.endBuild({ success: buildSuccess, ...profileResult });
         restoreLogSink();
     }
 }
@@ -142,9 +155,17 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
     const tasksLabel = bundleOptions.taskName || 'bundle-build';
     const taskStartTime = Date.now();
     const restoreLogSink = newConsole.createLogSinkRestorer();
+    let profileSuccess = false;
+    let profileResult: { code?: number; reason?: string; dest?: string } = {};
 
     try {
         bundleOptions.logDest = ensureBuildLogSink({ platform: options.platform }, tasksLabel, bundleOptions.logDest);
+        buildProfiler.beginBuild({
+            taskId: String(startTime),
+            taskName: tasksLabel,
+            platform: String(options.platform || ''),
+            logDest: bundleOptions.logDest,
+        });
         newConsole.stage('BUNDLE', `${tasksLabel} (${options.platform}) starting...`);
         console.debug('Start build task, options:', options);
         newConsole.trackMemoryStart(`builder:build-bundle-total`);
@@ -161,11 +182,14 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
             const errorMsg = typeof builder.error == 'object' ? (builder.error.stack || builder.error.message) : builder.error;
             newConsole.error(`${tasksLabel} (${options.platform}) failed: ${errorMsg}`);
             newConsole.taskComplete('Bundle Build', false, totalDuration);
+            profileResult = { code: BuildExitCode.BUILD_FAILED, reason: errorMsg };
             return { code: BuildExitCode.BUILD_FAILED, reason: errorMsg };
         } else {
             const duration = formatMSTime(Date.now() - taskStartTime);
             newConsole.taskComplete('Bundle Build', true, totalDuration);
             newConsole.success(`${tasksLabel} (${options.platform}) completed in ${duration}`);
+            profileSuccess = true;
+            profileResult = { code: builder.buildExitRes.code, dest: builder.buildExitRes.dest };
             return builder.buildExitRes;
         }
     } catch (error: any) {
@@ -173,8 +197,10 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
         newConsole.error(errMsg);
         const totalDuration = formatMSTime(Date.now() - startTime);
         newConsole.taskComplete('Bundle Build', false, totalDuration);
+        profileResult = { code: BuildExitCode.BUILD_FAILED, reason: errMsg };
         return { code: BuildExitCode.BUILD_FAILED, reason: errMsg };
     } finally {
+        await buildProfiler.endBuild({ success: profileSuccess, ...profileResult });
         restoreLogSink();
     }
 }
@@ -238,6 +264,13 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
 
     const restoreLogSink = newConsole.createLogSinkRestorer();
     ensureBuildLogSink(options, options.taskName, options.logDest);
+    buildProfiler.beginBuild({
+        taskId,
+        taskName: options.taskName,
+        platform: options.platform,
+        logDest: options.logDest,
+    });
+    let profileResult: IBuildResultData = { code: BuildExitCode.BUILD_FAILED, reason: 'Build stage task did not complete.' };
 
     try {
         options.dest = utils.Path.resolveToRaw(options.dest);
@@ -252,14 +285,22 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
         } else {
             result = await executeSingleBuildStageTask(taskId, stageName, options, buildOptions, onProgress, restoreLogSink);
         }
+        profileResult = result;
         if (result.code !== BuildExitCode.BUILD_SUCCESS) {
             restoreLogSink();
         }
         return result;
     } catch (error: any) {
         console.error(error);
+        profileResult = { code: BuildExitCode.BUILD_FAILED, reason: error?.message || String(error) };
         return { code: BuildExitCode.BUILD_FAILED, reason: error?.message || String(error) };
     } finally {
+        await buildProfiler.endBuild({
+            success: profileResult.code === BuildExitCode.BUILD_SUCCESS,
+            code: profileResult.code,
+            reason: 'reason' in profileResult ? profileResult.reason : undefined,
+            dest: 'dest' in profileResult ? profileResult.dest : undefined,
+        });
         restoreLogSink();
     }
 }
