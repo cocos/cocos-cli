@@ -152,6 +152,14 @@ jest.mock('../../scene-process/rpc', () => ({
     Rpc: { getInstance: () => ({ request: mockRpcRequest }) },
 }));
 
+// 本组用例不测试拖拽，隔离管理器以避免加载射线检测和真实引擎依赖
+jest.mock('../../scene-process/service/node/node-create-drag', () => ({
+    NodeCreateDragManager: jest.fn(() => ({
+        cancelActive: jest.fn().mockResolvedValue(undefined),
+        dispose: jest.fn(),
+    })),
+}));
+
 jest.mock('../../scene-process/service/node/node-create', () => ({
     createNodeByAsset: mockCreateNodeByAsset,
     createShouldHideInHierarchyCanvasNode: mockCreateShouldHideInHierarchyCanvasNode,
