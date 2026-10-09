@@ -1,3 +1,4 @@
+import '../../../lib/runtime-module-cache';
 import { SceneReadyChannel } from '../common';
 import { Rpc } from './rpc';
 import { parseCommandLineArgs, resolveSceneAssetBase } from './utils';
@@ -5,6 +6,7 @@ import { Engine } from '../../engine';
 import { join } from 'path';
 import { serviceManager } from './service/service-manager';
 import { installSceneEditorShim } from './editor-shim';
+import { StartupCpuProfiler } from './startup-cpu-profiler';
 
 async function startup() {
     // 监听进程退出事件
@@ -69,7 +71,9 @@ async function startup() {
     console.log(`[Scene] startup worker success, cocos version: ${cc.ENGINE_VERSION}`);
 }
 
-startup().catch(err => {
-    console.error('[Scene] Startup fatal error:', err);
-    process.exit(1);
-});
+new StartupCpuProfiler('VSCODE_COCOS_SCENE_PROCESS_CPU_PROFILE')
+    .run(startup)
+    .catch(err => {
+        console.error('[Scene] Startup fatal error:', err);
+        process.exit(1);
+    });
