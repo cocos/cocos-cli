@@ -21,7 +21,9 @@ export class PrefabUndoHelper {
         if (!node?.isValid) {
             return null;
         }
-        return captureNodeStructureSnapshot(node, '', { serialization: 'prefab' });
+        // Asset serialization promotes mounted nodes to prefab children. Undo
+        // snapshots must retain the instance's overrides and mounted children.
+        return captureNodeStructureSnapshot(node, '', { serialization: 'node' });
     }
 
     pushNodeStructureCommand(
