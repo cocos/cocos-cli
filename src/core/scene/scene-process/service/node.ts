@@ -1,5 +1,6 @@
 import { register, BaseService, Service } from './core';
 import { queryRegisteredService } from './core/decorator';
+import { basename, extname } from 'path';
 import type { ComponentService } from './component';
 import {
     type ICreateByAssetParams,
@@ -78,6 +79,7 @@ interface IResolvedAssetIdentity {
     kind: 'asset';
     assetUuid: string;
     assetType?: string;
+    assetName?: string;
 }
 
 interface IResolvedAssetCreateTarget extends IResolvedAssetIdentity {
@@ -301,6 +303,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                     params,
                     target.assetType,
                     preflightRecord?.target.kind === 'asset' ? preflightRecord.target.canvasRequired : undefined,
+                    target.assetName,
                 );
             } finally {
                 this._endPrefabCanvasUndoCapture();
@@ -371,6 +374,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
             kind: 'asset',
             assetUuid: assetInfo.uuid,
             assetType: assetInfo?.type,
+            assetName: assetInfo.name,
         };
     }
 
@@ -642,6 +646,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         params: ICreateByNodeTypeParams | ICreateByAssetParams,
         assetType?: string,
         expectedAssetCanvasRequired?: boolean,
+        assetName?: string,
     ): Promise<INode | null> {
         const currentScene = Service.Editor.getRootNode();
         if (!currentScene) {
@@ -722,6 +727,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
             if (params.name) {
                 resultNode.name = params.name;
+            } else if ('dbURL' in params && !resultNode.name) {
+                resultNode.name = (assetName && basename(assetName, extname(assetName))) || 'Node';
             }
 
             this.emit('node:before-add', resultNode);

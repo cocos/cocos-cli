@@ -91,6 +91,33 @@ describe('NodeService asset creation preflight', () => {
         expect(mockCreateNodeByAsset).toHaveBeenCalledTimes(1);
     });
 
+    it('uses the Asset DB filename for an unnamed mesh node and preserves its mesh binding', async () => {
+        const root = new MockNode('Root');
+        const createdNode = new MockNode('');
+        const mesh = { uuid: 'mesh-asset-uuid' };
+        const renderer = { mesh };
+        createdNode.components.push(renderer);
+        mockGetRootNode.mockReturnValue(root);
+        mockRpcRequest.mockResolvedValue({
+            uuid: mesh.uuid,
+            type: 'cc.Mesh',
+            name: 'body 1-2.mesh',
+        });
+        mockCreateNodeByAsset.mockResolvedValue({ node: createdNode, canvasRequired: false });
+
+        const { NodeService } = require('../../scene-process/service/node');
+        const result = await new NodeService().createByAsset({
+            path: '/',
+            dbURL: 'db://assets/Model.gltf/body 1-2.mesh',
+        });
+
+        expect({
+            name: createdNode.name,
+            path: result?.path,
+            mesh: createdNode.components[0].mesh,
+        }).toEqual({ name: 'body 1-2', path: '/body 1-2', mesh });
+    });
+
     it('keeps an explicit Canvas requirement authoritative when the asset does not require one', async () => {
         mockGetRootNode.mockReturnValue(new MockNode('Root'));
         mockPrefabAsset();
