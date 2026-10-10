@@ -237,6 +237,64 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
         delete (global as any).cc;
     });
 
+    it.each([false, true])('keeps UUID and path indexes consistent when restored objects are already registered: %s', async registered => {
+        const { default: NodeManager } = await import('../../engine/editor-extends/manager/node');
+        const { default: ComponentManager } = await import('../../engine/editor-extends/manager/component');
+        const nodes = new NodeManager();
+        const components = new ComponentManager();
+        nodes.allow = components.allow = true;
+        mockCcRuntime.js = { getClassName: () => 'TestComponent' };
+        const parent = new MockNode('parent', 'Parent') as any;
+        const restored = new MockNode('temporary-node', 'Child') as any;
+        restored._id = restored.uuid;
+        Object.defineProperty(restored, 'uuid', { get: () => restored._id });
+        const component = { _id: 'temporary-component', get uuid() { return this._id; }, node: restored };
+        restored.components = [component];
+        restored.parent = parent;
+        nodes.add(parent.uuid, parent);
+        parent.addChild = (child: any) => {
+            parent.children.push(child);
+            child.parent = parent;
+            if (!registered) {
+                nodes.add(child.uuid, child);
+                components.add(component.uuid, component);
+            }
+        };
+        mockLoadWithJson.mockImplementation((_json: any, _opts: any, cb: any) => {
+            if (registered) {
+                nodes.add(restored.uuid, restored);
+                components.add(component.uuid, component);
+            }
+            cb(null, restored);
+        });
+        const shared = require('../scene-process/service/undo/commands/command-utils-shared');
+        shared.getEditorNodeManager.mockReturnValue(nodes);
+        shared.getEditorExtends.mockReturnValue({ Component: components });
+        shared.isNodeInCurrentScene.mockImplementation((node: any) => node === parent);
+        require('../scene-process/service/node/index').default.emit = jest.fn();
+        const { restoreNodeStructureSnapshot } = require('../scene-process/service/undo/commands/node-structure-command-utils');
+        try {
+            const result = await restoreNodeStructureSnapshot({
+                uuid: 'saved-node', path: 'Parent/Child', parentUuid: parent.uuid, siblingIndex: 0,
+                serializedJson: '{}',
+                uuidTree: { uuid: 'saved-node', componentUuids: ['saved-component'], children: [] },
+            }, { id: 'test', label: 'test' });
+            expect(result.success).toBe(true);
+            expect(nodes.getNode('saved-node')).toBe(restored);
+            expect(nodes.getNode('temporary-node')).toBeFalsy();
+            expect(nodes.getNodeByPath('Child')).toBe(restored);
+            expect(components.getComponent('saved-component')).toBe(component);
+            expect(components.getComponent('temporary-component')).toBeFalsy();
+            expect(components.getPathFromUuid('saved-component')).toBe('Child/TestComponent');
+            expect(components.getPathFromUuid('temporary-component')).toBe('');
+        } finally {
+            nodes.clear();
+            components.clear();
+            shared.getEditorExtends.mockReturnValue(null);
+            delete mockCcRuntime.js;
+        }
+    });
+
     it('registers prefab instance root in assetToNodesMap after relinkPrefabAsset', async () => {
         const parentNode = new MockNode('parent', 'Parent') as any;
         parentNode.addChild = jest.fn((child: any) => {
