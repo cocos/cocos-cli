@@ -90,8 +90,7 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
         if (this._isInited) return;
         this._isInited = true;
         EditorExtends.on('class-registered', (classConstructor: Function, metadata: any, className: string) => {
-            console.log('classRegistered', className);
-            console.log('class-registered ' + cc.js.isChildClassOf(classConstructor, cc.Component));
+            console.debug(`[Script] Class registered: ${className}, isComponent=${cc.js.isChildClassOf(classConstructor, cc.Component)}`);
             if (metadata && // Only project scripts
                 cc.js.isChildClassOf(classConstructor, cc.Component) // Only components
             ) {
