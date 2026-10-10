@@ -2,6 +2,21 @@ type Listener = (...args: unknown[]) => void;
 
 const mockLoadAny = jest.fn();
 const mockRpcRequest = jest.fn();
+const mockQueryService = jest.fn();
+const mockProxyRequest = jest.fn();
+
+jest.mock('../main-process/rpc', () => ({
+    Rpc: { getInstance: () => ({ request: mockProxyRequest }) },
+}));
+
+jest.mock('../scene-process/service/core', () => ({
+    BaseService: class { public emit = jest.fn(); },
+    register: () => (ctor: unknown) => ctor,
+    queryRegisteredService: mockQueryService,
+    ServiceEvents: { emit: jest.fn() },
+}));
+
+jest.mock('../scene-process/service/node/node-utils', () => ({ isEditorNode: () => false }));
 
 jest.mock('cc', () => {
     class Asset {
@@ -62,6 +77,12 @@ jest.mock('../scene-process/rpc', () => ({
 
 import { Asset, assetManager } from 'cc';
 import { assetWatcherManager } from '../scene-process/service/asset/asset-watcher';
+import { AssetService } from '../scene-process/service/asset';
+import { AssetProxy } from '../main-process/proxy/asset-proxy';
+
+class TestAssetService extends AssetService {
+    get emitted() { return this.emit; }
+}
 
 async function flush(): Promise<void> {
     await Promise.resolve();
@@ -72,6 +93,8 @@ describe('AssetWatcherManager completion boundary', () => {
     beforeEach(() => {
         jest.useFakeTimers();
         mockLoadAny.mockReset();
+        mockQueryService.mockReset();
+        mockProxyRequest.mockReset();
         mockRpcRequest.mockReset().mockResolvedValue({ uuid: 'asset-uuid' });
         assetManager.assets.clear();
         assetManager.references!.clear();
@@ -212,6 +235,82 @@ describe('AssetWatcherManager completion boundary', () => {
         expect(completed).toBe(true);
         expect(error).toHaveBeenCalledWith(expect.objectContaining({ message: 'Asset load timeout: asset-uuid' }));
         error.mockRestore();
+    });
+
+    it('explicit refresh rejects load failures while ordinary notifications retain log-and-continue behavior', async () => {
+        const failure = new Error('image loading failed');
+        mockLoadAny.mockImplementation((_uuid: string, callback: (error: Error) => void) => callback(failure));
+        assetManager.assetListener.on('asset-uuid', jest.fn());
+        const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            const service = new TestAssetService();
+            mockProxyRequest.mockImplementation((_service: string, _method: string, [uuid]: string[]) => service.refreshAsset(uuid));
+            const rejected = expect(AssetProxy.refreshAsset('asset-uuid')).rejects.toThrow('image loading failed');
+            await flush();
+            await jest.advanceTimersByTimeAsync(400);
+            await rejected;
+            expect(mockProxyRequest).toHaveBeenCalledWith('Asset', 'refreshAsset', ['asset-uuid']);
+            expect(service.emitted).not.toHaveBeenCalled();
+            const notified = service.assetChanged('asset-uuid');
+            await flush();
+            await jest.advanceTimersByTimeAsync(400);
+            await notified;
+            expect(log).toHaveBeenCalledWith(failure);
+            expect(service.emitted).toHaveBeenCalledWith('asset:change', 'asset-uuid');
+        } finally { log.mockRestore(); }
+    });
+
+    it('explicit refresh rejects timeout and permits a successful explicit retry after the lock is released', async () => {
+        mockLoadAny.mockImplementation(() => undefined);
+        const listener = jest.fn();
+        assetManager.assetListener.on('asset-uuid', listener);
+        const service = new TestAssetService();
+        const rejected = expect(service.refreshAsset('asset-uuid')).rejects.toThrow('Asset load timeout');
+        await flush();
+        await jest.advanceTimersByTimeAsync(10_000);
+        await rejected;
+        expect(service.emitted).not.toHaveBeenCalled();
+
+        mockLoadAny.mockImplementation((_uuid: string, callback: (error: null, asset: Asset) => void) => callback(null, new Asset()));
+        let completed = false;
+        const retried = service.refreshAsset('asset-uuid').then(() => { completed = true; });
+        await flush();
+        expect(completed).toBe(false);
+        await jest.advanceTimersByTimeAsync(400);
+        await retried;
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(service.emitted).toHaveBeenCalledTimes(1);
+    });
+
+    it('explicit refresh rejects missing assets, but completes without loading an unused asset', async () => {
+        const service = new TestAssetService();
+        mockRpcRequest.mockResolvedValueOnce(null);
+        await expect(service.refreshAsset('missing')).rejects.toThrow('Asset is unavailable');
+        expect(service.emitted).not.toHaveBeenCalled();
+        await service.refreshAsset('unused');
+        expect(mockLoadAny).not.toHaveBeenCalled();
+        expect(service.emitted).toHaveBeenCalledWith('asset:change', 'unused');
+    });
+
+    it('explicit refresh rejects Scene invalidation during loading instead of acknowledging a discarded update', async () => {
+        let callback!: (error: Error | null, asset: Asset) => void;
+        mockLoadAny.mockImplementation((_uuid: string, next: typeof callback) => { callback = next; });
+        assetManager.assetListener.on('asset-uuid', jest.fn());
+        const service = new TestAssetService();
+        const rejected = expect(service.refreshAsset('asset-uuid')).rejects.toThrow('Scene changed');
+        await flush();
+        assetWatcherManager.invalidate();
+        callback(null, new Asset());
+        await rejected;
+        expect(service.emitted).not.toHaveBeenCalled();
+    });
+
+    it('explicit refresh rejects a stale editor session before changing caches', async () => {
+        mockQueryService.mockImplementation(name => name === 'Editor'
+            ? { getEditorSession: () => ({ generation: 1 }), isCurrentEditorSession: () => false }
+            : undefined);
+        await expect(new AssetService().refreshAsset('asset-uuid')).rejects.toThrow('Scene changed before');
+        expect(mockRpcRequest).not.toHaveBeenCalled();
     });
 
 });

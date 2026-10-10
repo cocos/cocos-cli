@@ -530,10 +530,13 @@ class AssetWatcherManager {
             || uuid.endsWith('@e9a6d')
             || uuid.endsWith('@40c10');
     }
-    public async onAssetChanged(uuid: string) {
+    public async onAssetChanged(uuid: string, requireCompletion = false): Promise<void> {
         const generation = this.generation;
         const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
         if (!info || generation !== this.generation) {
+            if (requireCompletion) {
+                throw new Error(!info ? `Asset is unavailable: ${uuid}` : `Scene changed during asset refresh: ${uuid}`);
+            }
             return;
         }
 
@@ -559,6 +562,9 @@ class AssetWatcherManager {
             const asset = await this.loadAsset(uuid);
             if (generation !== this.generation) {
                 this.discardCachedAsset(uuid, asset);
+                if (requireCompletion) {
+                    throw new Error(`Scene changed during asset refresh: ${uuid}`);
+                }
                 return;
             }
             if (oldAsset && asset && oldAsset.constructor.name !== asset.constructor.name) {
@@ -569,11 +575,17 @@ class AssetWatcherManager {
                 this.updater.add(uuid, asset);
             }
         } catch (error) {
+            if (requireCompletion) {
+                throw error;
+            }
             console.error(error);
         } finally {
             this.updater.unlock();
         }
         await this.updater.waitForFlush();
+        if (requireCompletion && generation !== this.generation) {
+            throw new Error(`Scene changed during asset refresh: ${uuid}`);
+        }
     }
 
     private discardCachedAsset(uuid: string, asset: Asset): void {

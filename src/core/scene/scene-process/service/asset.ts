@@ -36,6 +36,22 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
         }
     }
 
+    /** 显式刷新与普通通知分开：不能把失败或失效 Scene 当作成功确认。 */
+    public async refreshAsset(uuid: string): Promise<void> {
+        const session = this.getEditorSession();
+        if (!this.isCurrentEditorSession(session)) {
+            throw new Error('Scene changed before asset refresh.');
+        }
+        if (!this._preserveCurrentAnimationClipAsset(uuid)) {
+            this.releaseAsset(uuid);
+            await assetWatcherManager.onAssetChanged(uuid, true);
+        }
+        if (!this.isCurrentEditorSession(session)) {
+            throw new Error('Scene changed during asset refresh.');
+        }
+        this.emit('asset:change', uuid);
+    }
+
 
     private _preserveCurrentAnimationClipAsset(uuid: string): boolean {
         const animationService = queryRegisteredService<{

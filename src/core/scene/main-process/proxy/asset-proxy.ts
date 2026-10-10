@@ -5,6 +5,9 @@ export const AssetProxy: IPublicAssetService = {
     assetChanged(uuid: string): Promise<void> {
         return Rpc.getInstance().request('Asset', 'assetChanged', [uuid]);
     },
+    refreshAsset(uuid: string): Promise<void> {
+        return Rpc.getInstance().request('Asset', 'refreshAsset', [uuid]);
+    },
     assetDeleted(uuid: string): Promise<void> {
         return Rpc.getInstance().request('Asset', 'assetDeleted', [uuid]);
     },
