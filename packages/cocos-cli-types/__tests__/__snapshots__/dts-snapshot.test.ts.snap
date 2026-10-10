@@ -6423,6 +6423,7 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
 }
 export declare interface IAssetService extends IServiceEvents {
     assetChanged(uuid: string): Promise<void>;
+    refreshAsset(uuid: string): Promise<void>;
     assetDeleted(uuid: string): Promise<void>;
 }
 export declare type IAssetType =
