@@ -99,4 +99,20 @@ describe('main-process Asset DB notifications', () => {
         expect(assetManager.listenerCount('asset-change')).toBe(0);
         expect(assetManager.listenerCount('asset-delete')).toBe(0);
     });
+
+    it('logs a failed refresh and continues later notifications for the same UUID', async () => {
+        const failure = new Error('asset loading failed');
+        assetChanged.mockRejectedValueOnce(failure);
+        const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            await listenModuleMessages();
+            assetManager.emit('asset-change', asset('source-uuid'));
+            assetManager.emit('asset-change', asset('source-uuid'));
+            assetManager.emit('asset-delete', asset('source-uuid'));
+            await flushNotifications();
+            expect(log).toHaveBeenCalledWith('[Scene] Asset notification failed (source-uuid):', failure);
+            expect(assetChanged).toHaveBeenCalledTimes(2);
+            expect(assetDeleted).toHaveBeenCalledWith('source-uuid');
+        } finally { log.mockRestore(); }
+    });
 });
