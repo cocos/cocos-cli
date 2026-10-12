@@ -6,7 +6,7 @@ import { equirectToCubemapFaces, nearestPowerOfTwo } from './utils/equirect-cube
 import * as cc from 'cc';
 import { ISimpleLayout, matchSimpleLayout } from './utils/cube-map-simple-layout';
 
-import sharp from 'sharp';
+import { getSharp } from '../../../base/native-modules';
 import { copyFileSync, existsSync, readFile } from 'fs-extra';
 import { basename, dirname, join } from 'path';
 import { ensureDirSync } from 'fs-extra';
@@ -17,6 +17,8 @@ import { TextureCubeAssetUserData } from '../../@types/userDatas';
 import { makeDefaultTextureCubeAssetUserData } from './image/utils';
 import { GlobalPaths } from '../../../../global';
 import utils from '../../../base/utils';
+
+const sharp = getSharp();
 
 type ITextureCubeMipMap = cc.TextureCube['mipmaps'][0];
 

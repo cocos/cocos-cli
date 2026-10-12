@@ -1,5 +1,7 @@
 # Native Module .node Injection (gl / sharp ABI Adaptation for Host Electron)
 
+> Draft alternative: [complete runtime provider](runtime-provider.md). A configured provider takes precedence in the new CLI adapter; this legacy binding injection remains available during evaluation.
+
 ## Background
 
 cocos-cli depends on two native modules:

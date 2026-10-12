@@ -1,7 +1,9 @@
-import Sharp from 'sharp';
+import { getSharp } from '../base/native-modules';
 import { existsSync } from 'fs-extra';
 import { extname } from 'path';
 import type { Asset, VirtualAsset } from '@cocos/asset-db';
+
+const Sharp = getSharp();
 
 export interface IImagePixelExtractionOptions {
     rect: {

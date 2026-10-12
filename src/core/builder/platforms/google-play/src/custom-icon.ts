@@ -1,3 +1,4 @@
+import { getSharp } from '../../../../base/native-modules';
 import { ensureDir, existsSync, remove } from 'fs-extra';
 import { dirname, join } from 'path';
 
@@ -96,11 +97,7 @@ export function getDisplayCustomIcon(projectRoot: string, type: 'default' | 'cus
 }
 
 export async function saveCustomIcon(source: string, projectRoot: string, type: 'default' | 'custom', outputName: string): Promise<string> {
-    const sharp = require('sharp') as (input: string) => {
-        resize(width: number, height: number, options?: Record<string, unknown>): {
-            withMetadata(metadata: Record<string, unknown>): { toFile(file: string): Promise<unknown> };
-        };
-    };
+    const sharp = getSharp();
     const info = getCustomIconInfoImpl(type, getIconRoot(projectRoot, type, outputName));
 
     for (const item of info.list) {

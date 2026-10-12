@@ -1,5 +1,6 @@
 'use strict';
 
+import { getSharp } from '../../../base/native-modules';
 import { Asset, VirtualAsset, queryPath, queryUUID } from '@cocos/asset-db';
 import * as cc from 'cc';
 
@@ -11,14 +12,13 @@ import { makeDefaultSpriteFrameBaseAssetUserData } from './texture-base';
 import { resolveImageSourceFile } from '../../image-processing';
 
 try {
-    require('sharp');
+    getSharp();
 } catch (error) {
     console.error(error);
     console.error(i18n.t('importer.sharp_error'));
 }
 
-const Sharp = require('sharp');
-
+const Sharp = getSharp();
 Sharp.cache(false);
 
 const defaultSpriteFrameUserData = makeDefaultSpriteFrameBaseAssetUserData();

@@ -2,7 +2,7 @@ import { Asset } from '@cocos/asset-db';
 import { existsSync, readFile } from 'fs-extra';
 import { checkSize } from '../erp-texture-cube';
 import { convertTGA, convertPSD, convertTIFF, convertHDROrEXR, convertHDR } from './image-mics';
-import Sharp from 'sharp';
+import { getSharp } from '../../../../base/native-modules';
 import { ImageAssetUserData } from '../../../@types/userDatas';
 
 import { join } from 'path';
@@ -15,6 +15,8 @@ import {
 } from './utils';
 import { AssetHandler } from '../../../@types/protected';
 import utils from '../../../../base/utils';
+
+const Sharp = getSharp();
 
 export const ImageHandler: AssetHandler = {
     displayName: 'i18n:ENGINE.assets.image.label',

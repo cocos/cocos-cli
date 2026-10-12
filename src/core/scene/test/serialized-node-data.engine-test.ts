@@ -1,3 +1,4 @@
+import { getSharp } from '../../base/native-modules';
 import { join } from 'path';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
@@ -30,6 +31,7 @@ describe('Serialized node data with the real engine', () => {
         await Engine.importEditorExtensions();
         const { default: preload } = await import('cc/preload');
         await preload({
+            sharp: getSharp(),
             engineRoot: TestGlobalEnv.engineRoot,
             engineDev: join(TestGlobalEnv.engineRoot, 'bin/.cache/dev-cli'),
             writablePath,

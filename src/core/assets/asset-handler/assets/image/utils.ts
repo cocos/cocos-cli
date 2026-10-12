@@ -3,7 +3,8 @@ import { IAsset, ThumbnailInfo } from '../../../@types/protected';
 import { ImageAsset, Rect } from 'cc';
 import { existsSync, readFile } from 'fs-extra';
 import { join } from 'path';
-import Sharp from 'sharp';
+import type { Channels } from 'sharp';
+import { getSharp } from '../../../../base/native-modules';
 import {
     ImageAssetUserData,
     ImageImportType,
@@ -16,14 +17,16 @@ import { getDependUUIDList } from '../../utils';
 import { applyContourBleed } from '../utils/algorithm/bleeding';
 import { makeDefaultSpriteFrameBaseAssetUserData, makeDefaultTextureBaseAssetUserData } from '../texture-base';
 
+const Sharp = getSharp();
+
 const enum Color {
     Red = 0,
     Green,
     Blue,
     Alpha = 3,
 }
-const RGBChannels: Sharp.Channels = 3;
-const RGBAChannels: Sharp.Channels = 4;
+const RGBChannels: Channels = 3;
+const RGBAChannels: Channels = 4;
 
 export function makeDefaultTextureCubeAssetUserData(): TextureCubeAssetUserData {
     const userData = makeDefaultTextureBaseAssetUserData() as TextureCubeAssetUserData;
@@ -187,7 +190,7 @@ export async function handleImageUserData(asset: Asset | VirtualAsset, imageData
         const sharpResult = await Sharp(imageDataBufferOrimagePath);
         const { width, height } = await sharpResult.metadata();
         const buffer = await sharpResult.raw().toBuffer();
-        const channels = (buffer.length / width! / height!) as Sharp.Channels;
+        const channels = (buffer.length / width! / height!) as Channels;
         const startIndex = Color.Green;
         for (let index = startIndex; index < buffer.length; index = channels! + index) {
             buffer[index] = 255 - buffer[index];

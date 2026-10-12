@@ -1,3 +1,4 @@
+import { getSharp } from '../../base/native-modules';
 import { ChildProcess, spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import {
@@ -207,7 +208,7 @@ export class ReflectionProbeBakeHost implements IReflectionProbeBakeHostService 
     ): Promise<string[]> {
         const result: string[] = [];
         try {
-            const sharp = (await import('sharp')).default;
+            const sharp = getSharp();
             const decodedFaces = faces.map((face, index) => {
                 const data = Buffer.from(face, 'base64');
                 if (data.length !== resolution * resolution * 4) {

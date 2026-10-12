@@ -1,4 +1,6 @@
 'use strict';
+
+import { getSharp } from '../../../../../base/native-modules';
 /**
  * 工具函数，不可引用一些特殊进程的全局变量或者特殊模块
  */
@@ -7,7 +9,7 @@ import { existsSync, ensureDirSync, readFileSync } from 'fs-extra';
 import i18n from '../../../../../base/i18n';
 import { ICompressConfig } from '../../../../@types';
 
-const Sharp = require('sharp');
+const Sharp = getSharp();
 
 export function isPowerOfTwo(num: number) {
     return num > 0 && (num & (num - 1)) == 0;
@@ -24,7 +26,7 @@ export function getMipLevel(width: number, height: number) {
 export async function genMipmapFiles(file: string, destDir?: string, forceChangeToPowerOfTwo?: boolean) {
     const sharpResult = Sharp(file);
     const metaData = await sharpResult.metadata();
-    if (!isPowerOfTwo(metaData.width) || !isPowerOfTwo(metaData.height)) {
+    if (!metaData.width || !metaData.height || !isPowerOfTwo(metaData.width) || !isPowerOfTwo(metaData.height)) {
         throw new Error(i18n.t('builder.project.texture_compress.mipmap.no_power_of_two'));
         // TODO forceChangeToPowerOfTwo
     }

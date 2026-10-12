@@ -1213,7 +1213,7 @@ const miscChecks = (() => {
 })();
 
 const finalTypeCheck = (() => {
-    let gl = require('gl')(300, 150, { preserveDrawingBuffer: true });
+    let gl = require('../../base/native-modules').getGl()(300, 150, { preserveDrawingBuffer: true });
     const supportedExtensions = gl.getSupportedExtensions();
     for (let i = 0; i !== supportedExtensions.length; ++i) {
         gl.getExtension(supportedExtensions[i]);

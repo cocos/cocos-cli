@@ -1,3 +1,4 @@
+import { getSharp } from '../../../../../base/native-modules';
 import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { emptyDirSync, existsSync, outputJSONSync, readJSONSync } from 'fs-extra';
 import lodash from 'lodash';
@@ -115,7 +116,7 @@ export class TexturePacker {
         const newStoredPacInfo: IStorePackInfo = {
             md5: '',
             versionDev,
-            sharpMd5: calcMd5(JSON.stringify(require('sharp').versions)),
+            sharpMd5: calcMd5(JSON.stringify(getSharp().versions)),
         };
         // 对图片进行排序，确保每次重新计算 md5 一致
         pacInfo.storeInfo.sprites = lodash.sortBy(pacInfo.storeInfo.sprites, 'uuid');

@@ -2,12 +2,14 @@ import { Asset, queryAsset } from '@cocos/asset-db';
 import * as path from 'path';
 import * as fs from 'fs';
 import { DOMParser } from 'xmldom';
-import Sharp from 'sharp';
+import { getSharp } from '../../../base/native-modules';
 import { Size, SpriteFrame, TextAsset, TiledMapAsset } from 'cc';
 import { changeImageDefaultType } from './utils/image-utils';
 
 import { getDependUUIDList } from '../utils';
 import { AssetHandler } from '../../@types/protected';
+
+const Sharp = getSharp();
 
 /**
  * 读取 tmx 文件内容，查找依赖的 texture 文件信息

@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { EngineLoader } from './loader';
-import sharp from 'sharp';
+import type sharp from 'sharp';
 let hasPreload = false;
 
 /**
@@ -12,6 +12,8 @@ async function preload(options: {
      * 引擎根目录
      */
     engineRoot: string;
+    /** Complete image module selected by the caller for this runtime. */
+    sharp: typeof sharp;
     /**
      * 引擎分发目录（引擎编译后的目录）
      */
@@ -43,7 +45,7 @@ async function preload(options: {
             require: require,
             userDataPath: options.writablePath,
             process: process,
-            sharp: sharp, 
+            sharp: options.sharp,
             systemLanguage: Intl.DateTimeFormat().resolvedOptions().locale,
             XMLHttpRequest: require('xhr2'),
             SocketIO: require('socket.io-client'),

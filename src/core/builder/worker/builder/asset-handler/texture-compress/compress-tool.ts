@@ -1,3 +1,4 @@
+import { getSharp } from '../../../../../base/native-modules';
 import { existsSync, ensureDirSync } from 'fs-extra';
 import { dirname } from 'path';
 import * as Path from 'path';
@@ -8,7 +9,8 @@ import { ICompressConfig, ITextureCompressType } from '../../../../@types';
 import { GlobalPaths } from '../../../../../../global';
 import utils from '../../../../../base/utils';
 import builderConfig from '../../../../share/builder-config';
-const Sharp = require('sharp');
+
+const Sharp = getSharp();
 
 /**
  * 压缩 jpg png
@@ -333,10 +335,13 @@ export async function compressCustomFormat(config: ICompressConfig) {
 // 为 pvr 创建一张 rgb atlas 贴图
 // 贴图的上半部分存原图的 rgb 值，下半部存原图的 alpha 值
 async function createAlphaAtlas(src: string, dest: string) {
-    const image = new Sharp(src);
+    const image = Sharp(src);
     const metaData = await image.metadata();
     const width = metaData.width;
     const height = metaData.height;
+    if (!width || !height) {
+        throw new Error(`Image dimensions are unavailable: ${src}`);
+    }
 
     // pvr 格式需要长宽为 2 的次幂，并且需要为正方形
     // 要正确计算出下半部分的起始值需要提前算好正方形 2 次幂的值
@@ -373,7 +378,7 @@ async function createAlphaAtlas(src: string, dest: string) {
             outputData[outputAlphaIndex + 2] = inputData[alpha];
         }
     }
-    const opts = { raw: { width, height: resizedHeight * 2, channels } };
+    const opts: import('sharp').SharpOptions = { raw: { width, height: resizedHeight * 2, channels } };
     ensureDirSync(Path.dirname(dest));
     await Sharp(outputData, opts).toFile(dest);
 }

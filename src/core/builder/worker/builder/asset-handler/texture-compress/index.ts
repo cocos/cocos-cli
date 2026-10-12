@@ -10,7 +10,7 @@ import { EventEmitter } from 'stream';
 import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { cpus } from 'os';
 const numCPUs = cpus().length;
-import Sharp from 'sharp';
+import { getSharp } from '../../../../../base/native-modules';
 import Lodash from 'lodash';
 import { formatMSTime } from '../../../../share/utils';
 import { newConsole } from '../../../../../base/console';
@@ -20,6 +20,8 @@ import { IImageTaskInfo, ITextureFormatInfo } from '../../../../@types/protected
 import { pluginManager } from '../../../../manager/plugin';
 import { configGroups, defaultSupport, formatsInfo, textureFormatConfigs } from '../../../../share/texture-compress';
 import builderConfig from '../../../../share/builder-config';
+
+const Sharp = getSharp();
 interface CompressCacheInfo {
     option: {
         mtime: number | string;
@@ -635,7 +637,6 @@ function increaseCustomCompressNum(config: ICustomConfig) {
     }
     config.num++;
 }
-
 
 export async function queryAllCompressConfig(): Promise<AllTextureCompressConfig> {
     const customConfig: Record<string, ICustomConfig> = await builderConfig.getProject('textureCompressConfig.customConfigs');

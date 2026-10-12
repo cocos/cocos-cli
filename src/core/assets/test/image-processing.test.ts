@@ -1,25 +1,28 @@
 export {};
 
 import { join } from 'path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
-jest.mock('sharp', () => ({
-    __esModule: true,
-    default: jest.fn(),
-}));
+jest.mock('sharp', () => jest.fn());
 
-const mockSharp = require('sharp').default as jest.Mock;
+const mockSharp = require('sharp') as jest.Mock;
 const imageProcessingModule = () => require('../image-processing') as typeof import('../image-processing');
 
 describe('asset image processing', () => {
+    let directory: string;
     beforeEach(() => {
         mockSharp.mockReset();
+        directory = mkdtempSync(join(tmpdir(), 'cocos-image-processing-'));
+        writeFileSync(join(directory, 'library.png'), '');
+    });
+
+    afterEach(() => {
+        rmSync(directory, { recursive: true, force: true });
     });
 
     it('prefers an existing imported library image over the source extension', () => {
-        const libraryImage = join(
-            __dirname,
-            '../../../../tests/fixtures/projects/asset-operation/library/b5/b5929d2c-caf4-4454-8f7e-4e84cb5ce144.png',
-        );
+        const libraryImage = join(directory, 'library.png');
         const asset = {
             source: 'D:/project/assets/image.tga',
             library: libraryImage.slice(0, -4),
@@ -32,10 +35,7 @@ describe('asset image processing', () => {
     });
 
     it('resolves an image library output through a virtual image subasset', () => {
-        const libraryImage = join(
-            __dirname,
-            '../../../../tests/fixtures/projects/asset-operation/library/b5/b5929d2c-caf4-4454-8f7e-4e84cb5ce144.png',
-        );
+        const libraryImage = join(directory, 'library.png');
         const parent = {
             source: 'D:/project/assets/image.png',
             library: libraryImage.slice(0, -4),

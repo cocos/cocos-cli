@@ -6,9 +6,11 @@ import { PNG } from 'pngjs';
 import TGA from 'tga-js';
 import { ensureDirSync, existsSync } from 'fs-extra';
 import PSD from 'psd.js';
-import Sharp from 'sharp';
+import { getSharp } from '../../../../base/native-modules';
 import { GlobalPaths } from '../../../../../global';
 import utils from '../../../../base/utils';
+
+const Sharp = getSharp();
 
 export async function convertTGA(data: Buffer): Promise<{ extName: string; data: Buffer }> {
     const tga = new TGA();

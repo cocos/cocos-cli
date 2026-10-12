@@ -1,3 +1,4 @@
+import { getSharp } from '../base/native-modules';
 import fse from 'fs-extra';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { EngineInfo } from './@types/public';
@@ -474,6 +475,7 @@ class EngineManager implements IEngine {
         const { default: preload } = await import('cc/preload');
         await this.importEditorExtensions();
         await preload({
+            sharp: getSharp(),
             engineRoot: this._info.typescript.path,
             engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
             writablePath: info.writablePath,

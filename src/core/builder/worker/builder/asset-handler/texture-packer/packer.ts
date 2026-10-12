@@ -5,8 +5,11 @@ import { AtlasInfo, PacInfo, SpriteFrameInfo } from './pac-info';
 import { IInternalPackOptions, IPackResult, IPackOptions } from '../../../../@types/protected';
 
 import { TexturePackerAlgorithm } from './algorithm';
-import Sharp, { SharpOptions } from 'sharp';
+import type { SharpOptions } from 'sharp';
+import { getSharp } from '../../../../../base/native-modules';
 import { BleedingProcessor } from './bleeding';
+
+const Sharp = getSharp();
 
 export async function packer(spriteFrameInfos: SpriteFrameInfo[], packOptions: IInternalPackOptions): Promise<IPackResult> {
 

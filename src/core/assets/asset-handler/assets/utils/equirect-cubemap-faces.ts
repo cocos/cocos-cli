@@ -1,6 +1,9 @@
 'use strict';
 
-import sharp, { Sharp } from 'sharp';
+import type { Sharp } from 'sharp';
+import { getSharp } from '../../../../base/native-modules';
+
+const sharp = getSharp();
 
 interface IData {
     height: number;
