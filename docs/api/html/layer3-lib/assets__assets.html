@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>assets/assets · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 3 · Lib</a> <span class="sep">/</span> <span>assets/assets</span></nav></div></header><main class="wrap"><h1><code>assets/assets</code></h1><p class="meta">51 exports · <code>src/lib/assets/assets.ts</code></p><table><thead><tr><th>Kind</th><th>Signature</th></tr></thead><tbody><tr><td><span class="badge">const</span></td><td><code>animationGraph</code></td></tr><tr><td><span class="badge">const</span></td><td><code>animationGraphVariant</code></td></tr><tr><td><span class="badge">const</span></td><td><code>animationMask</code></td></tr><tr><td><span class="badge">function</span></td><td><code>copyAsset(
+    source: string,
+    target: string,
+    options?: AssetOperationOption
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>createAsset(
+    options: CreateAssetOptions
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>createAssetByType(
+    ccType: ISupportCreateType,
+    dirOrUrl: string,
+    baseName: string,
+    options?: CreateAssetByTypeOptions
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>deleteAsset(dbPath: string, options?: DeleteAssetOptions)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>exportAssetPackage(urls: string[], destination: string, includeDependencies = true)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>generateThumbnail(
+    urlOrUUIDOrPath: string, size?: ThumbnailSize
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>importAsset(
+    source: string,
+    target: string,
+    options?: AssetOperationOption
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>init()</code></td></tr><tr><td><span class="badge">const</span></td><td><code>material</code></td></tr><tr><td><span class="badge">function</span></td><td><code>moveAsset(
+    source: string,
+    target: string,
+    options: AssetOperationOption = {}
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>onAssetAdded(listener: (info: IAssetInfo)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>onAssetChanged(listener: (info: IAssetInfo)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>onAssetRemoved(listener: (info: IAssetInfo)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>onDBReady(listener: (dbInfo: IAssetDBInfo)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>onProgress(listener: (current: number, total: number, url: string, state: 'processing' | 'success' | 'failed')</code></td></tr><tr><td><span class="badge">function</span></td><td><code>onReady(listener: ()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetConfigMap()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetDBInfos()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetDependencies(
+    uuidOrUrl: string,
+    type: QueryAssetType = 'asset'
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetInfo(
+    urlOrUUIDOrPath: string,
+    dataKeys?: string[] | undefined
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetMeta(urlOrUUIDOrPath: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetUserDataConfig(
+    urlOrUuidOrPath: string
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryAssetUsers(
+    uuidOrUrl: string,
+    type: QueryAssetType = 'asset'
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryCreateMap()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryMaterial(uuidOrUrlOrPath: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryMaterialAllEffects()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryMaterialEffect(effectNameOrUuid: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryPath(urlOrUuid: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryPropertySchema(importer: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>querySerializedData(uuidOrUrlOrPath: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>querySortedPlugins(
+    filterOptions: FilterPluginOptions = {}
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryThumbnailHandlers()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryUrl(uuidOrPath: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>queryUUID(urlOrPath: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>reconcileLocalizationRuntimeMount()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>refresh(dir: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>reimportAsset(pathOrUrlOrUUID: string)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>renameAsset(
+    source: string,
+    newName: string,
+    options: AssetOperationOption = {}
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>saveAsset(
+    pathOrUrlOrUUID: string,
+    data: string | Buffer
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>saveMaterial(uuidOrUrlOrPath: string, dump: MaterialDump)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>saveSerializedData(
+    uuidOrUrlOrPath: string,
+    patch: SerializedAssetPatch
+)</code></td></tr><tr><td><span class="badge">const</span></td><td><code>serializedData</code></td></tr><tr><td><span class="badge">function</span></td><td><code>setFileSystemProvider(provider: IAssetFileSystemProvider)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>start()</code></td></tr><tr><td><span class="badge">function</span></td><td><code>updateAssetUserData(
+    urlOrUuidOrPath: string,
+    userData: Record&lt;string, any&gt;
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>updateAssetUserDataByPath(
+    urlOrUuidOrPath: string,
+    path: string,
+    value: any
+)</code></td></tr><tr><td><span class="badge">function</span></td><td><code>updateDefaultUserData(
+    handler: string,
+    path: string,
+    value: any
+)</code></td></tr></tbody></table></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>assets-query-property-schema · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>assets-query-property-schema</span></nav></div></header><main class="wrap"><h1><code>assets-query-property-schema</code></h1><p class="meta"><span class="badge">Assets</span> method <code>queryPropertySchema</code></p><p class="lead">Query the import property schema map for a specific asset importer. The result value follows ICocosConfigurationPropertySchema, using fields such as title, type, default, enum, enumDescriptions, minimum, maximum, step, properties, and items.</p><h2>Parameters</h2><h3><code>importer</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-query-property-schema_importer&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-query-property-schema_importer&quot;: {
+      &quot;type&quot;: &quot;string&quot;,
+      &quot;minLength&quot;: 1,
+      &quot;description&quot;: &quot;Asset handler name&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-query-property-schema_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-query-property-schema_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;importer&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;Asset handler name&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;importer&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-query-property-schema_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-query-property-schema_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;additionalProperties&quot;: {
+                    &quot;type&quot;: &quot;object&quot;,
+                    &quot;properties&quot;: {
+                      &quot;type&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;enum&quot;: [
+                          &quot;string&quot;,
+                          &quot;number&quot;,
+                          &quot;boolean&quot;,
+                          &quot;object&quot;,
+                          &quot;array&quot;
+                        ],
+                        &quot;description&quot;: &quot;Configuration property value type&quot;
+                      },
+                      &quot;default&quot;: {
+                        &quot;description&quot;: &quot;Default value&quot;
+                      },
+                      &quot;title&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Display title&quot;
+                      },
+                      &quot;description&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Property description&quot;
+                      },
+                      &quot;enum&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: [
+                            &quot;string&quot;,
+                            &quot;number&quot;,
+                            &quot;boolean&quot;
+                          ]
+                        },
+                        &quot;description&quot;: &quot;Allowed enum values&quot;
+                      },
+                      &quot;enumDescriptions&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;Display text for enum values&quot;
+                      },
+                      &quot;minimum&quot;: {
+                        &quot;type&quot;: &quot;number&quot;,
+                        &quot;description&quot;: &quot;Minimum number value&quot;
+                      },
+                      &quot;maximum&quot;: {
+                        &quot;type&quot;: &quot;number&quot;,
+                        &quot;description&quot;: &quot;Maximum number value&quot;
+                      },
+                      &quot;step&quot;: {
+                        &quot;type&quot;: &quot;number&quot;,
+                        &quot;description&quot;: &quot;Number input step&quot;
+                      },
+                      &quot;order&quot;: {
+                        &quot;type&quot;: &quot;number&quot;,
+                        &quot;description&quot;: &quot;Display order&quot;
+                      },
+                      &quot;properties&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;additionalProperties&quot;: {},
+                        &quot;description&quot;: &quot;Nested object properties&quot;
+                      },
+                      &quot;items&quot;: {
+                        &quot;anyOf&quot;: [
+                          {},
+                          {
+                            &quot;type&quot;: &quot;array&quot;,
+                            &quot;items&quot;: {}
+                          }
+                        ],
+                        &quot;description&quot;: &quot;Array item schema&quot;
+                      },
+                      &quot;additionalProperties&quot;: {
+                        &quot;anyOf&quot;: [
+                          {
+                            &quot;type&quot;: &quot;boolean&quot;
+                          },
+                          {}
+                        ],
+                        &quot;description&quot;: &quot;Additional object property schema&quot;
+                      },
+                      &quot;required&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;Required nested object property keys&quot;
+                      },
+                      &quot;ui&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Preferred UI control&quot;
+                      },
+                      &quot;assetType&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Allowed Cocos asset type for an asset picker&quot;
+                      },
+                      &quot;valueField&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Field used as the selected value&quot;
+                      },
+                      &quot;displayFields&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;Fields displayed by the UI control&quot;
+                      },
+                      &quot;query&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;additionalProperties&quot;: {},
+                        &quot;description&quot;: &quot;Additional UI query constraints&quot;
+                      }
+                    },
+                    &quot;required&quot;: [
+                      &quot;type&quot;
+                    ],
+                    &quot;additionalProperties&quot;: false,
+                    &quot;description&quot;: &quot;Cocos configuration property schema for asset import properties&quot;
+                  },
+                  &quot;description&quot;: &quot;Asset import property schema map, key is property name, value follows ICocosConfigurationPropertySchema&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>scene-clear-reflection-probes · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>scene-clear-reflection-probes</span></nav></div></header><main class="wrap"><h1><code>scene-clear-reflection-probes</code></h1><p class="meta"><span class="badge">ReflectionProbe</span> method <code>clearAll</code></p><p class="lead">Clear all baked cubemap bindings in the active Pink/browser scene, optionally delete CLI-generated assets, and save the scene. No scene-open call is required.</p><h2>Parameters</h2><h3><code>options</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-clear-reflection-probes_options&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-clear-reflection-probes_options&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;source&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;runtimeId&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;minLength&quot;: 1
+            },
+            &quot;sceneUuid&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;minLength&quot;: 1
+            },
+            &quot;generation&quot;: {
+              &quot;type&quot;: &quot;integer&quot;,
+              &quot;minimum&quot;: 0
+            }
+          },
+          &quot;required&quot;: [
+            &quot;runtimeId&quot;,
+            &quot;sceneUuid&quot;,
+            &quot;generation&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        },
+        &quot;saveScene&quot;: {
+          &quot;type&quot;: &quot;boolean&quot;,
+          &quot;default&quot;: true,
+          &quot;description&quot;: &quot;Save the active scene once after all cubemap bindings are cleared&quot;
+        },
+        &quot;deleteAssets&quot;: {
+          &quot;type&quot;: &quot;boolean&quot;,
+          &quot;default&quot;: true,
+          &quot;description&quot;: &quot;Delete CLI-generated cubemap PNG and convolution assets after clearing their bindings&quot;
+        },
+        &quot;timeoutMs&quot;: {
+          &quot;type&quot;: &quot;integer&quot;,
+          &quot;exclusiveMinimum&quot;: 0,
+          &quot;maximum&quot;: 600000,
+          &quot;default&quot;: 120000,
+          &quot;description&quot;: &quot;Timeout for the complete clear operation&quot;
+        }
+      },
+      &quot;additionalProperties&quot;: false,
+      &quot;description&quot;: &quot;Clear-all reflection probe options&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-clear-reflection-probes_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-clear-reflection-probes_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;options&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;source&quot;: {
+              &quot;type&quot;: &quot;object&quot;,
+              &quot;properties&quot;: {
+                &quot;runtimeId&quot;: {
+                  &quot;type&quot;: &quot;string&quot;,
+                  &quot;minLength&quot;: 1
+                },
+                &quot;sceneUuid&quot;: {
+                  &quot;type&quot;: &quot;string&quot;,
+                  &quot;minLength&quot;: 1
+                },
+                &quot;generation&quot;: {
+                  &quot;type&quot;: &quot;integer&quot;,
+                  &quot;minimum&quot;: 0
+                }
+              },
+              &quot;required&quot;: [
+                &quot;runtimeId&quot;,
+                &quot;sceneUuid&quot;,
+                &quot;generation&quot;
+              ],
+              &quot;additionalProperties&quot;: false
+            },
+            &quot;saveScene&quot;: {
+              &quot;type&quot;: &quot;boolean&quot;,
+              &quot;default&quot;: true,
+              &quot;description&quot;: &quot;Save the active scene once after all cubemap bindings are cleared&quot;
+            },
+            &quot;deleteAssets&quot;: {
+              &quot;type&quot;: &quot;boolean&quot;,
+              &quot;default&quot;: true,
+              &quot;description&quot;: &quot;Delete CLI-generated cubemap PNG and convolution assets after clearing their bindings&quot;
+            },
+            &quot;timeoutMs&quot;: {
+              &quot;type&quot;: &quot;integer&quot;,
+              &quot;exclusiveMinimum&quot;: 0,
+              &quot;maximum&quot;: 600000,
+              &quot;default&quot;: 120000,
+              &quot;description&quot;: &quot;Timeout for the complete clear operation&quot;
+            }
+          },
+          &quot;additionalProperties&quot;: false,
+          &quot;description&quot;: &quot;Clear-all reflection probe options&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;options&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-clear-reflection-probes_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-clear-reflection-probes_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;sceneUrl&quot;: {
+                      &quot;type&quot;: &quot;string&quot;
+                    },
+                    &quot;totalCount&quot;: {
+                      &quot;type&quot;: &quot;integer&quot;,
+                      &quot;minimum&quot;: 0
+                    },
+                    &quot;clearedCount&quot;: {
+                      &quot;type&quot;: &quot;integer&quot;,
+                      &quot;minimum&quot;: 0
+                    },
+                    &quot;deletedAssetUrls&quot;: {
+                      &quot;type&quot;: &quot;array&quot;,
+                      &quot;items&quot;: {
+                        &quot;type&quot;: &quot;string&quot;
+                      }
+                    },
+                    &quot;failures&quot;: {
+                      &quot;type&quot;: &quot;array&quot;,
+                      &quot;items&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;properties&quot;: {
+                          &quot;assetUrl&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          },
+                          &quot;reason&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          }
+                        },
+                        &quot;required&quot;: [
+                          &quot;assetUrl&quot;,
+                          &quot;reason&quot;
+                        ],
+                        &quot;additionalProperties&quot;: false
+                      }
+                    },
+                    &quot;durationMs&quot;: {
+                      &quot;type&quot;: &quot;number&quot;,
+                      &quot;minimum&quot;: 0
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;sceneUrl&quot;,
+                    &quot;totalCount&quot;,
+                    &quot;clearedCount&quot;,
+                    &quot;deletedAssetUrls&quot;,
+                    &quot;failures&quot;,
+                    &quot;durationMs&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false,
+                  &quot;description&quot;: &quot;Clear-all reflection probe result&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

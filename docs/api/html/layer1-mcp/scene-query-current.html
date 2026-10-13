@@ -1,0 +1,2307 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>scene-query-current · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>scene-query-current</span></nav></div></header><main class="wrap"><h1><code>scene-query-current</code></h1><p class="meta"><span class="badge">Scene</span> method <code>queryCurrent</code></p><p class="lead">Get current opened scene/prefab info, if no scene is opened, the data is not returned.</p><h2>Parameters</h2><p class="meta">No parameters.</p><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-query-current_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-query-current_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {},
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-query-current_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-query-current_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;anyOf&quot;: [
+                    {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;assetName&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Scene or Prefab asset name&quot;
+                        },
+                        &quot;assetUuid&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Scene or Prefab asset unique identifier UUID&quot;
+                        },
+                        &quot;assetUrl&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Scene or Prefab asset uses db:// protocol format&quot;
+                        },
+                        &quot;assetType&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Scene or Prefab asset type&quot;
+                        },
+                        &quot;name&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Scene/Prefab Name&quot;
+                        },
+                        &quot;prefab&quot;: {
+                          &quot;anyOf&quot;: [
+                            {
+                              &quot;anyOf&quot;: [
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;properties&quot;: {
+                                    &quot;asset&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;name&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Prefab name&quot;
+                                        },
+                                        &quot;uuid&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Prefab UUID&quot;
+                                        },
+                                        &quot;data&quot;: {
+                                          &quot;type&quot;: &quot;object&quot;,
+                                          &quot;properties&quot;: {
+                                            &quot;nodeId&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node ID&quot;
+                                            },
+                                            &quot;path&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                            },
+                                            &quot;name&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                            }
+                                          },
+                                          &quot;required&quot;: [
+                                            &quot;nodeId&quot;,
+                                            &quot;path&quot;,
+                                            &quot;name&quot;
+                                          ],
+                                          &quot;additionalProperties&quot;: false,
+                                          &quot;description&quot;: &quot;Root node in prefab&quot;
+                                        },
+                                        &quot;optimizationPolicy&quot;: {
+                                          &quot;type&quot;: &quot;number&quot;,
+                                          &quot;description&quot;: &quot;Optimization Policy, AUTO: 0, SINGLE_INSTANCE: 1, MULTI_INSTANCE: 1&quot;
+                                        },
+                                        &quot;persistent&quot;: {
+                                          &quot;type&quot;: &quot;boolean&quot;,
+                                          &quot;description&quot;: &quot;Whether it is a persistent node&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;name&quot;,
+                                        &quot;uuid&quot;,
+                                        &quot;data&quot;,
+                                        &quot;optimizationPolicy&quot;,
+                                        &quot;persistent&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Prefab asset information&quot;
+                                    },
+                                    &quot;root&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;nodeId&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node ID&quot;
+                                        },
+                                        &quot;path&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                        },
+                                        &quot;name&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;nodeId&quot;,
+                                        &quot;path&quot;,
+                                        &quot;name&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Points to the root node of Prefab&quot;
+                                    },
+                                    &quot;instance&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;fileId&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Used to uniquely identify a PrefabInstance, used for propertyOverride index lookup&quot;
+                                        },
+                                        &quot;prefabRootNode&quot;: {
+                                          &quot;type&quot;: &quot;object&quot;,
+                                          &quot;properties&quot;: {
+                                            &quot;nodeId&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node ID&quot;
+                                            },
+                                            &quot;path&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                            },
+                                            &quot;name&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                            }
+                                          },
+                                          &quot;required&quot;: [
+                                            &quot;nodeId&quot;,
+                                            &quot;path&quot;,
+                                            &quot;name&quot;
+                                          ],
+                                          &quot;additionalProperties&quot;: false,
+                                          &quot;description&quot;: &quot;Records the Root node info of the external Prefab on nested prefabs. E.g. PrefabA -&gt; PrefabB, this field of B points to PrefabA node&quot;
+                                        },
+                                        &quot;mountedChildren&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;targetInfo&quot;: {
+                                                &quot;anyOf&quot;: [
+                                                  {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;localID&quot;: {
+                                                        &quot;type&quot;: &quot;array&quot;,
+                                                        &quot;items&quot;: {
+                                                          &quot;type&quot;: &quot;string&quot;
+                                                        },
+                                                        &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;localID&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                  },
+                                                  {
+                                                    &quot;type&quot;: &quot;null&quot;
+                                                  }
+                                                ],
+                                                &quot;description&quot;: &quot;Parent node info, corresponding to the actual node mounted in the prefab&quot;
+                                              },
+                                              &quot;nodes&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;object&quot;,
+                                                  &quot;properties&quot;: {
+                                                    &quot;nodeId&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node ID&quot;
+                                                    },
+                                                    &quot;path&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                    },
+                                                    &quot;name&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                    }
+                                                  },
+                                                  &quot;required&quot;: [
+                                                    &quot;nodeId&quot;,
+                                                    &quot;path&quot;,
+                                                    &quot;name&quot;
+                                                  ],
+                                                  &quot;additionalProperties&quot;: false,
+                                                  &quot;description&quot;: &quot;Node identifier&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Mounted nodes array&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;targetInfo&quot;,
+                                              &quot;nodes&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Mounted children information&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Node data existing on prefab instance but not in prefab assets. E.g. creating prefab A, adding nodes to A or its children, will be recorded here&quot;
+                                        },
+                                        &quot;mountedComponents&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;targetInfo&quot;: {
+                                                &quot;anyOf&quot;: [
+                                                  {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;localID&quot;: {
+                                                        &quot;type&quot;: &quot;array&quot;,
+                                                        &quot;items&quot;: {
+                                                          &quot;type&quot;: &quot;string&quot;
+                                                        },
+                                                        &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;localID&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                  },
+                                                  {
+                                                    &quot;type&quot;: &quot;null&quot;
+                                                  }
+                                                ],
+                                                &quot;description&quot;: &quot;Parent node info, corresponding to the actual node mounted in the prefab&quot;
+                                              },
+                                              &quot;components&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;object&quot;,
+                                                  &quot;properties&quot;: {
+                                                    &quot;cid&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component identifier&quot;
+                                                    },
+                                                    &quot;path&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                                    },
+                                                    &quot;uuid&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component UUID&quot;
+                                                    },
+                                                    &quot;name&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component name&quot;
+                                                    },
+                                                    &quot;type&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component type&quot;
+                                                    },
+                                                    &quot;enabled&quot;: {
+                                                      &quot;type&quot;: &quot;boolean&quot;,
+                                                      &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                                    }
+                                                  },
+                                                  &quot;required&quot;: [
+                                                    &quot;cid&quot;,
+                                                    &quot;path&quot;,
+                                                    &quot;uuid&quot;,
+                                                    &quot;name&quot;,
+                                                    &quot;type&quot;,
+                                                    &quot;enabled&quot;
+                                                  ],
+                                                  &quot;additionalProperties&quot;: false,
+                                                  &quot;description&quot;: &quot;Component basic information&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Mounted components array&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;targetInfo&quot;,
+                                              &quot;components&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Information of components on prefab instance that do not belong to prefab assets&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Component data existing on prefab instance but not in prefab assets. E.g. creating prefab A, adding components to A or its children, will be recorded here&quot;
+                                        },
+                                        &quot;propertyOverrides&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;targetInfo&quot;: {
+                                                &quot;anyOf&quot;: [
+                                                  {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;localID&quot;: {
+                                                        &quot;type&quot;: &quot;array&quot;,
+                                                        &quot;items&quot;: {
+                                                          &quot;type&quot;: &quot;string&quot;
+                                                        },
+                                                        &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;localID&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                  },
+                                                  {
+                                                    &quot;type&quot;: &quot;null&quot;
+                                                  }
+                                                ],
+                                                &quot;description&quot;: &quot;Target info, used to find target node or component&quot;
+                                              },
+                                              &quot;propertyPath&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;string&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Property path&quot;
+                                              },
+                                              &quot;value&quot;: {
+                                                &quot;description&quot;: &quot;Actual value of property type&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;targetInfo&quot;,
+                                              &quot;propertyPath&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Records property override information for prefab instances&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Saves all property override data for Prefab. When loading prefab, nodes are created based on assets first, then overridden properties are rewritten&quot;
+                                        },
+                                        &quot;removedComponents&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;localID&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;string&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;localID&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Removed component assets array. When removing components originally in prefab assets, data is saved here. Instead of referencing components directly, component location is recorded via TargetInfo&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;fileId&quot;,
+                                        &quot;mountedChildren&quot;,
+                                        &quot;mountedComponents&quot;,
+                                        &quot;propertyOverrides&quot;,
+                                        &quot;removedComponents&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Prefab instance object. Presence of this property indicates this node is a prefab instance&quot;
+                                    },
+                                    &quot;fileId&quot;: {
+                                      &quot;type&quot;: &quot;string&quot;,
+                                      &quot;description&quot;: &quot;Uniquely identifies a Node in a Prefab. Some references will look up corresponding nodes via this id&quot;
+                                    },
+                                    &quot;targetOverrides&quot;: {
+                                      &quot;type&quot;: &quot;array&quot;,
+                                      &quot;items&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;source&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;cid&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component identifier&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                                  },
+                                                  &quot;uuid&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component UUID&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component name&quot;
+                                                  },
+                                                  &quot;type&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component type&quot;
+                                                  },
+                                                  &quot;enabled&quot;: {
+                                                    &quot;type&quot;: &quot;boolean&quot;,
+                                                    &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;cid&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;uuid&quot;,
+                                                  &quot;name&quot;,
+                                                  &quot;type&quot;,
+                                                  &quot;enabled&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Component basic information&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;nodeId&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node ID&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;nodeId&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;name&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Node identifier&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;Referenced node or component&quot;
+                                          },
+                                          &quot;sourceInfo&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;localID&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;localID&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;If it is a reference to a child node or component within the prefab, targetInfo is needed for positioning&quot;
+                                          },
+                                          &quot;propertyPath&quot;: {
+                                            &quot;type&quot;: &quot;array&quot;,
+                                            &quot;items&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;
+                                            },
+                                            &quot;description&quot;: &quot;Property path&quot;
+                                          },
+                                          &quot;target&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;nodeId&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node ID&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;nodeId&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;name&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Node identifier&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;Prefab root node of the referenced target node&quot;
+                                          },
+                                          &quot;targetInfo&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;localID&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;localID&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;Referenced TargetInfo information, used to locate specifically where&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;source&quot;,
+                                          &quot;sourceInfo&quot;,
+                                          &quot;propertyPath&quot;,
+                                          &quot;target&quot;,
+                                          &quot;targetInfo&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Target override information&quot;
+                                      },
+                                      &quot;description&quot;: &quot;Records reference relationships to child nodes/components of other prefabs&quot;
+                                    },
+                                    &quot;nestedPrefabInstanceRoots&quot;: {
+                                      &quot;type&quot;: &quot;array&quot;,
+                                      &quot;items&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;nodeId&quot;: {
+                                            &quot;type&quot;: &quot;string&quot;,
+                                            &quot;description&quot;: &quot;Node ID&quot;
+                                          },
+                                          &quot;path&quot;: {
+                                            &quot;type&quot;: &quot;string&quot;,
+                                            &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                          },
+                                          &quot;name&quot;: {
+                                            &quot;type&quot;: &quot;string&quot;,
+                                            &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;nodeId&quot;,
+                                          &quot;path&quot;,
+                                          &quot;name&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Node identifier&quot;
+                                      },
+                                      &quot;description&quot;: &quot;Prefab root node will have this info, recording all nested prefab instance nodes&quot;
+                                    }
+                                  },
+                                  &quot;required&quot;: [
+                                    &quot;fileId&quot;,
+                                    &quot;targetOverrides&quot;,
+                                    &quot;nestedPrefabInstanceRoots&quot;
+                                  ],
+                                  &quot;additionalProperties&quot;: false
+                                },
+                                {
+                                  &quot;type&quot;: &quot;null&quot;
+                                }
+                              ],
+                              &quot;description&quot;: &quot;Prefab information&quot;
+                            },
+                            {
+                              &quot;type&quot;: &quot;null&quot;
+                            }
+                          ],
+                          &quot;description&quot;: &quot;Prefab Info&quot;
+                        },
+                        &quot;children&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;anyOf&quot;: [
+                              {
+                                &quot;type&quot;: &quot;object&quot;,
+                                &quot;properties&quot;: {
+                                  &quot;nodeId&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Node ID&quot;
+                                  },
+                                  &quot;path&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                  },
+                                  &quot;name&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                  },
+                                  &quot;properties&quot;: {
+                                    &quot;type&quot;: &quot;object&quot;,
+                                    &quot;properties&quot;: {
+                                      &quot;position&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;x&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;X axis coordinate&quot;
+                                          },
+                                          &quot;y&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;Y axis coordinate&quot;
+                                          },
+                                          &quot;z&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;Z axis coordinate&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;x&quot;,
+                                          &quot;y&quot;,
+                                          &quot;z&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Node position&quot;
+                                      },
+                                      &quot;rotation&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;x&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;X axis coordinate&quot;
+                                          },
+                                          &quot;y&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;Y axis coordinate&quot;
+                                          },
+                                          &quot;z&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;Z axis coordinate&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;x&quot;,
+                                          &quot;y&quot;,
+                                          &quot;z&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Node rotation, Euler angles&quot;
+                                      },
+                                      &quot;scale&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;x&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;X axis coordinate&quot;
+                                          },
+                                          &quot;y&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;Y axis coordinate&quot;
+                                          },
+                                          &quot;z&quot;: {
+                                            &quot;type&quot;: &quot;number&quot;,
+                                            &quot;description&quot;: &quot;Z axis coordinate&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;x&quot;,
+                                          &quot;y&quot;,
+                                          &quot;z&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Node scale&quot;
+                                      },
+                                      &quot;mobility&quot;: {
+                                        &quot;type&quot;: &quot;number&quot;,
+                                        &quot;description&quot;: &quot;Node mobility, static means static node, movable means movable node, Stationary means fixed node&quot;
+                                      },
+                                      &quot;layer&quot;: {
+                                        &quot;type&quot;: &quot;number&quot;,
+                                        &quot;description&quot;: &quot;The layer the node belongs to&quot;
+                                      },
+                                      &quot;active&quot;: {
+                                        &quot;type&quot;: &quot;boolean&quot;,
+                                        &quot;description&quot;: &quot;Whether the node is active&quot;
+                                      }
+                                    },
+                                    &quot;required&quot;: [
+                                      &quot;position&quot;,
+                                      &quot;rotation&quot;,
+                                      &quot;scale&quot;,
+                                      &quot;mobility&quot;,
+                                      &quot;layer&quot;,
+                                      &quot;active&quot;
+                                    ],
+                                    &quot;additionalProperties&quot;: false,
+                                    &quot;description&quot;: &quot;Node properties&quot;
+                                  },
+                                  &quot;prefab&quot;: {
+                                    &quot;anyOf&quot;: [
+                                      {
+                                        &quot;anyOf&quot;: [
+                                          {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;asset&quot;: {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Prefab name&quot;
+                                                  },
+                                                  &quot;uuid&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Prefab UUID&quot;
+                                                  },
+                                                  &quot;data&quot;: {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;nodeId&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;,
+                                                        &quot;description&quot;: &quot;Node ID&quot;
+                                                      },
+                                                      &quot;path&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;,
+                                                        &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                      },
+                                                      &quot;name&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;,
+                                                        &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;nodeId&quot;,
+                                                      &quot;path&quot;,
+                                                      &quot;name&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Root node in prefab&quot;
+                                                  },
+                                                  &quot;optimizationPolicy&quot;: {
+                                                    &quot;type&quot;: &quot;number&quot;,
+                                                    &quot;description&quot;: &quot;Optimization Policy, AUTO: 0, SINGLE_INSTANCE: 1, MULTI_INSTANCE: 1&quot;
+                                                  },
+                                                  &quot;persistent&quot;: {
+                                                    &quot;type&quot;: &quot;boolean&quot;,
+                                                    &quot;description&quot;: &quot;Whether it is a persistent node&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;name&quot;,
+                                                  &quot;uuid&quot;,
+                                                  &quot;data&quot;,
+                                                  &quot;optimizationPolicy&quot;,
+                                                  &quot;persistent&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Prefab asset information&quot;
+                                              },
+                                              &quot;root&quot;: {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;nodeId&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node ID&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;nodeId&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;name&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Points to the root node of Prefab&quot;
+                                              },
+                                              &quot;instance&quot;: {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;fileId&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Used to uniquely identify a PrefabInstance, used for propertyOverride index lookup&quot;
+                                                  },
+                                                  &quot;prefabRootNode&quot;: {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;nodeId&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;,
+                                                        &quot;description&quot;: &quot;Node ID&quot;
+                                                      },
+                                                      &quot;path&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;,
+                                                        &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                      },
+                                                      &quot;name&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;,
+                                                        &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;nodeId&quot;,
+                                                      &quot;path&quot;,
+                                                      &quot;name&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Records the Root node info of the external Prefab on nested prefabs. E.g. PrefabA -&gt; PrefabB, this field of B points to PrefabA node&quot;
+                                                  },
+                                                  &quot;mountedChildren&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;object&quot;,
+                                                      &quot;properties&quot;: {
+                                                        &quot;targetInfo&quot;: {
+                                                          &quot;anyOf&quot;: [
+                                                            {
+                                                              &quot;type&quot;: &quot;object&quot;,
+                                                              &quot;properties&quot;: {
+                                                                &quot;localID&quot;: {
+                                                                  &quot;type&quot;: &quot;array&quot;,
+                                                                  &quot;items&quot;: {
+                                                                    &quot;type&quot;: &quot;string&quot;
+                                                                  },
+                                                                  &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                                }
+                                                              },
+                                                              &quot;required&quot;: [
+                                                                &quot;localID&quot;
+                                                              ],
+                                                              &quot;additionalProperties&quot;: false,
+                                                              &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                            },
+                                                            {
+                                                              &quot;type&quot;: &quot;null&quot;
+                                                            }
+                                                          ],
+                                                          &quot;description&quot;: &quot;Parent node info, corresponding to the actual node mounted in the prefab&quot;
+                                                        },
+                                                        &quot;nodes&quot;: {
+                                                          &quot;type&quot;: &quot;array&quot;,
+                                                          &quot;items&quot;: {
+                                                            &quot;type&quot;: &quot;object&quot;,
+                                                            &quot;properties&quot;: {
+                                                              &quot;nodeId&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Node ID&quot;
+                                                              },
+                                                              &quot;path&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                              },
+                                                              &quot;name&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                              }
+                                                            },
+                                                            &quot;required&quot;: [
+                                                              &quot;nodeId&quot;,
+                                                              &quot;path&quot;,
+                                                              &quot;name&quot;
+                                                            ],
+                                                            &quot;additionalProperties&quot;: false,
+                                                            &quot;description&quot;: &quot;Node identifier&quot;
+                                                          },
+                                                          &quot;description&quot;: &quot;Mounted nodes array&quot;
+                                                        }
+                                                      },
+                                                      &quot;required&quot;: [
+                                                        &quot;targetInfo&quot;,
+                                                        &quot;nodes&quot;
+                                                      ],
+                                                      &quot;additionalProperties&quot;: false,
+                                                      &quot;description&quot;: &quot;Mounted children information&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Node data existing on prefab instance but not in prefab assets. E.g. creating prefab A, adding nodes to A or its children, will be recorded here&quot;
+                                                  },
+                                                  &quot;mountedComponents&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;object&quot;,
+                                                      &quot;properties&quot;: {
+                                                        &quot;targetInfo&quot;: {
+                                                          &quot;anyOf&quot;: [
+                                                            {
+                                                              &quot;type&quot;: &quot;object&quot;,
+                                                              &quot;properties&quot;: {
+                                                                &quot;localID&quot;: {
+                                                                  &quot;type&quot;: &quot;array&quot;,
+                                                                  &quot;items&quot;: {
+                                                                    &quot;type&quot;: &quot;string&quot;
+                                                                  },
+                                                                  &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                                }
+                                                              },
+                                                              &quot;required&quot;: [
+                                                                &quot;localID&quot;
+                                                              ],
+                                                              &quot;additionalProperties&quot;: false,
+                                                              &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                            },
+                                                            {
+                                                              &quot;type&quot;: &quot;null&quot;
+                                                            }
+                                                          ],
+                                                          &quot;description&quot;: &quot;Parent node info, corresponding to the actual node mounted in the prefab&quot;
+                                                        },
+                                                        &quot;components&quot;: {
+                                                          &quot;type&quot;: &quot;array&quot;,
+                                                          &quot;items&quot;: {
+                                                            &quot;type&quot;: &quot;object&quot;,
+                                                            &quot;properties&quot;: {
+                                                              &quot;cid&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Component identifier&quot;
+                                                              },
+                                                              &quot;path&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                                              },
+                                                              &quot;uuid&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Component UUID&quot;
+                                                              },
+                                                              &quot;name&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Component name&quot;
+                                                              },
+                                                              &quot;type&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;,
+                                                                &quot;description&quot;: &quot;Component type&quot;
+                                                              },
+                                                              &quot;enabled&quot;: {
+                                                                &quot;type&quot;: &quot;boolean&quot;,
+                                                                &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                                              }
+                                                            },
+                                                            &quot;required&quot;: [
+                                                              &quot;cid&quot;,
+                                                              &quot;path&quot;,
+                                                              &quot;uuid&quot;,
+                                                              &quot;name&quot;,
+                                                              &quot;type&quot;,
+                                                              &quot;enabled&quot;
+                                                            ],
+                                                            &quot;additionalProperties&quot;: false,
+                                                            &quot;description&quot;: &quot;Component basic information&quot;
+                                                          },
+                                                          &quot;description&quot;: &quot;Mounted components array&quot;
+                                                        }
+                                                      },
+                                                      &quot;required&quot;: [
+                                                        &quot;targetInfo&quot;,
+                                                        &quot;components&quot;
+                                                      ],
+                                                      &quot;additionalProperties&quot;: false,
+                                                      &quot;description&quot;: &quot;Information of components on prefab instance that do not belong to prefab assets&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Component data existing on prefab instance but not in prefab assets. E.g. creating prefab A, adding components to A or its children, will be recorded here&quot;
+                                                  },
+                                                  &quot;propertyOverrides&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;object&quot;,
+                                                      &quot;properties&quot;: {
+                                                        &quot;targetInfo&quot;: {
+                                                          &quot;anyOf&quot;: [
+                                                            {
+                                                              &quot;type&quot;: &quot;object&quot;,
+                                                              &quot;properties&quot;: {
+                                                                &quot;localID&quot;: {
+                                                                  &quot;type&quot;: &quot;array&quot;,
+                                                                  &quot;items&quot;: {
+                                                                    &quot;type&quot;: &quot;string&quot;
+                                                                  },
+                                                                  &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                                }
+                                                              },
+                                                              &quot;required&quot;: [
+                                                                &quot;localID&quot;
+                                                              ],
+                                                              &quot;additionalProperties&quot;: false,
+                                                              &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                            },
+                                                            {
+                                                              &quot;type&quot;: &quot;null&quot;
+                                                            }
+                                                          ],
+                                                          &quot;description&quot;: &quot;Target info, used to find target node or component&quot;
+                                                        },
+                                                        &quot;propertyPath&quot;: {
+                                                          &quot;type&quot;: &quot;array&quot;,
+                                                          &quot;items&quot;: {
+                                                            &quot;type&quot;: &quot;string&quot;
+                                                          },
+                                                          &quot;description&quot;: &quot;Property path&quot;
+                                                        },
+                                                        &quot;value&quot;: {
+                                                          &quot;description&quot;: &quot;Actual value of property type&quot;
+                                                        }
+                                                      },
+                                                      &quot;required&quot;: [
+                                                        &quot;targetInfo&quot;,
+                                                        &quot;propertyPath&quot;
+                                                      ],
+                                                      &quot;additionalProperties&quot;: false,
+                                                      &quot;description&quot;: &quot;Records property override information for prefab instances&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Saves all property override data for Prefab. When loading prefab, nodes are created based on assets first, then overridden properties are rewritten&quot;
+                                                  },
+                                                  &quot;removedComponents&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;object&quot;,
+                                                      &quot;properties&quot;: {
+                                                        &quot;localID&quot;: {
+                                                          &quot;type&quot;: &quot;array&quot;,
+                                                          &quot;items&quot;: {
+                                                            &quot;type&quot;: &quot;string&quot;
+                                                          },
+                                                          &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                        }
+                                                      },
+                                                      &quot;required&quot;: [
+                                                        &quot;localID&quot;
+                                                      ],
+                                                      &quot;additionalProperties&quot;: false,
+                                                      &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Removed component assets array. When removing components originally in prefab assets, data is saved here. Instead of referencing components directly, component location is recorded via TargetInfo&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;fileId&quot;,
+                                                  &quot;mountedChildren&quot;,
+                                                  &quot;mountedComponents&quot;,
+                                                  &quot;propertyOverrides&quot;,
+                                                  &quot;removedComponents&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Prefab instance object. Presence of this property indicates this node is a prefab instance&quot;
+                                              },
+                                              &quot;fileId&quot;: {
+                                                &quot;type&quot;: &quot;string&quot;,
+                                                &quot;description&quot;: &quot;Uniquely identifies a Node in a Prefab. Some references will look up corresponding nodes via this id&quot;
+                                              },
+                                              &quot;targetOverrides&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;object&quot;,
+                                                  &quot;properties&quot;: {
+                                                    &quot;source&quot;: {
+                                                      &quot;anyOf&quot;: [
+                                                        {
+                                                          &quot;type&quot;: &quot;object&quot;,
+                                                          &quot;properties&quot;: {
+                                                            &quot;cid&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Component identifier&quot;
+                                                            },
+                                                            &quot;path&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                                            },
+                                                            &quot;uuid&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Component UUID&quot;
+                                                            },
+                                                            &quot;name&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Component name&quot;
+                                                            },
+                                                            &quot;type&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Component type&quot;
+                                                            },
+                                                            &quot;enabled&quot;: {
+                                                              &quot;type&quot;: &quot;boolean&quot;,
+                                                              &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                                            }
+                                                          },
+                                                          &quot;required&quot;: [
+                                                            &quot;cid&quot;,
+                                                            &quot;path&quot;,
+                                                            &quot;uuid&quot;,
+                                                            &quot;name&quot;,
+                                                            &quot;type&quot;,
+                                                            &quot;enabled&quot;
+                                                          ],
+                                                          &quot;additionalProperties&quot;: false,
+                                                          &quot;description&quot;: &quot;Component basic information&quot;
+                                                        },
+                                                        {
+                                                          &quot;type&quot;: &quot;object&quot;,
+                                                          &quot;properties&quot;: {
+                                                            &quot;nodeId&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Node ID&quot;
+                                                            },
+                                                            &quot;path&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                            },
+                                                            &quot;name&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                            }
+                                                          },
+                                                          &quot;required&quot;: [
+                                                            &quot;nodeId&quot;,
+                                                            &quot;path&quot;,
+                                                            &quot;name&quot;
+                                                          ],
+                                                          &quot;additionalProperties&quot;: false,
+                                                          &quot;description&quot;: &quot;Node identifier&quot;
+                                                        },
+                                                        {
+                                                          &quot;type&quot;: &quot;null&quot;
+                                                        }
+                                                      ],
+                                                      &quot;description&quot;: &quot;Referenced node or component&quot;
+                                                    },
+                                                    &quot;sourceInfo&quot;: {
+                                                      &quot;anyOf&quot;: [
+                                                        {
+                                                          &quot;type&quot;: &quot;object&quot;,
+                                                          &quot;properties&quot;: {
+                                                            &quot;localID&quot;: {
+                                                              &quot;type&quot;: &quot;array&quot;,
+                                                              &quot;items&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;
+                                                              },
+                                                              &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                            }
+                                                          },
+                                                          &quot;required&quot;: [
+                                                            &quot;localID&quot;
+                                                          ],
+                                                          &quot;additionalProperties&quot;: false,
+                                                          &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                        },
+                                                        {
+                                                          &quot;type&quot;: &quot;null&quot;
+                                                        }
+                                                      ],
+                                                      &quot;description&quot;: &quot;If it is a reference to a child node or component within the prefab, targetInfo is needed for positioning&quot;
+                                                    },
+                                                    &quot;propertyPath&quot;: {
+                                                      &quot;type&quot;: &quot;array&quot;,
+                                                      &quot;items&quot;: {
+                                                        &quot;type&quot;: &quot;string&quot;
+                                                      },
+                                                      &quot;description&quot;: &quot;Property path&quot;
+                                                    },
+                                                    &quot;target&quot;: {
+                                                      &quot;anyOf&quot;: [
+                                                        {
+                                                          &quot;type&quot;: &quot;object&quot;,
+                                                          &quot;properties&quot;: {
+                                                            &quot;nodeId&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Node ID&quot;
+                                                            },
+                                                            &quot;path&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                            },
+                                                            &quot;name&quot;: {
+                                                              &quot;type&quot;: &quot;string&quot;,
+                                                              &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                            }
+                                                          },
+                                                          &quot;required&quot;: [
+                                                            &quot;nodeId&quot;,
+                                                            &quot;path&quot;,
+                                                            &quot;name&quot;
+                                                          ],
+                                                          &quot;additionalProperties&quot;: false,
+                                                          &quot;description&quot;: &quot;Node identifier&quot;
+                                                        },
+                                                        {
+                                                          &quot;type&quot;: &quot;null&quot;
+                                                        }
+                                                      ],
+                                                      &quot;description&quot;: &quot;Prefab root node of the referenced target node&quot;
+                                                    },
+                                                    &quot;targetInfo&quot;: {
+                                                      &quot;anyOf&quot;: [
+                                                        {
+                                                          &quot;type&quot;: &quot;object&quot;,
+                                                          &quot;properties&quot;: {
+                                                            &quot;localID&quot;: {
+                                                              &quot;type&quot;: &quot;array&quot;,
+                                                              &quot;items&quot;: {
+                                                                &quot;type&quot;: &quot;string&quot;
+                                                              },
+                                                              &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                            }
+                                                          },
+                                                          &quot;required&quot;: [
+                                                            &quot;localID&quot;
+                                                          ],
+                                                          &quot;additionalProperties&quot;: false,
+                                                          &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                        },
+                                                        {
+                                                          &quot;type&quot;: &quot;null&quot;
+                                                        }
+                                                      ],
+                                                      &quot;description&quot;: &quot;Referenced TargetInfo information, used to locate specifically where&quot;
+                                                    }
+                                                  },
+                                                  &quot;required&quot;: [
+                                                    &quot;source&quot;,
+                                                    &quot;sourceInfo&quot;,
+                                                    &quot;propertyPath&quot;,
+                                                    &quot;target&quot;,
+                                                    &quot;targetInfo&quot;
+                                                  ],
+                                                  &quot;additionalProperties&quot;: false,
+                                                  &quot;description&quot;: &quot;Target override information&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Records reference relationships to child nodes/components of other prefabs&quot;
+                                              },
+                                              &quot;nestedPrefabInstanceRoots&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;object&quot;,
+                                                  &quot;properties&quot;: {
+                                                    &quot;nodeId&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node ID&quot;
+                                                    },
+                                                    &quot;path&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                    },
+                                                    &quot;name&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                    }
+                                                  },
+                                                  &quot;required&quot;: [
+                                                    &quot;nodeId&quot;,
+                                                    &quot;path&quot;,
+                                                    &quot;name&quot;
+                                                  ],
+                                                  &quot;additionalProperties&quot;: false,
+                                                  &quot;description&quot;: &quot;Node identifier&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Prefab root node will have this info, recording all nested prefab instance nodes&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;fileId&quot;,
+                                              &quot;targetOverrides&quot;,
+                                              &quot;nestedPrefabInstanceRoots&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false
+                                          },
+                                          {
+                                            &quot;type&quot;: &quot;null&quot;
+                                          }
+                                        ],
+                                        &quot;description&quot;: &quot;Prefab information&quot;
+                                      },
+                                      {
+                                        &quot;type&quot;: &quot;null&quot;
+                                      }
+                                    ],
+                                    &quot;description&quot;: &quot;Prefab information&quot;
+                                  },
+                                  &quot;children&quot;: {
+                                    &quot;type&quot;: &quot;array&quot;,
+                                    &quot;items&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;nodeId&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node ID&quot;
+                                        },
+                                        &quot;path&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                        },
+                                        &quot;name&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;nodeId&quot;,
+                                        &quot;path&quot;,
+                                        &quot;name&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Node identifier&quot;
+                                    },
+                                    &quot;description&quot;: &quot;List of child nodes as identifiers&quot;
+                                  },
+                                  &quot;components&quot;: {
+                                    &quot;type&quot;: &quot;array&quot;,
+                                    &quot;items&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;cid&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Component identifier&quot;
+                                        },
+                                        &quot;path&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                        },
+                                        &quot;uuid&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Component UUID&quot;
+                                        },
+                                        &quot;name&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Component name&quot;
+                                        },
+                                        &quot;type&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Component type&quot;
+                                        },
+                                        &quot;enabled&quot;: {
+                                          &quot;type&quot;: &quot;boolean&quot;,
+                                          &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;cid&quot;,
+                                        &quot;path&quot;,
+                                        &quot;uuid&quot;,
+                                        &quot;name&quot;,
+                                        &quot;type&quot;,
+                                        &quot;enabled&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Component basic information&quot;
+                                    },
+                                    &quot;description&quot;: &quot;List of components on the node&quot;
+                                  }
+                                },
+                                &quot;required&quot;: [
+                                  &quot;nodeId&quot;,
+                                  &quot;path&quot;,
+                                  &quot;name&quot;,
+                                  &quot;properties&quot;,
+                                  &quot;prefab&quot;
+                                ],
+                                &quot;additionalProperties&quot;: false,
+                                &quot;description&quot;: &quot;Node identifier&quot;
+                              },
+                              {
+                                &quot;type&quot;: &quot;object&quot;,
+                                &quot;properties&quot;: {
+                                  &quot;nodeId&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Node ID&quot;
+                                  },
+                                  &quot;path&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                  },
+                                  &quot;name&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                  }
+                                },
+                                &quot;required&quot;: [
+                                  &quot;nodeId&quot;,
+                                  &quot;path&quot;,
+                                  &quot;name&quot;
+                                ],
+                                &quot;additionalProperties&quot;: false,
+                                &quot;description&quot;: &quot;Node identifier&quot;
+                              }
+                            ]
+                          },
+                          &quot;description&quot;: &quot;Children List&quot;
+                        },
+                        &quot;components&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;properties&quot;: {
+                              &quot;cid&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component identifier&quot;
+                              },
+                              &quot;path&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Return component path, including node path&quot;
+                              },
+                              &quot;uuid&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component UUID&quot;
+                              },
+                              &quot;name&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component name&quot;
+                              },
+                              &quot;type&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component type&quot;
+                              },
+                              &quot;enabled&quot;: {
+                                &quot;type&quot;: &quot;boolean&quot;,
+                                &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                              }
+                            },
+                            &quot;required&quot;: [
+                              &quot;cid&quot;,
+                              &quot;path&quot;,
+                              &quot;uuid&quot;,
+                              &quot;name&quot;,
+                              &quot;type&quot;,
+                              &quot;enabled&quot;
+                            ],
+                            &quot;additionalProperties&quot;: false,
+                            &quot;description&quot;: &quot;Component basic information&quot;
+                          },
+                          &quot;description&quot;: &quot;Component List&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;assetName&quot;,
+                        &quot;assetUuid&quot;,
+                        &quot;assetUrl&quot;,
+                        &quot;assetType&quot;,
+                        &quot;name&quot;,
+                        &quot;prefab&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false,
+                      &quot;description&quot;: &quot;Scene/Prefab Info&quot;
+                    },
+                    {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;nodeId&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Node ID&quot;
+                        },
+                        &quot;path&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                        },
+                        &quot;name&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                        },
+                        &quot;properties&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;properties&quot;: {
+                            &quot;position&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;properties&quot;: {
+                                &quot;x&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;X axis coordinate&quot;
+                                },
+                                &quot;y&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Y axis coordinate&quot;
+                                },
+                                &quot;z&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Z axis coordinate&quot;
+                                }
+                              },
+                              &quot;required&quot;: [
+                                &quot;x&quot;,
+                                &quot;y&quot;,
+                                &quot;z&quot;
+                              ],
+                              &quot;additionalProperties&quot;: false,
+                              &quot;description&quot;: &quot;Node position&quot;
+                            },
+                            &quot;rotation&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;properties&quot;: {
+                                &quot;x&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;X axis coordinate&quot;
+                                },
+                                &quot;y&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Y axis coordinate&quot;
+                                },
+                                &quot;z&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Z axis coordinate&quot;
+                                }
+                              },
+                              &quot;required&quot;: [
+                                &quot;x&quot;,
+                                &quot;y&quot;,
+                                &quot;z&quot;
+                              ],
+                              &quot;additionalProperties&quot;: false,
+                              &quot;description&quot;: &quot;Node rotation, Euler angles&quot;
+                            },
+                            &quot;scale&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;properties&quot;: {
+                                &quot;x&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;X axis coordinate&quot;
+                                },
+                                &quot;y&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Y axis coordinate&quot;
+                                },
+                                &quot;z&quot;: {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Z axis coordinate&quot;
+                                }
+                              },
+                              &quot;required&quot;: [
+                                &quot;x&quot;,
+                                &quot;y&quot;,
+                                &quot;z&quot;
+                              ],
+                              &quot;additionalProperties&quot;: false,
+                              &quot;description&quot;: &quot;Node scale&quot;
+                            },
+                            &quot;mobility&quot;: {
+                              &quot;type&quot;: &quot;number&quot;,
+                              &quot;description&quot;: &quot;Node mobility, static means static node, movable means movable node, Stationary means fixed node&quot;
+                            },
+                            &quot;layer&quot;: {
+                              &quot;type&quot;: &quot;number&quot;,
+                              &quot;description&quot;: &quot;The layer the node belongs to&quot;
+                            },
+                            &quot;active&quot;: {
+                              &quot;type&quot;: &quot;boolean&quot;,
+                              &quot;description&quot;: &quot;Whether the node is active&quot;
+                            }
+                          },
+                          &quot;required&quot;: [
+                            &quot;position&quot;,
+                            &quot;rotation&quot;,
+                            &quot;scale&quot;,
+                            &quot;mobility&quot;,
+                            &quot;layer&quot;,
+                            &quot;active&quot;
+                          ],
+                          &quot;additionalProperties&quot;: false,
+                          &quot;description&quot;: &quot;Node properties&quot;
+                        },
+                        &quot;prefab&quot;: {
+                          &quot;anyOf&quot;: [
+                            {
+                              &quot;anyOf&quot;: [
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;properties&quot;: {
+                                    &quot;asset&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;name&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Prefab name&quot;
+                                        },
+                                        &quot;uuid&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Prefab UUID&quot;
+                                        },
+                                        &quot;data&quot;: {
+                                          &quot;type&quot;: &quot;object&quot;,
+                                          &quot;properties&quot;: {
+                                            &quot;nodeId&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node ID&quot;
+                                            },
+                                            &quot;path&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                            },
+                                            &quot;name&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                            }
+                                          },
+                                          &quot;required&quot;: [
+                                            &quot;nodeId&quot;,
+                                            &quot;path&quot;,
+                                            &quot;name&quot;
+                                          ],
+                                          &quot;additionalProperties&quot;: false,
+                                          &quot;description&quot;: &quot;Root node in prefab&quot;
+                                        },
+                                        &quot;optimizationPolicy&quot;: {
+                                          &quot;type&quot;: &quot;number&quot;,
+                                          &quot;description&quot;: &quot;Optimization Policy, AUTO: 0, SINGLE_INSTANCE: 1, MULTI_INSTANCE: 1&quot;
+                                        },
+                                        &quot;persistent&quot;: {
+                                          &quot;type&quot;: &quot;boolean&quot;,
+                                          &quot;description&quot;: &quot;Whether it is a persistent node&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;name&quot;,
+                                        &quot;uuid&quot;,
+                                        &quot;data&quot;,
+                                        &quot;optimizationPolicy&quot;,
+                                        &quot;persistent&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Prefab asset information&quot;
+                                    },
+                                    &quot;root&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;nodeId&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node ID&quot;
+                                        },
+                                        &quot;path&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                        },
+                                        &quot;name&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;nodeId&quot;,
+                                        &quot;path&quot;,
+                                        &quot;name&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Points to the root node of Prefab&quot;
+                                    },
+                                    &quot;instance&quot;: {
+                                      &quot;type&quot;: &quot;object&quot;,
+                                      &quot;properties&quot;: {
+                                        &quot;fileId&quot;: {
+                                          &quot;type&quot;: &quot;string&quot;,
+                                          &quot;description&quot;: &quot;Used to uniquely identify a PrefabInstance, used for propertyOverride index lookup&quot;
+                                        },
+                                        &quot;prefabRootNode&quot;: {
+                                          &quot;type&quot;: &quot;object&quot;,
+                                          &quot;properties&quot;: {
+                                            &quot;nodeId&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node ID&quot;
+                                            },
+                                            &quot;path&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                            },
+                                            &quot;name&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;,
+                                              &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                            }
+                                          },
+                                          &quot;required&quot;: [
+                                            &quot;nodeId&quot;,
+                                            &quot;path&quot;,
+                                            &quot;name&quot;
+                                          ],
+                                          &quot;additionalProperties&quot;: false,
+                                          &quot;description&quot;: &quot;Records the Root node info of the external Prefab on nested prefabs. E.g. PrefabA -&gt; PrefabB, this field of B points to PrefabA node&quot;
+                                        },
+                                        &quot;mountedChildren&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;targetInfo&quot;: {
+                                                &quot;anyOf&quot;: [
+                                                  {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;localID&quot;: {
+                                                        &quot;type&quot;: &quot;array&quot;,
+                                                        &quot;items&quot;: {
+                                                          &quot;type&quot;: &quot;string&quot;
+                                                        },
+                                                        &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;localID&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                  },
+                                                  {
+                                                    &quot;type&quot;: &quot;null&quot;
+                                                  }
+                                                ],
+                                                &quot;description&quot;: &quot;Parent node info, corresponding to the actual node mounted in the prefab&quot;
+                                              },
+                                              &quot;nodes&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;object&quot;,
+                                                  &quot;properties&quot;: {
+                                                    &quot;nodeId&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node ID&quot;
+                                                    },
+                                                    &quot;path&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                    },
+                                                    &quot;name&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                    }
+                                                  },
+                                                  &quot;required&quot;: [
+                                                    &quot;nodeId&quot;,
+                                                    &quot;path&quot;,
+                                                    &quot;name&quot;
+                                                  ],
+                                                  &quot;additionalProperties&quot;: false,
+                                                  &quot;description&quot;: &quot;Node identifier&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Mounted nodes array&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;targetInfo&quot;,
+                                              &quot;nodes&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Mounted children information&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Node data existing on prefab instance but not in prefab assets. E.g. creating prefab A, adding nodes to A or its children, will be recorded here&quot;
+                                        },
+                                        &quot;mountedComponents&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;targetInfo&quot;: {
+                                                &quot;anyOf&quot;: [
+                                                  {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;localID&quot;: {
+                                                        &quot;type&quot;: &quot;array&quot;,
+                                                        &quot;items&quot;: {
+                                                          &quot;type&quot;: &quot;string&quot;
+                                                        },
+                                                        &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;localID&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                  },
+                                                  {
+                                                    &quot;type&quot;: &quot;null&quot;
+                                                  }
+                                                ],
+                                                &quot;description&quot;: &quot;Parent node info, corresponding to the actual node mounted in the prefab&quot;
+                                              },
+                                              &quot;components&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;object&quot;,
+                                                  &quot;properties&quot;: {
+                                                    &quot;cid&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component identifier&quot;
+                                                    },
+                                                    &quot;path&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                                    },
+                                                    &quot;uuid&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component UUID&quot;
+                                                    },
+                                                    &quot;name&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component name&quot;
+                                                    },
+                                                    &quot;type&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;,
+                                                      &quot;description&quot;: &quot;Component type&quot;
+                                                    },
+                                                    &quot;enabled&quot;: {
+                                                      &quot;type&quot;: &quot;boolean&quot;,
+                                                      &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                                    }
+                                                  },
+                                                  &quot;required&quot;: [
+                                                    &quot;cid&quot;,
+                                                    &quot;path&quot;,
+                                                    &quot;uuid&quot;,
+                                                    &quot;name&quot;,
+                                                    &quot;type&quot;,
+                                                    &quot;enabled&quot;
+                                                  ],
+                                                  &quot;additionalProperties&quot;: false,
+                                                  &quot;description&quot;: &quot;Component basic information&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Mounted components array&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;targetInfo&quot;,
+                                              &quot;components&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Information of components on prefab instance that do not belong to prefab assets&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Component data existing on prefab instance but not in prefab assets. E.g. creating prefab A, adding components to A or its children, will be recorded here&quot;
+                                        },
+                                        &quot;propertyOverrides&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;targetInfo&quot;: {
+                                                &quot;anyOf&quot;: [
+                                                  {
+                                                    &quot;type&quot;: &quot;object&quot;,
+                                                    &quot;properties&quot;: {
+                                                      &quot;localID&quot;: {
+                                                        &quot;type&quot;: &quot;array&quot;,
+                                                        &quot;items&quot;: {
+                                                          &quot;type&quot;: &quot;string&quot;
+                                                        },
+                                                        &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                      }
+                                                    },
+                                                    &quot;required&quot;: [
+                                                      &quot;localID&quot;
+                                                    ],
+                                                    &quot;additionalProperties&quot;: false,
+                                                    &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                                  },
+                                                  {
+                                                    &quot;type&quot;: &quot;null&quot;
+                                                  }
+                                                ],
+                                                &quot;description&quot;: &quot;Target info, used to find target node or component&quot;
+                                              },
+                                              &quot;propertyPath&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;string&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Property path&quot;
+                                              },
+                                              &quot;value&quot;: {
+                                                &quot;description&quot;: &quot;Actual value of property type&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;targetInfo&quot;,
+                                              &quot;propertyPath&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Records property override information for prefab instances&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Saves all property override data for Prefab. When loading prefab, nodes are created based on assets first, then overridden properties are rewritten&quot;
+                                        },
+                                        &quot;removedComponents&quot;: {
+                                          &quot;type&quot;: &quot;array&quot;,
+                                          &quot;items&quot;: {
+                                            &quot;type&quot;: &quot;object&quot;,
+                                            &quot;properties&quot;: {
+                                              &quot;localID&quot;: {
+                                                &quot;type&quot;: &quot;array&quot;,
+                                                &quot;items&quot;: {
+                                                  &quot;type&quot;: &quot;string&quot;
+                                                },
+                                                &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                              }
+                                            },
+                                            &quot;required&quot;: [
+                                              &quot;localID&quot;
+                                            ],
+                                            &quot;additionalProperties&quot;: false,
+                                            &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                          },
+                                          &quot;description&quot;: &quot;Removed component assets array. When removing components originally in prefab assets, data is saved here. Instead of referencing components directly, component location is recorded via TargetInfo&quot;
+                                        }
+                                      },
+                                      &quot;required&quot;: [
+                                        &quot;fileId&quot;,
+                                        &quot;mountedChildren&quot;,
+                                        &quot;mountedComponents&quot;,
+                                        &quot;propertyOverrides&quot;,
+                                        &quot;removedComponents&quot;
+                                      ],
+                                      &quot;additionalProperties&quot;: false,
+                                      &quot;description&quot;: &quot;Prefab instance object. Presence of this property indicates this node is a prefab instance&quot;
+                                    },
+                                    &quot;fileId&quot;: {
+                                      &quot;type&quot;: &quot;string&quot;,
+                                      &quot;description&quot;: &quot;Uniquely identifies a Node in a Prefab. Some references will look up corresponding nodes via this id&quot;
+                                    },
+                                    &quot;targetOverrides&quot;: {
+                                      &quot;type&quot;: &quot;array&quot;,
+                                      &quot;items&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;source&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;cid&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component identifier&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Return component path, including node path&quot;
+                                                  },
+                                                  &quot;uuid&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component UUID&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component name&quot;
+                                                  },
+                                                  &quot;type&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Component type&quot;
+                                                  },
+                                                  &quot;enabled&quot;: {
+                                                    &quot;type&quot;: &quot;boolean&quot;,
+                                                    &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;cid&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;uuid&quot;,
+                                                  &quot;name&quot;,
+                                                  &quot;type&quot;,
+                                                  &quot;enabled&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Component basic information&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;nodeId&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node ID&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;nodeId&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;name&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Node identifier&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;Referenced node or component&quot;
+                                          },
+                                          &quot;sourceInfo&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;localID&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;localID&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;If it is a reference to a child node or component within the prefab, targetInfo is needed for positioning&quot;
+                                          },
+                                          &quot;propertyPath&quot;: {
+                                            &quot;type&quot;: &quot;array&quot;,
+                                            &quot;items&quot;: {
+                                              &quot;type&quot;: &quot;string&quot;
+                                            },
+                                            &quot;description&quot;: &quot;Property path&quot;
+                                          },
+                                          &quot;target&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;nodeId&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node ID&quot;
+                                                  },
+                                                  &quot;path&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                                  },
+                                                  &quot;name&quot;: {
+                                                    &quot;type&quot;: &quot;string&quot;,
+                                                    &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;nodeId&quot;,
+                                                  &quot;path&quot;,
+                                                  &quot;name&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Node identifier&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;Prefab root node of the referenced target node&quot;
+                                          },
+                                          &quot;targetInfo&quot;: {
+                                            &quot;anyOf&quot;: [
+                                              {
+                                                &quot;type&quot;: &quot;object&quot;,
+                                                &quot;properties&quot;: {
+                                                  &quot;localID&quot;: {
+                                                    &quot;type&quot;: &quot;array&quot;,
+                                                    &quot;items&quot;: {
+                                                      &quot;type&quot;: &quot;string&quot;
+                                                    },
+                                                    &quot;description&quot;: &quot;Array composed of fileId&quot;
+                                                  }
+                                                },
+                                                &quot;required&quot;: [
+                                                  &quot;localID&quot;
+                                                ],
+                                                &quot;additionalProperties&quot;: false,
+                                                &quot;description&quot;: &quot;Used to define target information within the prefab&quot;
+                                              },
+                                              {
+                                                &quot;type&quot;: &quot;null&quot;
+                                              }
+                                            ],
+                                            &quot;description&quot;: &quot;Referenced TargetInfo information, used to locate specifically where&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;source&quot;,
+                                          &quot;sourceInfo&quot;,
+                                          &quot;propertyPath&quot;,
+                                          &quot;target&quot;,
+                                          &quot;targetInfo&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Target override information&quot;
+                                      },
+                                      &quot;description&quot;: &quot;Records reference relationships to child nodes/components of other prefabs&quot;
+                                    },
+                                    &quot;nestedPrefabInstanceRoots&quot;: {
+                                      &quot;type&quot;: &quot;array&quot;,
+                                      &quot;items&quot;: {
+                                        &quot;type&quot;: &quot;object&quot;,
+                                        &quot;properties&quot;: {
+                                          &quot;nodeId&quot;: {
+                                            &quot;type&quot;: &quot;string&quot;,
+                                            &quot;description&quot;: &quot;Node ID&quot;
+                                          },
+                                          &quot;path&quot;: {
+                                            &quot;type&quot;: &quot;string&quot;,
+                                            &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                                          },
+                                          &quot;name&quot;: {
+                                            &quot;type&quot;: &quot;string&quot;,
+                                            &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                                          }
+                                        },
+                                        &quot;required&quot;: [
+                                          &quot;nodeId&quot;,
+                                          &quot;path&quot;,
+                                          &quot;name&quot;
+                                        ],
+                                        &quot;additionalProperties&quot;: false,
+                                        &quot;description&quot;: &quot;Node identifier&quot;
+                                      },
+                                      &quot;description&quot;: &quot;Prefab root node will have this info, recording all nested prefab instance nodes&quot;
+                                    }
+                                  },
+                                  &quot;required&quot;: [
+                                    &quot;fileId&quot;,
+                                    &quot;targetOverrides&quot;,
+                                    &quot;nestedPrefabInstanceRoots&quot;
+                                  ],
+                                  &quot;additionalProperties&quot;: false
+                                },
+                                {
+                                  &quot;type&quot;: &quot;null&quot;
+                                }
+                              ],
+                              &quot;description&quot;: &quot;Prefab information&quot;
+                            },
+                            {
+                              &quot;type&quot;: &quot;null&quot;
+                            }
+                          ],
+                          &quot;description&quot;: &quot;Prefab information&quot;
+                        },
+                        &quot;children&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;properties&quot;: {
+                              &quot;nodeId&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Node ID&quot;
+                              },
+                              &quot;path&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Node addressing path (unique), may differ from node name when siblings share the same display name; root node path is \&quot;/\&quot;&quot;
+                              },
+                              &quot;name&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Node display name (may be duplicated among siblings)&quot;
+                              }
+                            },
+                            &quot;required&quot;: [
+                              &quot;nodeId&quot;,
+                              &quot;path&quot;,
+                              &quot;name&quot;
+                            ],
+                            &quot;additionalProperties&quot;: false,
+                            &quot;description&quot;: &quot;Node identifier&quot;
+                          },
+                          &quot;description&quot;: &quot;List of child nodes as identifiers&quot;
+                        },
+                        &quot;components&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;properties&quot;: {
+                              &quot;cid&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component identifier&quot;
+                              },
+                              &quot;path&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Return component path, including node path&quot;
+                              },
+                              &quot;uuid&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component UUID&quot;
+                              },
+                              &quot;name&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component name&quot;
+                              },
+                              &quot;type&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Component type&quot;
+                              },
+                              &quot;enabled&quot;: {
+                                &quot;type&quot;: &quot;boolean&quot;,
+                                &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                              }
+                            },
+                            &quot;required&quot;: [
+                              &quot;cid&quot;,
+                              &quot;path&quot;,
+                              &quot;uuid&quot;,
+                              &quot;name&quot;,
+                              &quot;type&quot;,
+                              &quot;enabled&quot;
+                            ],
+                            &quot;additionalProperties&quot;: false,
+                            &quot;description&quot;: &quot;Component basic information&quot;
+                          },
+                          &quot;description&quot;: &quot;List of components on the node&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;nodeId&quot;,
+                        &quot;path&quot;,
+                        &quot;name&quot;,
+                        &quot;properties&quot;,
+                        &quot;prefab&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false,
+                      &quot;description&quot;: &quot;Node identifier&quot;
+                    }
+                  ],
+                  &quot;description&quot;: &quot;Get Scene/Prefab Return Data&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

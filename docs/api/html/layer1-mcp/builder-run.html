@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>builder-run · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>builder-run</span></nav></div></header><main class="wrap"><h1><code>builder-run</code></h1><p class="meta"><span class="badge">Builder</span> method <code>run</code></p><p class="lead">Launch and run a previously built game package. This is NOT a build step — it requires that builder-build has already completed successfully. Do NOT call this instead of builder-build; the two are separate sequential steps: build first, then run.</p><h2>Parameters</h2><h3><code>platform</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/builder-run_platform&quot;,
+  &quot;definitions&quot;: {
+    &quot;builder-run_platform&quot;: {
+      &quot;type&quot;: &quot;string&quot;,
+      &quot;default&quot;: &quot;web-mobile&quot;,
+      &quot;description&quot;: &quot;Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, google-play, harmonyos-next etc.)&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h3><code>dest</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/builder-run_dest&quot;,
+  &quot;definitions&quot;: {
+    &quot;builder-run_dest&quot;: {
+      &quot;type&quot;: &quot;string&quot;,
+      &quot;minLength&quot;: 1,
+      &quot;description&quot;: &quot;Build Output Directory, supports absolute path and project:// protocol URL&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/builder-run_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;builder-run_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;platform&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;default&quot;: &quot;web-mobile&quot;,
+          &quot;description&quot;: &quot;Platform Identifier (e.g., web-desktop, web-mobile, windows, mac, ios, android, ohos, google-play, harmonyos-next etc.)&quot;
+        },
+        &quot;dest&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;Build Output Directory, supports absolute path and project:// protocol URL&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;dest&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/builder-run_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;builder-run_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;anyOf&quot;: [
+                    {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;code&quot;: {
+                          &quot;type&quot;: &quot;integer&quot;,
+                          &quot;description&quot;: &quot;Build exit code, 0 means success, others mean failure, 32 means parameter error, 34 means build failure, 37 means build busy, 38 means static compile error, 50 means unknown error&quot;
+                        },
+                        &quot;dest&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Generated game folder after build, currently output as project protocol address&quot;
+                        },
+                        &quot;reason&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Error message for build failure&quot;
+                        },
+                        &quot;custom&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;properties&quot;: {
+                            &quot;nativePrjDir&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Native project path after build&quot;
+                            },
+                            &quot;previewUrl&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Default preview server address for web platform build&quot;
+                            }
+                          },
+                          &quot;additionalProperties&quot;: false,
+                          &quot;description&quot;: &quot;Custom fields for different build platform results, in object format&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;code&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    {
+                      &quot;type&quot;: &quot;null&quot;
+                    }
+                  ],
+                  &quot;description&quot;: &quot;Result after building the project&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

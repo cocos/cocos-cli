@@ -1,0 +1,192 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>assets-animation-mask-change-dump · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>assets-animation-mask-change-dump</span></nav></div></header><main class="wrap"><h1><code>assets-animation-mask-change-dump</code></h1><p class="meta"><span class="badge">Assets</span> method <code>changeAnimationMaskDump</code></p><p class="lead">Apply path-based changes to an AnimationMask stable DTO. recursive defaults to false; pass recursive=true to update descendant paths.</p><h2>Parameters</h2><h3><code>uuid</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-animation-mask-change-dump_uuid&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-animation-mask-change-dump_uuid&quot;: {
+      &quot;type&quot;: &quot;string&quot;,
+      &quot;minLength&quot;: 1,
+      &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h3><code>changes</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-animation-mask-change-dump_changes&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-animation-mask-change-dump_changes&quot;: {
+      &quot;type&quot;: &quot;array&quot;,
+      &quot;items&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;path&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;Joint path to update&quot;
+          },
+          &quot;enabled&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;New enabled state&quot;
+          },
+          &quot;recursive&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Whether to apply the change to descendant joint paths. Defaults to false.&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;path&quot;,
+          &quot;enabled&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      },
+      &quot;description&quot;: &quot;AnimationMask path patch list&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-animation-mask-change-dump_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-animation-mask-change-dump_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;uuid&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
+        },
+        &quot;changes&quot;: {
+          &quot;type&quot;: &quot;array&quot;,
+          &quot;items&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+              &quot;path&quot;: {
+                &quot;type&quot;: &quot;string&quot;,
+                &quot;minLength&quot;: 1,
+                &quot;description&quot;: &quot;Joint path to update&quot;
+              },
+              &quot;enabled&quot;: {
+                &quot;type&quot;: &quot;boolean&quot;,
+                &quot;description&quot;: &quot;New enabled state&quot;
+              },
+              &quot;recursive&quot;: {
+                &quot;type&quot;: &quot;boolean&quot;,
+                &quot;description&quot;: &quot;Whether to apply the change to descendant joint paths. Defaults to false.&quot;
+              }
+            },
+            &quot;required&quot;: [
+              &quot;path&quot;,
+              &quot;enabled&quot;
+            ],
+            &quot;additionalProperties&quot;: false
+          },
+          &quot;description&quot;: &quot;AnimationMask path patch list&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;uuid&quot;,
+        &quot;changes&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-animation-mask-change-dump_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-animation-mask-change-dump_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;version&quot;: {
+                      &quot;type&quot;: &quot;number&quot;,
+                      &quot;const&quot;: 1,
+                      &quot;description&quot;: &quot;Animation mask DTO schema version&quot;
+                    },
+                    &quot;assetUuid&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;minLength&quot;: 1,
+                      &quot;description&quot;: &quot;AnimationMask asset UUID&quot;
+                    },
+                    &quot;joints&quot;: {
+                      &quot;type&quot;: &quot;array&quot;,
+                      &quot;items&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;properties&quot;: {
+                          &quot;path&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;minLength&quot;: 1,
+                            &quot;description&quot;: &quot;Joint path relative to the skeleton root, for example \&quot;spine/leftArm\&quot;&quot;
+                          },
+                          &quot;enabled&quot;: {
+                            &quot;type&quot;: &quot;boolean&quot;,
+                            &quot;description&quot;: &quot;Whether this joint is enabled in the animation mask&quot;
+                          },
+                          &quot;children&quot;: {
+                            &quot;type&quot;: &quot;array&quot;,
+                            &quot;items&quot;: {},
+                            &quot;description&quot;: &quot;Child joint masks&quot;
+                          }
+                        },
+                        &quot;required&quot;: [
+                          &quot;path&quot;,
+                          &quot;enabled&quot;
+                        ],
+                        &quot;additionalProperties&quot;: false
+                      },
+                      &quot;description&quot;: &quot;Animation mask joint tree&quot;
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;version&quot;,
+                    &quot;assetUuid&quot;,
+                    &quot;joints&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false,
+                  &quot;description&quot;: &quot;Stable AnimationMask DTO for panel and CLI consumption&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

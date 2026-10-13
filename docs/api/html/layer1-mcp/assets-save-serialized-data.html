@@ -1,0 +1,479 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>assets-save-serialized-data · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>assets-save-serialized-data</span></nav></div></header><main class="wrap"><h1><code>assets-save-serialized-data</code></h1><p class="meta"><span class="badge">Assets</span> method <code>saveSerializedData</code></p><p class="lead">Save Creator-compatible serialized asset dump data through assets.serializedData.save. Supports only cc.PhysicsMaterial and cc.RenderPipeline in the first batch. Prefer passing an IProperty or full dump patch returned by assets-query-serialized-data; unknown fields are rejected, and hidden or readonly fields can only pass through unchanged.</p><h2>Parameters</h2><h3><code>uuidOrUrlOrPath</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-save-serialized-data_uuidOrUrlOrPath&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-save-serialized-data_uuidOrUrlOrPath&quot;: {
+      &quot;type&quot;: &quot;string&quot;,
+      &quot;minLength&quot;: 1,
+      &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h3><code>patch</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-save-serialized-data_patch&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-save-serialized-data_patch&quot;: {
+      &quot;anyOf&quot;: [
+        {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;object&quot;,
+              &quot;additionalProperties&quot;: {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;name&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;description&quot;: &quot;Property name&quot;
+                  },
+                  &quot;value&quot;: {
+                    &quot;description&quot;: &quot;Property value or nested property map&quot;
+                  },
+                  &quot;default&quot;: {
+                    &quot;description&quot;: &quot;Default value&quot;
+                  },
+                  &quot;type&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;description&quot;: &quot;Cocos class or value type&quot;
+                  },
+                  &quot;path&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;description&quot;: &quot;Dump property path&quot;
+                  },
+                  &quot;readonly&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;,
+                    &quot;description&quot;: &quot;Whether property is read-only&quot;
+                  },
+                  &quot;visible&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;,
+                    &quot;description&quot;: &quot;Whether property is visible&quot;
+                  },
+                  &quot;isArray&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;,
+                    &quot;description&quot;: &quot;Whether property value is an array&quot;
+                  },
+                  &quot;enumList&quot;: {
+                    &quot;type&quot;: &quot;array&quot;,
+                    &quot;items&quot;: {},
+                    &quot;description&quot;: &quot;Enum option list&quot;
+                  },
+                  &quot;optionalTypes&quot;: {
+                    &quot;type&quot;: &quot;array&quot;,
+                    &quot;items&quot;: {
+                      &quot;type&quot;: &quot;string&quot;
+                    },
+                    &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
+                  },
+                  &quot;elementTypeData&quot;: {
+                    &quot;description&quot;: &quot;Default dump data for array elements&quot;
+                  }
+                },
+                &quot;additionalProperties&quot;: true,
+                &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
+              }
+            },
+            {
+              &quot;type&quot;: &quot;object&quot;,
+              &quot;properties&quot;: {
+                &quot;name&quot;: {
+                  &quot;type&quot;: &quot;string&quot;,
+                  &quot;description&quot;: &quot;Property name&quot;
+                },
+                &quot;value&quot;: {
+                  &quot;description&quot;: &quot;Property value or nested property map&quot;
+                },
+                &quot;default&quot;: {
+                  &quot;description&quot;: &quot;Default value&quot;
+                },
+                &quot;type&quot;: {
+                  &quot;type&quot;: &quot;string&quot;,
+                  &quot;description&quot;: &quot;Cocos class or value type&quot;
+                },
+                &quot;path&quot;: {
+                  &quot;type&quot;: &quot;string&quot;,
+                  &quot;description&quot;: &quot;Dump property path&quot;
+                },
+                &quot;readonly&quot;: {
+                  &quot;type&quot;: &quot;boolean&quot;,
+                  &quot;description&quot;: &quot;Whether property is read-only&quot;
+                },
+                &quot;visible&quot;: {
+                  &quot;type&quot;: &quot;boolean&quot;,
+                  &quot;description&quot;: &quot;Whether property is visible&quot;
+                },
+                &quot;isArray&quot;: {
+                  &quot;type&quot;: &quot;boolean&quot;,
+                  &quot;description&quot;: &quot;Whether property value is an array&quot;
+                },
+                &quot;enumList&quot;: {
+                  &quot;type&quot;: &quot;array&quot;,
+                  &quot;items&quot;: {},
+                  &quot;description&quot;: &quot;Enum option list&quot;
+                },
+                &quot;optionalTypes&quot;: {
+                  &quot;type&quot;: &quot;array&quot;,
+                  &quot;items&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
+                  },
+                  &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
+                },
+                &quot;elementTypeData&quot;: {
+                  &quot;description&quot;: &quot;Default dump data for array elements&quot;
+                }
+              },
+              &quot;additionalProperties&quot;: true,
+              &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
+            }
+          ],
+          &quot;description&quot;: &quot;Creator-compatible serialized asset dump. PhysicsMaterial returns a property map, RenderPipeline returns a top-level IProperty.&quot;
+        },
+        {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;additionalProperties&quot;: {}
+        }
+      ],
+      &quot;description&quot;: &quot;Serialized asset patch. Prefer IProperty or full dump patches; raw value maps are accepted only for convenience.&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-save-serialized-data_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-save-serialized-data_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;uuidOrUrlOrPath&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
+        },
+        &quot;patch&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;additionalProperties&quot;: {
+                    &quot;type&quot;: &quot;object&quot;,
+                    &quot;properties&quot;: {
+                      &quot;name&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Property name&quot;
+                      },
+                      &quot;value&quot;: {
+                        &quot;description&quot;: &quot;Property value or nested property map&quot;
+                      },
+                      &quot;default&quot;: {
+                        &quot;description&quot;: &quot;Default value&quot;
+                      },
+                      &quot;type&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Cocos class or value type&quot;
+                      },
+                      &quot;path&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Dump property path&quot;
+                      },
+                      &quot;readonly&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether property is read-only&quot;
+                      },
+                      &quot;visible&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether property is visible&quot;
+                      },
+                      &quot;isArray&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether property value is an array&quot;
+                      },
+                      &quot;enumList&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {},
+                        &quot;description&quot;: &quot;Enum option list&quot;
+                      },
+                      &quot;optionalTypes&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
+                      },
+                      &quot;elementTypeData&quot;: {
+                        &quot;description&quot;: &quot;Default dump data for array elements&quot;
+                      }
+                    },
+                    &quot;additionalProperties&quot;: true,
+                    &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
+                  }
+                },
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;name&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Property name&quot;
+                    },
+                    &quot;value&quot;: {
+                      &quot;description&quot;: &quot;Property value or nested property map&quot;
+                    },
+                    &quot;default&quot;: {
+                      &quot;description&quot;: &quot;Default value&quot;
+                    },
+                    &quot;type&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Cocos class or value type&quot;
+                    },
+                    &quot;path&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Dump property path&quot;
+                    },
+                    &quot;readonly&quot;: {
+                      &quot;type&quot;: &quot;boolean&quot;,
+                      &quot;description&quot;: &quot;Whether property is read-only&quot;
+                    },
+                    &quot;visible&quot;: {
+                      &quot;type&quot;: &quot;boolean&quot;,
+                      &quot;description&quot;: &quot;Whether property is visible&quot;
+                    },
+                    &quot;isArray&quot;: {
+                      &quot;type&quot;: &quot;boolean&quot;,
+                      &quot;description&quot;: &quot;Whether property value is an array&quot;
+                    },
+                    &quot;enumList&quot;: {
+                      &quot;type&quot;: &quot;array&quot;,
+                      &quot;items&quot;: {},
+                      &quot;description&quot;: &quot;Enum option list&quot;
+                    },
+                    &quot;optionalTypes&quot;: {
+                      &quot;type&quot;: &quot;array&quot;,
+                      &quot;items&quot;: {
+                        &quot;type&quot;: &quot;string&quot;
+                      },
+                      &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
+                    },
+                    &quot;elementTypeData&quot;: {
+                      &quot;description&quot;: &quot;Default dump data for array elements&quot;
+                    }
+                  },
+                  &quot;additionalProperties&quot;: true,
+                  &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
+                }
+              ],
+              &quot;description&quot;: &quot;Creator-compatible serialized asset dump. PhysicsMaterial returns a property map, RenderPipeline returns a top-level IProperty.&quot;
+            },
+            {
+              &quot;type&quot;: &quot;object&quot;,
+              &quot;additionalProperties&quot;: {}
+            }
+          ],
+          &quot;description&quot;: &quot;Serialized asset patch. Prefer IProperty or full dump patches; raw value maps are accepted only for convenience.&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;uuidOrUrlOrPath&quot;,
+        &quot;patch&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-save-serialized-data_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-save-serialized-data_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;anyOf&quot;: [
+                    {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;uuid&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Asset UUID&quot;
+                        },
+                        &quot;url&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Asset db URL&quot;
+                        },
+                        &quot;type&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Cocos asset type&quot;
+                        },
+                        &quot;importer&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Asset importer name&quot;
+                        },
+                        &quot;dump&quot;: {
+                          &quot;anyOf&quot;: [
+                            {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;additionalProperties&quot;: {
+                                &quot;type&quot;: &quot;object&quot;,
+                                &quot;properties&quot;: {
+                                  &quot;name&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Property name&quot;
+                                  },
+                                  &quot;value&quot;: {
+                                    &quot;description&quot;: &quot;Property value or nested property map&quot;
+                                  },
+                                  &quot;default&quot;: {
+                                    &quot;description&quot;: &quot;Default value&quot;
+                                  },
+                                  &quot;type&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Cocos class or value type&quot;
+                                  },
+                                  &quot;path&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;,
+                                    &quot;description&quot;: &quot;Dump property path&quot;
+                                  },
+                                  &quot;readonly&quot;: {
+                                    &quot;type&quot;: &quot;boolean&quot;,
+                                    &quot;description&quot;: &quot;Whether property is read-only&quot;
+                                  },
+                                  &quot;visible&quot;: {
+                                    &quot;type&quot;: &quot;boolean&quot;,
+                                    &quot;description&quot;: &quot;Whether property is visible&quot;
+                                  },
+                                  &quot;isArray&quot;: {
+                                    &quot;type&quot;: &quot;boolean&quot;,
+                                    &quot;description&quot;: &quot;Whether property value is an array&quot;
+                                  },
+                                  &quot;enumList&quot;: {
+                                    &quot;type&quot;: &quot;array&quot;,
+                                    &quot;items&quot;: {},
+                                    &quot;description&quot;: &quot;Enum option list&quot;
+                                  },
+                                  &quot;optionalTypes&quot;: {
+                                    &quot;type&quot;: &quot;array&quot;,
+                                    &quot;items&quot;: {
+                                      &quot;type&quot;: &quot;string&quot;
+                                    },
+                                    &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
+                                  },
+                                  &quot;elementTypeData&quot;: {
+                                    &quot;description&quot;: &quot;Default dump data for array elements&quot;
+                                  }
+                                },
+                                &quot;additionalProperties&quot;: true,
+                                &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
+                              }
+                            },
+                            {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;properties&quot;: {
+                                &quot;name&quot;: {
+                                  &quot;type&quot;: &quot;string&quot;,
+                                  &quot;description&quot;: &quot;Property name&quot;
+                                },
+                                &quot;value&quot;: {
+                                  &quot;description&quot;: &quot;Property value or nested property map&quot;
+                                },
+                                &quot;default&quot;: {
+                                  &quot;description&quot;: &quot;Default value&quot;
+                                },
+                                &quot;type&quot;: {
+                                  &quot;type&quot;: &quot;string&quot;,
+                                  &quot;description&quot;: &quot;Cocos class or value type&quot;
+                                },
+                                &quot;path&quot;: {
+                                  &quot;type&quot;: &quot;string&quot;,
+                                  &quot;description&quot;: &quot;Dump property path&quot;
+                                },
+                                &quot;readonly&quot;: {
+                                  &quot;type&quot;: &quot;boolean&quot;,
+                                  &quot;description&quot;: &quot;Whether property is read-only&quot;
+                                },
+                                &quot;visible&quot;: {
+                                  &quot;type&quot;: &quot;boolean&quot;,
+                                  &quot;description&quot;: &quot;Whether property is visible&quot;
+                                },
+                                &quot;isArray&quot;: {
+                                  &quot;type&quot;: &quot;boolean&quot;,
+                                  &quot;description&quot;: &quot;Whether property value is an array&quot;
+                                },
+                                &quot;enumList&quot;: {
+                                  &quot;type&quot;: &quot;array&quot;,
+                                  &quot;items&quot;: {},
+                                  &quot;description&quot;: &quot;Enum option list&quot;
+                                },
+                                &quot;optionalTypes&quot;: {
+                                  &quot;type&quot;: &quot;array&quot;,
+                                  &quot;items&quot;: {
+                                    &quot;type&quot;: &quot;string&quot;
+                                  },
+                                  &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
+                                },
+                                &quot;elementTypeData&quot;: {
+                                  &quot;description&quot;: &quot;Default dump data for array elements&quot;
+                                }
+                              },
+                              &quot;additionalProperties&quot;: true,
+                              &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
+                            }
+                          ],
+                          &quot;description&quot;: &quot;Creator-compatible raw dump&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;uuid&quot;,
+                        &quot;url&quot;,
+                        &quot;type&quot;,
+                        &quot;importer&quot;,
+                        &quot;dump&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    {
+                      &quot;type&quot;: &quot;null&quot;
+                    }
+                  ],
+                  &quot;description&quot;: &quot;Serialized asset query/save result&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

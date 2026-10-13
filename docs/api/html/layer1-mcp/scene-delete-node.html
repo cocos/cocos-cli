@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>scene-delete-node · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>scene-delete-node</span></nav></div></header><main class="wrap"><h1><code>scene-delete-node</code></h1><p class="meta"><span class="badge">Node</span> method <code>deleteNode</code></p><p class="lead">Delete a node in the currently opened scene. You need to pass in the path of the node, such as: Canvas/Node1</p><h2>Parameters</h2><h3><code>options</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-delete-node_options&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-delete-node_options&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;path&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;description&quot;: &quot;Relative path of the node&quot;
+        },
+        &quot;keepWorldTransform&quot;: {
+          &quot;type&quot;: &quot;boolean&quot;,
+          &quot;description&quot;: &quot;Keep world transform&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;path&quot;
+      ],
+      &quot;additionalProperties&quot;: false,
+      &quot;description&quot;: &quot;To configure options for node deletion, the Scene must be open first.&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-delete-node_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-delete-node_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;options&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;path&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;description&quot;: &quot;Relative path of the node&quot;
+            },
+            &quot;keepWorldTransform&quot;: {
+              &quot;type&quot;: &quot;boolean&quot;,
+              &quot;description&quot;: &quot;Keep world transform&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;path&quot;
+          ],
+          &quot;additionalProperties&quot;: false,
+          &quot;description&quot;: &quot;To configure options for node deletion, the Scene must be open first.&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;options&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-delete-node_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-delete-node_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;path&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Node path&quot;
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;path&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

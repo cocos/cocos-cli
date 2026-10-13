@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>scene-create · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>scene-create</span></nav></div></header><main class="wrap"><h1><code>scene-create</code></h1><p class="meta"><span class="badge">Scene</span> method <code>createScene</code></p><p class="lead">Create new scene asset in project</p><h2>Parameters</h2><h3><code>options</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-create_options&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-create_options&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;baseName&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;description&quot;: &quot;Asset Name&quot;
+        },
+        &quot;templateType&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;enum&quot;: [
+            &quot;2d&quot;,
+            &quot;3d&quot;,
+            &quot;quality&quot;
+          ],
+          &quot;description&quot;: &quot;Scene Template Type (Optional, only effective for scene asset type)&quot;
+        },
+        &quot;dbURL&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;Target directory for storing asset files, e.g., db://assets&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;baseName&quot;,
+        &quot;dbURL&quot;
+      ],
+      &quot;additionalProperties&quot;: false,
+      &quot;description&quot;: &quot;Create Scene/Prefab Parameters&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-create_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-create_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;options&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;baseName&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;description&quot;: &quot;Asset Name&quot;
+            },
+            &quot;templateType&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;enum&quot;: [
+                &quot;2d&quot;,
+                &quot;3d&quot;,
+                &quot;quality&quot;
+              ],
+              &quot;description&quot;: &quot;Scene Template Type (Optional, only effective for scene asset type)&quot;
+            },
+            &quot;dbURL&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;minLength&quot;: 1,
+              &quot;description&quot;: &quot;Target directory for storing asset files, e.g., db://assets&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;baseName&quot;,
+            &quot;dbURL&quot;
+          ],
+          &quot;additionalProperties&quot;: false,
+          &quot;description&quot;: &quot;Create Scene/Prefab Parameters&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;options&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-create_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-create_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;assetName&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Scene or Prefab asset name&quot;
+                    },
+                    &quot;assetUuid&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Scene or Prefab asset unique identifier UUID&quot;
+                    },
+                    &quot;assetUrl&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Scene or Prefab asset uses db:// protocol format&quot;
+                    },
+                    &quot;assetType&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;description&quot;: &quot;Scene or Prefab asset type&quot;
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;assetName&quot;,
+                    &quot;assetUuid&quot;,
+                    &quot;assetUrl&quot;,
+                    &quot;assetType&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false,
+                  &quot;description&quot;: &quot;Create Scene/Prefab Result Info&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>scene-regenerate-polygon-2d-points · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>scene-regenerate-polygon-2d-points</span></nav></div></header><main class="wrap"><h1><code>scene-regenerate-polygon-2d-points</code></h1><p class="meta"><span class="badge">Component</span> method <code>regeneratePolygon2DPoints</code></p><p class="lead">Regenerate cc.PolygonCollider2D points from the alpha contour of a Sprite on the same node. Falls back to the UITransform rectangle when no usable Sprite source exists. This overwrites the current points and records undo by default.</p><h2>Parameters</h2><h3><code>options</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-regenerate-polygon-2d-points_options&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-regenerate-polygon-2d-points_options&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;path&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;cc.PolygonCollider2D component path, UUID, or db:// URL&quot;
+        },
+        &quot;record&quot;: {
+          &quot;type&quot;: &quot;boolean&quot;,
+          &quot;description&quot;: &quot;Whether to record undo, defaults to true&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;path&quot;
+      ],
+      &quot;additionalProperties&quot;: false,
+      &quot;description&quot;: &quot;Information required to regenerate cc.PolygonCollider2D points&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-regenerate-polygon-2d-points_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-regenerate-polygon-2d-points_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;options&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;path&quot;: {
+              &quot;type&quot;: &quot;string&quot;,
+              &quot;minLength&quot;: 1,
+              &quot;description&quot;: &quot;cc.PolygonCollider2D component path, UUID, or db:// URL&quot;
+            },
+            &quot;record&quot;: {
+              &quot;type&quot;: &quot;boolean&quot;,
+              &quot;description&quot;: &quot;Whether to record undo, defaults to true&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;path&quot;
+          ],
+          &quot;additionalProperties&quot;: false,
+          &quot;description&quot;: &quot;Information required to regenerate cc.PolygonCollider2D points&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;options&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/scene-regenerate-polygon-2d-points_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;scene-regenerate-polygon-2d-points_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;path&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;minLength&quot;: 1,
+                      &quot;description&quot;: &quot;PolygonCollider2D component identifier supplied for the operation&quot;
+                    },
+                    &quot;changed&quot;: {
+                      &quot;type&quot;: &quot;boolean&quot;,
+                      &quot;description&quot;: &quot;Whether the generated points changed the component&quot;
+                    },
+                    &quot;pointCount&quot;: {
+                      &quot;type&quot;: &quot;integer&quot;,
+                      &quot;minimum&quot;: 3,
+                      &quot;description&quot;: &quot;Number of generated polygon points&quot;
+                    },
+                    &quot;source&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;enum&quot;: [
+                        &quot;sprite-alpha&quot;,
+                        &quot;rect-fallback&quot;
+                      ],
+                      &quot;description&quot;: &quot;Source used to generate the PolygonCollider2D points&quot;
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;path&quot;,
+                    &quot;changed&quot;,
+                    &quot;pointCount&quot;,
+                    &quot;source&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false,
+                  &quot;description&quot;: &quot;Result of regenerating cc.PolygonCollider2D points&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>

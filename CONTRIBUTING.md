@@ -92,6 +92,25 @@ npm run generate:mcp-types
 
 This generates type-safe definitions for E2E tests in `e2e/types/mcp-tools.generated.ts`.
 
+#### 2b. Generate API Docs (all four layers, HTML)
+
+After modifying MCP tools, CLI commands, lib facades, or core modules:
+
+```bash
+npm run generate:api-docs
+# Layer-1 markdown-only (legacy):
+npm run generate:mcp-docs
+```
+
+This writes a static HTML site to `docs/api/html/`:
+
+1. Tools (MCP) — `src/api` `@tool`
+2. Commands — `src/commands`
+3. Lib facade — `src/lib`
+4. Core — `src/core` module map
+
+Tracking: https://github.com/cocos/cocos-cli/issues/984
+
 ### Testing
 
 #### Unit Tests

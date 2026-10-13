@@ -1,0 +1,459 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>assets-reimport-asset · Cocos CLI API</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI API Docs</a><nav class="crumb"><a href="../index.html">Home</a> <span class="sep">/</span> <a href="index.html">Layer 1 · MCP</a> <span class="sep">/</span> <span>assets-reimport-asset</span></nav></div></header><main class="wrap"><h1><code>assets-reimport-asset</code></h1><p class="meta"><span class="badge">Assets</span> method <code>reimportAsset</code></p><p class="lead">Force reimport of specified assets. When asset files or import configurations change, call this method to re-execute the import process and update library files and asset information. Commonly used for asset repair or refresh after configuration updates.</p><h2>Parameters</h2><h3><code>pathOrUrlOrUUID</code></h3><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-reimport-asset_pathOrUrlOrUUID&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-reimport-asset_pathOrUrlOrUUID&quot;: {
+      &quot;type&quot;: &quot;string&quot;,
+      &quot;minLength&quot;: 1,
+      &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Input schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-reimport-asset_input&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-reimport-asset_input&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;pathOrUrlOrUUID&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1,
+          &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
+        }
+      },
+      &quot;required&quot;: [
+        &quot;pathOrUrlOrUUID&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre><h2>Output schema</h2><pre>{
+  &quot;$ref&quot;: &quot;#/definitions/assets-reimport-asset_output&quot;,
+  &quot;definitions&quot;: {
+    &quot;assets-reimport-asset_output&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;result&quot;: {
+          &quot;type&quot;: &quot;object&quot;,
+          &quot;properties&quot;: {
+            &quot;code&quot;: {
+              &quot;type&quot;: &quot;number&quot;,
+              &quot;enum&quot;: [
+                200,
+                400,
+                404,
+                500
+              ],
+              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+            },
+            &quot;data&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;anyOf&quot;: [
+                    {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;name&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Asset name&quot;
+                        },
+                        &quot;source&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;URL address&quot;
+                        },
+                        &quot;loadUrl&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Loader loading hierarchy address, mainly used for splicing asset url loading in scripts&quot;
+                        },
+                        &quot;url&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Loader loading address (including extension)&quot;
+                        },
+                        &quot;file&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Absolute path&quot;
+                        },
+                        &quot;uuid&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Unique ID of the asset&quot;
+                        },
+                        &quot;importer&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;enum&quot;: [
+                            &quot;directory&quot;,
+                            &quot;unknown&quot;,
+                            &quot;text&quot;,
+                            &quot;json&quot;,
+                            &quot;spine-data&quot;,
+                            &quot;dragonbones&quot;,
+                            &quot;dragonbones-atlas&quot;,
+                            &quot;terrain&quot;,
+                            &quot;javascript&quot;,
+                            &quot;typescript&quot;,
+                            &quot;scene&quot;,
+                            &quot;prefab&quot;,
+                            &quot;sprite-frame&quot;,
+                            &quot;tiled-map&quot;,
+                            &quot;buffer&quot;,
+                            &quot;image&quot;,
+                            &quot;sign-image&quot;,
+                            &quot;alpha-image&quot;,
+                            &quot;texture&quot;,
+                            &quot;texture-cube&quot;,
+                            &quot;erp-texture-cube&quot;,
+                            &quot;render-texture&quot;,
+                            &quot;texture-cube-face&quot;,
+                            &quot;rt-sprite-frame&quot;,
+                            &quot;gltf&quot;,
+                            &quot;gltf-mesh&quot;,
+                            &quot;gltf-animation&quot;,
+                            &quot;gltf-skeleton&quot;,
+                            &quot;gltf-material&quot;,
+                            &quot;gltf-scene&quot;,
+                            &quot;gltf-embeded-image&quot;,
+                            &quot;fbx&quot;,
+                            &quot;material&quot;,
+                            &quot;physics-material&quot;,
+                            &quot;effect&quot;,
+                            &quot;effect-header&quot;,
+                            &quot;audio-clip&quot;,
+                            &quot;animation-clip&quot;,
+                            &quot;animation-graph&quot;,
+                            &quot;animation-graph-variant&quot;,
+                            &quot;animation-mask&quot;,
+                            &quot;ttf-font&quot;,
+                            &quot;bitmap-font&quot;,
+                            &quot;particle&quot;,
+                            &quot;sprite-atlas&quot;,
+                            &quot;auto-atlas&quot;,
+                            &quot;label-atlas&quot;,
+                            &quot;render-pipeline&quot;,
+                            &quot;render-stage&quot;,
+                            &quot;render-flow&quot;,
+                            &quot;instantiation-material&quot;,
+                            &quot;instantiation-mesh&quot;,
+                            &quot;instantiation-skeleton&quot;,
+                            &quot;instantiation-animation&quot;,
+                            &quot;video-clip&quot;,
+                            &quot;*&quot;,
+                            &quot;database&quot;
+                          ],
+                          &quot;description&quot;: &quot;Importer name used, corresponding to asset handler type&quot;
+                        },
+                        &quot;imported&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;,
+                          &quot;description&quot;: &quot;Whether the import process is finished&quot;
+                        },
+                        &quot;invalid&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;,
+                          &quot;description&quot;: &quot;Whether import was successful&quot;
+                        },
+                        &quot;type&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Asset type, e.g. cc.ImageAsset&quot;
+                        },
+                        &quot;isDirectory&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;,
+                          &quot;description&quot;: &quot;Whether it is a folder&quot;
+                        },
+                        &quot;library&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;additionalProperties&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          },
+                          &quot;description&quot;: &quot;Map of imported assets&quot;
+                        },
+                        &quot;isBundle&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;,
+                          &quot;description&quot;: &quot;Whether it is an asset bundle&quot;
+                        },
+                        &quot;displayName&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Name used for asset display&quot;
+                        },
+                        &quot;readonly&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;,
+                          &quot;description&quot;: &quot;Whether read-only&quot;
+                        },
+                        &quot;visible&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;,
+                          &quot;description&quot;: &quot;Whether to display&quot;
+                        },
+                        &quot;subAssets&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;additionalProperties&quot;: {},
+                          &quot;description&quot;: &quot;Sub-asset map&quot;
+                        },
+                        &quot;instantiation&quot;: {
+                          &quot;type&quot;: &quot;string&quot;,
+                          &quot;description&quot;: &quot;Extension for virtual assets that can be instantiated into entities&quot;
+                        },
+                        &quot;redirect&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;properties&quot;: {
+                            &quot;type&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Type of redirected asset&quot;
+                            },
+                            &quot;uuid&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;UUID of redirected asset&quot;
+                            }
+                          },
+                          &quot;required&quot;: [
+                            &quot;type&quot;,
+                            &quot;uuid&quot;
+                          ],
+                          &quot;additionalProperties&quot;: false,
+                          &quot;description&quot;: &quot;Redirect to asset&quot;
+                        },
+                        &quot;meta&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;properties&quot;: {
+                            &quot;ver&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Version number&quot;
+                            },
+                            &quot;importer&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;enum&quot;: [
+                                &quot;directory&quot;,
+                                &quot;unknown&quot;,
+                                &quot;text&quot;,
+                                &quot;json&quot;,
+                                &quot;spine-data&quot;,
+                                &quot;dragonbones&quot;,
+                                &quot;dragonbones-atlas&quot;,
+                                &quot;terrain&quot;,
+                                &quot;javascript&quot;,
+                                &quot;typescript&quot;,
+                                &quot;scene&quot;,
+                                &quot;prefab&quot;,
+                                &quot;sprite-frame&quot;,
+                                &quot;tiled-map&quot;,
+                                &quot;buffer&quot;,
+                                &quot;image&quot;,
+                                &quot;sign-image&quot;,
+                                &quot;alpha-image&quot;,
+                                &quot;texture&quot;,
+                                &quot;texture-cube&quot;,
+                                &quot;erp-texture-cube&quot;,
+                                &quot;render-texture&quot;,
+                                &quot;texture-cube-face&quot;,
+                                &quot;rt-sprite-frame&quot;,
+                                &quot;gltf&quot;,
+                                &quot;gltf-mesh&quot;,
+                                &quot;gltf-animation&quot;,
+                                &quot;gltf-skeleton&quot;,
+                                &quot;gltf-material&quot;,
+                                &quot;gltf-scene&quot;,
+                                &quot;gltf-embeded-image&quot;,
+                                &quot;fbx&quot;,
+                                &quot;material&quot;,
+                                &quot;physics-material&quot;,
+                                &quot;effect&quot;,
+                                &quot;effect-header&quot;,
+                                &quot;audio-clip&quot;,
+                                &quot;animation-clip&quot;,
+                                &quot;animation-graph&quot;,
+                                &quot;animation-graph-variant&quot;,
+                                &quot;animation-mask&quot;,
+                                &quot;ttf-font&quot;,
+                                &quot;bitmap-font&quot;,
+                                &quot;particle&quot;,
+                                &quot;sprite-atlas&quot;,
+                                &quot;auto-atlas&quot;,
+                                &quot;label-atlas&quot;,
+                                &quot;render-pipeline&quot;,
+                                &quot;render-stage&quot;,
+                                &quot;render-flow&quot;,
+                                &quot;instantiation-material&quot;,
+                                &quot;instantiation-mesh&quot;,
+                                &quot;instantiation-skeleton&quot;,
+                                &quot;instantiation-animation&quot;,
+                                &quot;video-clip&quot;,
+                                &quot;*&quot;,
+                                &quot;database&quot;
+                              ],
+                              &quot;description&quot;: &quot;Importer name, corresponding to asset handler type&quot;
+                            },
+                            &quot;imported&quot;: {
+                              &quot;type&quot;: &quot;boolean&quot;,
+                              &quot;description&quot;: &quot;Whether imported&quot;
+                            },
+                            &quot;uuid&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Asset unique identifier&quot;
+                            },
+                            &quot;files&quot;: {
+                              &quot;type&quot;: &quot;array&quot;,
+                              &quot;items&quot;: {
+                                &quot;type&quot;: &quot;string&quot;
+                              },
+                              &quot;description&quot;: &quot;List of associated files&quot;
+                            },
+                            &quot;subMetas&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;additionalProperties&quot;: {},
+                              &quot;description&quot;: &quot;Sub-asset metadata map&quot;
+                            },
+                            &quot;userData&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;additionalProperties&quot;: {
+                                &quot;anyOf&quot;: [
+                                  {
+                                    &quot;type&quot;: &quot;string&quot;
+                                  },
+                                  {
+                                    &quot;type&quot;: &quot;number&quot;
+                                  },
+                                  {
+                                    &quot;type&quot;: &quot;boolean&quot;
+                                  },
+                                  {
+                                    &quot;type&quot;: &quot;null&quot;
+                                  },
+                                  {
+                                    &quot;type&quot;: &quot;array&quot;,
+                                    &quot;items&quot;: {}
+                                  },
+                                  {
+                                    &quot;type&quot;: &quot;object&quot;,
+                                    &quot;additionalProperties&quot;: {}
+                                  }
+                                ]
+                              },
+                              &quot;description&quot;: &quot;User custom data&quot;
+                            },
+                            &quot;displayName&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Display name&quot;
+                            },
+                            &quot;id&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Asset ID, only sub-assets have this field&quot;
+                            },
+                            &quot;name&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Asset name&quot;
+                            }
+                          },
+                          &quot;required&quot;: [
+                            &quot;ver&quot;,
+                            &quot;importer&quot;,
+                            &quot;imported&quot;,
+                            &quot;uuid&quot;,
+                            &quot;files&quot;,
+                            &quot;subMetas&quot;,
+                            &quot;userData&quot;
+                          ],
+                          &quot;additionalProperties&quot;: false,
+                          &quot;description&quot;: &quot;Asset metadata&quot;
+                        },
+                        &quot;parent&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;properties&quot;: {
+                            &quot;source&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;URL address of parent asset&quot;
+                            },
+                            &quot;library&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;additionalProperties&quot;: {
+                                &quot;type&quot;: &quot;string&quot;
+                              },
+                              &quot;description&quot;: &quot;Imported asset map of parent asset&quot;
+                            },
+                            &quot;uuid&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;UUID of parent asset&quot;
+                            }
+                          },
+                          &quot;required&quot;: [
+                            &quot;source&quot;,
+                            &quot;library&quot;,
+                            &quot;uuid&quot;
+                          ],
+                          &quot;additionalProperties&quot;: false,
+                          &quot;description&quot;: &quot;Parent asset information&quot;
+                        },
+                        &quot;extends&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          },
+                          &quot;description&quot;: &quot;Asset inheritance chain information&quot;
+                        },
+                        &quot;mtime&quot;: {
+                          &quot;type&quot;: &quot;number&quot;,
+                          &quot;description&quot;: &quot;Modification time of asset file&quot;
+                        },
+                        &quot;depends&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          },
+                          &quot;description&quot;: &quot;List of dependent asset UUIDs&quot;
+                        },
+                        &quot;dependeds&quot;: {
+                          &quot;type&quot;: &quot;array&quot;,
+                          &quot;items&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          },
+                          &quot;description&quot;: &quot;List of depended asset UUIDs&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;name&quot;,
+                        &quot;source&quot;,
+                        &quot;loadUrl&quot;,
+                        &quot;url&quot;,
+                        &quot;file&quot;,
+                        &quot;uuid&quot;,
+                        &quot;importer&quot;,
+                        &quot;imported&quot;,
+                        &quot;invalid&quot;,
+                        &quot;type&quot;,
+                        &quot;isDirectory&quot;,
+                        &quot;library&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    {
+                      &quot;type&quot;: &quot;null&quot;
+                    }
+                  ],
+                  &quot;description&quot;: &quot;Re-import operation result&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+            },
+            &quot;reason&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;not&quot;: {}
+                }
+              ],
+              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+            }
+          },
+          &quot;required&quot;: [
+            &quot;code&quot;
+          ],
+          &quot;additionalProperties&quot;: false
+        }
+      },
+      &quot;required&quot;: [
+        &quot;result&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    }
+  },
+  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+}</pre></main><footer class="wrap foot">Generated by workflow/generate-api-docs.ts · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>
