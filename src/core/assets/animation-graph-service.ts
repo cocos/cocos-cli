@@ -417,7 +417,7 @@ class AnimationGraphAssetService {
 
     async runExternalWrite<T>(uuidOrUrlOrPath: string, write: () => Promise<T>): Promise<T> {
         const asset = assetQuery.queryAsset(uuidOrUrlOrPath);
-        if (!asset || (asset.meta?.importer !== 'animation-graph' && (asset as any).type !== 'cc.AnimationGraph')) {
+        if (!asset || (asset.meta?.importer !== 'animation-graph' && (asset as any).type !== 'cc.animation.AnimationGraph')) {
             return write();
         }
         return this.runExternalWrites([asset.uuid], write);
@@ -499,8 +499,8 @@ class AnimationGraphAssetService {
         }
         const importer = asset.meta?.importer;
         const type = (asset as any).type;
-        if (importer !== 'animation-graph' && type !== 'cc.AnimationGraph') {
-            throw new Error(`Expected cc.AnimationGraph asset, got importer ${importer || 'unknown'} type ${type || 'unknown'}: ${uuidOrUrlOrPath}`);
+        if (importer !== 'animation-graph' && type !== 'cc.animation.AnimationGraph') {
+            throw new Error(`Expected cc.animation.AnimationGraph asset, got importer ${importer || 'unknown'} type ${type || 'unknown'}: ${uuidOrUrlOrPath}`);
         }
         if (!asset.source) {
             throw new Error(`Animation Graph asset has no source file: ${uuidOrUrlOrPath}`);

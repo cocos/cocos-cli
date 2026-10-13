@@ -4,12 +4,12 @@ import { AnimationGraph } from 'cc/editor/new-gen-anim';
 import { readFile } from 'fs-extra';
 
 import { getDependUUIDList } from '../utils';
-import { AssetHandler } from '../../@types/protected';
+import { AssetHandler, IAssetType } from '../../@types/protected';
 
 const AnimationGraphHandler: AssetHandler = {
     name: 'animation-graph',
     // 引擎内对应的类型
-    assetType: 'cc.AnimationGraph',
+    assetType: js.getClassName(AnimationGraph) as IAssetType,
     open(asset) {
         // TODO: 实现打开动画图资产
         return false;

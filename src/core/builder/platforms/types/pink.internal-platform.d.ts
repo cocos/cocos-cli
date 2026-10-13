@@ -1187,9 +1187,9 @@ declare module 'pink' {
 	| 'cc.PhysicsMaterial'      // 物理材质
 	| 'cc.LabelAtlas'           // 标签图集
 	| 'cc.RenderTexture'        // 渲染纹理
-	| 'cc.AnimationGraph'       // 动画图
+	| 'cc.animation.AnimationGraph'       // 动画图
 	| 'cc.AnimationMask'        // 动画遮罩
-	| 'cc.AnimationGraphVariant';
+	| 'cc.animation.AnimationGraphVariant';
 
 	export interface QueryAssetsOption {
 	    ccType?: string | string[], // 'cc.ImageAsset' 这类，多个用数组

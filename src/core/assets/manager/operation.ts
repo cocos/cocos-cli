@@ -982,7 +982,7 @@ class AssetOperation extends EventEmitter {
     }
 
     private _isAnimationGraphAsset(asset: IAsset): boolean {
-        return asset.meta?.importer === 'animation-graph' || (asset as any).type === 'cc.AnimationGraph';
+        return asset.meta?.importer === 'animation-graph' || (asset as any).type === 'cc.animation.AnimationGraph';
     }
 
     private async _runAnimationGraphExternalWrites<T>(assets: IAsset[], write: () => Promise<T>): Promise<T> {

@@ -31,6 +31,7 @@ import { TestGlobalEnv } from '../../../tests/global-env';
 import { assetManager } from '..';
 import animationGraph from '../animation-graph-service';
 import type { IProperty } from '../../scene/@types/public';
+import type { IAssetInfo } from '../@types/public';
 
 describe('animation graph asset service', () => {
     const name = `animation-graph-service-${Date.now()}`;
@@ -44,6 +45,56 @@ describe('animation graph asset service', () => {
 
     beforeAll(async () => {
         await globalSetup();
+    });
+
+    it.each([
+        ['animation-graph', 'animgraph', 'cc.animation.AnimationGraph'],
+        ['animation-graph-variant', 'animgraphvari', 'cc.animation.AnimationGraphVariant'],
+    ])('queries registered types and inheritance in %s asset events', async (importer, extension, type) => {
+        const added: IAssetInfo[] = [];
+        const changed: IAssetInfo[] = [];
+        const removeAdded = assetManager.onAssetAdded(info => added.push(info));
+        const removeChanged = assetManager.onAssetChanged(info => changed.push(info));
+        try {
+            const asset = await assetManager.createAsset({
+                target: join(TestGlobalEnv.testRoot, `${name}-type.${extension}`),
+                content: readFileSync(join(TestGlobalEnv.engineRoot,
+                    `editor/assets/default_file_content/${importer}/default.${extension}`), 'utf8'),
+                overwrite: true,
+            });
+            const expected = {
+                uuid: asset.uuid,
+                type,
+                extends: expect.arrayContaining(['cc.animation.AnimationGraphLike', 'cc.Asset']),
+            };
+            expect(assetManager.queryAssetInfo(asset.uuid, ['extends'])).toMatchObject(expected);
+            expect(assetManager.queryAssetInfos({ ccType: type }, ['extends']))
+                .toEqual(expect.arrayContaining([expect.objectContaining(expected)]));
+            expect(added.find(info => info.uuid === asset.uuid)).toMatchObject(expected);
+            await assetManager.reimportAsset(asset.uuid);
+            expect(changed.find(info => info.uuid === asset.uuid)).toMatchObject(expected);
+        } finally {
+            removeAdded();
+            removeChanged();
+        }
+    });
+
+    it('saves and reloads a variant referencing a registered animation graph', async () => {
+        const graph = await assetManager.createAsset({
+            target: join(TestGlobalEnv.testRoot, `${name}-variant-original.animgraph`),
+            content: getDefaultGraphContent(),
+            overwrite: true,
+        });
+        const variant = await assetManager.createAsset({
+            target: join(TestGlobalEnv.testRoot, `${name}-variant.animgraphvari`),
+            content: readFileSync(join(TestGlobalEnv.engineRoot,
+                'editor/assets/default_file_content/animation-graph-variant/default.animgraphvari'), 'utf8'),
+            overwrite: true,
+        });
+        await assetManager.queryAnimationGraphVariant(variant.uuid);
+        await assetManager.changeAnimationGraphVariant(variant.uuid, { graphUuid: graph.uuid, clips: {} });
+        await assetManager.saveAnimationGraphVariant(variant.uuid);
+        expect(await assetManager.queryAnimationGraphVariant(variant.uuid)).toEqual({ graphUuid: graph.uuid, clips: {}, invalids: {} });
     });
 
     afterAll(async () => {

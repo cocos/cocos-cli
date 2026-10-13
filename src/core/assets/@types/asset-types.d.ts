@@ -40,9 +40,9 @@ export type ISupportCreateCCType =
     | 'cc.PhysicsMaterial'      // 物理材质
     | 'cc.LabelAtlas'           // 标签图集
     | 'cc.RenderTexture'        // 渲染纹理
-    | 'cc.AnimationGraph'       // 动画图
+    | 'cc.animation.AnimationGraph'       // 动画图
     | 'cc.AnimationMask'        // 动画遮罩
-    | 'cc.AnimationGraphVariant'; // 动画图变体
+    | 'cc.animation.AnimationGraphVariant'; // 动画图变体
 
 
 export type IAssetType =

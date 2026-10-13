@@ -217,7 +217,7 @@ function registerVariantFixture(
     for (const overrideUuid of Object.values(overrides)) {
         registerClipAsset(overrideUuid);
     }
-    registerAsset(variantUuid, 'animation-graph-variant', 'cc.AnimationGraphVariant', `${variantUuid}.animgraphvari`);
+    registerAsset(variantUuid, 'animation-graph-variant', 'cc.animation.AnimationGraphVariant', `${variantUuid}.animgraphvari`);
     mockFiles.set(`${variantUuid}.animgraphvari`, {
         kind: 'variant',
         graphUuid,
@@ -228,7 +228,7 @@ function registerVariantFixture(
 }
 
 function registerGraphAsset(uuid: string, clipUuids: string[]) {
-    registerAsset(uuid, 'animation-graph', 'cc.AnimationGraph', `${uuid}.animgraph`);
+    registerAsset(uuid, 'animation-graph', 'cc.animation.AnimationGraph', `${uuid}.animgraph`);
     for (const clipUuid of clipUuids) {
         registerClipAsset(clipUuid);
     }

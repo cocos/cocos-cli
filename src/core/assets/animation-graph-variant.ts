@@ -43,7 +43,7 @@ class AnimationGraphVariantAssetService {
     private _pendingEdits = new Map<string, PendingAnimationGraphVariantEdit>();
 
     async query(uuid: string): Promise<AnimGraphVariantDump> {
-        const asset = this._queryTypedAsset(uuid, 'animation-graph-variant', 'cc.AnimationGraphVariant');
+        const asset = this._queryTypedAsset(uuid, 'animation-graph-variant', 'cc.animation.AnimationGraphVariant');
         const variant = await this._loadAnimationGraphVariant(asset);
         const sourceOverrides = this._entryOverrides(variant);
         const dump = await this._encodeVariant(variant, sourceOverrides);
@@ -63,7 +63,7 @@ class AnimationGraphVariantAssetService {
     }
 
     async change(uuid: string, dump: AnimGraphVariantDump): Promise<AnimGraphVariantDump> {
-        const asset = this._queryTypedAsset(uuid, 'animation-graph-variant', 'cc.AnimationGraphVariant');
+        const asset = this._queryTypedAsset(uuid, 'animation-graph-variant', 'cc.animation.AnimationGraphVariant');
         let pending = this._pendingEdits.get(asset.uuid);
 
         if (!pending) {
@@ -95,7 +95,7 @@ class AnimationGraphVariantAssetService {
     }
 
     async save(uuid: string): Promise<void> {
-        const asset = this._queryTypedAsset(uuid, 'animation-graph-variant', 'cc.AnimationGraphVariant');
+        const asset = this._queryTypedAsset(uuid, 'animation-graph-variant', 'cc.animation.AnimationGraphVariant');
         const pending = this._pendingEdits.get(asset.uuid);
 
         if (!pending) {
@@ -111,7 +111,7 @@ class AnimationGraphVariantAssetService {
         const dump = this._cloneDump(pending.dump);
 
         if (dump.graphUuid) {
-            this._queryTypedAsset(dump.graphUuid, 'animation-graph', 'cc.AnimationGraph');
+            this._queryTypedAsset(dump.graphUuid, 'animation-graph', 'cc.animation.AnimationGraph');
             variant.original = this._createAssetReference(dump.graphUuid, AnimationGraph as AssetCtor);
         } else {
             variant.original = null;
@@ -230,7 +230,7 @@ class AnimationGraphVariantAssetService {
     }
 
     private async _loadAnimationGraphByUuid(uuid: string): Promise<any> {
-        const asset = this._queryTypedAsset(uuid, 'animation-graph', 'cc.AnimationGraph');
+        const asset = this._queryTypedAsset(uuid, 'animation-graph', 'cc.animation.AnimationGraph');
         const json = await this._readSerializedAsset(asset);
         const graph = this._deserializeWithAssetPlaceholders<any>(json);
         const { AnimationGraph } = getNewGenAnim();
@@ -308,7 +308,7 @@ class AnimationGraphVariantAssetService {
             return null;
         }
 
-        const asset = this._queryTypedAsset(uuid, 'animation-graph', 'cc.AnimationGraph');
+        const asset = this._queryTypedAsset(uuid, 'animation-graph', 'cc.animation.AnimationGraph');
         return {
             uuid: asset.uuid,
             source: asset.source,
