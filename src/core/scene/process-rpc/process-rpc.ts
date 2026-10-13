@@ -1,5 +1,6 @@
 // process-rpc.ts
 import { ChildProcess } from 'child_process';
+import { serializePrefabWriteError, type IPrefabWriteError } from '../common/prefab-write';
 
 /**
  * RPC 消息类型
@@ -17,6 +18,7 @@ interface RpcResponse {
     type: 'response';
     result?: any;
     error?: string;
+    prefabWriteError?: IPrefabWriteError;
 }
 
 interface RpcNotify {
@@ -160,7 +162,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 const result = await target[method](...(args || []));
                 this.reply({ id, type: 'response', result });
             } catch (e: any) {
-                this.reply({ id, type: 'response', error: e?.message || String(e) });
+                this.reply({ id, type: 'response', error: e?.message || String(e), prefabWriteError: serializePrefabWriteError(e) });
             }
         }
 
@@ -222,7 +224,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
                 if (res.ok) {
                     const rpcRes = (await res.json()) as RpcResponse;
                     if (rpcRes.error) {
-                        throw new Error(rpcRes.error);
+                        throw Object.assign(new Error(rpcRes.error), rpcRes.prefabWriteError);
                     }
                     return rpcRes.result;
                 }
@@ -250,7 +252,7 @@ export class ProcessRPC<TModules extends Record<string, any>> {
 
             this.callbacks.set(id, (res) => {
                 if (timer) clearTimeout(timer);
-                if (res.error) reject(new Error(res.error));
+                if (res.error) reject(Object.assign(new Error(res.error), res.prefabWriteError));
                 else resolve(res.result);
             });
 

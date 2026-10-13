@@ -17,6 +17,7 @@ jest.mock('../scene-process/service/core/decorator', () => ({
 }));
 
 import { RpcProxy } from '../scene-process/rpc';
+import { Service } from '../scene-process/service/core/decorator';
 
 describe('RpcProxy Web transport state', () => {
     beforeEach(() => {
@@ -45,5 +46,6 @@ describe('RpcProxy Web transport state', () => {
 
         expect(proxy.getWebServerUrl()).toBeUndefined();
         expect(mockAttach).toHaveBeenCalledWith(process);
+        expect(mockRegister).toHaveBeenCalledWith(Service);
     });
 });

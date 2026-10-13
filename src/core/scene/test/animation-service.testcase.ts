@@ -22,7 +22,7 @@ const Undo = {
     isDirty: () => requestService<boolean>('Undo', 'isDirty'),
     canUndo: () => requestService<boolean>('Undo', 'canUndo'),
     canUndoInAnimationScope: () => requestService<boolean>('Undo', 'canUndo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
-    beginRecording: (uuids: string[], options: any) => requestService<string>('Undo', 'beginRecording', [uuids, options]),
+    beginRecordingAsync: (uuids: string[], options: any) => requestService<string>('Undo', 'beginRecordingAsync', [uuids, options]),
     endRecording: (id: string) => requestService<boolean>('Undo', 'endRecording', [id]),
     undo: () => requestService('Undo', 'undo'),
     undoInAnimationScope: () => requestService('Undo', 'undo', [{ scope: { editorType: 'animation', mode: 'animation' } }]),
@@ -1792,7 +1792,7 @@ describe('Animation Service 场景进程测试', () => {
         await request('setTime', [{ time: 0.5 }]);
         const nodeBeforeGizmo = await requestService<any>('Node', 'queryNodeTree', [{ path: emptyNodePath }]);
         expect(nodeBeforeGizmo?.uuid).toBeTruthy();
-        const recordingId = await Undo.beginRecording([nodeBeforeGizmo.uuid], {
+        const recordingId = await Undo.beginRecordingAsync([nodeBeforeGizmo.uuid], {
             label: 'Gizmo position',
             scope: {
                 editorType: 'scene',

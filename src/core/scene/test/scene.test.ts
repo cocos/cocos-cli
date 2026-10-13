@@ -35,6 +35,7 @@ import './node-serialized-data.testcase';
 import './component-proxy.testcase';
 import './component-for-editor.testcase';
 import './prefab-proxy.testcase';
+import './prefab-write-integration.testcase';
 import './script-proxy.testcase';
 import './engine-proxy.testcase';
 import './undo-redo.testcase';

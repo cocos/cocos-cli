@@ -851,7 +851,7 @@ export class ReflectionProbeService extends BaseService<IReflectionProbeEvents> 
 
         const previousCubemap = component.cubemap;
         let sceneSaved = false;
-        const commandId = Service.Undo.beginRecording([component.uuid], {
+        const commandId = await Service.Undo.beginRecordingAsync([component.uuid], {
             label: 'Bake reflection probe',
             scope: {
                 nodePath: options.nodePath,

@@ -123,7 +123,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
                 await lightFXCoordinator.commit(output.operationId);
                 nativeCommitted = true;
 
-                const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Bake light probes' });
+                const undo = await Service.Undo.beginRecordingAsync([scene.uuid], { label: 'Bake light probes' });
                 try {
                     this.applySettings(info, settingsToApply);
                     this.applyResult(probes, output);
@@ -168,7 +168,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             const info: any = scene.globals.lightProbeInfo;
             const probes: any[] = info.data?.probes ?? [];
             const previous = this.snapshot(probes);
-            const undo = Service.Undo.beginRecording([scene.uuid], { label: 'Clear light probes' });
+            const undo = await Service.Undo.beginRecordingAsync([scene.uuid], { label: 'Clear light probes' });
             try {
                 info.onProbeBakeCleared();
                 await Service.Engine.repaintInEditMode();

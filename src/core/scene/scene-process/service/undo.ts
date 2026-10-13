@@ -1,3 +1,4 @@
+import { prefabWriteSession } from './prefab/write-session';
 import { BaseService } from './core';
 import { register } from './core/decorator';
 import { SceneUndoManager } from './undo/scene-undo-manager';
@@ -56,7 +57,29 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
         });
     }
 
+    private readonly recordingReleases = new Map<string, () => Promise<void>>();
+    private readonly groupReleases = new Map<string, () => Promise<void>>();
+
+    async beginRecordingAsync(uuids: string[], options?: IUndoBeginOptions): Promise<string> {
+        const release = await prefabWriteSession.acquire();
+        try {
+            return this.beginRecording(uuids, options);
+        } finally {
+            // beginRecording retains its own occupancy until end/cancel.
+            await release();
+        }
+    }
+
     beginRecording(uuids: string[], options?: IUndoBeginOptions): string {
+        const release = prefabWriteSession.retain();
+        try {
+            const id = this.captureRecording(uuids, options);
+            this.recordingReleases.set(id, release);
+            return id;
+        } catch (error) { void release(); throw error; }
+    }
+
+    private captureRecording(uuids: string[], options?: IUndoBeginOptions): string {
         const nodes = uuids.map(uuid => {
             const node = this._getEditorNodeManager()?.getNode?.(uuid) as Node | undefined;
             return node ?? (this._getEditorComponentManager()?.getComponent?.(uuid) as Component | undefined)?.node;
@@ -77,10 +100,14 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
 
     async endRecording(commandId: string): Promise<void> {
         const wasDirty = this._undoMgr.isDirty();
-        const pushed = await this._undoMgr.endRecording(commandId);
-        this._emitDirtyIfChanged(wasDirty);
-        if (pushed) {
-            this.broadcast('undo:changed');
+        try {
+            const pushed = await this._undoMgr.endRecording(commandId);
+            this._emitDirtyIfChanged(wasDirty);
+            if (pushed) this.broadcast('undo:changed');
+        } finally {
+            const release = this.recordingReleases.get(commandId);
+            this.recordingReleases.delete(commandId);
+            await release?.();
         }
     }
 
@@ -88,9 +115,16 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
         const wasDirty = this._undoMgr.isDirty();
         this._undoMgr.cancelRecording(commandId);
         this._emitDirtyIfChanged(wasDirty);
+        const release = this.recordingReleases.get(commandId);
+        this.recordingReleases.delete(commandId);
+        if (release) void release().catch(error => console.error('[Prefab write] Failed to finish cancelled recording', error));
     }
 
     async undo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
+        return prefabWriteSession.edit(() => this.undoUnlocked(options), true);
+    }
+
+    private async undoUnlocked(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
         const wasDirty = this._undoMgr.isDirty();
         const result = await this._undoMgr.undo(options);
         if (result.success) {
@@ -107,6 +141,10 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     async redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
+        return prefabWriteSession.edit(() => this.redoUnlocked(options), true);
+    }
+
+    private async redoUnlocked(options?: IUndoOperationOptions): Promise<IUndoRedoResult> {
         const wasDirty = this._undoMgr.isDirty();
         const result = await this._undoMgr.redo(options);
         if (result.success) {
@@ -157,6 +195,10 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     async discardScopedChangesAfterCheckpoint(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): Promise<IUndoRedoResult> {
+        return prefabWriteSession.edit(() => this.discardScopedChangesUnlocked(checkpoint, scope), true);
+    }
+
+    private async discardScopedChangesUnlocked(checkpoint: IUndoCheckpoint, scope: Partial<IUndoScope>): Promise<IUndoRedoResult> {
         const wasDirty = this._undoMgr.isDirty();
         const result = await this._undoMgr.discardScopedChangesAfterCheckpoint(checkpoint, scope);
         if (result.success) {
@@ -179,12 +221,23 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     beginGroup(options?: IUndoGroupOptions): string {
-        return this._undoMgr.beginGroup(options);
+        const release = prefabWriteSession.retain();
+        try {
+            const id = this._undoMgr.beginGroup(options);
+            this.groupReleases.set(id, release);
+            return id;
+        } catch (error) { void release(); throw error; }
+    }
+
+    async beginGroupAsync(options?: IUndoGroupOptions): Promise<string> {
+        const release = await prefabWriteSession.acquire();
+        try { return this.beginGroup(options); } finally { await release(); }
     }
 
     endGroup(groupId: string): IUndoRedoResult {
         const wasDirty = this._undoMgr.isDirty();
         const result = this._undoMgr.endGroup(groupId);
+        if (result.success) this.releaseGroup(groupId);
         this._emitDirtyIfChanged(wasDirty);
         if (result.success) {
             this.broadcast('undo:changed');
@@ -193,7 +246,15 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     cancelGroup(groupId: string): IUndoRedoResult {
-        return this._undoMgr.cancelGroup(groupId);
+        const result = this._undoMgr.cancelGroup(groupId);
+        if (result.success) this.releaseGroup(groupId);
+        return result;
+    }
+
+    private releaseGroup(groupId: string): void {
+        const release = this.groupReleases.get(groupId);
+        this.groupReleases.delete(groupId);
+        if (release) void release().catch(error => console.error('[Prefab write] Failed to finish undo group', error));
     }
 
     isGroupActive(): boolean {

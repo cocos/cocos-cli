@@ -132,6 +132,38 @@ describe('main-process Scene RPC providers', () => {
         });
     });
 
+    it('shares Prefab write ownership between local Webview calls and worker reverse RPC', async () => {
+        const workerProcess = createFakeProcess();
+        rpc.startup(workerProcess as any);
+        const registered = await rpc.executeLocal('prefabWriteHost', 'registerRuntime', [{
+            runtime: { runtimeId: 'scene-runtime', generation: 1 },
+            editVersion: 0,
+            state: { status: 'ready', dirty: false },
+        }]);
+        expect(registered.ok).toBe(true);
+
+        workerProcess.emit('message', {
+            id: 92, type: 'request', module: 'prefabWriteHost', method: 'beginEdit',
+            args: [{ registration: registered.value, expectedEditVersion: 0 }],
+        });
+        await flushEvents();
+
+        expect(workerProcess.send).toHaveBeenCalledWith(expect.objectContaining({
+            id: 92, type: 'response', result: { ok: true, value: expect.objectContaining({ editVersion: 1 }) },
+        }));
+        await expect(rpc.executeLocal('prefabWriteHost', 'queryRuntime', [registered.value]))
+            .resolves.toMatchObject({ ok: true, value: { status: 'editing', editVersion: 1 } });
+
+        workerProcess.emit('message', {
+            id: 93, type: 'request', module: 'prefabWriteHost', method: 'beginEdit',
+            args: [{ registration: registered.value, expectedEditVersion: 0 }],
+        });
+        await flushEvents();
+        expect(workerProcess.send).toHaveBeenCalledWith(expect.objectContaining({
+            id: 93, type: 'response', result: { ok: false, error: expect.objectContaining({ code: 'PREFAB_SESSION_CHANGED' }) },
+        }));
+    });
+
     it('installs an explicit Provider and never falls back after its request fails', async () => {
         const workerProcess = createFakeProcess();
         await rpc.startup(workerProcess as any);

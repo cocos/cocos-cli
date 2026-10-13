@@ -13,7 +13,7 @@ class MockVec3 {
 const mockBake = jest.fn(), mockCommit = jest.fn(), mockRollback = jest.fn();
 const mockSave = jest.fn(), mockRepaint = jest.fn();
 const mockRemoveLightmapAssets = jest.fn(), mockQuerySceneSerializedData = jest.fn();
-const mockUndo = { beginRecording: jest.fn(), endRecording: jest.fn(), cancelRecording: jest.fn(), createCheckpoint: jest.fn() };
+const mockUndo = { beginRecordingAsync: jest.fn(), endRecording: jest.fn(), cancelRecording: jest.fn(), createCheckpoint: jest.fn() };
 jest.mock('cc', () => ({ director: { getScene: mockGetScene }, MeshRenderer: mockMeshRenderer, Terrain: mockTerrain,
     Vec3: MockVec3, SH: { getBasisCount: () => 9 } }));
 jest.mock('../scene-process/service/core', () => ({
@@ -88,7 +88,7 @@ function fixture(target: 'probe' | 'lightmap') {
             return { success: true };
         },
     } });
-    mockUndo.beginRecording.mockImplementation(uuids => manager.beginRecording(uuids));
+    mockUndo.beginRecordingAsync.mockImplementation(uuids => manager.beginRecording(uuids));
     mockUndo.endRecording.mockImplementation(async id => { events.push('record'); await manager.endRecording(id); });
     mockUndo.cancelRecording.mockImplementation(id => manager.cancelRecording(id));
     mockUndo.createCheckpoint.mockImplementation(() => manager.createCheckpoint());
@@ -130,7 +130,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
             const rejected = expect(pending).rejects.toThrow('source scene changed');
             expect(mockReserveSceneOperation).toHaveBeenCalledTimes(1);
             expect(mockBake).not.toHaveBeenCalled();
-            expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+            expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
             mockGetScene.mockReturnValue(replacement.scene);
             if (change === 'session-generation') mockSessionGeneration++;
             reserve({ transactionId: 'obsolete-owner' });
@@ -140,7 +140,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
             expect(mockBake).not.toHaveBeenCalled();
             expect(mockCommit).not.toHaveBeenCalled();
             expect(mockRollback).not.toHaveBeenCalled();
-            expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+            expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
             expect(mockSave).not.toHaveBeenCalled();
             expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
             for (const f of [source, replacement]) {
@@ -174,7 +174,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
             expect(mockSave).not.toHaveBeenCalled();
             expect(mockCommit).not.toHaveBeenCalled();
             expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
-            expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+            expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
             expect(f.read()).toEqual(f.old);
         });
     });
@@ -223,7 +223,7 @@ describe.each(['probe', 'lightmap'] as const)('%s result failure consistency', t
             memory: f.old, disk: f.old, assets: committed ? ['old', 'new'] : ['old'], undo: false,
         });
         expect(mockSave).not.toHaveBeenCalled();
-        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
     });
 
     it.each(['bake', 'clear'] as const)('retains %s after pre-write save failure, supports Undo/Redo and retry', async action => {
@@ -285,7 +285,7 @@ describe('Lightmap first bake history', () => {
         const f = fixture('lightmap');
         mockGetScene().getComponents(mockMeshRenderer)[0].bakeSettings.texture = null;
         await f.service.bake({ saveScene: false });
-        expect(mockUndo.beginRecording).toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).toHaveBeenCalled();
         await f.manager.undo();
         expect(f.read().texture).toBeNull();
         await f.manager.redo();

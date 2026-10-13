@@ -91,7 +91,7 @@ export class UIService extends BaseService<IUIEvents> implements IUIService {
         const aabb = new Rect(minX, minY, maxX - minX, maxY - minY);
 
         const uuids = selectedNodes.map((node) => node.uuid);
-        const undoID = Service.Undo.beginRecording(uuids);
+        const undoID = await Service.Undo.beginRecordingAsync(uuids);
 
         items.forEach((item) => {
             const node = item.node;
@@ -179,7 +179,7 @@ export class UIService extends BaseService<IUIEvents> implements IUIService {
         const last = items[length].bounds;
 
         const uuids = selectedNodes.map((node) => node.uuid);
-        const undoID = Service.Undo.beginRecording(uuids);
+        const undoID = await Service.Undo.beginRecordingAsync(uuids);
 
         items.forEach((item, i) => {
             const node = item.node;

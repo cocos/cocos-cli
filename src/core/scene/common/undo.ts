@@ -1,3 +1,5 @@
+import type { IPrefabWriteError } from './prefab-write';
+
 export interface IUndoScope {
     assetUuid?: string;
     assetUrl?: string;
@@ -20,6 +22,7 @@ export interface IUndoRedoResult {
     commandId?: string;
     label?: string;
     reason?: string;
+    error?: IPrefabWriteError;
 }
 
 export interface IUndoOperationOptions {
@@ -73,6 +76,9 @@ export interface IUndoService {
      */
     beginRecording(uuids: string[], options?: IUndoBeginOptions): string;
 
+    /** Acquire cross-runtime edit protection before capturing a recording. */
+    beginRecordingAsync(uuids: string[], options?: IUndoBeginOptions): Promise<string>;
+
     /**
      * 将 commandId 对应的录制结果提交到 undo 栈。
      * 如果 dirty 状态发生变化，会触发 dirty:changed。
@@ -91,6 +97,8 @@ export interface IUndoService {
     redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
 
     beginGroup(options?: IUndoGroupOptions): string;
+    /** Acquire cross-runtime edit protection for an externally initiated group. */
+    beginGroupAsync(options?: IUndoGroupOptions): Promise<string>;
 
     endGroup(groupId: string): IUndoRedoResult;
 
@@ -168,6 +176,7 @@ export type IPublicUndoService = Omit<
     | 'redo'
     | 'canRedo'
     | 'beginRecording'
+    | 'beginRecordingAsync'
     | 'endRecording'
     | 'cancelRecording'
     | 'hasActiveRecording'

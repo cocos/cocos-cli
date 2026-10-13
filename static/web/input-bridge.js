@@ -75,18 +75,24 @@ function setupInputBridge(options) {
         };
     }
 
+    function repaint() { 
+        if (engine && engine.repaintInEditMode) engine.repaintInEditMode();
+    }
+
     function dispatchMouse(type, evt) {
         try {
             // Coordinates are already converted to render-buffer pixels in toMouseEvent().
             // Passing DPR here would apply a second, and potentially incorrect, scale.
-            operation.emitMouseEvent(type, evt);
-            if (engine && engine.repaintInEditMode) engine.repaintInEditMode();
+            const dispatched = operation.emitMouseEvent(type, evt);
+            if (dispatched && typeof dispatched.then === 'function') dispatched.then(repaint).catch(function (error) { console.warn('[Scene input]', error); });
+            else repaint();
         } catch (ex) { /* ignore */ }
     }
 
     function dispatchKey(type, evt) {
         try {
-            operation.dispatch(type, evt);
+            const dispatched = operation.dispatch(type, evt);
+            if (dispatched && typeof dispatched.catch === 'function') dispatched.catch(function (error) { console.warn('[Scene input]', error); });
         } catch (ex) { /* ignore */ }
     }
 

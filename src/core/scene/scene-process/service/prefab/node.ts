@@ -1,3 +1,9 @@
+import type { IEditorSessionService } from '../core/editor-session';
+import { queryRegisteredService } from '../core/decorator';
+import { prefabWriteSession } from './write-session';
+import { withPrefabCandidate } from './write-candidate';
+import { reconcilePrefabWrite } from './write-runtime';
+import type { IPrefabWriteReceipt } from '../../../common/prefab-write';
 import {
     Asset,
     assetManager,
@@ -71,6 +77,7 @@ interface INodePrefabData {
 }
 
 interface IApplyPrefabInfo {
+    receipt: IPrefabWriteReceipt;
     nodeUUID: string;
     assetUuid: string;
     assetSource: string;
@@ -874,10 +881,9 @@ class NodeOperation {
     }
 
     // 更新脚本中预制体 child 引用的值到预制体资源
-    public applyTargetOverrides(node: Node) {
+    public applyTargetOverrides(node: Node, sceneRootNode = Service.Editor.getRootNode()) {
         const appliedTargetOverrides: TargetOverrideInfo[] = [];
         // 场景节点或 prefab 资源中的根节点
-        const sceneRootNode = Service.Editor.getRootNode();
         if (!sceneRootNode) {
             return appliedTargetOverrides;
         }
@@ -1090,6 +1096,7 @@ class NodeOperation {
         if (!prefabInstance || !prefabInfo?.asset) return null;
 
         const asset = prefabInfo.asset;
+        const assetUuid = asset._uuid;
 
         // 如果是子资源，则不能应用
         if (prefabUtils.isSubAsset(asset._uuid)) {
@@ -1097,45 +1104,47 @@ class NodeOperation {
             return null;
         }
 
-        const oldPrefabContent = EditorExtends.serialize(asset) as string;
-
         const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [asset._uuid]);
         if (!info) return null;
 
-        // 把非预制体内的节点，更新到预制体信息中
-        const mountedChildrenInfoMap = this.applyMountedChildren(node);
-        if (!mountedChildrenInfoMap) return null;
-
-        // 把非预制体内的组件，更新到预制体信息中
-        const mountedComponentsInfoMap = componentOperation.applyMountedComponents(node);
-        if (!mountedComponentsInfoMap) return null;
-
-        this.applyPropertyOverrides(node);
-        this.applyRemovedComponents(node);
-        this.applyTargetOverrides(node);
-        const ret = prefabUtils.generatePrefabDataFromNode(node);
-        if (!ret) return null;
-        if (ret.clearedReference) {
-            this.restoreClearedReference(node, ret.clearedReference);
-        }
-
-        try {
-            await Rpc.getInstance().request('assetManager', 'saveAsset', [
-                info.source, ret.prefabData,
-            ]);
-            prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
-        } catch (error) {
-            console.error(error);
-            return null;
-        }
-
+        const editorRoot = Service.Editor.getRootNode();
+        const cloneEditorRoot = !!editorRoot && !!prefabUtils.getPrefab(editorRoot);
+        const content = withPrefabCandidate(cloneEditorRoot ? editorRoot! : node, candidateRoot => {
+            let candidate = candidateRoot;
+            candidateRoot.walk(child => { if (child.uuid === node.uuid) candidate = child; });
+            this.preparePrefabApply(candidate, cloneEditorRoot ? candidateRoot : editorRoot);
+            const result = prefabUtils.generatePrefabDataFromNode(candidate);
+            if (!result) throw new Error('Could not prepare the Prefab source.');
+            return result.prefabData;
+        });
+        const receipt = await prefabWriteSession.commit(assetUuid, content);
+        // Only publication success permits changing the real instance's overrides.
+        await reconcilePrefabWrite(receipt, async () => {
+            try {
+                this.preparePrefabApply(node);
+                prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
+            } catch (error) {
+                await prefabWriteSession.markUnavailable();
+                throw error;
+            }
+        });
         return {
             nodeUUID,
-            assetUuid: asset._uuid,
+            assetUuid,
             assetSource: info.source,
-            oldPrefabContent,
-            newPrefabContent: ret.prefabData,
+            oldPrefabContent: receipt.before.content,
+            newPrefabContent: receipt.after.content,
+            receipt,
         };
+    }
+
+    private preparePrefabApply(node: Node, editorRoot = Service.Editor.getRootNode()): void {
+        if (!this.applyMountedChildren(node) || !componentOperation.applyMountedComponents(node)) {
+            throw new Error('Could not prepare mounted Prefab overrides.');
+        }
+        this.applyPropertyOverrides(node);
+        this.applyRemovedComponents(node);
+        this.applyTargetOverrides(node, editorRoot);
     }
 
     public updateChildrenData(node: Node) {
@@ -1345,36 +1354,36 @@ class NodeOperation {
                 console.warn('can\'t create prefabAsset from a prefabNode inside a prefabInstance');
                 return null;
             }
-            // 拖拽预制体时，需要更新所有的 propertyOverrides #17622
-            const prefabInstance = prefabInfo.instance;
-            if (prefabInstance) {
-                this.applyPropertyOverrides(node);
-            }
+
         }
 
         if (!this.canBeMadeToPrefabAsset(node)) {
             return null;
         }
 
-        const ret = prefabUtils.generatePrefabDataFromNode(node);
+        const ret = withPrefabCandidate(node, candidate => {
+            if (prefabUtils.getPrefab(candidate)?.instance) this.applyPropertyOverrides(candidate);
+            return prefabUtils.generatePrefabDataFromNode(candidate);
+        });
         if (!ret) return null;
 
-        // 如果本身就是一个 prefab了，那就先从自动监听变动的列表删除，等后面 link 完再 softReload
-        if (prefabInfo && prefabInfo.asset) {
-            this.assetToNodesMap.delete(prefabInfo.asset._uuid);
+        const existing = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [url]);
+        let asset;
+        let receipt: IPrefabWriteReceipt | undefined;
+        if (existing && options.overwrite) {
+            const baseline = prefabWriteSession.knownBaseline(existing.uuid) ?? await prefabWriteSession.readSource(existing.uuid);
+            receipt = await prefabWriteSession.commit(existing.uuid, ret.prefabData, baseline.fingerprint);
+            asset = existing;
+        } else {
+            asset = await Rpc.getInstance().request('assetManager', 'createAsset', [{ target: url, content: ret.prefabData, overwrite: false }]);
         }
-
-        const asset = await Rpc.getInstance().request('assetManager', 'createAsset', [{
-            target: url,
-            content: ret.prefabData,
-            overwrite: options.overwrite,
-        }]);
-        let assetRootNode: Node | null = null;
-        if (asset) {
-            assetRootNode = await this.replaceNewPrefabAssetWithClearedReference(node, asset.uuid, ret.clearedReference);
-        }
-
-        return assetRootNode;
+        const reconcile = async () => {
+            if (prefabInfo?.asset) this.assetToNodesMap.delete(prefabInfo.asset._uuid);
+            return asset
+                ? this.replaceNewPrefabAssetWithClearedReference(node, asset.uuid, ret.clearedReference, !existing)
+                : null;
+        };
+        return receipt ? reconcilePrefabWrite(receipt, reconcile) : reconcile();
     }
 
     /**
@@ -1413,13 +1422,13 @@ class NodeOperation {
      * @param prefabAsset 新的预制体资源 uuid
      * @param clearedReference 被清除的对外部节点的引用数据
      */
-    public async replaceNewPrefabAssetWithClearedReference(node: Node, prefabAsset: string, clearedReference: Record<string, any>) {
+    public async replaceNewPrefabAssetWithClearedReference(node: Node, prefabAsset: string, clearedReference: Record<string, any>, trackPrefabSources = true) {
         // 移除原来的 node,加载新的预制体作为子节点
         const parent = node.parent;
         if (parent) {
             prefabUtils.fireBeforeChangeMsg(parent);
             const index = node.getSiblingIndex();
-            const prefab = await sceneUtils.loadAny<Prefab>(prefabAsset);
+            const prefab = await sceneUtils.loadAny<Prefab>(prefabAsset, trackPrefabSources);
             const assetRootNode = instantiate(prefab);
             if (assetRootNode['_prefab'] && !assetRootNode['_prefab'].instance) {
                 assetRootNode['_prefab'].instance = prefabUtils.createPrefabInstance();
@@ -1874,7 +1883,7 @@ class NodeOperation {
         prefabUtils.fireChangeMsg(node);
 
         // 因为现在恢复的是私有变量，没有触发 setter，所以暂时只能 softReload 来保证效果正确
-        await Service.Editor.reload({ preserveUndoHistory: true });
+        await queryRegisteredService<IEditorSessionService>('Editor')!.reloadWithinPrefabEdit();
 
         return true;
     }

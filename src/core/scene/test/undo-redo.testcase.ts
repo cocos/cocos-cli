@@ -91,11 +91,11 @@ const Undo = {
     canUndo: (options?: IUndoOperationOptions) => request<boolean>('Undo', 'canUndo', options === undefined ? [] : [options]),
     canRedo: (options?: IUndoOperationOptions) => request<boolean>('Redo', 'canRedo', options === undefined ? [] : [options]),
     markSaved: () => request('Undo', 'markSaved'),
-    beginGroup: (options?: { label?: string }) => request('Undo', 'beginGroup', [options]),
+    beginGroupAsync: (options?: { label?: string }) => request('Undo', 'beginGroupAsync', [options]),
     endGroup: (groupId: string) => request('Undo', 'endGroup', [groupId]),
     cancelGroup: (groupId: string) => request('Undo', 'cancelGroup', [groupId]),
     isGroupActive: () => request<boolean>('Undo', 'isGroupActive'),
-    beginRecording: (uuids: string[], options?: { label?: string }) => request<string>('Undo', 'beginRecording', [uuids, options]),
+    beginRecordingAsync: (uuids: string[], options?: { label?: string }) => request<string>('Undo', 'beginRecordingAsync', [uuids, options]),
     endRecording: (commandId: string) => request('Undo', 'endRecording', [commandId]),
     hasActiveRecording: (uuid?: string) => request<boolean>('Undo', 'hasActiveRecording', [uuid]),
 };
@@ -1452,8 +1452,8 @@ describe('Undo/Redo 集成测试', () => {
             await Undo.clearHistory();
         });
 
-        it('beginGroup + two updates + endGroup undo and redo as one command', async () => {
-            const groupId = await Undo.beginGroup({ label: 'Move Selection' });
+        it('beginGroupAsync + two updates + endGroup undo and redo as one command', async () => {
+            const groupId = await Undo.beginGroupAsync({ label: 'Move Selection' });
             expect(await Undo.isGroupActive()).toBe(true);
 
             await Node.update({ path: firstPath, properties: { position: firstPosition } });
@@ -1480,7 +1480,7 @@ describe('Undo/Redo 集成测试', () => {
         });
 
         it('cancelGroup keeps scene mutations but discards undo history', async () => {
-            const groupId = await Undo.beginGroup({ label: 'Discarded Group' });
+            const groupId = await Undo.beginGroupAsync({ label: 'Discarded Group' });
             await Node.update({ path: firstPath, properties: { position: firstPosition } });
 
             const cancelResult = await Undo.cancelGroup(groupId);
@@ -1513,9 +1513,9 @@ describe('Undo/Redo 集成测试', () => {
             await Undo.clearHistory();
         });
 
-        it('beginRecording + multiple updates produces one undo command', async () => {
+        it('beginRecordingAsync + multiple updates produces one undo command', async () => {
             const uuid = (await queryNode(path))!.nodeId;
-            const recordingId = await Undo.beginRecording([uuid], { label: 'Drag Node' });
+            const recordingId = await Undo.beginRecordingAsync([uuid], { label: 'Drag Node' });
             expect(await Undo.hasActiveRecording(uuid)).toBe(true);
 
             await Node.update({ path, properties: { position: firstPosition } });
@@ -1540,7 +1540,7 @@ describe('Undo/Redo 集成测试', () => {
 
         it('recording captures only requested uuids', async () => {
             const uuid = (await queryNode(path))!.nodeId;
-            const recordingId = await Undo.beginRecording([uuid], { label: 'Scoped Drag' });
+            const recordingId = await Undo.beginRecordingAsync([uuid], { label: 'Scoped Drag' });
 
             await setNodeProperty(path, 'position', finalPosition, false);
             await setNodeProperty(otherPath, 'position', otherPosition, false);
@@ -1554,7 +1554,7 @@ describe('Undo/Redo 集成测试', () => {
 
         it('recording captures node lock changes', async () => {
             const uuid = (await queryNode(path))!.nodeId;
-            const recordingId = await Undo.beginRecording([uuid], { label: 'Lock Node' });
+            const recordingId = await Undo.beginRecordingAsync([uuid], { label: 'Lock Node' });
 
             await Node.changeNodeLock({ paths: [path], locked: true });
             await Undo.endRecording(recordingId);

@@ -1,3 +1,4 @@
+import { prefabEdit } from './prefab/write-session';
 import { register, BaseService, Service } from './core';
 import { queryRegisteredService } from './core/decorator';
 import { basename, extname } from 'path';
@@ -283,8 +284,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
     async createByType(params: ICreateByNodeTypeParams): Promise<INode | null> {
         this._validateCreateParams(params);
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
             const createRootPath = this._getCreateRootPathForUndo(beforeNodeUuids, params.path);
             const target = this._resolveTypeCreateOptions(params);
@@ -308,8 +309,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
     async createByAsset(params: ICreateByAssetParams): Promise<INode | null> {
         this._validateCreateParams(params);
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const beforeNodeUuids = this._collectSceneNodeUuidsForUndo();
             const createRootPath = this._getCreateRootPathForUndo(beforeNodeUuids, params.path);
             const target = await this._resolveAssetIdentity(params);
@@ -355,8 +356,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
 
     async preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult> {
         this._validateCreateParams(params);
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const currentScene = Service.Editor.getRootNode();
             if (!currentScene) {
                 throw new Error('Failed to preflight node creation: the scene is not opened.');
@@ -941,8 +942,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to delete node: the scene is not opened.');
@@ -989,8 +990,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async query(params?: IQueryNodeParams): Promise<INode | IScene | null> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to query node: the scene is not opened.');
@@ -1012,8 +1013,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to query node tree: the scene is not opened.');
@@ -1305,6 +1306,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return await nodeMgr.cancelPreviewSetNodeProperty(node.uuid, options.path);
     }
 
+    @prefabEdit
     public async setProperty(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
@@ -1343,6 +1345,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return result;
     }
 
+    @prefabEdit
     public async reset(path: string): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(path);
         if (!node) {
@@ -1354,6 +1357,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }, async () => await nodeMgr.resetNode(node.uuid));
     }
 
+    @prefabEdit
     public async resetProperty(options: ISetPropertyOptions): Promise<boolean> {
         // Node snapshots deliberately skip components during restoration.
         if (/^__comps__\.\d+\./.test(options.path)) {
@@ -1487,6 +1491,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         return NodeMgr.getNodePath(node) || '';
     }
 
+    @prefabEdit
     public async updatePropertyFromNull(options: ISetPropertyOptions): Promise<boolean> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
@@ -1499,6 +1504,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         }, async () => await nodeMgr.updatePropertyFromNull(node.uuid, options.path));
     }
 
+    @prefabEdit
     public async setNodeAndChildrenLayer(options: ISetPropertyOptions): Promise<void> {
         const node = NodeMgr.getNodeByPath(options.nodePath);
         if (!node) {
@@ -1530,8 +1536,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async setParent(params: ISetParentParams): Promise<string[]> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to set parent: the scene is not opened.');
@@ -1566,8 +1572,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async reorder(params: IReorderParams): Promise<boolean> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to reorder: the scene is not opened.');
@@ -1590,8 +1596,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     private _cutUuids: string[] = [];
 
     async copy(params: ICopyParams): Promise<string[]> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to copy node: the scene is not opened.');
@@ -1616,8 +1622,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async paste(params: IPasteParams): Promise<string[]> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to paste node: the scene is not opened.');
@@ -1665,8 +1671,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async duplicate(params: IDuplicateParams): Promise<string[]> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to duplicate node: the scene is not opened.');
@@ -1692,8 +1698,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async cut(params: ICutParams): Promise<string[]> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const root = Service.Editor.getRootNode();
             if (!root) {
                 throw new Error('Failed to cut node: the scene is not opened.');
@@ -1731,8 +1737,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async moveArrayElement(params: IMoveArrayElementParams): Promise<boolean> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const node = NodeMgr.getNodeByPath(params.nodePath);
             if (!node) {
                 throw new Error(`Node not found at path: ${params.nodePath}`);
@@ -1747,8 +1753,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async removeArrayElement(params: IRemoveArrayElementParams): Promise<boolean> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const node = NodeMgr.getNodeByPath(params.nodePath);
             if (!node) {
                 throw new Error(`Node not found at path: ${params.nodePath}`);
@@ -1790,8 +1796,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     async changeNodeLock(params: IChangeNodeLockParams): Promise<void> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
             const uuids = params.paths.map(p => {
                 const node = NodeMgr.getNodeByPath(p);
                 if (!node) throw new Error(`Node not found at path: ${p}`);

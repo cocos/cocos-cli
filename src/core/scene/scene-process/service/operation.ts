@@ -2,6 +2,7 @@ import { BaseService } from './core';
 import { register } from './core/decorator';
 import { OperationManager } from './operation/operation-manager';
 import type { ISceneMouseEvent, ISceneKeyboardEvent, OperationEvent } from './operation/types';
+import { prefabWriteSession } from './prefab/write-session';
 
 export interface IOperationEvents {
     'pointer-lock': [locked: boolean];
@@ -11,6 +12,7 @@ export interface IOperationEvents {
 @register('Operation')
 export class OperationService extends BaseService<IOperationEvents> {
     private _manager = new OperationManager();
+    private inputQueue: Promise<void> = Promise.resolve();
 
     addListener(type: OperationEvent, listener: Function, priority?: number): void {
         this._manager.addListener(type, listener, priority);
@@ -26,6 +28,20 @@ export class OperationService extends BaseService<IOperationEvents> {
 
     emitMouseEvent(type: string, event: ISceneMouseEvent, dpr: number = 1): void {
         this._manager.emitMouseEvent(type, event, dpr);
+    }
+
+    dispatchAsync(type: OperationEvent, ...args: any[]): Promise<void> {
+        return this.dispatchInput(() => this.dispatch(type, ...args));
+    }
+
+    emitMouseEventAsync(type: string, event: ISceneMouseEvent, dpr: number = 1): Promise<void> {
+        return this.dispatchInput(() => this.emitMouseEvent(type, event, dpr));
+    }
+
+    private dispatchInput(dispatch: () => void): Promise<void> {
+        const operation = this.inputQueue.then(() => prefabWriteSession.edit(async () => { dispatch(); }));
+        this.inputQueue = operation.catch(() => {});
+        return operation;
     }
 
     requestPointerLock(): void {

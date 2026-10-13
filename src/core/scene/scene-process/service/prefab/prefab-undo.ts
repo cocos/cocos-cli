@@ -3,6 +3,7 @@ import { Service } from '../core';
 import {
     captureNodeStructureSnapshot,
     type INodeStructureSnapshot,
+    type NodeStructureSerialization,
 } from '../undo/commands/node-structure-command-utils';
 import { PrefabNodeStructureCommand } from '../undo/commands/prefab-node-structure-command';
 import { PrefabUnwrapCommand } from '../undo/commands/prefab-unwrap-command';
@@ -17,13 +18,13 @@ export interface IPrefabReloadPreserveState {
 export class PrefabUndoHelper {
     private _prefabReloadsPreservingUndoHistory = new Map<string, IPrefabReloadPreserveState>();
 
-    captureSnapshot(node: Node | null | undefined): INodeStructureSnapshot | null {
+    captureSnapshot(node: Node | null | undefined, serialization: NodeStructureSerialization = 'node'): INodeStructureSnapshot | null {
         if (!node?.isValid) {
             return null;
         }
         // Asset serialization promotes mounted nodes to prefab children. Undo
         // snapshots must retain the instance's overrides and mounted children.
-        return captureNodeStructureSnapshot(node, '', { serialization: 'node' });
+        return captureNodeStructureSnapshot(node, '', { serialization });
     }
 
     pushNodeStructureCommand(
@@ -64,6 +65,7 @@ export class PrefabUndoHelper {
         assetSource: string,
         beforeAssetContent: string,
         afterAssetContent: string,
+        afterFingerprint: string,
     ): void {
         const pair = this._getPushablePair(before, after, beforeAssetContent !== afterAssetContent);
         if (!pair) {
@@ -79,6 +81,7 @@ export class PrefabUndoHelper {
             assetSource,
             beforeAssetContent,
             afterAssetContent,
+            afterFingerprint,
         ));
     }
 

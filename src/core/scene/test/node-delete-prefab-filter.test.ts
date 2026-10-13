@@ -120,6 +120,18 @@ describe('NodeService delete prefab filtering', () => {
         mockShouldRecordStructureCommand.mockReturnValue(true);
     });
 
+    it('does not unlock or delete anything when acquiring the editor lock fails', async () => {
+        const error = new Error('PREFAB_BUSY');
+        mockService.Editor.lock.mockRejectedValueOnce(error);
+        const { NodeService } = require('../scene-process/service/node');
+
+        await expect(new NodeService().delete({ path: '/Child' })).rejects.toBe(error);
+
+        expect(mockService.Editor.unlock).not.toHaveBeenCalled();
+        expect(mockEditorNode.getNodeByPath).not.toHaveBeenCalled();
+        expect(mockBaseRemoveNode).not.toHaveBeenCalled();
+    });
+
     it('skips deletion when the target is filtered out as a prefab asset child', async () => {
         mockService.Prefab.filterChildOfPrefabAssetWhenRemoveNode.mockReturnValue([]);
 

@@ -76,6 +76,7 @@ describe('Light probe Undo recording hot path', () => {
         const { service, group, info, scene } = fixture();
         const before = JSON.stringify(info.data);
         const id = service.beginRecording([group.node.uuid]);
+        expect(typeof id).toBe('string');
         group.probes[0].x = 321;
         info.data.probes[0].position.x = 321;
         info.data.probes.forEach(probe => { probe.coefficients = []; });

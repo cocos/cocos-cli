@@ -1,7 +1,7 @@
 const createShouldHideInHierarchyCanvasNode = jest.fn();
 
-class MockCanvas { }
-class MockUITransform { }
+class MockCanvas {}
+class MockUITransform {}
 
 class MockScene {
     name: string;
@@ -21,7 +21,7 @@ jest.mock('cc', () => ({
     Canvas: MockCanvas,
     UITransform: MockUITransform,
     Scene: MockScene,
-    Node: class Node { },
+    Node: class Node {},
     Prefab: class Prefab {
         static _utils: { applyTargetOverrides: jest.Mock } = { applyTargetOverrides: jest.fn() };
     },
@@ -68,12 +68,14 @@ function createPrefabRoot(name: string, options?: { hasCanvas?: boolean; hasUI?:
         parent: null,
         children: options?.nestedChild ? [options.nestedChild] : [],
         _prefab: { fileId: `${name}-file-id`, instance: { fileId: `${name}-instance-file-id` } },
-        getComponentInChildren: jest.fn((type: unknown) => type === MockCanvas && options?.hasCanvas ? {} : null),
-        getComponentsInChildren: jest.fn((type: unknown) => type === MockUITransform && options?.hasUI !== false ? [{}] : []),
+        getComponentInChildren: jest.fn((type: unknown) => (type === MockCanvas && options?.hasCanvas ? {} : null)),
+        getComponentsInChildren: jest.fn((type: unknown) =>
+            type === MockUITransform && options?.hasUI !== false ? [{}] : [],
+        ),
     };
 }
 
-async function openPrefabWith(prefabRoot: any): Promise<{ editor: PrefabEditor; scene: MockScene; }> {
+async function openPrefabWith(prefabRoot: any): Promise<{ editor: PrefabEditor; scene: MockScene }> {
     (sceneUtils.runScene as jest.Mock).mockImplementation(async (scene: MockScene) => scene);
     (sceneUtils.loadAny as jest.Mock).mockResolvedValue({});
     (instantiate as unknown as jest.Mock).mockReturnValue(prefabRoot);
@@ -91,6 +93,21 @@ async function openPrefabWith(prefabRoot: any): Promise<{ editor: PrefabEditor; 
 }
 
 describe('PrefabEditor preview Canvas', () => {
+    it('replaces the clean working copy from the changed source rather than serializing the old tree', async () => {
+        const oldRoot = createPrefabRoot('Old', { hasUI: false });
+        const { editor } = await openPrefabWith(oldRoot);
+        const newRoot = createPrefabRoot('New', { hasUI: false });
+        (instantiate as unknown as jest.Mock).mockReturnValue(newRoot);
+        const serialized = (globalThis as any).EditorExtends.serialize;
+        serialized.mockClear();
+
+        await (editor as any).reloadFromSource();
+
+        expect(editor.getRootNode()).toBe(newRoot);
+        expect(sceneUtils.loadAny).toHaveBeenLastCalledWith('prefab-uuid', false);
+        expect(serialized).not.toHaveBeenCalled();
+    });
+
     beforeEach(() => {
         jest.clearAllMocks();
         (globalThis as any).EditorExtends = {
@@ -125,8 +142,9 @@ describe('PrefabEditor preview Canvas', () => {
 
         await openPrefabWith(prefabRoot);
 
-        expect(createShouldHideInHierarchyCanvasNode.mock.invocationCallOrder[0])
-            .toBeLessThan((sceneUtils.runScene as jest.Mock).mock.invocationCallOrder[0]);
+        expect(createShouldHideInHierarchyCanvasNode.mock.invocationCallOrder[0]).toBeLessThan(
+            (sceneUtils.runScene as jest.Mock).mock.invocationCallOrder[0],
+        );
         expect(prefabRoot.parent).toBe(previewCanvas);
     });
 

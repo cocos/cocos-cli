@@ -7,6 +7,7 @@ import type { INode, IPrefab, INodeDumpOptions } from '../../../common';
 import type { IScene } from '../../../common/editor/scene';
 import { preserveLightProbeCoefficients } from './light-probe-data';
 import { flushLightProbeTransformEdit } from './light-probe-transform';
+import { loadWithPrefabSources } from '../prefab/source-loader';
 
 class SceneUtil {
     /** 默认超时：1分钟 */
@@ -198,8 +199,8 @@ class SceneUtil {
      * 根据资源 uuid 加载资源
      * @param uuid
      */
-    async loadAny<TAsset extends cc.Asset>(uuid: string): Promise<TAsset> {
-        return new Promise<TAsset>((resolve, reject) => {
+    async loadAny<TAsset extends cc.Asset>(uuid: string, trackPrefabSources = true): Promise<TAsset> {
+        const load = () => new Promise<TAsset>((resolve, reject) => {
             let settled = false;
             const timer = setTimeout(() => {
                 settled = true;
@@ -226,6 +227,7 @@ class SceneUtil {
                 }
             });
         });
+        return trackPrefabSources ? loadWithPrefabSources([uuid], load) : load();
     }
 }
 

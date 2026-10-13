@@ -8,6 +8,8 @@ export interface IOperationService {
     removeListener(type: OperationEvent, listener: Function): void;
     dispatch(type: OperationEvent, ...args: any[]): void;
     emitMouseEvent(type: string, event: ISceneMouseEvent, dpr?: number): void;
+    dispatchAsync(type: OperationEvent, ...args: any[]): Promise<void>;
+    emitMouseEventAsync(type: string, event: ISceneMouseEvent, dpr?: number): Promise<void>;
     requestPointerLock(): void;
     exitPointerLock(): void;
     changePointer(type: string): void;

@@ -5,6 +5,9 @@ import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
 import { BaseEditor } from './base-editor';
 import { sceneUtils } from '../scene/utils';
 import { createShouldHideInHierarchyCanvasNode } from '../node/node-create';
+import { prefabWriteSession } from '../prefab/write-session';
+import { loadWithPrefabSources } from '../prefab/source-loader';
+import { reconcilePrefabWrite } from '../prefab/write-runtime';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 
@@ -25,11 +28,15 @@ export class PrefabEditor extends BaseEditor {
     }
 
     protected async _doOpen(asset: IAssetInfo, options?: INodeDumpOptions): Promise<INode> {
+        return loadWithPrefabSources([asset.uuid], () => this.openFromAsset(asset, options));
+    }
+
+    private async openFromAsset(asset: IAssetInfo, options?: INodeDumpOptions): Promise<INode> {
         // 获取预制体标识符
         const identifier = this.getIdentifier(asset);
         // 加载预制体资源
         const virtualScene = new Scene(`virtual-scene-${asset.uuid}`);
-        const prefabAsset = await sceneUtils.loadAny<Prefab>(identifier.assetUuid);
+        const prefabAsset = await sceneUtils.loadAny<Prefab>(identifier.assetUuid, false);
 
         // 实例化预制体
         const instance = instantiate(prefabAsset);
@@ -73,12 +80,36 @@ export class PrefabEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('没有打开预制体');
         }
-        const serializedData = editorPrefabUtils.serialize(this.entity.instance);
-        const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
-        if (!saved || saved.uuid !== assetUuid) {
-            throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
-        }
-        return saved;
+        const candidate = instantiate(this.entity.instance);
+        // instantiate() adds instance metadata even for a directly edited root.
+        // Keep the candidate in source-editing mode before serialization.
+        editorPrefabUtils.preparePrefabRootForEditing(candidate);
+        let serializedData: string;
+        try { serializedData = editorPrefabUtils.serialize(candidate); } finally { candidate.destroy(); }
+        const expected = assetUuid === this.entity.identifier.assetUuid
+            ? prefabWriteSession.baseline(assetUuid)
+            : await prefabWriteSession.readSource(assetUuid);
+        const receipt = await prefabWriteSession.commit(assetUuid, serializedData, expected.fingerprint);
+        return reconcilePrefabWrite(receipt, async () => {
+            if (assetUuid === this.entity!.identifier.assetUuid) prefabWriteSession.loaded(receipt.after);
+            const saved = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
+            if (!saved || saved.uuid !== assetUuid) {
+                throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
+            }
+            return saved;
+        });
+    }
+
+    /** Replace a clean source document, preserving identities of surviving nodes/components. */
+    async reloadFromSource(): Promise<INode> {
+        if (!this.entity || !this.virtualScene) throw new Error('No Prefab is open.');
+        const uuidMap = editorPrefabUtils.storePrefabUUID(this.virtualScene);
+        const identifier = this.entity.identifier;
+        return loadWithPrefabSources([identifier.assetUuid], async () => {
+            await this.openFromAsset({ uuid: identifier.assetUuid, name: identifier.assetName, type: identifier.assetType, url: identifier.assetUrl } as IAssetInfo, this._lastOpenOptions);
+            editorPrefabUtils.restorePrefabUUID(this.virtualScene!, uuidMap);
+            return this.encode(undefined, this._lastOpenOptions);
+        }, true);
     }
 
     protected async _doReload(): Promise<INode> {

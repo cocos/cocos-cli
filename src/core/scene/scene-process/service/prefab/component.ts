@@ -3,7 +3,10 @@ import { prefabUtils } from './utils';
 import dumpUtil from '../dump';
 import { Rpc } from '../../rpc';
 import { Service } from '../core';
-// import { SceneUndoCommand } from '../../../export/undo';
+import { prefabWriteSession } from './write-session';
+import { withPrefabCandidate } from './write-candidate';
+import { reconcilePrefabWrite } from './write-runtime';
+import type { IApplyPrefabInfo } from './node';
 
 const nodeMgr = EditorExtends.Node;
 
@@ -14,35 +17,6 @@ type PrefabInstance = Prefab._utils.PrefabInstance;
 export interface IComponentPrefabData {
     prefabInfo: CompPrefabInfo | null;
 }
-
-export interface IRemovedComponentInfo {
-    nodeUUID: string;
-    compIndex: number;
-    compData: Component;
-}
-
-// class ApplyRemoveComponentCommand extends SceneUndoCommand {
-//     public removedCompInfo: IRemovedComponentInfo | null = null;
-//     private _undoFunc: Function;
-//     private _redoFunc: Function;
-//     constructor(undoFunc: Function, redoFunc: Function) {
-//         super();
-//         this._undoFunc = undoFunc;
-//         this._redoFunc = redoFunc;
-//     }
-//
-//     public async undo() {
-//         if (this.removedCompInfo) {
-//             this._undoFunc(this.removedCompInfo);
-//         }
-//     }
-//
-//     public async redo() {
-//         if (this.removedCompInfo) {
-//             this._redoFunc(this.removedCompInfo.nodeUUID, this.removedCompInfo.compData.__prefab!.fileId);
-//         }
-//     }
-// }
 
 /**
  * Component 相关的操作
@@ -150,179 +124,64 @@ class ComponentOperation {
         prefabUtils.checkToRemoveTargetOverride(comp, rootNode);
     }
 
-    /**
-     * 将 PrefabInstance 上删除的组件应用到 PrefabAsset 中
-     * @param nodeUUID 节点的uuid
-     * @param fileID component的fileID
-     */
-    public async doApplyRemovedComponent(nodeUUID: string, fileID: string): Promise<null | IRemovedComponentInfo> {
+    /** Publish only the selected removed-component override, leaving other overrides intact. */
+    public async applyRemovedComponent(nodeUUID: string, fileID: string): Promise<IApplyPrefabInfo | null> {
         const node = nodeMgr.getNode(nodeUUID);
+        if (!node) return null;
 
-        if (!node) {
-            return null;
-        }
+        const { outMostPrefabInstanceNode, targetPath } = prefabUtils.getOutMostPrefabInstanceInfo(node);
+        const prefabInfo = outMostPrefabInstanceNode && prefabUtils.getPrefab(outMostPrefabInstanceNode);
+        const instance = prefabInfo?.instance;
+        if (!outMostPrefabInstanceNode || !instance || !prefabInfo.asset) return null;
+        const assetUuid = prefabInfo.asset._uuid;
+        if (prefabUtils.isSubAsset(assetUuid)) return null;
 
-        const outMostPrefabInstanceInfo = prefabUtils.getOutMostPrefabInstanceInfo(node);
-        const outMostPrefabInstanceNode: Node | null = outMostPrefabInstanceInfo.outMostPrefabInstanceNode;
-        if (!outMostPrefabInstanceNode) {
-            return null;
-        }
-        const targetPath: string[] = outMostPrefabInstanceInfo.targetPath;
-        // @ts-ignore
-        const outMostPrefabInstance: Prefab._utils.PrefabInstance | undefined = outMostPrefabInstanceNode['_prefab']?.instance;
+        const componentPath = [...targetPath.slice(1), fileID];
+        if (!instance.removedComponents.some(target =>
+            target.localID.length === componentPath.length
+            && target.localID.every((id, index) => id === componentPath[index]))) return null;
 
-        // @ts-ignore
-        const outMostPrefabInfo = outMostPrefabInstanceNode['_prefab'];
-        if (outMostPrefabInstance && outMostPrefabInfo && outMostPrefabInfo.asset) {
-            const assetUUID = outMostPrefabInfo.asset._uuid;
-            // 如果是子资源，则不能应用
-            if (prefabUtils.isSubAsset(assetUUID)) {
-                console.warn('can\'t apply RemovedComponent in SubAsset Prefab');
-                return null;
+        const assetRoot = prefabUtils.getPrefabAssetNodeInstance(prefabInfo);
+        if (!assetRoot) return null;
+        const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [assetUuid]);
+        if (!info) return null;
+
+        const content = withPrefabCandidate(assetRoot, candidate => {
+            const component = prefabUtils.getTarget(componentPath, candidate) as Component | null;
+            if (!component) throw new Error('The removed component no longer exists in the Prefab source.');
+
+            // A nested removal belongs to the outer source's override data. Apply the
+            // existing nested/mounted rules only to the detached source candidate.
+            const rootInfo = prefabUtils.getPrefab(candidate);
+            if (rootInfo) rootInfo.instance = undefined;
+            if (node['_prefab']?.instance && node['_prefab'].instance !== instance) {
+                this.onRemoveComponentInGeneralMode(component, candidate);
             }
-
-            targetPath.splice(0, 1);
-            targetPath.push(fileID);
-
-            const assetRootNode = prefabUtils.getPrefabAssetNodeInstance(outMostPrefabInfo);
-            if (!assetRootNode) {
-                return null;
+            component._destroyImmediate();
+            const result = prefabUtils.generatePrefabDataFromNode(candidate);
+            if (!result) throw new Error('Could not prepare the Prefab component removal.');
+            return result.prefabData;
+        });
+        const receipt = await prefabWriteSession.commit(assetUuid, content);
+        await reconcilePrefabWrite(receipt, async () => {
+            try {
+                prefabUtils.fireBeforeChangeMsg(outMostPrefabInstanceNode);
+                prefabUtils.deleteRemovedComponent(instance, componentPath);
+                prefabUtils.removePrefabAssetNodeInstanceCache(prefabInfo);
+                prefabUtils.fireChangeMsg(outMostPrefabInstanceNode);
+            } catch (error) {
+                await prefabWriteSession.markUnavailable();
+                throw error;
             }
-
-            const targetCompInAsset = prefabUtils.getTarget(targetPath, assetRootNode) as Component;
-            const compIndex = targetCompInAsset.node.components.indexOf(targetCompInAsset);
-            const compData = targetCompInAsset._instantiate();
-            if (!compData) {
-                return null;
-            }
-
-            // #14002 移除组件是嵌套预制体的组件，需要额外处理。是mounted的组件就移除mounted信息，不是的话要更新removedComponents属性
-            // 可以参考applyPrefab的结果 
-            if (node['_prefab']?.instance && node['_prefab']?.instance !== outMostPrefabInstance) {
-                // @ts-ignore
-                const assetRootPrefabInfo = assetRootNode._prefab!;
-                const oldInstance = assetRootPrefabInfo.instance;
-                assetRootPrefabInfo.instance = undefined;
-                this.onRemoveComponentInGeneralMode(targetCompInAsset, assetRootNode);
-                assetRootPrefabInfo.instance = oldInstance;
-            }
-
-            // 删除Component
-            targetCompInAsset._destroyImmediate();
-
-            // 去掉instance,否则里边的mountedRoot会被消除
-            // @ts-ignore
-            const assetRootNodePrefab = assetRootNode['_prefab'];
-            if (assetRootNodePrefab) {
-                assetRootNodePrefab.instance = undefined;
-            }
-
-            const ret = prefabUtils.generatePrefabDataFromNode(assetRootNode);
-
-            if (!ret) return null;
-            const prefabData = ret.prefabData;
-
-            const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [outMostPrefabInfo.asset._uuid]);
-
-            if (!info) return null;
-
-            prefabUtils.fireBeforeChangeMsg(outMostPrefabInstanceNode);
-            prefabUtils.deleteRemovedComponent(outMostPrefabInstance, targetPath);
-            prefabUtils.fireChangeMsg(outMostPrefabInstanceNode);
-
-            await Rpc.getInstance().request('assetManager', 'createAsset', [{
-                target: info.source,
-                content: prefabData,
-                overwrite: true
-            }]);
-
-            // cce.SceneFacadeManager.abortSnapshot();
-            return {
-                nodeUUID,
-                compIndex,
-                compData,
-            };
-        }
-
-        return null;
-    }
-
-    /**
-     * undo ApplyRemovedComponent 操作
-     * @param IRemovedComponentInfo 移除的component信息
-     */
-    public async undoApplyRemovedComponent(removedCompInfo: IRemovedComponentInfo) {
-        if (!removedCompInfo) {
-            return;
-        }
-
-        const node = nodeMgr.getNode(removedCompInfo.nodeUUID);
-
-        if (!node) {
-            return;
-        }
-
-        const outMostPrefabInstanceInfo = prefabUtils.getOutMostPrefabInstanceInfo(node);
-        const outMostPrefabInstanceNode: Node | null = outMostPrefabInstanceInfo.outMostPrefabInstanceNode;
-        if (!outMostPrefabInstanceNode) {
-            return;
-        }
-        const targetPath: string[] = outMostPrefabInstanceInfo.targetPath;
-        // @ts-ignore
-        const outMostPrefabInstance: Prefab._utils.PrefabInstance | undefined = outMostPrefabInstanceNode['_prefab']?.instance;
-
-        // @ts-ignore
-        const outMostPrefabInfo = outMostPrefabInstanceNode['_prefab'];
-        if (outMostPrefabInstance && outMostPrefabInfo && outMostPrefabInfo.asset) {
-            targetPath.splice(0, 1);
-            const nodeLocalID = targetPath.slice();
-            // @ts-ignore
-            nodeLocalID.push(node['_prefab'].fileId);
-            const compFileID = removedCompInfo.compData.__prefab!.fileId;
-            targetPath.push(compFileID);
-
-            const assetRootNode = prefabUtils.getPrefabAssetNodeInstance(outMostPrefabInfo);
-            if (!assetRootNode) {
-                return;
-            }
-
-            const nodeInAsset = prefabUtils.getTarget(nodeLocalID, assetRootNode);
-            // @ts-ignore
-            nodeInAsset._addComponentAt(removedCompInfo.compData, removedCompInfo.compIndex);
-
-            const ret = prefabUtils.generatePrefabDataFromNode(assetRootNode);
-
-            if (!ret) return;
-
-            const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [outMostPrefabInfo.asset._uuid]);
-            if (!info) return;
-
-            prefabUtils.fireBeforeChangeMsg(outMostPrefabInstanceNode);
-            prefabUtils.addRemovedComponent(outMostPrefabInstance, targetPath);
-            prefabUtils.fireChangeMsg(outMostPrefabInstanceNode);
-
-            await Rpc.getInstance().request('assetManager', 'createAsset', [{
-                target: info.source,
-                content: ret.prefabData,
-                overwrite: true
-            }]);
-            // cce.SceneFacadeManager.abortSnapshot();
-        }
-    }
-
-    public async applyRemovedComponent(nodeUUID: string, fileID: string) {
-        // const command = new ApplyRemoveComponentCommand(
-        //     this.undoApplyRemovedComponent.bind(this), this.doApplyRemovedComponent.bind(this));
-        // const undoID = cce.SceneFacadeManager.beginRecording(nodeUUID, { customCommand: command });
-        const removedCompInfo = await this.doApplyRemovedComponent(nodeUUID, fileID);
-        if (removedCompInfo) {
-            // command.removedCompInfo = removedCompInfo;
-            // cce.SceneFacadeManager.endRecording(undoID);
-            // cce.SceneFacadeManager.snapshot();
-            // cce.SceneFacadeManager.abortSnapshot();
-        } else {
-            // cce.SceneFacadeManager.cancelRecording(undoID);
-        }
+        });
+        return {
+            nodeUUID: outMostPrefabInstanceNode.uuid,
+            assetUuid,
+            assetSource: info.source,
+            oldPrefabContent: receipt.before.content,
+            newPrefabContent: receipt.after.content,
+            receipt,
+        };
     }
 
     public async cloneComponentToNode(node: Node, clonedComp: Component) {

@@ -7,7 +7,7 @@ const mockService = {
         set transformToolName(value: TransformToolDataToolNameType) { this.transformToolData.toolName = value; },
     },
     Engine: { repaintInEditMode: jest.fn() },
-    Undo: { beginRecording: jest.fn(() => 'record'), endRecording: jest.fn(async (_id: string) => {}) },
+    Undo: { beginRecording: jest.fn(() => 'record'), beginRecordingAsync: jest.fn(async () => 'record'), endRecording: jest.fn(async (_id: string) => {}) },
 };
 jest.mock('../scene-process/service/core/decorator', () => ({ Service: mockService }));
 jest.mock('../scene-process/service/core/global-events', () => ({ ServiceEvents: { broadcast: jest.fn() } }));
@@ -249,7 +249,7 @@ describe('Probe editing pooled Gizmos', () => {
         const operation = methods.duplicateSelectedProbes().then(count => { finished = true; return count; });
         await Promise.resolve();
         expect([hidden.target!.probes.length, active.target!.probes.length, finished]).toEqual([4, 8, false]);
-        expect(mockService.Undo.beginRecording).toHaveBeenCalledWith(['active']);
+        expect(mockService.Undo.beginRecordingAsync).toHaveBeenCalledWith(['active']);
         settle();
         expect(await operation).toBe(4);
         expect([...(active as any)._selected]).toEqual([

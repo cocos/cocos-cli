@@ -260,7 +260,10 @@ export async function startup(options: {
         });
         (globalThis as any).setupInputBridge({
             canvas,
-            operation: DecoratorService.Operation,
+            operation: {
+                dispatch: (type: Parameters<typeof DecoratorService.Operation.dispatch>[0], ...args: unknown[]) => DecoratorService.Operation.dispatchAsync(type, ...args),
+                emitMouseEvent: (...args: Parameters<typeof DecoratorService.Operation.emitMouseEvent>) => DecoratorService.Operation.emitMouseEventAsync(...args),
+            },
             engine: DecoratorService.Engine,
         });
     }

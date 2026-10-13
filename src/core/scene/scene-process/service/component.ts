@@ -1,3 +1,4 @@
+import { prefabEdit } from './prefab/write-session';
 import { Component, Constructor, animation, Animation, Node, RigidBody, Collider, ERigidBodyType, EColliderType, MeshCollider, UITransform, director, Canvas, Scene, PolygonCollider2D } from 'cc';
 import { Rpc } from '../rpc';
 import { register, Service, BaseService } from './core';
@@ -231,8 +232,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async add(params: IAddComponentOptions): Promise<IComponent> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
 
             if (Array.isArray(params.component)) {
                 let lastDump: IComponent | null = null;
@@ -367,8 +368,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     async remove(params: IRemoveComponentOptions): Promise<boolean> {
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
 
             const comp = await this.findComponent(params.path);
             if (!comp) {
@@ -415,8 +416,8 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     ): Promise<IRegeneratePolygon2DPointsResult> {
         const path = options.path;
 
+        await Service.Editor.lock();
         try {
-            await Service.Editor.lock();
 
             const component = await this.findComponent(path);
             const collider = requirePolygonCollider2D(component, path);
@@ -473,6 +474,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
+    @prefabEdit
     async setProperty(options: ISetPropertyOptions): Promise<boolean> {
         // 多个节点更新值
         if (Array.isArray(options.nodePath)) {
@@ -553,6 +555,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
     }
 
     /** Internal entry used by Node.resetProperty for component paths. */
+    @prefabEdit
     async resetProperty(options: ISetPropertyOptions): Promise<boolean> {
         const node = resolveNodeByPath(options.nodePath);
         if (!node || !this._resolveComponentPropertyTarget(node, options.path)) {
@@ -988,6 +991,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
      * 重置组件
      * @param uuid component 的 uuid
      */
+    @prefabEdit
     public async reset(params: IQueryComponentOptions): Promise<boolean> {
         try {
             const comp = await this.findComponent(params.path);
@@ -1010,6 +1014,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
+    @prefabEdit
     public async recalculateLODGroupBounds(
         options: IRecalculateLODGroupBoundsOptions,
     ): Promise<ILODGroupBoundsResult> {
@@ -1029,6 +1034,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return serializeLODGroupBounds(comp);
     }
 
+    @prefabEdit
     public async insertLOD(options: IInsertLODOptions): Promise<ILODGroupLevelsResult> {
         const comp = requireLODGroup(await this.findComponent(options.path), options.path);
         validateLODInsert(comp, options.index, options.screenUsagePercentage);
@@ -1047,6 +1053,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         return serializeLODGroupLevels(comp);
     }
 
+    @prefabEdit
     public async eraseLOD(options: IEraseLODOptions): Promise<ILODGroupLevelsResult> {
         const comp = requireLODGroup(await this.findComponent(options.path), options.path);
         validateLODErase(comp, options.index);
@@ -1086,6 +1093,7 @@ export class ComponentService extends BaseService<IComponentEvents> implements I
         }
     }
 
+    @prefabEdit
     public async executeMethod(options: IExecuteComponentMethodOptions): Promise<any> {
         const comp = compMgr.queryFromPath(options.path);
         if (!comp) {

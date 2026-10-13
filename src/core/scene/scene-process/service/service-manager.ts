@@ -93,7 +93,7 @@ type ServiceMethodName = keyof IServiceEvents | 'onEditorDisposed';
 // 不强迫所有内部生命周期钩子进入公共服务类型。
 type AutoForwardService = {
     constructor: { name: string };
-} & Partial<Record<ServiceMethodName, (...args: any[]) => void>>;
+} & Partial<Record<ServiceMethodName, (...args: any[]) => void | Promise<void>>>;
 
 export class ServiceManager {
     private initialized = false;
@@ -160,7 +160,10 @@ export class ServiceManager {
                 const serviceHandler = service[methodName];
                 if (typeof serviceHandler === 'function') {
                     try {
-                        serviceHandler.apply(service, args);
+                        const result = serviceHandler.apply(service, args);
+                        if (result) void result.catch(error => {
+                            console.warn(`[ServiceManager] ${methodName} failed on ${service.constructor.name}:`, error);
+                        });
                     } catch (e) {
                         console.warn(`[ServiceManager] ${methodName} failed on ${service.constructor.name}:`, e);
                     }

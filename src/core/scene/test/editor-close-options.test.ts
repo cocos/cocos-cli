@@ -28,6 +28,7 @@ jest.mock('../scene-process/service/scene/utils', () => ({
 jest.mock('../scene-process/service/prefab/prefab-editor-utils', () => ({
     editorPrefabUtils: {
         serialize: jest.fn(),
+        preparePrefabRootForEditing: jest.fn(),
         rebindPrefabAsset: jest.fn((root: any, asset: any) => {
             if (root?._prefab) root._prefab.asset = asset;
             root?.walk?.((node: any) => {
@@ -47,7 +48,8 @@ jest.mock('../scene-process/rpc', () => ({
     Rpc: { getInstance: () => ({ request: mockRpcRequest }) },
 }));
 
-import { Prefab } from 'cc';
+import { Prefab, instantiate } from 'cc';
+import { prefabWriteSession } from '../scene-process/service/prefab/write-session';
 import { SceneEditor } from '../scene-process/service/editors/scene-editor';
 import { PrefabEditor } from '../scene-process/service/editors/prefab-editor';
 import { sceneUtils } from '../scene-process/service/scene/utils';
@@ -78,8 +80,15 @@ async function expectCloseSaveCalls(editor: CloseableEditor, options: { save?: b
 }
 
 describe('Editor close options', () => {
+    afterEach(() => jest.restoreAllMocks());
     beforeEach(() => {
         mockRpcRequest.mockReset();
+        (instantiate as unknown as jest.Mock).mockImplementation(node => ({ ...node, destroy: jest.fn() }));
+        jest.spyOn(prefabWriteSession, 'readSource').mockResolvedValue({ assetUuid: 'target', content: 'old', fingerprint: 'base' });
+        jest.spyOn(prefabWriteSession, 'commit').mockImplementation(async (uuid, content) => ({
+            commitId: 'commit', source: { runtimeId: 'runtime', generation: 1, registrationId: 'registration' },
+            before: { assetUuid: uuid, content: 'old', fingerprint: 'base' }, after: { assetUuid: uuid, content, fingerprint: 'next' },
+        }));
         (sceneUtils.loadAny as jest.Mock).mockReset().mockImplementation(async (uuid: string) => {
             const asset = new Prefab();
             (asset as any)._uuid = uuid;
@@ -131,7 +140,7 @@ describe('Editor close options', () => {
         await prefabEditor.saveAs(targetPrefab as never);
 
         expect(mockRpcRequest).toHaveBeenNthCalledWith(1, 'assetManager', 'saveAsset', [targetScene.uuid, 'serialized-scene']);
-        expect(mockRpcRequest).toHaveBeenNthCalledWith(2, 'assetManager', 'saveAsset', [targetPrefab.uuid, 'serialized-prefab']);
+        expect(prefabWriteSession.commit).toHaveBeenCalledWith(targetPrefab.uuid, 'serialized-prefab', 'base');
         expect((sceneEditor as any).entity.identifier.assetUuid).toBe('asset-uuid');
         expect((prefabEditor as any).entity.identifier.assetUuid).toBe('asset-uuid');
     });
@@ -144,6 +153,20 @@ describe('Editor close options', () => {
 
         await expect(editor.saveAs({ uuid: 'target-scene-uuid' } as never)).rejects.toThrow('保存目标资源标识不一致');
 
+        expect((editor as any).entity.identifier.assetUuid).toBe('asset-uuid');
+    });
+
+    it('reports a Prefab Save As metadata failure as committed without retargeting the editor', async () => {
+        const editor = new PrefabEditor();
+        setOpen(editor);
+        (editorPrefabUtils.serialize as jest.Mock).mockReturnValue('serialized-prefab');
+        mockRpcRequest.mockRejectedValue(new Error('asset metadata query failed'));
+
+        await expect(editor.saveAs({ uuid: 'target' } as never)).rejects.toMatchObject({
+            code: 'PREFAB_WRITE_FAILED', commitState: 'committed', assetUuid: 'target',
+            message: 'asset metadata query failed',
+        });
+        expect(prefabWriteSession.commit).toHaveBeenCalledWith('target', 'serialized-prefab', 'base');
         expect((editor as any).entity.identifier.assetUuid).toBe('asset-uuid');
     });
 
@@ -178,7 +201,7 @@ describe('Editor close options', () => {
 
         await editor.saveAs(targetInfo as never);
 
-        expect(mockRpcRequest).toHaveBeenCalledWith('assetManager', 'saveAsset', [targetInfo.uuid, 'serialized-prefab']);
+        expect(prefabWriteSession.commit).toHaveBeenCalledWith(targetInfo.uuid, 'serialized-prefab', 'base');
         expect(root._prefab.asset).toBe(sourceAsset);
         expect(ownedChild._prefab.asset).toBe(sourceAsset);
         expect(nestedRoot._prefab.asset).toBe(nestedAsset);

@@ -19,6 +19,9 @@ import { Rpc } from '../rpc';
 import { enrichMissingDependencyError } from './error-utils';
 import type { IEditorSessionService, IEditorSessionSnapshot } from './core/editor-session';
 import type { ITerrainService } from '../../common/terrain';
+import { prefabWriteSession } from './prefab/write-session';
+import { loadWithPrefabSources } from './prefab/source-loader';
+import { PrefabWriteConflict } from './prefab/write-runtime';
 
 /**
  * EditorAsset - 统一的编辑器管理入口
@@ -38,11 +41,14 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     private _isReloading = false;
     private lifecyclePromise: Promise<void> = Promise.resolve();
     private editorSessionGeneration = 0;
+    private readonly writeRuntimeId = globalThis.crypto.randomUUID();
+    private editReleases: Array<() => Promise<void>> = [];
 
     public async lock() {
         if (this.reloadPromise) {
             await this.reloadPromise;
         }
+        this.editReleases.push(await prefabWriteSession.acquire());
         this.lockCount++;
         if (this.lockCount === 1) {
             this.lockPromise = new Promise((resolve) => {
@@ -52,6 +58,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     public unlock() {
+        const release = this.editReleases.pop();
+        if (release) void release().catch(error => console.error('[Prefab write] Failed to publish edit state', error));
         this.lockCount--;
         if (this.lockCount === 0) {
             this.lockResolve?.();
@@ -226,7 +234,8 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 this.invalidateEditorSession();
                 try {
                     const currentAssetInfo = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [currentEditorUuid]);
-                    await currentEditor.close({ save: Boolean(currentAssetInfo) });
+                    await prefabWriteSession.edit(() => currentEditor.close({ save: Boolean(currentAssetInfo) }), true);
+                    await prefabWriteSession.close();
                 } catch (error) {
                     console.error(error);
                     throw error;
@@ -264,18 +273,19 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                 editor = this.createEditor(assetInfo.type);
                 this.editorMap.set(uuid, editor);
             }
-            const encode = await editor.open(assetInfo, params);
-
             this._clearUndoHistory();
+            this.invalidateEditorSession();
+            await prefabWriteSession.open(this.writeRuntimeId, this.editorSessionGeneration, editor instanceof PrefabEditor ? uuid : undefined);
+            const encode = await prefabWriteSession.edit(() => editor!.open(assetInfo, params), true);
 
             // 设置当前打开的编辑器
             this.currentEditorUuid = assetInfo.uuid;
-            this.invalidateEditorSession();
             this.emit('editor:open', cc.director.getScene());
             this.isOpen = true;
             console.log(`打开 ${assetInfo.url}`);
             return encode;
         } catch (err) {
+            await prefabWriteSession.close();
             await outputDependentInfo(err);
             this.editorMap.delete(uuid);
             if (this.currentEditorUuid === uuid) {
@@ -314,7 +324,11 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             if (params.save !== false) {
                 await this.saveTerrainAssets();
             }
-            const result = await editor.close({ save: params.save ?? true });
+            const result = params.save === false
+                ? await prefabWriteSession.discard(() => editor.close({ save: false }))
+                : await prefabWriteSession.edit(() => editor.close({ save: true }), true);
+            if (!result) return false;
+            if (params.save !== false) await prefabWriteSession.close();
 
             if (editor === this.editorMap.get(currentEditorUuid)) {
                 this._clearUndoHistory();
@@ -343,24 +357,24 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     async saveAs(params: ISaveOptions): Promise<IAssetInfo> {
-        return this.runLifecycle(() => this.saveAsUnlocked(params));
+        return this.runLifecycle(() => prefabWriteSession.edit(() => this.saveAsUnlocked(params), true));
     }
 
     private async saveUnlocked(params: ISaveOptions): Promise<IAssetInfo> {
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
             const { assetInfo, currentEditorUuid, editor } = await this.resolveSaveTarget(urlOrUUID);
-            await this.saveTerrainAssets();
-            const result = assetInfo.uuid === currentEditorUuid
-                ? await editor.save()
-                : await this.recoverDeletedSourceTo(assetInfo, currentEditorUuid, editor);
-            this.assertSavedTarget(result, assetInfo);
-
-            this._markUndoSaved();
-
-            this.emit('editor:save');
-            console.log(`保存 ${assetInfo.url}`);
-            return result;
+            if (assetInfo.uuid !== currentEditorUuid) {
+                return this.recoverDeletedSourceTo(assetInfo, currentEditorUuid, editor);
+            }
+            return await prefabWriteSession.edit(async () => {
+                await this.saveTerrainAssets();
+                const result = await editor.save();
+                this.assertSavedTarget(result, assetInfo);
+                this._markUndoSaved();
+                this.emit('editor:save');
+                return result;
+            }, true);
         } catch (error) {
             console.error(`保存失败: [${urlOrUUID}]`, error);
             throw error;
@@ -384,7 +398,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             throw new Error(`不能保存到非当前资源 ${assetInfo.url}，请使用另存为`);
         }
 
-        const result = await editor.saveAs(assetInfo);
+        const result = await prefabWriteSession.edit(() => editor.saveAs(assetInfo), true);
         this.assertSavedTarget(result, assetInfo);
         await this.openUnlocked({ urlOrUUID: result.uuid });
         return result;
@@ -443,7 +457,47 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
     }
 
     async reload(params: IReloadOptions): Promise<ReloadResult> {
-        return this.runLifecycle(() => this.reloadUnlocked(params));
+        return this.runLifecycle(() => prefabWriteSession.edit(() => this.reloadUnlocked(params), true));
+    }
+
+    reloadWithinPrefabEdit(): Promise<ReloadResult> {
+        return this.runLifecycle(() => this.reloadUnlocked({ preserveUndoHistory: true }));
+    }
+
+    /** Asset notifications never replace a dirty document or rewind its source baseline. */
+    async syncPrefabSource(uuid: string): Promise<void> {
+        const session = this.getEditorSession();
+        await this.runLifecycle(async () => {
+            if (!this.isCurrentEditorSession(session) || uuid !== this.currentEditorUuid) return;
+            const editor = this.editorMap.get(uuid);
+            if (!(editor instanceof PrefabEditor)) return;
+            const retryWhenClean = () => prefabWriteSession.whenClean(uuid, () => {
+                void this.syncPrefabSource(uuid).catch(error => console.error('[Prefab source sync]', error));
+            });
+            if (Service.Undo.isDirty() || prefabWriteSession.editing) {
+                retryWhenClean();
+                return;
+            }
+            let changed: boolean;
+            try {
+                changed = await prefabWriteSession.synchronize(uuid, async () => {
+                    this.emitInternal(InternalServiceEvents.EditorReloadClose);
+                    try {
+                        await editor.reloadFromSource();
+                        this._clearUndoHistory();
+                    } finally {
+                        this.emitInternal(InternalServiceEvents.EditorReloadOpen);
+                    }
+                });
+            } catch (error) {
+                if (error instanceof PrefabWriteConflict && error.code === 'PREFAB_BUSY' && prefabWriteSession.editing) {
+                    retryWhenClean();
+                    return;
+                }
+                throw error;
+            }
+            if (changed) this.broadcast('editor:reload');
+        });
     }
 
     public async reloadForSession(params: IReloadOptions, session: IEditorSessionSnapshot): Promise<ReloadResult> {
@@ -451,7 +505,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             if (!this.isCurrentEditorSession(session)) {
                 return ReloadResult.EDITOR_NOT_FOUND;
             }
-            return this.reloadUnlocked(params);
+            return prefabWriteSession.edit(() => this.reloadUnlocked(params), true);
         });
     }
 
@@ -492,7 +546,12 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
                         // 重载不是对外的编辑器关闭/打开；这里只复用内部内容卸载/挂载边界。
                         this.emitInternal(InternalServiceEvents.EditorReloadClose);
                         try {
-                            await editor.reload();
+                            const roots = new Set<string>();
+                            editor.getRootNode()?.walk(node => {
+                                const prefab = node['_prefab'];
+                                if (prefab?.instance && prefab.asset?._uuid) roots.add(prefab.asset._uuid);
+                            });
+                            await loadWithPrefabSources([...roots], () => editor.reload(), true);
                         } finally {
                             this.emitInternal(InternalServiceEvents.EditorReloadOpen);
                         }

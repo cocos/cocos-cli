@@ -242,6 +242,31 @@ describe('ComponentService prefab UI handling', () => {
         return service;
     }
 
+    it('does not unlock or add a component when acquiring the editor lock fails', async () => {
+        const error = new Error('PREFAB_BUSY');
+        mockLock.mockRejectedValueOnce(error);
+
+        await expect(addUITransform()).rejects.toBe(error);
+
+        expect(mockUnlock).not.toHaveBeenCalled();
+        expect(mockGetNodeByPath).not.toHaveBeenCalled();
+        expect(mockOnComponentAddedFromEditor).not.toHaveBeenCalled();
+    });
+
+    it('releases only the acquired outer lock when nested component addition cannot acquire a lock', async () => {
+        const error = new Error('PREFAB_BUSY');
+        mockLock.mockResolvedValueOnce(undefined).mockRejectedValueOnce(error);
+        const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await expect(addUITransform({ component: ['cc.UITransform'] })).rejects.toBe(error);
+            expect(mockLock).toHaveBeenCalledTimes(2);
+            expect(mockUnlock).toHaveBeenCalledTimes(1);
+            expect(mockOnComponentAddedFromEditor).not.toHaveBeenCalled();
+        } finally {
+            log.mockRestore();
+        }
+    });
+
     it('creates a hidden Canvas parent for prefab UI components', async () => {
         const root = mockGetRootNode();
 

@@ -1,7 +1,8 @@
+import { prefabEdit } from './prefab/write-session';
 import { BaseService, queryRegisteredService, register, Service, ServiceEvents } from './core';
 import { Component, instantiate, Node, Scene } from 'cc';
 import { componentOperation } from './prefab/component';
-import { nodeOperation } from './prefab/node';
+import { nodeOperation, type IApplyPrefabInfo } from './prefab/node';
 import { prefabUtils } from './prefab/utils';
 import type {
     IApplyPrefabChangesParams,
@@ -23,6 +24,10 @@ import { Rpc } from '../rpc';
 import { PrefabUndoHelper } from './prefab/prefab-undo';
 import { PrefabSoftReloadScheduler } from './prefab/soft-reload';
 import type { IEditorSessionService, IEditorSessionSnapshot } from './core/editor-session';
+import { prefabWriteSession } from './prefab/write-session';
+import { PrefabWriteConflict, reconcilePrefabWrite } from './prefab/write-runtime';
+import { ReloadResult } from '../../common';
+import type { INodeStructureSnapshot, NodeStructureSerialization } from './undo/commands/node-structure-command-utils';
 
 function getCurrentEditorSession(): IEditorSessionSnapshot {
     return queryRegisteredService<IEditorSessionService>('Editor')?.getEditorSession() ?? { uuid: null, generation: 0 };
@@ -51,8 +56,12 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * 将节点转换为预制体资源
      */
     async createPrefabFromNode(params: ICreatePrefabFromNodeParams): Promise<INode> {
+        await this._softReload.waitForIdle();
+        return prefabWriteSession.edit(() => this.createPrefabFromNodeUnlocked(params), true);
+    }
+
+    private async createPrefabFromNodeUnlocked(params: ICreatePrefabFromNodeParams): Promise<INode> {
         try {
-            await this._softReload.waitForIdle();
 
             validateCreatePrefabParams(params);
 
@@ -72,9 +81,18 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
             if (!node) {
                 throw new Error('创建预制体资源失败，返回结果为 null');
             }
-            const after = this._undo.captureSnapshot(node);
+            let resultNode = node;
+            if (assetInfo && params.overwrite) {
+                const result = await queryRegisteredService<IEditorSessionService>('Editor')!.reloadWithinPrefabEdit();
+                if (result !== ReloadResult.SUCCESS) {
+                    await prefabWriteSession.markUnavailable();
+                    throw new PrefabWriteConflict({ code: 'PREFAB_WRITE_FAILED', message: 'The Prefab was replaced, but the runtime could not be reloaded.', commitState: 'committed', assetUuid: assetInfo.uuid });
+                }
+                resultNode = this._undo.findNode(params.nodePath, node.uuid)!;
+            }
+            const after = this._undo.captureSnapshot(resultNode);
             this._undo.pushNodeStructureCommand('prefab:create', 'Create Prefab', before, after);
-            return await sceneUtils.generateNodeDump(node) as INode;
+            return await sceneUtils.generateNodeDump(resultNode) as INode;
         } catch (e) {
             console.error(`创建预制体失败: 节点路径: ${params.nodePath} 资源 URL: ${params.dbURL} 错误信息:`, e);
             throw e;
@@ -85,70 +103,53 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * 将节点的修改应用回预制体资源
      */
     async applyPrefabChanges(params: IApplyPrefabChangesParams): Promise<boolean> {
-        try {
-            await this._softReload.waitForIdle();
+        await this._softReload.waitForIdle();
+        return prefabWriteSession.edit(async () => {
             validateNodePathParams(params);
-
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
-            const prefabInfo = prefabUtils.getPrefab(node);
-            if (!prefabInfo) {
-                throw new Error(`该节点 '${params.nodePath}' 不是预制体`);
-            }
-
+            if (!prefabUtils.getPrefab(node)) throw new Error(`Node '${params.nodePath}' is not a Prefab instance.`);
             const before = this._undo.captureSnapshot(node);
-            const prefabAssetUuid = prefabInfo.asset?._uuid;
-            const shouldWaitForReload = !!prefabAssetUuid
-                && nodeOperation.assetToNodesMap.has(prefabAssetUuid)
-                && await Service.Editor.hasOpen();
-            const reloadWaiter = prefabAssetUuid && shouldWaitForReload
-                ? this._softReload.waitForAssetReload(prefabAssetUuid)
-                : null;
-            if (prefabAssetUuid) {
-                this._undo.preserveUndoHistoryForPrefabReload(prefabAssetUuid, getCurrentEditorSession());
-            }
-            try {
-                const applyInfo = await nodeOperation.applyPrefab(node.uuid);
-                if (!applyInfo) {
-                    reloadWaiter?.cancel();
-                    if (prefabAssetUuid) {
-                        this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
-                    }
-                    return false;
-                }
+            const applyInfo = await nodeOperation.applyPrefab(node.uuid);
+            if (!applyInfo) return false;
+            await this.finishApply(applyInfo, before, params.nodePath, 'prefab:apply', 'Apply Prefab Changes');
+            return true;
+        }, true);
+    }
 
-                await reloadWaiter?.promise;
-                const afterNode = this._undo.findNode(params.nodePath, node.uuid);
-                const after = this._undo.captureSnapshot(afterNode);
-                this._undo.pushApplyCommand(
-                    'prefab:apply',
-                    'Apply Prefab Changes',
-                    before,
-                    after,
-                    applyInfo.assetUuid,
-                    applyInfo.assetSource,
-                    applyInfo.oldPrefabContent,
-                    applyInfo.newPrefabContent,
-                );
-                return true;
-            } catch (error) {
-                reloadWaiter?.cancel();
-                if (prefabAssetUuid) {
-                    this._undo.cancelPreserveUndoHistoryForPrefabReload(prefabAssetUuid);
-                }
-                throw error;
+    private async finishApply(
+        applyInfo: IApplyPrefabInfo,
+        before: INodeStructureSnapshot | null,
+        nodePath: string,
+        type: string,
+        label: string,
+        serialization: NodeStructureSerialization = 'node',
+    ): Promise<void> {
+        return reconcilePrefabWrite(applyInfo.receipt, async () => {
+            const result = await queryRegisteredService<IEditorSessionService>('Editor')!.reloadWithinPrefabEdit();
+            if (result !== ReloadResult.SUCCESS) {
+                await prefabWriteSession.markUnavailable();
+                throw new Error('The source was saved, but the instance could not be reloaded.');
             }
-        } catch (e) {
-            console.error(`应用回预制体资源失败: 节点路径: ${params.nodePath} 错误信息:`, e);
-            throw e;
-        }
+            const after = this._undo.captureSnapshot(this._undo.findNode(nodePath, applyInfo.nodeUUID), serialization);
+            this._undo.pushApplyCommand(
+                type, label, before, after,
+                applyInfo.assetUuid, applyInfo.assetSource,
+                applyInfo.oldPrefabContent, applyInfo.newPrefabContent,
+                applyInfo.receipt.after.fingerprint,
+            );
+        });
     }
 
     /**
      * 重置节点到预制体原始状态
      */
     async revertToPrefab(params: IRevertToPrefabParams): Promise<boolean> {
+        await this._softReload.waitForIdle();
+        return prefabWriteSession.edit(() => this.revertToPrefabUnlocked(params), true);
+    }
+
+    private async revertToPrefabUnlocked(params: IRevertToPrefabParams): Promise<boolean> {
         try {
-            await this._softReload.waitForIdle();
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             const before = this._undo.captureSnapshot(node);
@@ -167,8 +168,12 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * 解耦预制体实例，使其成为普通节点
      */
     async unpackPrefabInstance(params: IUnpackPrefabInstanceParams): Promise<INode> {
+        await this._softReload.waitForIdle();
+        return prefabWriteSession.edit(() => this.unpackPrefabInstanceUnlocked(params), false);
+    }
+
+    private async unpackPrefabInstanceUnlocked(params: IUnpackPrefabInstanceParams): Promise<INode> {
         try {
-            await this._softReload.waitForIdle();
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
 
@@ -205,8 +210,12 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * 解绑预制体实例，使其成为普通节点
      */
     async unlinkPrefab(params: IUnlinkPrefabParams): Promise<boolean> {
+        await this._softReload.waitForIdle();
+        return prefabWriteSession.edit(() => this.unlinkPrefabUnlocked(params), false);
+    }
+
+    private async unlinkPrefabUnlocked(params: IUnlinkPrefabParams): Promise<boolean> {
         try {
-            await this._softReload.waitForIdle();
             validateNodePathParams(params);
             const node = EditorExtends.Node.getNodeByPathOrThrow(params.nodePath);
             const before = this._undo.captureSnapshot(node);
@@ -365,7 +374,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
      * @param nodeUUID uuid
      */
     public async applyPrefab(nodeUUID: string) {
-        return !!(await nodeOperation.applyPrefab(nodeUUID));
+        return this.applyPrefabChanges({ nodePath: EditorExtends.Node.getNodePath(EditorExtends.Node.getNode(nodeUUID)!) });
     }
 
     public preserveUndoHistoryForPrefabReload(assetUuid: string, editorUuid: string | null = null): void {
@@ -401,6 +410,7 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         componentOperation.onComponentRemovedInGeneralMode(comp, rootNode);
     }
 
+    @prefabEdit
     public async revertRemovedComponent(nodeUUID: string, fileID: string) {
         const node = EditorExtends.Node.getNode(nodeUUID) as Node | null;
         const before = this._undo.captureSnapshot(node);
@@ -410,14 +420,40 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
     }
 
     public async applyRemovedComponent(nodeUUID: string, fileID: string) {
-        const node = EditorExtends.Node.getNode(nodeUUID) as Node | null;
-        const before = this._undo.captureSnapshot(node);
-        await componentOperation.applyRemovedComponent(nodeUUID, fileID);
-        const after = this._undo.captureSnapshot(EditorExtends.Node.getNode(nodeUUID) as Node | null);
-        this._undo.pushNodeStructureCommand('prefab:apply-removed-component', 'Apply Removed Component', before, after);
+        await this._softReload.waitForIdle();
+        await prefabWriteSession.edit(async () => {
+            const node = EditorExtends.Node.getNode(nodeUUID) as Node | null;
+            if (!node) return;
+            const { outMostPrefabInstanceNode: root } = prefabUtils.getOutMostPrefabInstanceInfo(node);
+            if (!root) return;
+            const nodePath = EditorExtends.Node.getNodePath(root);
+            // Keep the outer instance's pending overrides in component-only history.
+            const before = this._undo.captureSnapshot(root, 'node');
+            const applyInfo = await componentOperation.applyRemovedComponent(nodeUUID, fileID);
+            if (!applyInfo) return;
+            await this.finishApply(applyInfo, before, nodePath, 'prefab:apply-removed-component', 'Apply Removed Component', 'node');
+        }, true);
     }
 
     public async onAssetChanged(uuid: string) {
+        const editor = queryRegisteredService<IEditorSessionService & { syncPrefabSource(uuid: string): Promise<void> }>('Editor');
+        if (Service.Editor.getCurrentEditorType() === 'prefab' && editor?.getEditorSession().uuid === uuid) {
+            prefabWriteSession.whenClean(uuid, () => {
+                void editor.syncPrefabSource(uuid).catch(error => console.error('[Prefab source sync]', error));
+            });
+            return;
+        }
+        if (prefabWriteSession.editing) {
+            prefabWriteSession.whenIdle(() => { void this.onAssetChanged(uuid).catch(error => console.error('[Prefab instance sync]', error)); });
+            return;
+        }
+        if (!nodeOperation.assetToNodesMap.has(uuid)) return;
+        if (prefabWriteSession.active) {
+            const source = await prefabWriteSession.readSource(uuid);
+            try {
+                if (source.fingerprint === prefabWriteSession.baseline(uuid).fingerprint) return;
+            } catch { /* A newly referenced Prefab has no baseline yet. */ }
+        }
         const reloadState = this._undo.consumePreserveUndoHistoryForPrefabReload(uuid);
         const session = getCurrentEditorSession();
         // prefab 资源的变动，softReload场景

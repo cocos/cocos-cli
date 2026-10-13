@@ -3,6 +3,7 @@ export * from './cli';
 export * from './node';
 export * from './node-create-targets';
 export * from './prefab';
+export * from './prefab-write';
 export * from './editor';
 export * from './script';
 export * from './component';

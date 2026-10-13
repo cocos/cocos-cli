@@ -21,6 +21,7 @@ import { referenceImageFiles } from './reference-image-files';
 import { referenceImageStore } from './reference-image-store';
 import { lightFXBakeHost } from './lightfx-bake-host';
 import { reflectionProbeBakeHost } from './reflection-probe-bake-host';
+import type { IPrefabWriteHost } from '../common/prefab-write';
 
 export interface IMainModule {
     'assetManager': typeof assetManager;
@@ -32,6 +33,7 @@ export interface IMainModule {
     'referenceImageStore': typeof referenceImageStore;
     'lightFXBakeHost': typeof lightFXBakeHost;
     'reflectionProbeBakeHost': typeof reflectionProbeBakeHost;
+    'prefabWriteHost': IPrefabWriteHost;
 }
 
 export const Scene = {

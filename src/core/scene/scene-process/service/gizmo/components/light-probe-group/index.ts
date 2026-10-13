@@ -217,12 +217,7 @@ async function editSelectedProbes(operation: 'delete' | 'duplicate'): Promise<nu
     const groups = GizmoList.filter(isActiveProbeGizmo);
     if (groups.length === 0) return 0;
     const service = getService();
-    let recording: string | null = null;
-    try {
-        recording = service?.Undo?.beginRecording?.(groups.map(comp => comp.target!.node.uuid)) ?? null;
-    } catch {
-        recording = null;
-    }
+    const recording = await service?.Undo?.beginRecordingAsync?.(groups.map(comp => comp.target!.node.uuid));
     let total = 0;
     try {
         for (const comp of groups) {

@@ -1,5 +1,6 @@
 import { Node, Component } from 'cc';
 import { NodeEventType, type IUndoScope } from '../../../../common';
+import { PrefabWriteConflict } from '../../prefab/write-runtime';
 import {
     broadcastAnimationPropertyCommitted,
     normalizeAnimationPropertyCommitPath,
@@ -105,8 +106,8 @@ class GizmoBase<T extends Component = Component> {
     }
 
     onControlBegin(propPath: string | null) {
-        this._isControlBegin = true;
         this.recordChanges(propPath);
+        this._isControlBegin = true;
         try {
             const svcEvents = getServiceEvents();
             svcEvents?.broadcast?.('gizmo:control-begin', propPath);
@@ -147,6 +148,7 @@ class GizmoBase<T extends Component = Component> {
                 }) ?? '';
             } catch (e) {
                 this.undoID = '';
+                if (e instanceof PrefabWriteConflict) throw e;
             }
             this._recorded = true;
         }

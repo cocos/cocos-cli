@@ -8,7 +8,7 @@ const mockRemoveLightmapAssets = jest.fn();
 const mockPublishLightmapAssets = jest.fn();
 const mockQueryCapabilities = jest.fn(async (): Promise<{ lightmapAssetCleanupVersion?: 1; lightmapRebakeCleanupVersion?: 1; lightmapPublicationVersion?: 1; lightmapAuxiliaryAssetsVersion?: 1 }> => ({ lightmapAssetCleanupVersion: 1, lightmapRebakeCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapAuxiliaryAssetsVersion: 1 }));
 const mockUndo = {
-    beginRecording: jest.fn(() => 'recording'),
+    beginRecordingAsync: jest.fn(() => 'recording'),
     endRecording: jest.fn(async () => undefined),
     cancelRecording: jest.fn(),
     clearHistory: jest.fn(),
@@ -75,7 +75,7 @@ describe('Lightmap result recording targets', () => {
     it.each([2591, 65535, 0, -1, 25.5, NaN, Infinity])('rejects unsafe GI samples %s before native work or result mutation', async giSamples => {
         const f = fixture();
         await expect(f.service.bake({ giSamples })).rejects.toThrow('Lightmap GI Samples must be an integer between 1 and 2590');
-        expect([mockQueryCapabilities, mockBake, mockSave, mockCommit, mockRemoveLightmapAssets, mockUndo.beginRecording,
+        expect([mockQueryCapabilities, mockBake, mockSave, mockCommit, mockRemoveLightmapAssets, mockUndo.beginRecordingAsync,
             f.model._updateLightmap, f.terrain._updateLightmap].map(mock => mock.mock.calls.length)).toEqual(Array(8).fill(0));
         expect(f.model.bakeSettings.texture).toBe(f.oldTexture);
         // Rejection must not leave an operation owner or poison the next bake.
@@ -85,7 +85,7 @@ describe('Lightmap result recording targets', () => {
     it.each([false, true])('records Mesh and Terrain components before scene flags for Bake (save=%s)', async saveScene => {
         const f = fixture();
         await f.service.bake({ saveScene });
-        expect(mockUndo.beginRecording).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Bake lightmap' });
+        expect(mockUndo.beginRecordingAsync).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Bake lightmap' });
         expect(f.model._updateLightmap).toHaveBeenCalledWith(f.texture, 0.1, 0.2, 0.3, 0.4);
         expect(f.terrain._updateLightmap).toHaveBeenCalledWith(1, f.texture, 0.5, 0.6, 0.7, 0.8);
         expect(mockUndo.endRecording).toHaveBeenCalledWith('recording');
@@ -98,7 +98,7 @@ describe('Lightmap result recording targets', () => {
         await expect(f.service.clearBake({ saveScene })).resolves.toEqual({
             clearedCount: 3, deletedAssetCount: 0, retainedAssetCount: 0, failedAssetCount: 0,
         });
-        expect(mockUndo.beginRecording).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Clear lightmap' });
+        expect(mockUndo.beginRecordingAsync).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Clear lightmap' });
         expect(f.model._updateLightmap).toHaveBeenCalledWith(null, 0, 0, 0, 0);
         expect(f.terrain._updateLightmap).toHaveBeenCalledWith(0, null, 0, 0, 0, 0);
         expect(f.terrain._updateLightmap).toHaveBeenCalledWith(1, null, 0, 0, 0, 0);
@@ -177,7 +177,7 @@ describe('Lightmap result recording targets', () => {
         else mockQueryTextureInfo.mockRejectedValueOnce(new Error('record unavailable'));
         await expect(f.service.bake()).rejects.toThrow();
         expect(mockBake).not.toHaveBeenCalled();
-        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
         expect(mockSave).not.toHaveBeenCalled();
     });
     it('saves before exact deletion and cancels only the Clear recording', async () => {
@@ -267,7 +267,7 @@ describe('Lightmap result recording targets', () => {
         const f = fixture();
         mockQueryTextureInfo.mockRejectedValueOnce(new Error('record unavailable'));
         await expect(f.service.clearBake({ deleteAssets: true })).rejects.toThrow('record unavailable');
-        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
         expect(f.model._updateLightmap).not.toHaveBeenCalled();
         expect(mockSave).not.toHaveBeenCalled();
     });
@@ -294,7 +294,7 @@ describe('Lightmap result recording targets', () => {
         const f = fixture();
         mockQueryCapabilities.mockResolvedValueOnce({ lightmapAssetCleanupVersion: 1, lightmapPublicationVersion: 1, lightmapRebakeCleanupVersion: 1 });
         await expect(f.service.clearBake({ deleteAssets: true })).rejects.toThrow('Restart the Cocos host');
-        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
         expect(mockSave).not.toHaveBeenCalled();
     });
     it('replaces excluded objects old bindings, recording them for normal rebake Undo', async () => {
@@ -302,7 +302,7 @@ describe('Lightmap result recording targets', () => {
         mockBake.mockResolvedValueOnce({ models: [f.model], terrains: [], operationId: 'operation', stationaryMainLight: false,
             textureUrls: [], result: { meshes: [{ id: 0, index: 0, offset: [0, 0], scale: [1, 1] }], terrains: [] } });
         await f.service.bake({ saveScene: false });
-        expect(mockUndo.beginRecording).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Bake lightmap' });
+        expect(mockUndo.beginRecordingAsync).toHaveBeenCalledWith(['mesh', 'terrain', 'scene'], { label: 'Bake lightmap' });
         expect(f.terrain._updateLightmap.mock.calls).toEqual([[0, null, 0, 0, 0, 0], [1, null, 0, 0, 0, 0]]);
         expect(f.model._updateLightmap).toHaveBeenLastCalledWith(f.texture, 0, 0, 1, 1);
     });
@@ -374,7 +374,7 @@ describe('Lightmap result recording targets', () => {
         const f = fixture();
         await expect(f.service.clearBake({ saveScene: false, deleteAssets: true })).rejects.toThrow('deleteAssets requires saveScene');
         expect(f.model._updateLightmap).not.toHaveBeenCalled();
-        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
         expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
     });
     it('rejects a legacy cleanup host before changing the scene', async () => {
@@ -382,7 +382,7 @@ describe('Lightmap result recording targets', () => {
         mockQueryCapabilities.mockResolvedValueOnce({});
         await expect(f.service.clearBake({ deleteAssets: true })).rejects.toThrow('does not support exact Lightmap asset cleanup');
         expect(f.model._updateLightmap).not.toHaveBeenCalled();
-        expect(mockUndo.beginRecording).not.toHaveBeenCalled();
+        expect(mockUndo.beginRecordingAsync).not.toHaveBeenCalled();
         expect(mockSave).not.toHaveBeenCalled();
         expect(mockRemoveLightmapAssets).not.toHaveBeenCalled();
     });

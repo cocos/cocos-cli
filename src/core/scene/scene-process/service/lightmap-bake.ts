@@ -101,7 +101,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
                 // Keep the flags last, after restoring each affected result binding.
                 const targets = [...new Set([...output.models, ...output.terrains, ...previousBindings.map(binding => binding.target)]
                     .map(component => component.uuid)), scene.uuid];
-                const undo = Service.Undo.beginRecording(targets, { label: 'Bake lightmap' });
+                const undo = await Service.Undo.beginRecordingAsync(targets, { label: 'Bake lightmap' });
                 const replacement = deletedLightmapAssets.beginReplacement(scene);
                 try {
                     // A successful bake replaces the complete result, including disabled objects
@@ -256,7 +256,7 @@ export class LightmapBakeService extends BaseService<ILightFXBakeEvents> impleme
             const previousHighp = (scene.globals as any).bakedWithHighpLightmap;
             const previousStationary = (scene.globals as any).bakedWithStationaryMainLight;
             const targets = [...new Set(bindings.map(binding => binding.target.uuid as string)), scene.uuid];
-            const undo = Service.Undo.beginRecording(targets, { label: 'Clear lightmap' });
+            const undo = await Service.Undo.beginRecordingAsync(targets, { label: 'Clear lightmap' });
             let retainedSceneTextureUuids = new Set<string>();
             try {
                 this.clearBindings(bindings);

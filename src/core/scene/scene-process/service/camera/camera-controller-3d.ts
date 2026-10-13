@@ -939,7 +939,7 @@ export class CameraController3D extends CameraControllerBase {
         if (nodes.length === 0) return;
 
         const uuids = nodes.map(node => node.uuid);
-        const undoId = await Service.Undo?.beginRecording?.(uuids);
+        const undoId = await Service.Undo?.beginRecordingAsync?.(uuids);
 
         const baseNode = nodes[0];
         const oldBaseWorldMatrix = Mat4.fromRT(new Mat4(), baseNode.getWorldRotation(), baseNode.getWorldPosition());

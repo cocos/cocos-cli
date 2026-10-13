@@ -1,21 +1,20 @@
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../../common';
-import { Rpc } from '../../../rpc';
-import { Service } from '../../core';
+import { prefabWriteSession } from '../../prefab/write-session';
+import { PrefabWriteConflict, reconcilePrefabWrite } from '../../prefab/write-runtime';
+import { loadWithPrefabSources } from '../../prefab/source-loader';
+import { queryRegisteredService } from '../../core';
+import type { IEditorSessionService } from '../../core/editor-session';
+import { ReloadResult } from '../../../../common';
 import {
     createNodeCommandMeta,
     failure,
     type INodeStructureSnapshot,
-    success,
 } from './node-structure-command-utils';
 import { replacePrefabNodeSnapshot } from './prefab-command-utils';
 
-function getCurrentEditorUuid(): string | null {
-    return (Service.Editor as unknown as { getCurrentEditorUuid?: () => string | null })
-        .getCurrentEditorUuid?.() ?? null;
-}
-
 export class PrefabApplyCommand implements IUndoCommand {
     meta: IUndoCommandMeta;
+    private expectedFingerprint: string;
 
     constructor(
         type: string,
@@ -26,8 +25,10 @@ export class PrefabApplyCommand implements IUndoCommand {
         private readonly assetSource: string,
         private readonly beforeAssetContent: string,
         private readonly afterAssetContent: string,
+        afterFingerprint: string,
     ) {
         this.meta = createNodeCommandMeta(type, label);
+        this.expectedFingerprint = afterFingerprint;
     }
 
     async undo(): Promise<IUndoRedoResult> {
@@ -43,37 +44,31 @@ export class PrefabApplyCommand implements IUndoCommand {
         restoreSnapshot: INodeStructureSnapshot,
         assetContent: string,
     ): Promise<IUndoRedoResult> {
-        const assetResult = await restorePrefabAssetContent(
-            this.assetUuid,
-            this.assetSource,
-            assetContent,
-            this.meta,
-        );
-        if (!assetResult.success) {
-            return assetResult;
+        try {
+            const receipt = await prefabWriteSession.commit(this.assetUuid, assetContent, this.expectedFingerprint);
+            this.expectedFingerprint = receipt.after.fingerprint;
+            let restoring = false;
+            return await reconcilePrefabWrite(receipt, async () => {
+                try {
+                    return await loadWithPrefabSources([this.assetUuid], async () => {
+                        restoring = true;
+                        const result = await replacePrefabNodeSnapshot(removeSnapshot, restoreSnapshot, this.meta);
+                        if (!result.success) throw new Error(result.reason ?? 'Could not restore the instance snapshot.');
+                        const reloaded = await queryRegisteredService<IEditorSessionService>('Editor')!.reloadWithinPrefabEdit();
+                        if (reloaded !== ReloadResult.SUCCESS) throw new Error('The source was restored, but the runtime could not be reloaded.');
+                        return result;
+                    }, true);
+                } catch (error) {
+                    if (restoring) await prefabWriteSession.markUnavailable();
+                    throw error;
+                }
+            });
+        } catch (error) {
+            const result = failure(this.meta, error instanceof Error ? error.message : String(error));
+            if (error instanceof PrefabWriteConflict) result.error = {
+                code: error.code, message: error.message, commitState: error.commitState, assetUuid: error.assetUuid, runtime: error.runtime,
+            };
+            return result;
         }
-
-        return replacePrefabNodeSnapshot(removeSnapshot, restoreSnapshot, this.meta);
-    }
-}
-
-async function restorePrefabAssetContent(
-    assetUuid: string,
-    assetSource: string,
-    content: string,
-    meta: IUndoCommandMeta,
-): Promise<IUndoRedoResult> {
-    const prefabService = Service.Prefab as unknown as {
-        preserveUndoHistoryForPrefabReload?: (assetUuid: string, editorUuid?: string | null) => void;
-        cancelPreserveUndoHistoryForPrefabReload?: (assetUuid: string) => void;
-    };
-    prefabService.preserveUndoHistoryForPrefabReload?.(assetUuid, getCurrentEditorUuid());
-
-    try {
-        await Rpc.getInstance().request('assetManager', 'saveAsset', [assetSource, content]);
-        return success(meta);
-    } catch (error) {
-        prefabService.cancelPreserveUndoHistoryForPrefabReload?.(assetUuid);
-        return failure(meta, error instanceof Error ? error.message : String(error));
     }
 }
