@@ -86,8 +86,10 @@ jest.mock('fs-extra', () => ({
     readFile: jest.fn(async (source: string) => JSON.stringify(mockFiles.get(source))),
     stat: jest.fn(async (source: string) => ({ mtimeMs: mockMtimes.get(source) ?? 1 })),
 }));
-jest.mock('cc', () => mockCC);
-jest.mock('cc/editor/new-gen-anim', () => mockNewGenAnim);
+// EngineLoader changes module resolution in the shared serial worker. Mock its
+// runtime aliases directly so these factories do not depend on proxy-file paths.
+jest.mock('cc', () => mockCC, { virtual: true });
+jest.mock('cc/editor/new-gen-anim', () => mockNewGenAnim, { virtual: true });
 jest.mock('../manager/query', () => ({
     __esModule: true,
     default: mockAssetQuery,
