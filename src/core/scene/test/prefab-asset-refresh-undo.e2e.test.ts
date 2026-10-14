@@ -1,6 +1,6 @@
 import { mkdtemp, readFile, remove } from 'fs-extra';
 import { basename, join } from 'path';
-import { NodeType, PrefabState } from '../common';
+import { isPrefabWriteError, NodeType, PrefabState } from '../common';
 import { Rpc } from '../main-process/rpc';
 import { EditorProxy } from '../main-process/proxy/editor-proxy';
 import { TestGlobalEnv } from '../../../tests/global-env';
@@ -49,6 +49,16 @@ describe('prefab asset updates through scene undo and redo', () => {
 
     it('keeps newly saved prefab children when redoing an instance created before the asset update', async () => {
         const rpc = Rpc.getInstance();
+        const queryDuringReload = async (path: string) => {
+            try {
+                return await rpc.request('Node', 'queryNodeTree', [{ path }]);
+            } catch (error) {
+                // Exclusive source reloads reject queries until their edit lease is released.
+                if (isPrefabWriteError(error) && error.code === 'PREFAB_BUSY'
+                    && error.commitState === 'not-committed') return null;
+                throw error;
+            }
+        };
         const { assetManager } = await import('../../assets');
         const prefabUrl = `db://assets/${basename(directory)}/Updated.prefab`;
         await rpc.request('Node', 'createByType', [{ path: '/', name: 'Source', nodeType: NodeType.EMPTY }]);
@@ -73,7 +83,7 @@ describe('prefab asset updates through scene undo and redo', () => {
 
         let synced = false;
         for (let attempt = 0; attempt < 100; attempt++) {
-            if (await rpc.request('Node', 'queryNodeTree', [{ path: 'Instance/SavedChild' }])) {
+            if (await queryDuringReload('Instance/SavedChild')) {
                 synced = true;
                 break;
             }
@@ -98,7 +108,7 @@ describe('prefab asset updates through scene undo and redo', () => {
         await assetManager.saveAsset(prefabUrl, JSON.stringify(graph));
         let resynced = false;
         for (let attempt = 0; attempt < 100; attempt++) {
-            if (await rpc.request('Node', 'queryNodeTree', [{ path: 'Instance/ResavedChild' }])) {
+            if (await queryDuringReload('Instance/ResavedChild')) {
                 resynced = true;
                 break;
             }
