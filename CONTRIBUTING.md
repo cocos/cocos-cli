@@ -113,6 +113,8 @@ This writes a Chinese static HTML site to `docs/api/html/`（打开 `index.html`
 
 Tracking: https://github.com/cocos/cocos-cli/issues/984
 
+Published site (fork GitHub Pages, `gh-pages` branch): https://shinjiyu.github.io/cocos-cli-1/
+
 ### Testing
 
 #### Unit Tests
