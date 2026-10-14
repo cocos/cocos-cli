@@ -15,53 +15,404 @@
   </header>
   <main class="wrap">
 <h1><code>scene-add-component</code></h1>
-<p class="meta"><span class="badge">Component</span> 方法 <code>addComponent</code></p>
-<aside class="callout">
-  <h2>给 LLM 的提示词只靠以下内容</h2>
-  <p>Agent / PinK 调用 MCP 时，模型<strong>不会</strong>看到本 HTML 文档站、源码注释或中文附录。
-  运行时经 <code>tools/list</code>（见 <code>src/mcp/mcp.middleware.ts</code>）注入的字段<strong>只有</strong>：</p>
-  <ul>
-    <li><code>name</code> — 来自 <code>@tool('...')</code></li>
-    <li><code>title</code> — 来自 <code>@title('...')</code></li>
-    <li><code>description</code> — 来自 <code>@description('...')</code></li>
-    <li><code>inputSchema</code> — 注册后的 Zod → <code>zodToJsonSchema({ target: 'jsonSchema7', $refStrategy: 'none' })</code>（含 hook 改写）</li>
-    <li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li>
-  </ul>
-  <p>部分工具在注册时会改写参数 schema（例如 <code>BuilderHook</code> 把 <code>builder-build.options</code> 收成空 object passthrough）。
-  本页展示的是<strong>改写后</strong>、与 <code>tools/list</code> 一致的契约，不是源码里未改写的完整 Zod 联合。</p>
-  <p class="warn">因此：想改 Agent 行为，请改装饰器 / hook / Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
-</aside>
-<p class="lead"><strong>description（会注入 LLM）：</strong>Add component to node, input node name, component type, built-in or custom component. Returns all component details on success. Can query all component names via scene-query-all-component</p><h2>inputSchema（tools/list，会注入 LLM）</h2>
-<pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;addComponentInfo&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;nodePath&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;description&quot;: &quot;Node path&quot;
+<p class="meta"><span class="badge">Component</span> 方法 <code>addComponent</code> · Add component</p>
+<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+  <div class="md-box-bar">
+    <strong>LLM 实际看到</strong>
+    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-add-component&quot;,
+  &quot;title&quot;: &quot;Add component&quot;,
+  &quot;description&quot;: &quot;Add component to node, input node name, component type, built-in or custom component. Returns all component details on success. Can query all component names via scene-query-all-component&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;addComponentInfo&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;nodePath&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;description&quot;: &quot;Node path&quot;
+          },
+          &quot;component&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;description&quot;: &quot;Component name, supports component name, component resource URL and UUID&quot;
+          }
         },
-        &quot;component&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;description&quot;: &quot;Component name, supports component name, component resource URL and UUID&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;nodePath&quot;,
-        &quot;component&quot;
-      ],
-      &quot;additionalProperties&quot;: false,
-      &quot;description&quot;: &quot;Information for adding a component&quot;
-    }
+        &quot;required&quot;: [
+          &quot;nodePath&quot;,
+          &quot;component&quot;
+        ],
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Information for adding a component&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;addComponentInfo&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   },
-  &quot;required&quot;: [
-    &quot;addComponentInfo&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-}</pre>
-<h2>参数分项（同上 schema 的 properties）</h2><h3><code>addComponentInfo</code></h3><pre>{
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;anyOf&quot;: [
+                  {
+                    &quot;type&quot;: &quot;object&quot;,
+                    &quot;properties&quot;: {
+                      &quot;cid&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Component identifier&quot;
+                      },
+                      &quot;path&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Return component path, including node path&quot;
+                      },
+                      &quot;uuid&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Component UUID&quot;
+                      },
+                      &quot;name&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Component name&quot;
+                      },
+                      &quot;type&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Component type&quot;
+                      },
+                      &quot;enabled&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether the component is enabled&quot;
+                      },
+                      &quot;properties&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;additionalProperties&quot;: {
+                          &quot;type&quot;: &quot;object&quot;,
+                          &quot;properties&quot;: {
+                            &quot;value&quot;: {
+                              &quot;anyOf&quot;: [
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;additionalProperties&quot;: {},
+                                  &quot;description&quot;: &quot;Any type Object&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;array&quot;,
+                                  &quot;description&quot;: &quot;Any type Array&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;string&quot;,
+                                  &quot;description&quot;: &quot;String type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;number&quot;,
+                                  &quot;description&quot;: &quot;Number type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;boolean&quot;,
+                                  &quot;description&quot;: &quot;Boolean type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;properties&quot;: {
+                                    &quot;x&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;x coordinate&quot;
+                                    },
+                                    &quot;y&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;y coordinate&quot;
+                                    }
+                                  },
+                                  &quot;required&quot;: [
+                                    &quot;x&quot;,
+                                    &quot;y&quot;
+                                  ],
+                                  &quot;additionalProperties&quot;: false,
+                                  &quot;description&quot;: &quot;Vec2 type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;properties&quot;: {
+                                    &quot;x&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;x coordinate&quot;
+                                    },
+                                    &quot;y&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;y coordinate&quot;
+                                    },
+                                    &quot;z&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;z coordinate&quot;
+                                    }
+                                  },
+                                  &quot;required&quot;: [
+                                    &quot;x&quot;,
+                                    &quot;y&quot;,
+                                    &quot;z&quot;
+                                  ],
+                                  &quot;additionalProperties&quot;: false,
+                                  &quot;description&quot;: &quot;Vec3 type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;properties&quot;: {
+                                    &quot;x&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;x coordinate&quot;
+                                    },
+                                    &quot;y&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;y coordinate&quot;
+                                    },
+                                    &quot;z&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;z coordinate&quot;
+                                    },
+                                    &quot;w&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;w coordinate&quot;
+                                    }
+                                  },
+                                  &quot;required&quot;: [
+                                    &quot;x&quot;,
+                                    &quot;y&quot;,
+                                    &quot;z&quot;,
+                                    &quot;w&quot;
+                                  ],
+                                  &quot;additionalProperties&quot;: false,
+                                  &quot;description&quot;: &quot;Vec4 type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;properties&quot;: {
+                                    &quot;m00&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 1 Column 1&quot;
+                                    },
+                                    &quot;m01&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 1 Column 2&quot;
+                                    },
+                                    &quot;m02&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 1 Column 3&quot;
+                                    },
+                                    &quot;m03&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 1 Column 4&quot;
+                                    },
+                                    &quot;m10&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 2 Column 1&quot;
+                                    },
+                                    &quot;m11&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 2 Column 2&quot;
+                                    },
+                                    &quot;m12&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 2 Column 3&quot;
+                                    },
+                                    &quot;m13&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 2 Column 4&quot;
+                                    },
+                                    &quot;m20&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 3 Column 1&quot;
+                                    },
+                                    &quot;m21&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 3 Column 2&quot;
+                                    },
+                                    &quot;m22&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 3 Column 3&quot;
+                                    },
+                                    &quot;m23&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 3 Column 4&quot;
+                                    },
+                                    &quot;m30&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 4 Column 1&quot;
+                                    },
+                                    &quot;m31&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 4 Column 2&quot;
+                                    },
+                                    &quot;m32&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 4 Column 3&quot;
+                                    },
+                                    &quot;m33&quot;: {
+                                      &quot;type&quot;: &quot;number&quot;,
+                                      &quot;description&quot;: &quot;Row 4 Column 4&quot;
+                                    }
+                                  },
+                                  &quot;required&quot;: [
+                                    &quot;m00&quot;,
+                                    &quot;m01&quot;,
+                                    &quot;m02&quot;,
+                                    &quot;m03&quot;,
+                                    &quot;m10&quot;,
+                                    &quot;m11&quot;,
+                                    &quot;m12&quot;,
+                                    &quot;m13&quot;,
+                                    &quot;m20&quot;,
+                                    &quot;m21&quot;,
+                                    &quot;m22&quot;,
+                                    &quot;m23&quot;,
+                                    &quot;m30&quot;,
+                                    &quot;m31&quot;,
+                                    &quot;m32&quot;,
+                                    &quot;m33&quot;
+                                  ],
+                                  &quot;additionalProperties&quot;: false,
+                                  &quot;description&quot;: &quot;Mat4 type&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;null&quot;,
+                                  &quot;description&quot;: &quot;Null type&quot;
+                                },
+                                {
+                                  &quot;description&quot;: &quot;Any type&quot;
+                                }
+                              ],
+                              &quot;description&quot;: &quot;Current value of the property, can be a key-value object or a basic type value&quot;
+                            },
+                            &quot;cid&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Component identifier&quot;
+                            },
+                            &quot;type&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Property data type&quot;
+                            },
+                            &quot;readonly&quot;: {
+                              &quot;type&quot;: &quot;boolean&quot;,
+                              &quot;description&quot;: &quot;Whether it is read-only&quot;
+                            },
+                            &quot;name&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Property name&quot;
+                            },
+                            &quot;path&quot;: {
+                              &quot;type&quot;: &quot;string&quot;,
+                              &quot;description&quot;: &quot;Search path for data, filled by the user&quot;
+                            },
+                            &quot;isArray&quot;: {
+                              &quot;type&quot;: &quot;boolean&quot;,
+                              &quot;description&quot;: &quot;Whether it is an array type&quot;
+                            },
+                            &quot;userData&quot;: {
+                              &quot;type&quot;: &quot;object&quot;,
+                              &quot;additionalProperties&quot;: {},
+                              &quot;description&quot;: &quot;User pass-through data&quot;
+                            }
+                          },
+                          &quot;additionalProperties&quot;: false,
+                          &quot;description&quot;: &quot;Property data structure and editor configuration options, used to define property values, UI display, validation rules, etc.&quot;
+                        },
+                        &quot;description&quot;: &quot;Component properties&quot;
+                      },
+                      &quot;prefab&quot;: {
+                        &quot;anyOf&quot;: [
+                          {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;properties&quot;: {
+                              &quot;fileId&quot;: {
+                                &quot;type&quot;: &quot;string&quot;,
+                                &quot;description&quot;: &quot;Records component id, unique in prefab file; used when looking up component via targetInfo&quot;
+                              }
+                            },
+                            &quot;required&quot;: [
+                              &quot;fileId&quot;
+                            ],
+                            &quot;additionalProperties&quot;: false,
+                            &quot;description&quot;: &quot;Component prefab information&quot;
+                          },
+                          {
+                            &quot;type&quot;: &quot;null&quot;
+                          }
+                        ],
+                        &quot;description&quot;: &quot;Information of the component in the prefab&quot;
+                      }
+                    },
+                    &quot;required&quot;: [
+                      &quot;cid&quot;,
+                      &quot;path&quot;,
+                      &quot;uuid&quot;,
+                      &quot;name&quot;,
+                      &quot;type&quot;,
+                      &quot;enabled&quot;,
+                      &quot;properties&quot;,
+                      &quot;prefab&quot;
+                    ],
+                    &quot;additionalProperties&quot;: false,
+                    &quot;description&quot;: &quot;Component information&quot;
+                  },
+                  {
+                    &quot;type&quot;: &quot;null&quot;
+                  }
+                ],
+                &quot;description&quot;: &quot;Interface returned when getting current component information&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>参数分项（人类阅读，不另注入）</h2>
+<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>addComponentInfo</code></h3><pre>{
   &quot;type&quot;: &quot;object&quot;,
   &quot;properties&quot;: {
     &quot;nodePath&quot;: {
@@ -79,358 +430,6 @@
   ],
   &quot;additionalProperties&quot;: false,
   &quot;description&quot;: &quot;Information for adding a component&quot;
-}</pre><h2>outputSchema（会注入 LLM）</h2><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;result&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;code&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;enum&quot;: [
-            200,
-            400,
-            404,
-            500
-          ],
-          &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
-        },
-        &quot;data&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;anyOf&quot;: [
-                {
-                  &quot;type&quot;: &quot;object&quot;,
-                  &quot;properties&quot;: {
-                    &quot;cid&quot;: {
-                      &quot;type&quot;: &quot;string&quot;,
-                      &quot;description&quot;: &quot;Component identifier&quot;
-                    },
-                    &quot;path&quot;: {
-                      &quot;type&quot;: &quot;string&quot;,
-                      &quot;description&quot;: &quot;Return component path, including node path&quot;
-                    },
-                    &quot;uuid&quot;: {
-                      &quot;type&quot;: &quot;string&quot;,
-                      &quot;description&quot;: &quot;Component UUID&quot;
-                    },
-                    &quot;name&quot;: {
-                      &quot;type&quot;: &quot;string&quot;,
-                      &quot;description&quot;: &quot;Component name&quot;
-                    },
-                    &quot;type&quot;: {
-                      &quot;type&quot;: &quot;string&quot;,
-                      &quot;description&quot;: &quot;Component type&quot;
-                    },
-                    &quot;enabled&quot;: {
-                      &quot;type&quot;: &quot;boolean&quot;,
-                      &quot;description&quot;: &quot;Whether the component is enabled&quot;
-                    },
-                    &quot;properties&quot;: {
-                      &quot;type&quot;: &quot;object&quot;,
-                      &quot;additionalProperties&quot;: {
-                        &quot;type&quot;: &quot;object&quot;,
-                        &quot;properties&quot;: {
-                          &quot;value&quot;: {
-                            &quot;anyOf&quot;: [
-                              {
-                                &quot;type&quot;: &quot;object&quot;,
-                                &quot;additionalProperties&quot;: {},
-                                &quot;description&quot;: &quot;Any type Object&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;array&quot;,
-                                &quot;description&quot;: &quot;Any type Array&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;string&quot;,
-                                &quot;description&quot;: &quot;String type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;number&quot;,
-                                &quot;description&quot;: &quot;Number type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;boolean&quot;,
-                                &quot;description&quot;: &quot;Boolean type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;object&quot;,
-                                &quot;properties&quot;: {
-                                  &quot;x&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;x coordinate&quot;
-                                  },
-                                  &quot;y&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;y coordinate&quot;
-                                  }
-                                },
-                                &quot;required&quot;: [
-                                  &quot;x&quot;,
-                                  &quot;y&quot;
-                                ],
-                                &quot;additionalProperties&quot;: false,
-                                &quot;description&quot;: &quot;Vec2 type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;object&quot;,
-                                &quot;properties&quot;: {
-                                  &quot;x&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;x coordinate&quot;
-                                  },
-                                  &quot;y&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;y coordinate&quot;
-                                  },
-                                  &quot;z&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;z coordinate&quot;
-                                  }
-                                },
-                                &quot;required&quot;: [
-                                  &quot;x&quot;,
-                                  &quot;y&quot;,
-                                  &quot;z&quot;
-                                ],
-                                &quot;additionalProperties&quot;: false,
-                                &quot;description&quot;: &quot;Vec3 type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;object&quot;,
-                                &quot;properties&quot;: {
-                                  &quot;x&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;x coordinate&quot;
-                                  },
-                                  &quot;y&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;y coordinate&quot;
-                                  },
-                                  &quot;z&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;z coordinate&quot;
-                                  },
-                                  &quot;w&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;w coordinate&quot;
-                                  }
-                                },
-                                &quot;required&quot;: [
-                                  &quot;x&quot;,
-                                  &quot;y&quot;,
-                                  &quot;z&quot;,
-                                  &quot;w&quot;
-                                ],
-                                &quot;additionalProperties&quot;: false,
-                                &quot;description&quot;: &quot;Vec4 type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;object&quot;,
-                                &quot;properties&quot;: {
-                                  &quot;m00&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 1 Column 1&quot;
-                                  },
-                                  &quot;m01&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 1 Column 2&quot;
-                                  },
-                                  &quot;m02&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 1 Column 3&quot;
-                                  },
-                                  &quot;m03&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 1 Column 4&quot;
-                                  },
-                                  &quot;m10&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 2 Column 1&quot;
-                                  },
-                                  &quot;m11&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 2 Column 2&quot;
-                                  },
-                                  &quot;m12&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 2 Column 3&quot;
-                                  },
-                                  &quot;m13&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 2 Column 4&quot;
-                                  },
-                                  &quot;m20&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 3 Column 1&quot;
-                                  },
-                                  &quot;m21&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 3 Column 2&quot;
-                                  },
-                                  &quot;m22&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 3 Column 3&quot;
-                                  },
-                                  &quot;m23&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 3 Column 4&quot;
-                                  },
-                                  &quot;m30&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 4 Column 1&quot;
-                                  },
-                                  &quot;m31&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 4 Column 2&quot;
-                                  },
-                                  &quot;m32&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 4 Column 3&quot;
-                                  },
-                                  &quot;m33&quot;: {
-                                    &quot;type&quot;: &quot;number&quot;,
-                                    &quot;description&quot;: &quot;Row 4 Column 4&quot;
-                                  }
-                                },
-                                &quot;required&quot;: [
-                                  &quot;m00&quot;,
-                                  &quot;m01&quot;,
-                                  &quot;m02&quot;,
-                                  &quot;m03&quot;,
-                                  &quot;m10&quot;,
-                                  &quot;m11&quot;,
-                                  &quot;m12&quot;,
-                                  &quot;m13&quot;,
-                                  &quot;m20&quot;,
-                                  &quot;m21&quot;,
-                                  &quot;m22&quot;,
-                                  &quot;m23&quot;,
-                                  &quot;m30&quot;,
-                                  &quot;m31&quot;,
-                                  &quot;m32&quot;,
-                                  &quot;m33&quot;
-                                ],
-                                &quot;additionalProperties&quot;: false,
-                                &quot;description&quot;: &quot;Mat4 type&quot;
-                              },
-                              {
-                                &quot;type&quot;: &quot;null&quot;,
-                                &quot;description&quot;: &quot;Null type&quot;
-                              },
-                              {
-                                &quot;description&quot;: &quot;Any type&quot;
-                              }
-                            ],
-                            &quot;description&quot;: &quot;Current value of the property, can be a key-value object or a basic type value&quot;
-                          },
-                          &quot;cid&quot;: {
-                            &quot;type&quot;: &quot;string&quot;,
-                            &quot;description&quot;: &quot;Component identifier&quot;
-                          },
-                          &quot;type&quot;: {
-                            &quot;type&quot;: &quot;string&quot;,
-                            &quot;description&quot;: &quot;Property data type&quot;
-                          },
-                          &quot;readonly&quot;: {
-                            &quot;type&quot;: &quot;boolean&quot;,
-                            &quot;description&quot;: &quot;Whether it is read-only&quot;
-                          },
-                          &quot;name&quot;: {
-                            &quot;type&quot;: &quot;string&quot;,
-                            &quot;description&quot;: &quot;Property name&quot;
-                          },
-                          &quot;path&quot;: {
-                            &quot;type&quot;: &quot;string&quot;,
-                            &quot;description&quot;: &quot;Search path for data, filled by the user&quot;
-                          },
-                          &quot;isArray&quot;: {
-                            &quot;type&quot;: &quot;boolean&quot;,
-                            &quot;description&quot;: &quot;Whether it is an array type&quot;
-                          },
-                          &quot;userData&quot;: {
-                            &quot;type&quot;: &quot;object&quot;,
-                            &quot;additionalProperties&quot;: {},
-                            &quot;description&quot;: &quot;User pass-through data&quot;
-                          }
-                        },
-                        &quot;additionalProperties&quot;: false,
-                        &quot;description&quot;: &quot;Property data structure and editor configuration options, used to define property values, UI display, validation rules, etc.&quot;
-                      },
-                      &quot;description&quot;: &quot;Component properties&quot;
-                    },
-                    &quot;prefab&quot;: {
-                      &quot;anyOf&quot;: [
-                        {
-                          &quot;type&quot;: &quot;object&quot;,
-                          &quot;properties&quot;: {
-                            &quot;fileId&quot;: {
-                              &quot;type&quot;: &quot;string&quot;,
-                              &quot;description&quot;: &quot;Records component id, unique in prefab file; used when looking up component via targetInfo&quot;
-                            }
-                          },
-                          &quot;required&quot;: [
-                            &quot;fileId&quot;
-                          ],
-                          &quot;additionalProperties&quot;: false,
-                          &quot;description&quot;: &quot;Component prefab information&quot;
-                        },
-                        {
-                          &quot;type&quot;: &quot;null&quot;
-                        }
-                      ],
-                      &quot;description&quot;: &quot;Information of the component in the prefab&quot;
-                    }
-                  },
-                  &quot;required&quot;: [
-                    &quot;cid&quot;,
-                    &quot;path&quot;,
-                    &quot;uuid&quot;,
-                    &quot;name&quot;,
-                    &quot;type&quot;,
-                    &quot;enabled&quot;,
-                    &quot;properties&quot;,
-                    &quot;prefab&quot;
-                  ],
-                  &quot;additionalProperties&quot;: false,
-                  &quot;description&quot;: &quot;Component information&quot;
-                },
-                {
-                  &quot;type&quot;: &quot;null&quot;
-                }
-              ],
-              &quot;description&quot;: &quot;Interface returned when getting current component information&quot;
-            },
-            {
-              &quot;not&quot;: {}
-            }
-          ],
-          &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
-        },
-        &quot;reason&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;type&quot;: &quot;string&quot;
-            },
-            {
-              &quot;not&quot;: {}
-            }
-          ],
-          &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;code&quot;
-      ],
-      &quot;additionalProperties&quot;: false
-    }
-  },
-  &quot;required&quot;: [
-    &quot;result&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

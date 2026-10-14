@@ -15,202 +15,255 @@
   </header>
   <main class="wrap">
 <h1><code>scene-create-nodes-by-serialized-data</code></h1>
-<p class="meta"><span class="badge">Node</span> 方法 <code>createNodesBySerializedData</code></p>
-<aside class="callout">
-  <h2>给 LLM 的提示词只靠以下内容</h2>
-  <p>Agent / PinK 调用 MCP 时，模型<strong>不会</strong>看到本 HTML 文档站、源码注释或中文附录。
-  运行时经 <code>tools/list</code>（见 <code>src/mcp/mcp.middleware.ts</code>）注入的字段<strong>只有</strong>：</p>
-  <ul>
-    <li><code>name</code> — 来自 <code>@tool('...')</code></li>
-    <li><code>title</code> — 来自 <code>@title('...')</code></li>
-    <li><code>description</code> — 来自 <code>@description('...')</code></li>
-    <li><code>inputSchema</code> — 注册后的 Zod → <code>zodToJsonSchema({ target: 'jsonSchema7', $refStrategy: 'none' })</code>（含 hook 改写）</li>
-    <li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li>
-  </ul>
-  <p>部分工具在注册时会改写参数 schema（例如 <code>BuilderHook</code> 把 <code>builder-build.options</code> 收成空 object passthrough）。
-  本页展示的是<strong>改写后</strong>、与 <code>tools/list</code> 一致的契约，不是源码里未改写的完整 Zod 联合。</p>
-  <p class="warn">因此：想改 Agent 行为，请改装饰器 / hook / Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
-</aside>
-<p class="lead"><strong>description（会注入 LLM）：</strong>Create a batch of nodes in the currently opened destination scene using the complete data returned by scene-serialize-nodes in the same project. The parent must exist. Creates new node and component identities, preserves internal references, asset references, and complete Prefab instances, and resolves name conflicts. External node and component references default to clear; use resolve only when pasting into the source Runtime. Success records one undo operation; failure rolls back the batch. Returns the new root node paths. Does not save the scene automatically; use scene-save to persist the result.</p><h2>inputSchema（tools/list，会注入 LLM）</h2>
-<pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;options&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;data&quot;: {
-          &quot;type&quot;: &quot;object&quot;,
-          &quot;properties&quot;: {
-            &quot;version&quot;: {
-              &quot;type&quot;: &quot;number&quot;,
-              &quot;const&quot;: 1,
-              &quot;description&quot;: &quot;Serialized node data format version&quot;
-            },
-            &quot;serialized&quot;: {
-              &quot;type&quot;: &quot;string&quot;,
-              &quot;minLength&quot;: 1,
-              &quot;description&quot;: &quot;Opaque Cocos JSON object graph returned by scene-serialize-nodes; pass it unchanged&quot;
-            },
-            &quot;rootTransforms&quot;: {
-              &quot;type&quot;: &quot;array&quot;,
-              &quot;items&quot;: {
-                &quot;type&quot;: &quot;object&quot;,
-                &quot;properties&quot;: {
-                  &quot;position&quot;: {
-                    &quot;type&quot;: &quot;object&quot;,
-                    &quot;properties&quot;: {
-                      &quot;x&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;y&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;z&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      }
-                    },
-                    &quot;required&quot;: [
-                      &quot;x&quot;,
-                      &quot;y&quot;,
-                      &quot;z&quot;
-                    ],
-                    &quot;additionalProperties&quot;: false
-                  },
-                  &quot;rotation&quot;: {
-                    &quot;type&quot;: &quot;object&quot;,
-                    &quot;properties&quot;: {
-                      &quot;x&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;y&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;z&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;w&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      }
-                    },
-                    &quot;required&quot;: [
-                      &quot;x&quot;,
-                      &quot;y&quot;,
-                      &quot;z&quot;,
-                      &quot;w&quot;
-                    ],
-                    &quot;additionalProperties&quot;: false
-                  },
-                  &quot;scale&quot;: {
-                    &quot;type&quot;: &quot;object&quot;,
-                    &quot;properties&quot;: {
-                      &quot;x&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;y&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      },
-                      &quot;z&quot;: {
-                        &quot;type&quot;: &quot;number&quot;
-                      }
-                    },
-                    &quot;required&quot;: [
-                      &quot;x&quot;,
-                      &quot;y&quot;,
-                      &quot;z&quot;
-                    ],
-                    &quot;additionalProperties&quot;: false
-                  }
-                },
-                &quot;required&quot;: [
-                  &quot;position&quot;,
-                  &quot;rotation&quot;,
-                  &quot;scale&quot;
-                ],
-                &quot;additionalProperties&quot;: false
+<p class="meta"><span class="badge">Node</span> 方法 <code>createNodesBySerializedData</code> · Create Nodes From Serialized Data</p>
+<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+  <div class="md-box-bar">
+    <strong>LLM 实际看到</strong>
+    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-create-nodes-by-serialized-data&quot;,
+  &quot;title&quot;: &quot;Create Nodes From Serialized Data&quot;,
+  &quot;description&quot;: &quot;Create a batch of nodes in the currently opened destination scene using the complete data returned by scene-serialize-nodes in the same project. The parent must exist. Creates new node and component identities, preserves internal references, asset references, and complete Prefab instances, and resolves name conflicts. External node and component references default to clear; use resolve only when pasting into the source Runtime. Success records one undo operation; failure rolls back the batch. Returns the new root node paths. Does not save the scene automatically; use scene-save to persist the result.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;data&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+              &quot;version&quot;: {
+                &quot;type&quot;: &quot;number&quot;,
+                &quot;const&quot;: 1,
+                &quot;description&quot;: &quot;Serialized node data format version&quot;
               },
-              &quot;minItems&quot;: 1,
-              &quot;description&quot;: &quot;Saved world transforms in serialized root order&quot;
-            },
-            &quot;externalReferences&quot;: {
-              &quot;type&quot;: &quot;array&quot;,
-              &quot;items&quot;: {
-                &quot;type&quot;: &quot;object&quot;,
-                &quot;properties&quot;: {
-                  &quot;id&quot;: {
-                    &quot;type&quot;: &quot;string&quot;,
-                    &quot;minLength&quot;: 1,
-                    &quot;description&quot;: &quot;Reference placeholder ID in the serialized graph&quot;
-                  },
-                  &quot;type&quot;: {
-                    &quot;type&quot;: &quot;string&quot;,
-                    &quot;enum&quot;: [
-                      &quot;node&quot;,
-                      &quot;component&quot;
-                    ]
-                  },
-                  &quot;uuid&quot;: {
-                    &quot;type&quot;: &quot;string&quot;,
-                    &quot;minLength&quot;: 1,
-                    &quot;description&quot;: &quot;Original target UUID, resolved only within the destination Runtime&quot;
-                  }
-                },
-                &quot;required&quot;: [
-                  &quot;id&quot;,
-                  &quot;type&quot;,
-                  &quot;uuid&quot;
-                ],
-                &quot;additionalProperties&quot;: false
+              &quot;serialized&quot;: {
+                &quot;type&quot;: &quot;string&quot;,
+                &quot;minLength&quot;: 1,
+                &quot;description&quot;: &quot;Opaque Cocos JSON object graph returned by scene-serialize-nodes; pass it unchanged&quot;
               },
-              &quot;description&quot;: &quot;References to nodes or components outside this batch; asset references remain in the serialized graph&quot;
-            }
+              &quot;rootTransforms&quot;: {
+                &quot;type&quot;: &quot;array&quot;,
+                &quot;items&quot;: {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;position&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;z&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;z&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    &quot;rotation&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;z&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;w&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;z&quot;,
+                        &quot;w&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    &quot;scale&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;z&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;z&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;position&quot;,
+                    &quot;rotation&quot;,
+                    &quot;scale&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false
+                },
+                &quot;minItems&quot;: 1,
+                &quot;description&quot;: &quot;Saved world transforms in serialized root order&quot;
+              },
+              &quot;externalReferences&quot;: {
+                &quot;type&quot;: &quot;array&quot;,
+                &quot;items&quot;: {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;id&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;minLength&quot;: 1,
+                      &quot;description&quot;: &quot;Reference placeholder ID in the serialized graph&quot;
+                    },
+                    &quot;type&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;enum&quot;: [
+                        &quot;node&quot;,
+                        &quot;component&quot;
+                      ]
+                    },
+                    &quot;uuid&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;minLength&quot;: 1,
+                      &quot;description&quot;: &quot;Original target UUID, resolved only within the destination Runtime&quot;
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;id&quot;,
+                    &quot;type&quot;,
+                    &quot;uuid&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false
+                },
+                &quot;description&quot;: &quot;References to nodes or components outside this batch; asset references remain in the serialized graph&quot;
+              }
+            },
+            &quot;required&quot;: [
+              &quot;version&quot;,
+              &quot;serialized&quot;,
+              &quot;rootTransforms&quot;,
+              &quot;externalReferences&quot;
+            ],
+            &quot;additionalProperties&quot;: false,
+            &quot;description&quot;: &quot;Complete node batch returned by scene-serialize-nodes, including all reference and transform metadata. Pass the entire object unchanged to scene-create-nodes-by-serialized-data.&quot;
           },
-          &quot;required&quot;: [
-            &quot;version&quot;,
-            &quot;serialized&quot;,
-            &quot;rootTransforms&quot;,
-            &quot;externalReferences&quot;
-          ],
-          &quot;additionalProperties&quot;: false,
-          &quot;description&quot;: &quot;Complete node batch returned by scene-serialize-nodes, including all reference and transform metadata. Pass the entire object unchanged to scene-create-nodes-by-serialized-data.&quot;
+          &quot;parentPath&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;Existing parent path in the destination scene; use / for the editor root&quot;
+          },
+          &quot;siblingIndex&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;description&quot;: &quot;Zero-based insertion index; defaults to appending after existing children&quot;
+          },
+          &quot;keepWorldTransform&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Restore saved world transforms when true; defaults to preserving local transforms&quot;
+          },
+          &quot;externalReferences&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;enum&quot;: [
+              &quot;clear&quot;,
+              &quot;resolve&quot;
+            ],
+            &quot;description&quot;: &quot;Defaults to clear for cross-scene copies. Use resolve only in the source Runtime to look up original UUIDs; missing references become null&quot;
+          }
         },
-        &quot;parentPath&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;minLength&quot;: 1,
-          &quot;description&quot;: &quot;Existing parent path in the destination scene; use / for the editor root&quot;
-        },
-        &quot;siblingIndex&quot;: {
-          &quot;type&quot;: &quot;integer&quot;,
-          &quot;minimum&quot;: 0,
-          &quot;description&quot;: &quot;Zero-based insertion index; defaults to appending after existing children&quot;
-        },
-        &quot;keepWorldTransform&quot;: {
-          &quot;type&quot;: &quot;boolean&quot;,
-          &quot;description&quot;: &quot;Restore saved world transforms when true; defaults to preserving local transforms&quot;
-        },
-        &quot;externalReferences&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;enum&quot;: [
-            &quot;clear&quot;,
-            &quot;resolve&quot;
-          ],
-          &quot;description&quot;: &quot;Defaults to clear for cross-scene copies. Use resolve only in the source Runtime to look up original UUIDs; missing references become null&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;data&quot;,
-        &quot;parentPath&quot;
-      ],
-      &quot;additionalProperties&quot;: false,
-      &quot;description&quot;: &quot;Create a complete node batch in the destination scene from previously serialized data&quot;
-    }
+        &quot;required&quot;: [
+          &quot;data&quot;,
+          &quot;parentPath&quot;
+        ],
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Create a complete node batch in the destination scene from previously serialized data&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   },
-  &quot;required&quot;: [
-    &quot;options&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-}</pre>
-<h2>参数分项（同上 schema 的 properties）</h2><h3><code>options</code></h3><pre>{
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;array&quot;,
+                &quot;items&quot;: {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                &quot;description&quot;: &quot;New root node paths in serialized order, after resolving name conflicts&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>参数分项（人类阅读，不另注入）</h2>
+<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>options</code></h3><pre>{
   &quot;type&quot;: &quot;object&quot;,
   &quot;properties&quot;: {
     &quot;data&quot;: {
@@ -377,60 +430,6 @@
   ],
   &quot;additionalProperties&quot;: false,
   &quot;description&quot;: &quot;Create a complete node batch in the destination scene from previously serialized data&quot;
-}</pre><h2>outputSchema（会注入 LLM）</h2><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;result&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;code&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;enum&quot;: [
-            200,
-            400,
-            404,
-            500
-          ],
-          &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
-        },
-        &quot;data&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;type&quot;: &quot;array&quot;,
-              &quot;items&quot;: {
-                &quot;type&quot;: &quot;string&quot;
-              },
-              &quot;description&quot;: &quot;New root node paths in serialized order, after resolving name conflicts&quot;
-            },
-            {
-              &quot;not&quot;: {}
-            }
-          ],
-          &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
-        },
-        &quot;reason&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;type&quot;: &quot;string&quot;
-            },
-            {
-              &quot;not&quot;: {}
-            }
-          ],
-          &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;code&quot;
-      ],
-      &quot;additionalProperties&quot;: false
-    }
-  },
-  &quot;required&quot;: [
-    &quot;result&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

@@ -70,10 +70,44 @@ pre {
   border: 1px solid #3d5a80;
   border-left: 4px solid var(--accent);
   border-radius: 8px;
-  padding: 14px 16px;
-  margin: 0 0 24px;
+  padding: 12px 14px;
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: var(--muted);
 }
-.callout h2 { margin: 0 0 10px; font-size: 16px; border: 0; padding: 0; }
-.callout ul { margin: 8px 0 0; padding-left: 1.2em; }
-.callout li { margin: 4px 0; }
-.callout .warn { color: #f0c674; margin-top: 10px; }
+.callout p { margin: 0 0 8px; }
+.callout p:last-child { margin: 0; }
+.callout ul { margin: 6px 0 0; padding-left: 1.2em; }
+.callout li { margin: 2px 0; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+.md-box {
+  margin: 0 0 28px;
+  border: 1px solid #3d5a80;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--code);
+  box-shadow: 0 0 0 1px rgba(61, 139, 253, 0.12);
+}
+.md-box-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #1a2740;
+  border-bottom: 1px solid #3d5a80;
+  font-size: 12px;
+  color: var(--muted);
+}
+.md-box-bar strong { color: #9ec1ff; font-weight: 600; }
+.md-box pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 14px 16px 16px;
+}
+.md-box .fence-lang {
+  color: #6b7c93;
+  user-select: none;
+}

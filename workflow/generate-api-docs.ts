@@ -269,33 +269,84 @@ pre {
   border: 1px solid #3d5a80;
   border-left: 4px solid var(--accent);
   border-radius: 8px;
-  padding: 14px 16px;
-  margin: 0 0 24px;
+  padding: 12px 14px;
+  margin: 0 0 20px;
+  font-size: 13px;
+  color: var(--muted);
 }
-.callout h2 { margin: 0 0 10px; font-size: 16px; border: 0; padding: 0; }
-.callout ul { margin: 8px 0 0; padding-left: 1.2em; }
-.callout li { margin: 4px 0; }
-.callout .warn { color: #f0c674; margin-top: 10px; }
+.callout p { margin: 0 0 8px; }
+.callout p:last-child { margin: 0; }
+.callout ul { margin: 6px 0 0; padding-left: 1.2em; }
+.callout li { margin: 2px 0; }
+.note { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+.md-box {
+  margin: 0 0 28px;
+  border: 1px solid #3d5a80;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--code);
+  box-shadow: 0 0 0 1px rgba(61, 139, 253, 0.12);
+}
+.md-box-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #1a2740;
+  border-bottom: 1px solid #3d5a80;
+  font-size: 12px;
+  color: var(--muted);
+}
+.md-box-bar strong { color: #9ec1ff; font-weight: 600; }
+.md-box pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 14px 16px 16px;
+}
+.md-box .fence-lang {
+  color: #6b7c93;
+  user-select: none;
+}
 `;
 }
 
-/** MCP 层：说明 LLM 实际拿到的提示词来源（仅 tools/list 字段） */
+/** Layer-1 index：短说明（工具详情页用文档框展示实际 payload） */
 function mcpLlmPromptCallout(): string {
     return `<aside class="callout">
-  <h2>给 LLM 的提示词只靠以下内容</h2>
-  <p>Agent / PinK 调用 MCP 时，模型<strong>不会</strong>看到本 HTML 文档站、源码注释或中文附录。
-  运行时经 <code>tools/list</code>（见 <code>src/mcp/mcp.middleware.ts</code>）注入的字段<strong>只有</strong>：</p>
+  <p>LLM 只看到 MCP <code>tools/list</code> 返回的字段（<code>src/mcp/mcp.middleware.ts</code>），看不到本站其它说明。</p>
   <ul>
-    <li><code>name</code> — 来自 <code>@tool('...')</code></li>
-    <li><code>title</code> — 来自 <code>@title('...')</code></li>
-    <li><code>description</code> — 来自 <code>@description('...')</code></li>
-    <li><code>inputSchema</code> — 注册后的 Zod → <code>zodToJsonSchema({ target: 'jsonSchema7', $refStrategy: 'none' })</code>（含 hook 改写）</li>
-    <li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li>
+    <li><code>name</code> / <code>title</code> / <code>description</code> ← 装饰器</li>
+    <li><code>inputSchema</code> / <code>outputSchema</code> ← Zod（含注册 hook 改写）→ jsonSchema7</li>
   </ul>
-  <p>部分工具在注册时会改写参数 schema（例如 <code>BuilderHook</code> 把 <code>builder-build.options</code> 收成空 object passthrough）。
-  本页展示的是<strong>改写后</strong>、与 <code>tools/list</code> 一致的契约，不是源码里未改写的完整 Zod 联合。</p>
-  <p class="warn">因此：想改 Agent 行为，请改装饰器 / hook / Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
+  <p>改 Agent 行为：改装饰器 / hook / Zod <code>.describe()</code>。</p>
 </aside>`;
+}
+
+/** 工具详情：把 tools/list 载荷放进 Markdown 风格文档框 */
+function renderLlmViewBox(tool: McpToolDoc): string {
+    const payload = {
+        name: tool.name,
+        title: tool.title,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        outputSchema: tool.outputSchema,
+    };
+    const json = JSON.stringify(payload, null, 2);
+    const note = tool.schemaNote
+        ? `<p class="note">${esc(tool.schemaNote)}</p>`
+        : '';
+    return `${note}<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+  <div class="md-box-bar">
+    <strong>LLM 实际看到</strong>
+    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+  </div>
+  <pre><span class="fence-lang">\`\`\`json</span>
+${esc(json)}
+<span class="fence-lang">\`\`\`</span></pre>
+</section>`;
 }
 
 // ---------------- Layer 1: MCP ----------------
@@ -372,22 +423,16 @@ ${mcpLlmPromptCallout()}
 
     for (const t of tools) {
         let body = `<h1><code>${esc(t.name)}</code></h1>
-<p class="meta"><span class="badge">${esc(t.category)}</span> 方法 <code>${esc(t.methodName)}</code></p>
-${mcpLlmPromptCallout()}
-<p class="lead"><strong>description（会注入 LLM）：</strong>${esc(t.description)}</p>`;
-        if (t.schemaNote) {
-            body += `<aside class="callout"><p>${esc(t.schemaNote)}</p></aside>`;
-        }
-        body += `<h2>inputSchema（tools/list，会注入 LLM）</h2>
-<pre>${esc(JSON.stringify(t.inputSchema, null, 2))}</pre>
-<h2>参数分项（同上 schema 的 properties）</h2>`;
+<p class="meta"><span class="badge">${esc(t.category)}</span> 方法 <code>${esc(t.methodName)}</code> · ${esc(t.title)}</p>
+${renderLlmViewBox(t)}
+<h2>参数分项（人类阅读，不另注入）</h2>
+<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p>`;
         if (!t.params.length) body += `<p class="meta">无参数。</p>`;
         else {
             for (const p of t.params) {
                 body += `<h3><code>${esc(p.name)}</code></h3><pre>${esc(JSON.stringify(p.schema, null, 2))}</pre>`;
             }
         }
-        body += `<h2>outputSchema（会注入 LLM）</h2><pre>${esc(JSON.stringify(t.outputSchema, null, 2))}</pre>`;
         writeFile(
             path.join(layerDir, `${t.name}.html`),
             page(t.name, body, [
@@ -691,7 +736,7 @@ function writeHome(
   └─ 第 3 层  Lib 门面          （src/lib → 动态 import core）
 实现
   └─ 第 4 层  Core + scene RPC  （src/core）</pre>
-<p class="lead">第 1 层详见「给 LLM 的提示词只靠以下内容」说明：模型只看到 name / title / description / inputSchema / outputSchema。</p>
+<p class="lead">第 1 层工具页用文档框标出 LLM 实际看到的 <code>tools/list</code> JSON（name / title / description / inputSchema / outputSchema）。</p>
 `;
     writeFile(
         path.join(outDir, 'index.html'),

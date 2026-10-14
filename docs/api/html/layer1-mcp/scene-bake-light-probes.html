@@ -15,89 +15,185 @@
   </header>
   <main class="wrap">
 <h1><code>scene-bake-light-probes</code></h1>
-<p class="meta"><span class="badge">LightFXBake</span> 方法 <code>bakeLightProbes</code></p>
-<aside class="callout">
-  <h2>给 LLM 的提示词只靠以下内容</h2>
-  <p>Agent / PinK 调用 MCP 时，模型<strong>不会</strong>看到本 HTML 文档站、源码注释或中文附录。
-  运行时经 <code>tools/list</code>（见 <code>src/mcp/mcp.middleware.ts</code>）注入的字段<strong>只有</strong>：</p>
-  <ul>
-    <li><code>name</code> — 来自 <code>@tool('...')</code></li>
-    <li><code>title</code> — 来自 <code>@title('...')</code></li>
-    <li><code>description</code> — 来自 <code>@description('...')</code></li>
-    <li><code>inputSchema</code> — 注册后的 Zod → <code>zodToJsonSchema({ target: 'jsonSchema7', $refStrategy: 'none' })</code>（含 hook 改写）</li>
-    <li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li>
-  </ul>
-  <p>部分工具在注册时会改写参数 schema（例如 <code>BuilderHook</code> 把 <code>builder-build.options</code> 收成空 object passthrough）。
-  本页展示的是<strong>改写后</strong>、与 <code>tools/list</code> 一致的契约，不是源码里未改写的完整 Zod 联合。</p>
-  <p class="warn">因此：想改 Agent 行为，请改装饰器 / hook / Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
-</aside>
-<p class="lead"><strong>description（会注入 LLM）：</strong>Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.</p><h2>inputSchema（tools/list，会注入 LLM）</h2>
-<pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;options&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;giScale&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;minimum&quot;: 0,
-          &quot;maximum&quot;: 100,
-          &quot;description&quot;: &quot;GI multiplier; defaults to the current scene value&quot;
+<p class="meta"><span class="badge">LightFXBake</span> 方法 <code>bakeLightProbes</code> · Bake light probes</p>
+<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+  <div class="md-box-bar">
+    <strong>LLM 实际看到</strong>
+    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-bake-light-probes&quot;,
+  &quot;title&quot;: &quot;Bake light probes&quot;,
+  &quot;description&quot;: &quot;Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;giScale&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 100,
+            &quot;description&quot;: &quot;GI multiplier; defaults to the current scene value&quot;
+          },
+          &quot;giSamples&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 64,
+            &quot;maximum&quot;: 65535,
+            &quot;description&quot;: &quot;GI probe sample count; defaults to the current scene value&quot;
+          },
+          &quot;bounces&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1,
+            &quot;maximum&quot;: 4,
+            &quot;description&quot;: &quot;Probe ray bounce count; defaults to the current scene value&quot;
+          },
+          &quot;reduceRinging&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 0.05,
+            &quot;description&quot;: &quot;Spherical-harmonic ringing reduction; defaults to the current scene value&quot;
+          },
+          &quot;showWireframe&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Show light-probe connections in the scene view; defaults to the current scene value&quot;
+          },
+          &quot;showConvex&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Show the light-probe convex hull in the scene view; defaults to the current scene value&quot;
+          },
+          &quot;lightProbeSphereVolume&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 100,
+            &quot;description&quot;: &quot;Light-probe sphere display size; defaults to the current scene value&quot;
+          },
+          &quot;saveScene&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Save the current scene after applying the bake result; defaults to true&quot;
+          },
+          &quot;timeoutMs&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1000,
+            &quot;maximum&quot;: 3600000,
+            &quot;description&quot;: &quot;Whole-operation timeout in milliseconds&quot;
+          }
         },
-        &quot;giSamples&quot;: {
-          &quot;type&quot;: &quot;integer&quot;,
-          &quot;minimum&quot;: 64,
-          &quot;maximum&quot;: 65535,
-          &quot;description&quot;: &quot;GI probe sample count; defaults to the current scene value&quot;
-        },
-        &quot;bounces&quot;: {
-          &quot;type&quot;: &quot;integer&quot;,
-          &quot;minimum&quot;: 1,
-          &quot;maximum&quot;: 4,
-          &quot;description&quot;: &quot;Probe ray bounce count; defaults to the current scene value&quot;
-        },
-        &quot;reduceRinging&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;minimum&quot;: 0,
-          &quot;maximum&quot;: 0.05,
-          &quot;description&quot;: &quot;Spherical-harmonic ringing reduction; defaults to the current scene value&quot;
-        },
-        &quot;showWireframe&quot;: {
-          &quot;type&quot;: &quot;boolean&quot;,
-          &quot;description&quot;: &quot;Show light-probe connections in the scene view; defaults to the current scene value&quot;
-        },
-        &quot;showConvex&quot;: {
-          &quot;type&quot;: &quot;boolean&quot;,
-          &quot;description&quot;: &quot;Show the light-probe convex hull in the scene view; defaults to the current scene value&quot;
-        },
-        &quot;lightProbeSphereVolume&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;minimum&quot;: 0,
-          &quot;maximum&quot;: 100,
-          &quot;description&quot;: &quot;Light-probe sphere display size; defaults to the current scene value&quot;
-        },
-        &quot;saveScene&quot;: {
-          &quot;type&quot;: &quot;boolean&quot;,
-          &quot;description&quot;: &quot;Save the current scene after applying the bake result; defaults to true&quot;
-        },
-        &quot;timeoutMs&quot;: {
-          &quot;type&quot;: &quot;integer&quot;,
-          &quot;minimum&quot;: 1000,
-          &quot;maximum&quot;: 3600000,
-          &quot;description&quot;: &quot;Whole-operation timeout in milliseconds&quot;
-        }
-      },
-      &quot;additionalProperties&quot;: false,
-      &quot;description&quot;: &quot;Light probe bake options&quot;
-    }
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Light probe bake options&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   },
-  &quot;required&quot;: [
-    &quot;options&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-}</pre>
-<h2>参数分项（同上 schema 的 properties）</h2><h3><code>options</code></h3><pre>{
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;sceneUrl&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
+                  },
+                  &quot;probeCount&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;,
+                    &quot;minimum&quot;: 0
+                  },
+                  &quot;giScale&quot;: {
+                    &quot;type&quot;: &quot;number&quot;
+                  },
+                  &quot;giSamples&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;
+                  },
+                  &quot;bounces&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;
+                  },
+                  &quot;reduceRinging&quot;: {
+                    &quot;type&quot;: &quot;number&quot;
+                  },
+                  &quot;showWireframe&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;showConvex&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;lightProbeSphereVolume&quot;: {
+                    &quot;type&quot;: &quot;number&quot;
+                  },
+                  &quot;durationMs&quot;: {
+                    &quot;type&quot;: &quot;number&quot;,
+                    &quot;minimum&quot;: 0
+                  }
+                },
+                &quot;required&quot;: [
+                  &quot;sceneUrl&quot;,
+                  &quot;probeCount&quot;,
+                  &quot;giScale&quot;,
+                  &quot;giSamples&quot;,
+                  &quot;bounces&quot;,
+                  &quot;reduceRinging&quot;,
+                  &quot;showWireframe&quot;,
+                  &quot;showConvex&quot;,
+                  &quot;lightProbeSphereVolume&quot;,
+                  &quot;durationMs&quot;
+                ],
+                &quot;additionalProperties&quot;: false
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>参数分项（人类阅读，不另注入）</h2>
+<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>options</code></h3><pre>{
   &quot;type&quot;: &quot;object&quot;,
   &quot;properties&quot;: {
     &quot;giScale&quot;: {
@@ -151,103 +247,6 @@
   },
   &quot;additionalProperties&quot;: false,
   &quot;description&quot;: &quot;Light probe bake options&quot;
-}</pre><h2>outputSchema（会注入 LLM）</h2><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;result&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;code&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;enum&quot;: [
-            200,
-            400,
-            404,
-            500
-          ],
-          &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
-        },
-        &quot;data&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;type&quot;: &quot;object&quot;,
-              &quot;properties&quot;: {
-                &quot;sceneUrl&quot;: {
-                  &quot;type&quot;: &quot;string&quot;
-                },
-                &quot;probeCount&quot;: {
-                  &quot;type&quot;: &quot;integer&quot;,
-                  &quot;minimum&quot;: 0
-                },
-                &quot;giScale&quot;: {
-                  &quot;type&quot;: &quot;number&quot;
-                },
-                &quot;giSamples&quot;: {
-                  &quot;type&quot;: &quot;integer&quot;
-                },
-                &quot;bounces&quot;: {
-                  &quot;type&quot;: &quot;integer&quot;
-                },
-                &quot;reduceRinging&quot;: {
-                  &quot;type&quot;: &quot;number&quot;
-                },
-                &quot;showWireframe&quot;: {
-                  &quot;type&quot;: &quot;boolean&quot;
-                },
-                &quot;showConvex&quot;: {
-                  &quot;type&quot;: &quot;boolean&quot;
-                },
-                &quot;lightProbeSphereVolume&quot;: {
-                  &quot;type&quot;: &quot;number&quot;
-                },
-                &quot;durationMs&quot;: {
-                  &quot;type&quot;: &quot;number&quot;,
-                  &quot;minimum&quot;: 0
-                }
-              },
-              &quot;required&quot;: [
-                &quot;sceneUrl&quot;,
-                &quot;probeCount&quot;,
-                &quot;giScale&quot;,
-                &quot;giSamples&quot;,
-                &quot;bounces&quot;,
-                &quot;reduceRinging&quot;,
-                &quot;showWireframe&quot;,
-                &quot;showConvex&quot;,
-                &quot;lightProbeSphereVolume&quot;,
-                &quot;durationMs&quot;
-              ],
-              &quot;additionalProperties&quot;: false
-            },
-            {
-              &quot;not&quot;: {}
-            }
-          ],
-          &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
-        },
-        &quot;reason&quot;: {
-          &quot;anyOf&quot;: [
-            {
-              &quot;type&quot;: &quot;string&quot;
-            },
-            {
-              &quot;not&quot;: {}
-            }
-          ],
-          &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;code&quot;
-      ],
-      &quot;additionalProperties&quot;: false
-    }
-  },
-  &quot;required&quot;: [
-    &quot;result&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
 }</pre>
   </main>
   <footer class="wrap foot">
