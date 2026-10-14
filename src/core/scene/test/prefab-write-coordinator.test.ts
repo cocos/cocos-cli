@@ -149,15 +149,13 @@ describe('Prefab write arbitration contract', () => {
         });
     });
 
-    it('rejects stale leases, repeated generation registration and delayed close after reopen', async () => {
+    it('rejects stale leases and reused generations without letting delayed close remove a replacement', async () => {
         const h = setup();
         const old = h.edit('scene');
         h.coordinator.unregisterRuntime(old.registration);
         expect(() => h.register('scene')).toThrow(expect.objectContaining({ code: 'PREFAB_SESSION_CHANGED' }));
         const current = h.register('scene', { runtime: { runtimeId: 'scene', generation: 2 } });
-        expect(() => h.coordinator.unregisterRuntime(old.registration)).toThrow(
-            expect.objectContaining({ code: 'PREFAB_SESSION_CHANGED' }),
-        );
+        expect(() => h.coordinator.unregisterRuntime(old.registration)).not.toThrow();
         await expect(h.commit(old)).rejects.toMatchObject({ code: 'PREFAB_SESSION_CHANGED' });
         expect(h.coordinator.queryRuntime(current)).toMatchObject({ status: 'ready', editVersion: 0 });
         expect(h.write).not.toHaveBeenCalled();
@@ -379,4 +377,28 @@ describe('Prefab write arbitration contract', () => {
             expect.objectContaining({ code: 'PREFAB_SESSION_CHANGED' }),
         );
     });
+    it('acknowledges repeated unregistration while preserving generation tombstones', () => {
+        const h = setup();
+        const registration = h.register('scene');
+        h.coordinator.unregisterRuntime(registration);
+        expect(() => h.coordinator.unregisterRuntime(registration)).not.toThrow();
+        expect(() => h.register('scene')).toThrow(expect.objectContaining({ code: 'PREFAB_SESSION_CHANGED' }));
+    });
+
+    it('does not unregister a new Host epoch with an old token using the same runtime identity', async () => {
+        const h = setup();
+        const old = h.register('scene');
+        await h.coordinator.reset();
+        const replacement = h.register('scene');
+        expect(replacement.registrationId).not.toBe(old.registrationId);
+        expect(() => h.coordinator.unregisterRuntime(old)).not.toThrow();
+        expect(h.coordinator.queryRuntime(replacement)).toMatchObject({ status: 'ready', editVersion: 0 });
+    });
+
+    it.each([undefined, '', 42])('rejects a malformed close token %s even when the runtime is absent', registrationId => {
+        const h = setup();
+        expect(() => h.coordinator.unregisterRuntime({ runtimeId: 'absent', generation: 1, registrationId } as never))
+            .toThrow(expect.objectContaining({ code: 'PREFAB_INVALID_REQUEST' }));
+    });
+
 });

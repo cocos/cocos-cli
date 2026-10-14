@@ -112,4 +112,36 @@ describe('Unavailable Prefab editor recovery', () => {
         expect(unregister).toHaveBeenCalledTimes(2);
         expect(prefabWriteSession.active).toBe(false);
     });
+    it('confirms an already completed Host unregistration after its reply is lost', async () => {
+        const unregister = host.unregisterRuntime.bind(host);
+        const calls = jest.spyOn(host, 'unregisterRuntime').mockImplementationOnce(async registration => {
+            await unregister(registration);
+            throw new Error('unregister reply lost');
+        });
+        await expect(mockEditor.close({ save: false })).rejects.toThrow('unregister reply lost');
+        expect(prefabWriteSession.active).toBe(true);
+        await expect(mockEditor.close({ save: false })).resolves.toBe(true);
+        expect(calls).toHaveBeenCalledTimes(2);
+        expect(mockClose).toHaveBeenCalledTimes(1);
+        await expect(mockEditor.open({ urlOrUUID: asset.uuid })).resolves.toEqual({});
+        await expect(prefabWriteSession.edit(async () => 'ready')).resolves.toBe('ready');
+    });
+
+    it('can explicitly close and reopen after Editor.lock loses its successful acquisition reply', async () => {
+        await mockEditor.close({ save: false });
+        await mockEditor.open({ urlOrUUID: asset.uuid });
+        mockClose.mockClear();
+        const begin = host.beginEdit.bind(host);
+        jest.spyOn(host, 'beginEdit').mockImplementationOnce(async options => {
+            await begin(options);
+            throw new Error('beginEdit reply lost');
+        });
+        await expect(mockEditor.lock()).rejects.toThrow('beginEdit reply lost');
+        await expect(mockEditor.close({ save: false })).resolves.toBe(true);
+        expect(mockClose).toHaveBeenCalledTimes(1);
+        await mockEditor.open({ urlOrUUID: asset.uuid });
+        await mockEditor.lock();
+        mockEditor.unlock();
+    });
+
 });

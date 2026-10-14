@@ -136,8 +136,16 @@ export class PrefabWriteCoordinator {
     }
 
     unregisterRuntime(registration: IPrefabRuntimeRegistration): void {
-        const record = this.getRuntime(registration);
-        this.runtimes.delete(record.registration.runtimeId);
+        this.assertRunning();
+        this.assertIdentity(registration);
+        this.assertText(registration.registrationId, 'registrationId');
+        const record = this.runtimes.get(registration.runtimeId);
+        // Closure confirms absence of this exact ownership token. A lost reply can
+        // be retried after removal or replacement without unregistering the new owner.
+        if (record?.registration.generation === registration.generation
+            && record.registration.registrationId === registration.registrationId) {
+            this.runtimes.delete(registration.runtimeId);
+        }
     }
 
     async readSource(assetUuid: string): Promise<IPrefabSourceSnapshot> {

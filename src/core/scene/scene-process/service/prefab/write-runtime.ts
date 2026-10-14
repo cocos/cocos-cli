@@ -173,13 +173,22 @@ export class PrefabWriteRuntime {
                 commitState: 'not-committed',
             });
         if (!this.lease) {
-            this.lease = unwrap(
-                await this.host.beginEdit({
+            try {
+                const lease = unwrap(await this.host.beginEdit({
                     registration: this.registration,
                     expectedEditVersion: this.editVersion,
-                }),
-            );
-            this.editVersion = this.lease.editVersion;
+                }));
+                this.editVersion = lease.editVersion;
+                this.lease = lease;
+            } catch (error) {
+                const details = serializePrefabWriteError(error);
+                // A missing reply may leave a Host lease that this runtime cannot finish.
+                // Isolate that state until explicit discard; confirmed busy rejections remain retryable.
+                if (!details || details.commitState !== 'not-committed' || details.code === 'PREFAB_SESSION_CHANGED') {
+                    await this.markUnavailable();
+                }
+                throw error;
+            }
             this.publication = undefined;
         }
         this.references++;

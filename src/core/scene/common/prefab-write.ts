@@ -154,7 +154,11 @@ export interface IPrefabWriteHost {
     beginEdit(options: IBeginPrefabEditOptions): Promise<PrefabWriteResult<IPrefabEditLease>>;
     finishEdit(options: IFinishPrefabEditOptions): Promise<PrefabWriteResult<null>>;
     markRuntimeUnavailable(registration: IPrefabRuntimeRegistration): Promise<PrefabWriteResult<null>>;
-    /** Only after confirmed closure. Lost contact must use markRuntimeUnavailable instead. */
+    /**
+     * Only after confirmed local closure. A missing or superseded ownership token is
+     * already closed; retrying must never unregister its replacement. Lost contact
+     * with a still-open working copy must use markRuntimeUnavailable instead.
+     */
     unregisterRuntime(registration: IPrefabRuntimeRegistration): Promise<PrefabWriteResult<null>>;
     readSource(assetUuid: string): Promise<PrefabWriteResult<IPrefabSourceSnapshot>>;
     commit(options: ICommitPrefabWriteOptions): Promise<PrefabWriteResult<IPrefabWriteReceipt>>;

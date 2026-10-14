@@ -338,4 +338,67 @@ describe('Prefab runtime write and synchronization', () => {
         })).rejects.toMatchObject({ code: 'PREFAB_WRITE_FAILED', commitState: 'committed', assetUuid: 'asset' });
         expect(f.disk()).toBe('new');
     });
+    it.each(['before Host execution', 'after Host execution'])('isolates an uncertain edit acquisition %s and allows discard', async phase => {
+        const f = await fixture();
+        const begin = f.host.beginEdit.bind(f.host);
+        const lost = new Error('beginEdit reply lost');
+        const request = jest.spyOn(f.host, 'beginEdit').mockImplementationOnce(async options => {
+            if (phase === 'after Host execution') await begin(options);
+            throw lost;
+        });
+        const mutate = jest.fn(async () => {});
+        await expect(f.target.edit(mutate)).rejects.toBe(lost);
+        expect(mutate).not.toHaveBeenCalled();
+        expect(f.target.editing).toBe(false);
+        const registration = request.mock.calls[0][0].registration;
+        await expect(f.host.queryRuntime(registration)).resolves.toMatchObject({ ok: true, value: { status: 'unavailable' } });
+        await expect(f.target.acquire()).rejects.toMatchObject({ code: 'PREFAB_SESSION_CHANGED' });
+        const close = jest.fn(async () => true);
+        await expect(f.target.discard(close)).resolves.toBe(true);
+        expect(close).toHaveBeenCalledTimes(1);
+        expect(f.target.active).toBe(false);
+        expect(request).toHaveBeenCalledTimes(1);
+        await f.target.open('prefab', 2, 'asset');
+        await expect(f.target.edit(async () => 'ready')).resolves.toBe('ready');
+        expect(f.write).not.toHaveBeenCalled();
+    });
+
+    it('blocks locally after uncertain acquisition even when reporting unavailable also fails', async () => {
+        const f = await fixture();
+        const begin = f.host.beginEdit.bind(f.host);
+        const lost = new Error('beginEdit reply lost');
+        jest.spyOn(f.host, 'beginEdit').mockImplementationOnce(async options => { await begin(options); throw lost; });
+        const mark = jest.spyOn(f.host, 'markRuntimeUnavailable').mockRejectedValue(new Error('Host disconnected'));
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            await expect(f.target.acquire()).rejects.toBe(lost);
+            await expect(f.target.acquire()).rejects.toMatchObject({ code: 'PREFAB_SESSION_CHANGED' });
+            await expect(f.target.discard(async () => true)).resolves.toBe(true);
+            expect(mark).toHaveBeenCalledTimes(1);
+        } finally { warn.mockRestore(); }
+    });
+
+    it('keeps a confirmed busy acquisition retryable without marking the working copy unavailable', async () => {
+        const f = await fixture();
+        jest.spyOn(f.host, 'beginEdit').mockResolvedValueOnce({ ok: false, error: {
+            code: 'PREFAB_BUSY', message: 'source publication in progress', commitState: 'not-committed',
+        } });
+        const mark = jest.spyOn(f.host, 'markRuntimeUnavailable');
+        await expect(f.target.acquire()).rejects.toMatchObject({ code: 'PREFAB_BUSY' });
+        await expect(f.target.edit(async () => 'retry')).resolves.toBe('retry');
+        expect(mark).not.toHaveBeenCalled();
+    });
+
+    it('allows discard after the Host invalidates the current registration', async () => {
+        const f = await fixture();
+        await f.host.reset();
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            await expect(f.target.acquire()).rejects.toMatchObject({ code: 'PREFAB_SESSION_CHANGED' });
+            await expect(f.target.discard(async () => true)).resolves.toBe(true);
+            await f.target.open('prefab', 2, 'asset');
+            await expect(f.target.edit(async () => 'reopened')).resolves.toBe('reopened');
+        } finally { warn.mockRestore(); }
+    });
+
 });
