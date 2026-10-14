@@ -92,7 +92,7 @@ npm run generate:mcp-types
 
 This generates type-safe definitions for E2E tests in `e2e/types/mcp-tools.generated.ts`.
 
-#### 2b. Generate API Docs (all four layers, HTML)
+#### 2b. Generate API Docs (all four layers, HTML, zh-CN)
 
 After modifying MCP tools, CLI commands, lib facades, or core modules:
 
@@ -102,12 +102,14 @@ npm run generate:api-docs
 npm run generate:mcp-docs
 ```
 
-This writes a static HTML site to `docs/api/html/`:
+This writes a Chinese static HTML site to `docs/api/html/`（打开 `index.html`）：
 
-1. Tools (MCP) — `src/api` `@tool`
-2. Commands — `src/commands`
-3. Lib facade — `src/lib`
-4. Core — `src/core` module map
+1. 工具（MCP）— `src/api` `@tool`
+2. 命令（CLI）— `src/commands`
+3. Lib 门面 — `src/lib`
+4. Core — `src/core` 模块地图
+
+**重要（第 1 层）**：注入给 LLM 的提示词**只靠** MCP `tools/list` 的 `name` / `title` / `description` / `inputSchema` / `outputSchema`（来自装饰器与 Zod `.describe()`）。HTML 站本身不会进入模型上下文。
 
 Tracking: https://github.com/cocos/cocos-cli/issues/984
 
