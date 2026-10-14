@@ -1,11 +1,1512 @@
 {
-  "generatedAt": "2026-10-14T01:54:29.198Z",
+  "generatedAt": "2026-10-14T02:10:42.211Z",
+  "layers": {
+    "mcp": {
+      "count": 104,
+      "tools": [
+        "apply-prefab-changes",
+        "assets-animation-graph-variant-change",
+        "assets-animation-graph-variant-query",
+        "assets-animation-graph-variant-save",
+        "assets-animation-mask-change-dump",
+        "assets-animation-mask-clear-nodes",
+        "assets-animation-mask-import-skeleton",
+        "assets-animation-mask-query",
+        "assets-animation-mask-save",
+        "assets-copy-asset",
+        "assets-create-asset",
+        "assets-create-asset-by-type",
+        "assets-delete-asset",
+        "assets-import-asset",
+        "assets-material-query",
+        "assets-material-query-all-effects",
+        "assets-material-query-effect",
+        "assets-material-save",
+        "assets-move-asset",
+        "assets-query-asset-info",
+        "assets-query-asset-meta",
+        "assets-query-asset-user-data-config",
+        "assets-query-create-map",
+        "assets-query-path",
+        "assets-query-property-schema",
+        "assets-query-serialized-data",
+        "assets-query-url",
+        "assets-query-uuid",
+        "assets-refresh",
+        "assets-reimport-asset",
+        "assets-rename-asset",
+        "assets-save-asset",
+        "assets-save-serialized-data",
+        "assets-update-asset-user-data",
+        "assets-update-asset-user-data-by-path",
+        "assets-update-default-user-data",
+        "builder-build",
+        "builder-create-build-template",
+        "builder-make",
+        "builder-publish",
+        "builder-query-default-build-config",
+        "builder-run",
+        "builder-upload",
+        "configuration-remigrate",
+        "create-prefab-from-node",
+        "file-delete-text",
+        "file-insert-text",
+        "file-query-text",
+        "file-replace-text",
+        "is-prefab-instance",
+        "particle-pause",
+        "particle-play",
+        "particle-query-play-info",
+        "particle-restart",
+        "particle-set-play-speed",
+        "particle-stop",
+        "reference-image-add",
+        "reference-image-clear-binding",
+        "reference-image-delete",
+        "reference-image-query",
+        "reference-image-refresh",
+        "reference-image-select",
+        "reference-image-set-parameters",
+        "reference-image-set-visible",
+        "revert-prefab",
+        "scene-add-component",
+        "scene-bake-light-probes",
+        "scene-bake-lightmap",
+        "scene-bake-reflection-probe",
+        "scene-bake-reflection-probes",
+        "scene-cancel-lightfx-bake",
+        "scene-cancel-reflection-probe-bake",
+        "scene-clear-light-probes",
+        "scene-clear-lightmap",
+        "scene-clear-reflection-probes",
+        "scene-close",
+        "scene-create",
+        "scene-create-node-by-asset",
+        "scene-create-node-by-type",
+        "scene-create-nodes-by-serialized-data",
+        "scene-delete-component",
+        "scene-delete-node",
+        "scene-erase-lod",
+        "scene-insert-lod",
+        "scene-open",
+        "scene-query-all-component",
+        "scene-query-component",
+        "scene-query-current",
+        "scene-query-light-probe-settings",
+        "scene-query-lightmap-bake-info",
+        "scene-query-lod-group-relative-height",
+        "scene-query-node",
+        "scene-query-reflection-probe-bake",
+        "scene-recalculate-lod-group-bounds",
+        "scene-regenerate-polygon-2d-points",
+        "scene-reload",
+        "scene-save",
+        "scene-serialize-nodes",
+        "scene-set-component-property",
+        "scene-start-reflection-probe-bake",
+        "scene-update-node",
+        "system-clear-logs",
+        "system-query-logs",
+        "unpack-prefab"
+      ]
+    },
+    "commands": [
+      {
+        "name": "build",
+        "description": "Build a Cocos project",
+        "sourceFile": "src/commands/build.ts",
+        "options": [
+          {
+            "flags": "-j, --project <path>",
+            "description": "Path to the Cocos project (required)",
+            "required": true
+          },
+          {
+            "flags": "-p, --platform <platform>",
+            "description": "Target platform (web-desktop, web-mobile, android, ios, etc.)",
+            "required": true
+          },
+          {
+            "flags": "-c,--build-config <path>",
+            "description": "Specify build config file path",
+            "required": false
+          },
+          {
+            "flags": "--ndkPath <path>",
+            "description": "Android NDK path (for Android platform)",
+            "required": false
+          },
+          {
+            "flags": "--sdkPath <path>",
+            "description": "Android SDK path (for Android platform)",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "create",
+        "description": "Create a new Cocos project",
+        "sourceFile": "src/commands/create.ts",
+        "options": [
+          {
+            "flags": "-j, --project <path>",
+            "description": "Target directory to create the project (required)",
+            "required": true
+          },
+          {
+            "flags": "-t, --type <type>",
+            "description": "Project type (2d or 3d)",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "make",
+        "description": "Make a Cocos native project",
+        "sourceFile": "src/commands/make.ts",
+        "options": [
+          {
+            "flags": "-p, --platform <platform>",
+            "description": "Target platform (windows, android, ios, etc.)",
+            "required": true
+          },
+          {
+            "flags": "-d, --dest <path>",
+            "description": "Destination path for the made project",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "preview",
+        "description": "Preview a Cocos project",
+        "sourceFile": "src/commands/preview.ts",
+        "options": [
+          {
+            "flags": "-j, --project <path>",
+            "description": "Path to the Cocos project",
+            "required": false
+          },
+          {
+            "flags": "-p, --port <number>",
+            "description": "Port number for the preview server",
+            "required": false
+          },
+          {
+            "flags": "-P, --platform <platform>",
+            "description": "Target web platform (web-desktop or web-mobile)",
+            "required": false
+          },
+          {
+            "flags": "-c, --build-config <path>",
+            "description": "Specify build config file path",
+            "required": false
+          },
+          {
+            "flags": "-s, --scene <sceneUrlOrUuid>",
+            "description": "Start scene (uuid or db:// url); defaults to project start scene",
+            "required": false
+          },
+          {
+            "flags": "--no-open",
+            "description": "Do not open the preview URL in browser",
+            "required": false
+          },
+          {
+            "flags": "--build",
+            "description": "Use the legacy build-based preview (full build then serve) instead of the dynamic serve preview",
+            "required": false
+          },
+          {
+            "flags": "--scene-editor",
+            "description": "Start the scene editor debug preview instead of the game preview",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "publish",
+        "description": "Publish a previously uploaded Cocos package",
+        "sourceFile": "src/commands/publish.ts",
+        "options": [
+          {
+            "flags": "-p, --platform <platform>",
+            "description": "Target platform",
+            "required": true
+          },
+          {
+            "flags": "-d, --dest <path>",
+            "description": "Destination path of the built project",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "run",
+        "description": "Run a Cocos project",
+        "sourceFile": "src/commands/run.ts",
+        "options": [
+          {
+            "flags": "-p, --platform <platform>",
+            "description": "Target platform (web-desktop, web-mobile, android, ios, etc.)",
+            "required": true
+          },
+          {
+            "flags": "-d, --dest <path>",
+            "description": "Destination path of the built project",
+            "required": true
+          }
+        ]
+      },
+      {
+        "name": "simulator",
+        "description": "Build and launch the Cocos simulator preview",
+        "sourceFile": "src/commands/simulator.ts",
+        "options": [
+          {
+            "flags": "-j, --project <path>",
+            "description": "Path to the Cocos project",
+            "required": false
+          },
+          {
+            "flags": "-p, --port <number>",
+            "description": "Port number for the preview server",
+            "required": false
+          },
+          {
+            "flags": "-s, --scene <sceneUrlOrUuid>",
+            "description": "Start scene (uuid or db:// url); defaults to project start scene",
+            "required": false
+          },
+          {
+            "flags": "-e, --engine-path <path>",
+            "description": "Path to the Cocos engine (defaults to the bundled engine)",
+            "required": false
+          },
+          {
+            "flags": "--build",
+            "description": "Build the native executable and runtime artifacts before launching",
+            "required": false
+          },
+          {
+            "flags": "--resolution <WxH>",
+            "description": "Simulator window resolution, e.g. 960x640",
+            "required": false
+          },
+          {
+            "flags": "--landscape",
+            "description": "Start in landscape orientation",
+            "required": false
+          },
+          {
+            "flags": "--show-console",
+            "description": "Show the simulator console window",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "start-mcp-server",
+        "description": "Start MCP (Model Context Protocol) server for Cocos project",
+        "sourceFile": "src/commands/mcp-server.ts",
+        "options": [
+          {
+            "flags": "-j, --project <path>",
+            "description": "Path to the Cocos project (required)",
+            "required": true
+          },
+          {
+            "flags": "-p, --port <number>",
+            "description": "Port number for the MCP server",
+            "required": false
+          }
+        ]
+      },
+      {
+        "name": "upload",
+        "description": "Upload a built Cocos package",
+        "sourceFile": "src/commands/upload.ts",
+        "options": [
+          {
+            "flags": "-p, --platform <platform>",
+            "description": "Target platform",
+            "required": true
+          },
+          {
+            "flags": "-d, --dest <path>",
+            "description": "Destination path of the built project",
+            "required": true
+          },
+          {
+            "flags": "--access-token <token>",
+            "description": "Access token used by the target platform upload API",
+            "required": false
+          }
+        ]
+      }
+    ],
+    "lib": [
+      {
+        "module": "assets/assets",
+        "sourceFile": "src/lib/assets/assets.ts",
+        "exports": [
+          {
+            "name": "animationGraph",
+            "kind": "const",
+            "signature": "animationGraph",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "animationGraphVariant",
+            "kind": "const",
+            "signature": "animationGraphVariant",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "animationMask",
+            "kind": "const",
+            "signature": "animationMask",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "copyAsset",
+            "kind": "function",
+            "signature": "copyAsset(\n    source: string,\n    target: string,\n    options?: AssetOperationOption\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "createAsset",
+            "kind": "function",
+            "signature": "createAsset(\n    options: CreateAssetOptions\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "createAssetByType",
+            "kind": "function",
+            "signature": "createAssetByType(\n    ccType: ISupportCreateType,\n    dirOrUrl: string,\n    baseName: string,\n    options?: CreateAssetByTypeOptions\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "deleteAsset",
+            "kind": "function",
+            "signature": "deleteAsset(dbPath: string, options?: DeleteAssetOptions)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "exportAssetPackage",
+            "kind": "function",
+            "signature": "exportAssetPackage(urls: string[], destination: string, includeDependencies = true)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "generateThumbnail",
+            "kind": "function",
+            "signature": "generateThumbnail(\n    urlOrUUIDOrPath: string, size?: ThumbnailSize\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "importAsset",
+            "kind": "function",
+            "signature": "importAsset(\n    source: string,\n    target: string,\n    options?: AssetOperationOption\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "material",
+            "kind": "const",
+            "signature": "material",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "moveAsset",
+            "kind": "function",
+            "signature": "moveAsset(\n    source: string,\n    target: string,\n    options: AssetOperationOption = {}\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "onAssetAdded",
+            "kind": "function",
+            "signature": "onAssetAdded(listener: (info: IAssetInfo)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "onAssetChanged",
+            "kind": "function",
+            "signature": "onAssetChanged(listener: (info: IAssetInfo)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "onAssetRemoved",
+            "kind": "function",
+            "signature": "onAssetRemoved(listener: (info: IAssetInfo)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "onDBReady",
+            "kind": "function",
+            "signature": "onDBReady(listener: (dbInfo: IAssetDBInfo)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "onProgress",
+            "kind": "function",
+            "signature": "onProgress(listener: (current: number, total: number, url: string, state: 'processing' | 'success' | 'failed')",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "onReady",
+            "kind": "function",
+            "signature": "onReady(listener: ()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetConfigMap",
+            "kind": "function",
+            "signature": "queryAssetConfigMap()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetDBInfos",
+            "kind": "function",
+            "signature": "queryAssetDBInfos()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetDependencies",
+            "kind": "function",
+            "signature": "queryAssetDependencies(\n    uuidOrUrl: string,\n    type: QueryAssetType = 'asset'\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetInfo",
+            "kind": "function",
+            "signature": "queryAssetInfo(\n    urlOrUUIDOrPath: string,\n    dataKeys?: string[] | undefined\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetInfos",
+            "kind": "function",
+            "signature": "queryAssetInfos(options?: QueryAssetsOption, dataKeys?: (keyof IAssetInfo)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetMeta",
+            "kind": "function",
+            "signature": "queryAssetMeta(urlOrUUIDOrPath: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetUserDataConfig",
+            "kind": "function",
+            "signature": "queryAssetUserDataConfig(\n    urlOrUuidOrPath: string\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryAssetUsers",
+            "kind": "function",
+            "signature": "queryAssetUsers(\n    uuidOrUrl: string,\n    type: QueryAssetType = 'asset'\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryCreateMap",
+            "kind": "function",
+            "signature": "queryCreateMap()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryMaterial",
+            "kind": "function",
+            "signature": "queryMaterial(uuidOrUrlOrPath: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryMaterialAllEffects",
+            "kind": "function",
+            "signature": "queryMaterialAllEffects()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryMaterialEffect",
+            "kind": "function",
+            "signature": "queryMaterialEffect(effectNameOrUuid: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryPath",
+            "kind": "function",
+            "signature": "queryPath(urlOrUuid: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryPropertySchema",
+            "kind": "function",
+            "signature": "queryPropertySchema(importer: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "querySerializedData",
+            "kind": "function",
+            "signature": "querySerializedData(uuidOrUrlOrPath: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "querySortedPlugins",
+            "kind": "function",
+            "signature": "querySortedPlugins(\n    filterOptions: FilterPluginOptions = {}\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryThumbnailHandlers",
+            "kind": "function",
+            "signature": "queryThumbnailHandlers()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryUrl",
+            "kind": "function",
+            "signature": "queryUrl(uuidOrPath: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "queryUUID",
+            "kind": "function",
+            "signature": "queryUUID(urlOrPath: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "reconcileLocalizationRuntimeMount",
+            "kind": "function",
+            "signature": "reconcileLocalizationRuntimeMount()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "refresh",
+            "kind": "function",
+            "signature": "refresh(dir: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "reimportAsset",
+            "kind": "function",
+            "signature": "reimportAsset(pathOrUrlOrUUID: string)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "renameAsset",
+            "kind": "function",
+            "signature": "renameAsset(\n    source: string,\n    newName: string,\n    options: AssetOperationOption = {}\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "saveAsset",
+            "kind": "function",
+            "signature": "saveAsset(\n    pathOrUrlOrUUID: string,\n    data: string | Buffer\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "saveMaterial",
+            "kind": "function",
+            "signature": "saveMaterial(uuidOrUrlOrPath: string, dump: MaterialDump)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "saveSerializedData",
+            "kind": "function",
+            "signature": "saveSerializedData(\n    uuidOrUrlOrPath: string,\n    patch: SerializedAssetPatch\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "serializedData",
+            "kind": "const",
+            "signature": "serializedData",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "setFileSystemProvider",
+            "kind": "function",
+            "signature": "setFileSystemProvider(provider: IAssetFileSystemProvider)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "start",
+            "kind": "function",
+            "signature": "start()",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "updateAssetUserData",
+            "kind": "function",
+            "signature": "updateAssetUserData(\n    urlOrUuidOrPath: string,\n    userData: Record<string, any>\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "updateAssetUserDataByPath",
+            "kind": "function",
+            "signature": "updateAssetUserDataByPath(\n    urlOrUuidOrPath: string,\n    path: string,\n    value: any\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          },
+          {
+            "name": "updateDefaultUserData",
+            "kind": "function",
+            "signature": "updateDefaultUserData(\n    handler: string,\n    path: string,\n    value: any\n)",
+            "sourceFile": "src/lib/assets/assets.ts"
+          }
+        ]
+      },
+      {
+        "module": "base/base",
+        "sourceFile": "src/lib/base/base.ts",
+        "exports": [
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(projectPath: string)",
+            "sourceFile": "src/lib/base/base.ts"
+          }
+        ]
+      },
+      {
+        "module": "builder/builder",
+        "sourceFile": "src/lib/builder/builder.ts",
+        "exports": [
+          {
+            "name": "buildBundleOnly",
+            "kind": "function",
+            "signature": "buildBundleOnly(bundleOptions: IBundleBuildOptions)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "checkBuildOption",
+            "kind": "function",
+            "signature": "checkBuildOption(platform: string, key: string, value: unknown, options: IBuildTaskOption)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "checkBuildOptions",
+            "kind": "function",
+            "signature": "checkBuildOptions(platform: string, options: IBuildTaskOption)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "clearCache",
+            "kind": "function",
+            "signature": "clearCache(options: ClearCacheOptions)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "createBuildStageTask",
+            "kind": "function",
+            "signature": "createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "createBuildTemplate",
+            "kind": "function",
+            "signature": "createBuildTemplate(nameOrPlatform: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "createBundleBuildTask",
+            "kind": "function",
+            "signature": "createBundleBuildTask(bundleOptions: IBundleBuildOptions)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "executeBuildStageTask",
+            "kind": "function",
+            "signature": "executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "getPlatformBuildSchema",
+            "kind": "function",
+            "signature": "getPlatformBuildSchema(platform: Platform | string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "getPreviewUrl",
+            "kind": "function",
+            "signature": "getPreviewUrl(dest: string, platform?: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "getRegisteredPlatforms",
+            "kind": "function",
+            "signature": "getRegisteredPlatforms()",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(platform?: string[])",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "make",
+            "kind": "function",
+            "signature": "make(platform: Platform, dest: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "packAutoAtlas",
+            "kind": "function",
+            "signature": "packAutoAtlas(pacUuid: string, option?: Partial<IPackOptions>)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "publish",
+            "kind": "function",
+            "signature": "publish(platform: Platform, dest: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryAssetsInBundle",
+            "kind": "function",
+            "signature": "queryAssetsInBundle(uuid: string, bundleFilterConfig?: import('../../core/builder/@types')",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryAutoAtlasFileCache",
+            "kind": "function",
+            "signature": "queryAutoAtlasFileCache(pacUuid: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryBuildConfig",
+            "kind": "function",
+            "signature": "queryBuildConfig()",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryBundleConfig",
+            "kind": "function",
+            "signature": "queryBundleConfig()",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryDefaultBuildConfigByPlatform",
+            "kind": "function",
+            "signature": "queryDefaultBuildConfigByPlatform(platform: Platform)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryPlatformConfig",
+            "kind": "function",
+            "signature": "queryPlatformConfig()",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "queryTextureCompressConfig",
+            "kind": "function",
+            "signature": "queryTextureCompressConfig()",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "refreshDisplayI18nFields",
+            "kind": "function",
+            "signature": "refreshDisplayI18nFields()",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "run",
+            "kind": "function",
+            "signature": "run(platform: Platform, dest: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          },
+          {
+            "name": "upload",
+            "kind": "function",
+            "signature": "upload(platform: Platform, dest: string, accessToken?: string)",
+            "sourceFile": "src/lib/builder/builder.ts"
+          }
+        ]
+      },
+      {
+        "module": "cli",
+        "sourceFile": "src/lib/cli.ts",
+        "exports": [
+          {
+            "name": "ICLI",
+            "kind": "type",
+            "signature": "ICLI",
+            "sourceFile": "src/lib/cli.ts"
+          }
+        ]
+      },
+      {
+        "module": "configuration/configuration",
+        "sourceFile": "src/lib/configuration/configuration.ts",
+        "exports": [
+          {
+            "name": "getConfigPath",
+            "kind": "function",
+            "signature": "getConfigPath(scope: ConfigurationScope = 'project')",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "getMetadata",
+            "kind": "function",
+            "signature": "getMetadata()",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(projectPath: string)",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "migrate",
+            "kind": "function",
+            "signature": "migrate()",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "migrateFromProject",
+            "kind": "function",
+            "signature": "migrateFromProject()",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "onDidSave",
+            "kind": "function",
+            "signature": "onDidSave(callback: ()",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "reload",
+            "kind": "function",
+            "signature": "reload()",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "remove",
+            "kind": "function",
+            "signature": "remove(key: string, scope?: ConfigurationScope)",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          },
+          {
+            "name": "save",
+            "kind": "function",
+            "signature": "save(force?: boolean, scope: ConfigurationScope = 'project')",
+            "sourceFile": "src/lib/configuration/configuration.ts"
+          }
+        ]
+      },
+      {
+        "module": "engine/engine",
+        "sourceFile": "src/lib/engine/engine.ts",
+        "exports": [
+          {
+            "name": "getConfig",
+            "kind": "function",
+            "signature": "getConfig(useDefault?: boolean)",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "getInfo",
+            "kind": "function",
+            "signature": "getInfo()",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "getRenderConfig",
+            "kind": "function",
+            "signature": "getRenderConfig()",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(projectPath: string)",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "initEngine",
+            "kind": "function",
+            "signature": "initEngine(enginePath: string, projectPath: string, serverURL?: string)",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "queryJointTextureLayoutPreview",
+            "kind": "function",
+            "signature": "queryJointTextureLayoutPreview()",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "queryLayerBuiltin",
+            "kind": "function",
+            "signature": "queryLayerBuiltin()",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "querySortingLayerBuiltin",
+            "kind": "function",
+            "signature": "querySortingLayerBuiltin()",
+            "sourceFile": "src/lib/engine/engine.ts"
+          },
+          {
+            "name": "startEngineCompilation",
+            "kind": "function",
+            "signature": "startEngineCompilation(force: boolean = false)",
+            "sourceFile": "src/lib/engine/engine.ts"
+          }
+        ]
+      },
+      {
+        "module": "i18n/i18n",
+        "sourceFile": "src/lib/i18n/i18n.ts",
+        "exports": [
+          {
+            "name": "getLanguage",
+            "kind": "function",
+            "signature": "getLanguage()",
+            "sourceFile": "src/lib/i18n/i18n.ts"
+          },
+          {
+            "name": "setLanguage",
+            "kind": "function",
+            "signature": "setLanguage(language: string)",
+            "sourceFile": "src/lib/i18n/i18n.ts"
+          }
+        ]
+      },
+      {
+        "module": "mcp/mcp",
+        "sourceFile": "src/lib/mcp/mcp.ts",
+        "exports": [
+          {
+            "name": "getStatus",
+            "kind": "function",
+            "signature": "getStatus()",
+            "sourceFile": "src/lib/mcp/mcp.ts"
+          },
+          {
+            "name": "register",
+            "kind": "function",
+            "signature": "register()",
+            "sourceFile": "src/lib/mcp/mcp.ts"
+          },
+          {
+            "name": "unregister",
+            "kind": "function",
+            "signature": "unregister()",
+            "sourceFile": "src/lib/mcp/mcp.ts"
+          }
+        ]
+      },
+      {
+        "module": "project/project",
+        "sourceFile": "src/lib/project/project.ts",
+        "exports": [
+          {
+            "name": "close",
+            "kind": "function",
+            "signature": "close()",
+            "sourceFile": "src/lib/project/project.ts"
+          },
+          {
+            "name": "get",
+            "kind": "function",
+            "signature": "get()",
+            "sourceFile": "src/lib/project/project.ts"
+          },
+          {
+            "name": "getInfo",
+            "kind": "function",
+            "signature": "getInfo()",
+            "sourceFile": "src/lib/project/project.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(projectPath: string)",
+            "sourceFile": "src/lib/project/project.ts"
+          },
+          {
+            "name": "open",
+            "kind": "function",
+            "signature": "open(projectPath: string)",
+            "sourceFile": "src/lib/project/project.ts"
+          }
+        ]
+      },
+      {
+        "module": "scene/scene",
+        "sourceFile": "src/lib/scene/scene.ts",
+        "exports": [
+          {
+            "name": "getMotionTimelineStats",
+            "kind": "function",
+            "signature": "getMotionTimelineStats()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "hideMotion",
+            "kind": "function",
+            "signature": "hideMotion()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "isMotionActive",
+            "kind": "function",
+            "signature": "isMotionActive()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "onMotionMouseDown",
+            "kind": "function",
+            "signature": "onMotionMouseDown(action: { x: number; y: number; button: number })",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "onMotionMouseMove",
+            "kind": "function",
+            "signature": "onMotionMouseMove(action: { movementX: number; movementY: number })",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "onMotionMouseUp",
+            "kind": "function",
+            "signature": "onMotionMouseUp(action: { x: number; y: number })",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "onMotionMouseWheel",
+            "kind": "function",
+            "signature": "onMotionMouseWheel(action: { wheelDeltaY: number; wheelDeltaX: number })",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "pauseMotion",
+            "kind": "function",
+            "signature": "pauseMotion()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "playMotion",
+            "kind": "function",
+            "signature": "playMotion()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "queryMotionImage",
+            "kind": "function",
+            "signature": "queryMotionImage(info: { width: number; height: number })",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "resetCommandProvider",
+            "kind": "function",
+            "signature": "resetCommandProvider()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "setCommandProvider",
+            "kind": "function",
+            "signature": "setCommandProvider(\n    provider: ISceneCommandProvider,\n)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "setMotionModel",
+            "kind": "function",
+            "signature": "setMotionModel(uuid: string)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "setMotionParameter",
+            "kind": "function",
+            "signature": "setMotionParameter(axis: 'value' | 'x' | 'y', value: number)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "setMotionTime",
+            "kind": "function",
+            "signature": "setMotionTime(time: number)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "setMotionVariable",
+            "kind": "function",
+            "signature": "setMotionVariable(name: string, value: number)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "showMotion",
+            "kind": "function",
+            "signature": "showMotion(desc: MotionPreviewDesc)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "startupWorker",
+            "kind": "function",
+            "signature": "startupWorker(projectPath: string)",
+            "sourceFile": "src/lib/scene/scene.ts"
+          },
+          {
+            "name": "stopMotion",
+            "kind": "function",
+            "signature": "stopMotion()",
+            "sourceFile": "src/lib/scene/scene.ts"
+          }
+        ]
+      },
+      {
+        "module": "scripting/scripting",
+        "sourceFile": "src/lib/scripting/scripting.ts",
+        "exports": [
+          {
+            "name": "getProgrammingFacet",
+            "kind": "function",
+            "signature": "getProgrammingFacet()",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(projectPath: string)",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "initProgrammingFacet",
+            "kind": "function",
+            "signature": "initProgrammingFacet()",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "onCompiled",
+            "kind": "function",
+            "signature": "onCompiled(listener: (e: { scope: string })",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "onCompileStart",
+            "kind": "function",
+            "signature": "onCompileStart(listener: (e: { scope: string; taskId?: string })",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "onPackBuildEnd",
+            "kind": "function",
+            "signature": "onPackBuildEnd(listener: (e: { targetName: string })",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "onPackBuildStart",
+            "kind": "function",
+            "signature": "onPackBuildStart(listener: (e: { targetName: string })",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          },
+          {
+            "name": "startCompileScript",
+            "kind": "function",
+            "signature": "startCompileScript(assetChanges?: AssetChangeInfo[])",
+            "sourceFile": "src/lib/scripting/scripting.ts"
+          }
+        ]
+      },
+      {
+        "module": "server/server",
+        "sourceFile": "src/lib/server/server.ts",
+        "exports": [
+          {
+            "name": "getStatus",
+            "kind": "function",
+            "signature": "getStatus()",
+            "sourceFile": "src/lib/server/server.ts"
+          },
+          {
+            "name": "getUrl",
+            "kind": "function",
+            "signature": "getUrl()",
+            "sourceFile": "src/lib/server/server.ts"
+          },
+          {
+            "name": "register",
+            "kind": "function",
+            "signature": "register(\n    name: string,\n    module: import('../../server/interfaces')",
+            "sourceFile": "src/lib/server/server.ts"
+          },
+          {
+            "name": "start",
+            "kind": "function",
+            "signature": "start(port?: number, host?: string)",
+            "sourceFile": "src/lib/server/server.ts"
+          },
+          {
+            "name": "stop",
+            "kind": "function",
+            "signature": "stop()",
+            "sourceFile": "src/lib/server/server.ts"
+          }
+        ]
+      },
+      {
+        "module": "simulator/simulator",
+        "sourceFile": "src/lib/simulator/simulator.ts",
+        "exports": [
+          {
+            "name": "build",
+            "kind": "function",
+            "signature": "build(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "buildNative",
+            "kind": "function",
+            "signature": "buildNative(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "buildRuntime",
+            "kind": "function",
+            "signature": "buildRuntime(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "getExecutablePath",
+            "kind": "function",
+            "signature": "getExecutablePath(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "getManifest",
+            "kind": "function",
+            "signature": "getManifest(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "getResourcesPath",
+            "kind": "function",
+            "signature": "getResourcesPath(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "getStatus",
+            "kind": "function",
+            "signature": "getStatus(id: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "getWritablePath",
+            "kind": "function",
+            "signature": "getWritablePath(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "init",
+            "kind": "function",
+            "signature": "init(projectPath: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "isBuilt",
+            "kind": "function",
+            "signature": "isBuilt(enginePath?: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "launchPreview",
+            "kind": "function",
+            "signature": "launchPreview(options: ISimulatorLaunchPreviewOptions = {})",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "listSessions",
+            "kind": "function",
+            "signature": "listSessions()",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "onDidChangeBuildState",
+            "kind": "function",
+            "signature": "onDidChangeBuildState(listener: (state: ISimulatorBuildState)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "onDidChangeSession",
+            "kind": "function",
+            "signature": "onDidChangeSession(listener: (session: ISimulatorSessionInfo)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "onLog",
+            "kind": "function",
+            "signature": "onLog(listener: (entry: ISimulatorLogEntry)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "prepareResources",
+            "kind": "function",
+            "signature": "prepareResources(options: ISimulatorPrepareOptions = {})",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "start",
+            "kind": "function",
+            "signature": "start(options: ISimulatorStartOptions)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "stop",
+            "kind": "function",
+            "signature": "stop(id: string)",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          },
+          {
+            "name": "stopAll",
+            "kind": "function",
+            "signature": "stopAll()",
+            "sourceFile": "src/lib/simulator/simulator.ts"
+          }
+        ]
+      }
+    ],
+    "core": [
+      {
+        "name": "assets",
+        "path": "src/core/assets",
+        "description": "65 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/assets/index.ts"
+        ],
+        "exportCount": 225
+      },
+      {
+        "name": "base",
+        "path": "src/core/base",
+        "description": "16 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/base/"
+        ],
+        "exportCount": 72
+      },
+      {
+        "name": "builder",
+        "path": "src/core/builder",
+        "description": "48 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/builder/index.ts"
+        ],
+        "exportCount": 402
+      },
+      {
+        "name": "configuration",
+        "path": "src/core/configuration",
+        "description": "13 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/configuration/index.ts"
+        ],
+        "exportCount": 51
+      },
+      {
+        "name": "engine",
+        "path": "src/core/engine",
+        "description": "21 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/engine/index.ts"
+        ],
+        "exportCount": 85
+      },
+      {
+        "name": "extension-roots",
+        "path": "src/core/extension-roots.ts",
+        "description": "Core 顶层文件",
+        "entryFiles": [
+          "src/core/extension-roots.ts"
+        ],
+        "exportCount": 4
+      },
+      {
+        "name": "filesystem",
+        "path": "src/core/filesystem",
+        "description": "1 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/filesystem/"
+        ],
+        "exportCount": 5
+      },
+      {
+        "name": "launcher",
+        "path": "src/core/launcher.ts",
+        "description": "Core 顶层文件",
+        "entryFiles": [
+          "src/core/launcher.ts"
+        ],
+        "exportCount": 1
+      },
+      {
+        "name": "preview",
+        "path": "src/core/preview",
+        "description": "14 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/preview/"
+        ],
+        "exportCount": 32
+      },
+      {
+        "name": "project",
+        "path": "src/core/project",
+        "description": "4 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/project/index.ts"
+        ],
+        "exportCount": 8
+      },
+      {
+        "name": "project-manager",
+        "path": "src/core/project-manager.ts",
+        "description": "Core 顶层文件",
+        "entryFiles": [
+          "src/core/project-manager.ts"
+        ],
+        "exportCount": 1
+      },
+      {
+        "name": "scene",
+        "path": "src/core/scene",
+        "description": "124 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/scene/index.ts"
+        ],
+        "exportCount": 552
+      },
+      {
+        "name": "scripting",
+        "path": "src/core/scripting",
+        "description": "24 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/scripting/index.ts"
+        ],
+        "exportCount": 72
+      },
+      {
+        "name": "simulator",
+        "path": "src/core/simulator",
+        "description": "3 个 TypeScript 文件（深度≤2 扫描）",
+        "entryFiles": [
+          "src/core/simulator/index.ts"
+        ],
+        "exportCount": 54
+      }
+    ]
+  },
   "stats": {
     "mcp": 104,
     "commands": 9,
     "libModules": 13,
     "libExports": 158,
     "core": 14
-  },
-  "locale": "zh-CN"
+  }
 }

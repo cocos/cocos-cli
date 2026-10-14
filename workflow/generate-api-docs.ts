@@ -19,6 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { BuilderHook } from '../src/mcp/hooks/builder.hook';
 
 type JsonSchema = Record<string, unknown>;
 
@@ -31,6 +32,8 @@ interface McpToolDoc {
     inputSchema: JsonSchema;
     outputSchema: JsonSchema;
     params: Array<{ name: string; schema: JsonSchema }>;
+    /** True when BuilderHook (or similar) rewrote Zod before tools/list. */
+    schemaNote?: string;
 }
 
 interface CommandOptionDoc {
@@ -100,13 +103,48 @@ function esc(s: string): string {
         .replace(/"/g, '&quot;');
 }
 
-function toJsonSchema(zodSchema: unknown, name: string): JsonSchema {
+/**
+ * Match `McpMiddleware.zodToJSONSchema7`: Gemini-friendly draft-07, no $ref,
+ * and **no** `name` wrapper (named conversion emits `$ref` + `definitions`).
+ */
+function toMcpListJsonSchema(zodSchema: unknown): JsonSchema {
     if (!zodSchema) return { type: 'object', description: 'No schema' };
     try {
-        return zodToJsonSchema(zodSchema as any, { name, $refStrategy: 'none' }) as JsonSchema;
+        return zodToJsonSchema(zodSchema as any, {
+            target: 'jsonSchema7',
+            $refStrategy: 'none',
+        }) as JsonSchema;
     } catch (e) {
         return { type: 'object', description: String(e instanceof Error ? e.message : e) };
     }
+}
+
+/**
+ * Apply the same param rewrites MCP registration uses before tools/list.
+ * Notably `builder-build.options` becomes a passthrough object — not the full
+ * SchemaBuildOption union (that runs only in BuilderHook.onBeforeExecute).
+ */
+function applyMcpListParamHooks(
+    toolName: string,
+    paramMetas: Array<{ name: string; schema: z.ZodTypeAny; index: number }>,
+    builderHook: BuilderHook,
+): { shape: Record<string, z.ZodTypeAny>; note?: string } {
+    const shape: Record<string, z.ZodTypeAny> = {};
+    let note: string | undefined;
+    for (const meta of paramMetas) {
+        // Clone so we do not mutate the live toolRegistry entry.
+        const param = { name: meta.name, schema: meta.schema, index: meta.index };
+        builderHook.onRegisterParam(toolName, param, shape);
+        if (!shape[param.name]) {
+            shape[param.name] = param.schema;
+        }
+        if (toolName === 'builder-build' && param.name === 'options') {
+            note =
+                'builder-build.options 在 MCP 注册时被 BuilderHook 收成 z.object({}).passthrough().optional()；' +
+                '完整平台联合校验只在执行前 onBeforeExecute 做，不会进入 tools/list。';
+        }
+    }
+    return { shape, note };
 }
 
 function relativeAsset(depth: number): string {
@@ -251,10 +289,12 @@ function mcpLlmPromptCallout(): string {
     <li><code>name</code> — 来自 <code>@tool('...')</code></li>
     <li><code>title</code> — 来自 <code>@title('...')</code></li>
     <li><code>description</code> — 来自 <code>@description('...')</code></li>
-    <li><code>inputSchema</code> — 来自各 <code>@param(ZodSchema)</code>（含 Zod <code>.describe()</code> 文案）</li>
+    <li><code>inputSchema</code> — 注册后的 Zod → <code>zodToJsonSchema({ target: 'jsonSchema7', $refStrategy: 'none' })</code>（含 hook 改写）</li>
     <li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li>
   </ul>
-  <p class="warn">因此：想改 Agent 行为，请改装饰器与 Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
+  <p>部分工具在注册时会改写参数 schema（例如 <code>BuilderHook</code> 把 <code>builder-build.options</code> 收成空 object passthrough）。
+  本页展示的是<strong>改写后</strong>、与 <code>tools/list</code> 一致的契约，不是源码里未改写的完整 Zod 联合。</p>
+  <p class="warn">因此：想改 Agent 行为，请改装饰器 / hook / Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
 </aside>`;
 }
 
@@ -263,29 +303,37 @@ function mcpLlmPromptCallout(): string {
 async function collectMcpTools(): Promise<McpToolDoc[]> {
     const { scanToolsFromRegistry } = await import('../e2e/scripts/tool-utils');
     const infos = await scanToolsFromRegistry();
+    const builderHook = new BuilderHook();
     const tools: McpToolDoc[] = [];
     for (const info of infos) {
         const paramMetas = [...(info.paramSchemas || [])]
             .sort((a, b) => a.index - b.index)
-            .filter((p) => p.name);
-        const shape: Record<string, z.ZodTypeAny> = {};
-        for (const p of paramMetas) shape[p.name as string] = p.schema as z.ZodTypeAny;
+            .filter((p) => p.name)
+            .map((p) => ({
+                name: p.name as string,
+                schema: p.schema as z.ZodTypeAny,
+                index: p.index,
+            }));
+        const { shape, note } = applyMcpListParamHooks(info.toolName, paramMetas, builderHook);
         const inputZod = z.object(shape);
         const outputZod = info.returnSchema
             ? z.object({ result: info.returnSchema as z.ZodTypeAny })
             : z.object({ result: z.any() });
+        const inputSchema = toMcpListJsonSchema(inputZod);
+        const props = (inputSchema.properties || {}) as Record<string, JsonSchema>;
         tools.push({
             name: info.toolName,
             title: info.title || info.toolName,
             description: info.description || `Tool: ${info.toolName}`,
             category: info.category || 'Unknown',
             methodName: info.methodName,
-            inputSchema: toJsonSchema(inputZod, `${info.toolName}_input`),
-            outputSchema: toJsonSchema(outputZod, `${info.toolName}_output`),
-            params: paramMetas.map((p) => ({
-                name: p.name as string,
-                schema: toJsonSchema(p.schema, `${info.toolName}_${p.name}`),
+            inputSchema,
+            outputSchema: toMcpListJsonSchema(outputZod),
+            params: Object.keys(props).map((name) => ({
+                name,
+                schema: props[name] || {},
             })),
+            schemaNote: note,
         });
     }
     return tools.sort((a, b) => a.name.localeCompare(b.name));
@@ -326,16 +374,20 @@ ${mcpLlmPromptCallout()}
         let body = `<h1><code>${esc(t.name)}</code></h1>
 <p class="meta"><span class="badge">${esc(t.category)}</span> 方法 <code>${esc(t.methodName)}</code></p>
 ${mcpLlmPromptCallout()}
-<p class="lead"><strong>description（会注入 LLM）：</strong>${esc(t.description)}</p>
-<h2>参数（inputSchema，会注入 LLM）</h2>`;
+<p class="lead"><strong>description（会注入 LLM）：</strong>${esc(t.description)}</p>`;
+        if (t.schemaNote) {
+            body += `<aside class="callout"><p>${esc(t.schemaNote)}</p></aside>`;
+        }
+        body += `<h2>inputSchema（tools/list，会注入 LLM）</h2>
+<pre>${esc(JSON.stringify(t.inputSchema, null, 2))}</pre>
+<h2>参数分项（同上 schema 的 properties）</h2>`;
         if (!t.params.length) body += `<p class="meta">无参数。</p>`;
         else {
             for (const p of t.params) {
                 body += `<h3><code>${esc(p.name)}</code></h3><pre>${esc(JSON.stringify(p.schema, null, 2))}</pre>`;
             }
         }
-        body += `<h2>完整 inputSchema</h2><pre>${esc(JSON.stringify(t.inputSchema, null, 2))}</pre>`;
-        body += `<h2>完整 outputSchema（会注入 LLM）</h2><pre>${esc(JSON.stringify(t.outputSchema, null, 2))}</pre>`;
+        body += `<h2>outputSchema（会注入 LLM）</h2><pre>${esc(JSON.stringify(t.outputSchema, null, 2))}</pre>`;
         writeFile(
             path.join(layerDir, `${t.name}.html`),
             page(t.name, body, [
@@ -662,8 +714,6 @@ async function main() {
             writeMcpHtml(outDir, tools);
             stats.mcp = tools.length;
             catalog.layers = { ...(catalog.layers as object), mcp: { count: tools.length, tools: tools.map((t) => t.name) } };
-            // also keep json next to html for machines
-            writeFile(path.join(outDir, 'layer1-mcp', 'tools.json'), JSON.stringify({ toolCount: tools.length, tools }, null, 2) + '\n');
         } catch (e) {
             console.warn('Layer 1 skipped (need dist/):', e instanceof Error ? e.message : e);
             writeFile(

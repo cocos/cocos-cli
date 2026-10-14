@@ -109,7 +109,7 @@ This writes a Chinese static HTML site to `docs/api/html/`（打开 `index.html`
 3. Lib 门面 — `src/lib`
 4. Core — `src/core` 模块地图
 
-**重要（第 1 层）**：注入给 LLM 的提示词**只靠** MCP `tools/list` 的 `name` / `title` / `description` / `inputSchema` / `outputSchema`（来自装饰器与 Zod `.describe()`）。HTML 站本身不会进入模型上下文。
+**重要（第 1 层）**：注入给 LLM 的提示词**只靠** MCP `tools/list` 的 `name` / `title` / `description` / `inputSchema` / `outputSchema`。文档生成器会套用与运行时相同的 hook 改写（例如 `BuilderHook` 把 `builder-build.options` 收成 passthrough object），再按 middleware 的 `jsonSchema7` / `$refStrategy: 'none'` 导出；不是源码里未改写的完整 Zod 联合。HTML 站本身不会进入模型上下文。
 
 Tracking: https://github.com/cocos/cocos-cli/issues/984
 

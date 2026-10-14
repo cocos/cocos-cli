@@ -1,7 +1,41 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>scene-clear-reflection-probes · Cocos CLI 接口文档</title><link rel="stylesheet" href="../../assets/style.css"/></head><body><header class="top"><div class="wrap"><a class="brand" href="../../index.html">Cocos CLI 接口文档</a><nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>scene-clear-reflection-probes</span></nav></div></header><main class="wrap"><h1><code>scene-clear-reflection-probes</code></h1><p class="meta"><span class="badge">ReflectionProbe</span> 方法 <code>clearAll</code></p><aside class="callout"><h2>给 LLM 的提示词只靠以下内容</h2><p>Agent / PinK 调用 MCP 时，模型<strong>不会</strong>看到本 HTML 文档站、源码注释或中文附录。运行时经 <code>tools/list</code>（见 <code>src/mcp/mcp.middleware.ts</code>）注入的字段<strong>只有</strong>：</p><ul><li><code>name</code> — 来自 <code>@tool('...')</code></li><li><code>title</code> — 来自 <code>@title('...')</code></li><li><code>description</code> — 来自 <code>@description('...')</code></li><li><code>inputSchema</code> — 来自各 <code>@param(ZodSchema)</code>（含 Zod <code>.describe()</code> 文案）</li><li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li></ul><p class="warn">因此：想改 Agent 行为，请改装饰器与 Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p></aside><p class="lead"><strong>description（会注入 LLM）：</strong>Clear all baked cubemap bindings in the active Pink/browser scene, optionally delete CLI-generated assets, and save the scene. No scene-open call is required.</p><h2>参数（inputSchema，会注入 LLM）</h2><h3><code>options</code></h3><pre>{
-  &quot;$ref&quot;: &quot;#/definitions/scene-clear-reflection-probes_options&quot;,
-  &quot;definitions&quot;: {
-    &quot;scene-clear-reflection-probes_options&quot;: {
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>scene-clear-reflection-probes · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>scene-clear-reflection-probes</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>scene-clear-reflection-probes</code></h1>
+<p class="meta"><span class="badge">ReflectionProbe</span> 方法 <code>clearAll</code></p>
+<aside class="callout">
+  <h2>给 LLM 的提示词只靠以下内容</h2>
+  <p>Agent / PinK 调用 MCP 时，模型<strong>不会</strong>看到本 HTML 文档站、源码注释或中文附录。
+  运行时经 <code>tools/list</code>（见 <code>src/mcp/mcp.middleware.ts</code>）注入的字段<strong>只有</strong>：</p>
+  <ul>
+    <li><code>name</code> — 来自 <code>@tool('...')</code></li>
+    <li><code>title</code> — 来自 <code>@title('...')</code></li>
+    <li><code>description</code> — 来自 <code>@description('...')</code></li>
+    <li><code>inputSchema</code> — 注册后的 Zod → <code>zodToJsonSchema({ target: 'jsonSchema7', $refStrategy: 'none' })</code>（含 hook 改写）</li>
+    <li><code>outputSchema</code> — 来自 <code>@result(ZodSchema)</code></li>
+  </ul>
+  <p>部分工具在注册时会改写参数 schema（例如 <code>BuilderHook</code> 把 <code>builder-build.options</code> 收成空 object passthrough）。
+  本页展示的是<strong>改写后</strong>、与 <code>tools/list</code> 一致的契约，不是源码里未改写的完整 Zod 联合。</p>
+  <p class="warn">因此：想改 Agent 行为，请改装饰器 / hook / Zod describe；本页其余说明仅供人类阅读，不会进入 LLM 上下文。</p>
+</aside>
+<p class="lead"><strong>description（会注入 LLM）：</strong>Clear all baked cubemap bindings in the active Pink/browser scene, optionally delete CLI-generated assets, and save the scene. No scene-open call is required.</p><h2>inputSchema（tools/list，会注入 LLM）</h2>
+<pre>{
+  &quot;type&quot;: &quot;object&quot;,
+  &quot;properties&quot;: {
+    &quot;options&quot;: {
       &quot;type&quot;: &quot;object&quot;,
       &quot;properties&quot;: {
         &quot;source&quot;: {
@@ -49,173 +83,165 @@
       &quot;description&quot;: &quot;Clear-all reflection probe options&quot;
     }
   },
+  &quot;required&quot;: [
+    &quot;options&quot;
+  ],
+  &quot;additionalProperties&quot;: false,
   &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-}</pre><h2>完整 inputSchema</h2><pre>{
-  &quot;$ref&quot;: &quot;#/definitions/scene-clear-reflection-probes_input&quot;,
-  &quot;definitions&quot;: {
-    &quot;scene-clear-reflection-probes_input&quot;: {
+}</pre>
+<h2>参数分项（同上 schema 的 properties）</h2><h3><code>options</code></h3><pre>{
+  &quot;type&quot;: &quot;object&quot;,
+  &quot;properties&quot;: {
+    &quot;source&quot;: {
       &quot;type&quot;: &quot;object&quot;,
       &quot;properties&quot;: {
-        &quot;options&quot;: {
-          &quot;type&quot;: &quot;object&quot;,
-          &quot;properties&quot;: {
-            &quot;source&quot;: {
+        &quot;runtimeId&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1
+        },
+        &quot;sceneUuid&quot;: {
+          &quot;type&quot;: &quot;string&quot;,
+          &quot;minLength&quot;: 1
+        },
+        &quot;generation&quot;: {
+          &quot;type&quot;: &quot;integer&quot;,
+          &quot;minimum&quot;: 0
+        }
+      },
+      &quot;required&quot;: [
+        &quot;runtimeId&quot;,
+        &quot;sceneUuid&quot;,
+        &quot;generation&quot;
+      ],
+      &quot;additionalProperties&quot;: false
+    },
+    &quot;saveScene&quot;: {
+      &quot;type&quot;: &quot;boolean&quot;,
+      &quot;default&quot;: true,
+      &quot;description&quot;: &quot;Save the active scene once after all cubemap bindings are cleared&quot;
+    },
+    &quot;deleteAssets&quot;: {
+      &quot;type&quot;: &quot;boolean&quot;,
+      &quot;default&quot;: true,
+      &quot;description&quot;: &quot;Delete CLI-generated cubemap PNG and convolution assets after clearing their bindings&quot;
+    },
+    &quot;timeoutMs&quot;: {
+      &quot;type&quot;: &quot;integer&quot;,
+      &quot;exclusiveMinimum&quot;: 0,
+      &quot;maximum&quot;: 600000,
+      &quot;default&quot;: 120000,
+      &quot;description&quot;: &quot;Timeout for the complete clear operation&quot;
+    }
+  },
+  &quot;additionalProperties&quot;: false,
+  &quot;description&quot;: &quot;Clear-all reflection probe options&quot;
+}</pre><h2>outputSchema（会注入 LLM）</h2><pre>{
+  &quot;type&quot;: &quot;object&quot;,
+  &quot;properties&quot;: {
+    &quot;result&quot;: {
+      &quot;type&quot;: &quot;object&quot;,
+      &quot;properties&quot;: {
+        &quot;code&quot;: {
+          &quot;type&quot;: &quot;number&quot;,
+          &quot;enum&quot;: [
+            200,
+            400,
+            404,
+            500
+          ],
+          &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+        },
+        &quot;data&quot;: {
+          &quot;anyOf&quot;: [
+            {
               &quot;type&quot;: &quot;object&quot;,
               &quot;properties&quot;: {
-                &quot;runtimeId&quot;: {
-                  &quot;type&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1
+                &quot;sceneUrl&quot;: {
+                  &quot;type&quot;: &quot;string&quot;
                 },
-                &quot;sceneUuid&quot;: {
-                  &quot;type&quot;: &quot;string&quot;,
-                  &quot;minLength&quot;: 1
-                },
-                &quot;generation&quot;: {
+                &quot;totalCount&quot;: {
                   &quot;type&quot;: &quot;integer&quot;,
+                  &quot;minimum&quot;: 0
+                },
+                &quot;clearedCount&quot;: {
+                  &quot;type&quot;: &quot;integer&quot;,
+                  &quot;minimum&quot;: 0
+                },
+                &quot;deletedAssetUrls&quot;: {
+                  &quot;type&quot;: &quot;array&quot;,
+                  &quot;items&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
+                  }
+                },
+                &quot;failures&quot;: {
+                  &quot;type&quot;: &quot;array&quot;,
+                  &quot;items&quot;: {
+                    &quot;type&quot;: &quot;object&quot;,
+                    &quot;properties&quot;: {
+                      &quot;assetUrl&quot;: {
+                        &quot;type&quot;: &quot;string&quot;
+                      },
+                      &quot;reason&quot;: {
+                        &quot;type&quot;: &quot;string&quot;
+                      }
+                    },
+                    &quot;required&quot;: [
+                      &quot;assetUrl&quot;,
+                      &quot;reason&quot;
+                    ],
+                    &quot;additionalProperties&quot;: false
+                  }
+                },
+                &quot;durationMs&quot;: {
+                  &quot;type&quot;: &quot;number&quot;,
                   &quot;minimum&quot;: 0
                 }
               },
               &quot;required&quot;: [
-                &quot;runtimeId&quot;,
-                &quot;sceneUuid&quot;,
-                &quot;generation&quot;
+                &quot;sceneUrl&quot;,
+                &quot;totalCount&quot;,
+                &quot;clearedCount&quot;,
+                &quot;deletedAssetUrls&quot;,
+                &quot;failures&quot;,
+                &quot;durationMs&quot;
               ],
-              &quot;additionalProperties&quot;: false
+              &quot;additionalProperties&quot;: false,
+              &quot;description&quot;: &quot;Clear-all reflection probe result&quot;
             },
-            &quot;saveScene&quot;: {
-              &quot;type&quot;: &quot;boolean&quot;,
-              &quot;default&quot;: true,
-              &quot;description&quot;: &quot;Save the active scene once after all cubemap bindings are cleared&quot;
-            },
-            &quot;deleteAssets&quot;: {
-              &quot;type&quot;: &quot;boolean&quot;,
-              &quot;default&quot;: true,
-              &quot;description&quot;: &quot;Delete CLI-generated cubemap PNG and convolution assets after clearing their bindings&quot;
-            },
-            &quot;timeoutMs&quot;: {
-              &quot;type&quot;: &quot;integer&quot;,
-              &quot;exclusiveMinimum&quot;: 0,
-              &quot;maximum&quot;: 600000,
-              &quot;default&quot;: 120000,
-              &quot;description&quot;: &quot;Timeout for the complete clear operation&quot;
+            {
+              &quot;not&quot;: {}
             }
-          },
-          &quot;additionalProperties&quot;: false,
-          &quot;description&quot;: &quot;Clear-all reflection probe options&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;options&quot;
-      ],
-      &quot;additionalProperties&quot;: false
-    }
-  },
-  &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-}</pre><h2>完整 outputSchema（会注入 LLM）</h2><pre>{
-  &quot;$ref&quot;: &quot;#/definitions/scene-clear-reflection-probes_output&quot;,
-  &quot;definitions&quot;: {
-    &quot;scene-clear-reflection-probes_output&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;result&quot;: {
-          &quot;type&quot;: &quot;object&quot;,
-          &quot;properties&quot;: {
-            &quot;code&quot;: {
-              &quot;type&quot;: &quot;number&quot;,
-              &quot;enum&quot;: [
-                200,
-                400,
-                404,
-                500
-              ],
-              &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
-            },
-            &quot;data&quot;: {
-              &quot;anyOf&quot;: [
-                {
-                  &quot;type&quot;: &quot;object&quot;,
-                  &quot;properties&quot;: {
-                    &quot;sceneUrl&quot;: {
-                      &quot;type&quot;: &quot;string&quot;
-                    },
-                    &quot;totalCount&quot;: {
-                      &quot;type&quot;: &quot;integer&quot;,
-                      &quot;minimum&quot;: 0
-                    },
-                    &quot;clearedCount&quot;: {
-                      &quot;type&quot;: &quot;integer&quot;,
-                      &quot;minimum&quot;: 0
-                    },
-                    &quot;deletedAssetUrls&quot;: {
-                      &quot;type&quot;: &quot;array&quot;,
-                      &quot;items&quot;: {
-                        &quot;type&quot;: &quot;string&quot;
-                      }
-                    },
-                    &quot;failures&quot;: {
-                      &quot;type&quot;: &quot;array&quot;,
-                      &quot;items&quot;: {
-                        &quot;type&quot;: &quot;object&quot;,
-                        &quot;properties&quot;: {
-                          &quot;assetUrl&quot;: {
-                            &quot;type&quot;: &quot;string&quot;
-                          },
-                          &quot;reason&quot;: {
-                            &quot;type&quot;: &quot;string&quot;
-                          }
-                        },
-                        &quot;required&quot;: [
-                          &quot;assetUrl&quot;,
-                          &quot;reason&quot;
-                        ],
-                        &quot;additionalProperties&quot;: false
-                      }
-                    },
-                    &quot;durationMs&quot;: {
-                      &quot;type&quot;: &quot;number&quot;,
-                      &quot;minimum&quot;: 0
-                    }
-                  },
-                  &quot;required&quot;: [
-                    &quot;sceneUrl&quot;,
-                    &quot;totalCount&quot;,
-                    &quot;clearedCount&quot;,
-                    &quot;deletedAssetUrls&quot;,
-                    &quot;failures&quot;,
-                    &quot;durationMs&quot;
-                  ],
-                  &quot;additionalProperties&quot;: false,
-                  &quot;description&quot;: &quot;Clear-all reflection probe result&quot;
-                },
-                {
-                  &quot;not&quot;: {}
-                }
-              ],
-              &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
-            },
-            &quot;reason&quot;: {
-              &quot;anyOf&quot;: [
-                {
-                  &quot;type&quot;: &quot;string&quot;
-                },
-                {
-                  &quot;not&quot;: {}
-                }
-              ],
-              &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
-            }
-          },
-          &quot;required&quot;: [
-            &quot;code&quot;
           ],
-          &quot;additionalProperties&quot;: false
+          &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+        },
+        &quot;reason&quot;: {
+          &quot;anyOf&quot;: [
+            {
+              &quot;type&quot;: &quot;string&quot;
+            },
+            {
+              &quot;not&quot;: {}
+            }
+          ],
+          &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
         }
       },
       &quot;required&quot;: [
-        &quot;result&quot;
+        &quot;code&quot;
       ],
       &quot;additionalProperties&quot;: false
     }
   },
+  &quot;required&quot;: [
+    &quot;result&quot;
+  ],
+  &quot;additionalProperties&quot;: false,
   &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-}</pre></main><footer class="wrap foot">由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 · <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a></footer></body></html>
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>

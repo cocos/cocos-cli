@@ -19,6 +19,7 @@ import * as path from 'path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { scanToolsFromRegistry, ExtendedToolInfo } from '../e2e/scripts/tool-utils';
+import { BuilderHook } from '../src/mcp/hooks/builder.hook';
 
 type JsonSchema = Record<string, unknown>;
 
@@ -31,6 +32,7 @@ interface ToolDoc {
     inputSchema: JsonSchema;
     outputSchema: JsonSchema;
     params: Array<{ name: string; schema: JsonSchema }>;
+    schemaNote?: string;
 }
 
 function parseArgs(argv: string[]) {
@@ -45,14 +47,14 @@ function parseArgs(argv: string[]) {
     };
 }
 
-function toJsonSchema(zodSchema: unknown, name: string): JsonSchema {
+/** Match `McpMiddleware.zodToJSONSchema7` (no named `$ref` wrapper). */
+function toMcpListJsonSchema(zodSchema: unknown): JsonSchema {
     if (!zodSchema) {
         return { type: 'object', description: 'No schema' };
     }
     try {
-        // Match MCP list handler intent: flat schemas without $ref (Gemini-friendly).
         return zodToJsonSchema(zodSchema as any, {
-            name,
+            target: 'jsonSchema7',
             $refStrategy: 'none',
         }) as JsonSchema;
     } catch (e) {
@@ -69,6 +71,7 @@ function stableStringify(value: unknown): string {
 
 function collectTools(infos: ExtendedToolInfo[]): ToolDoc[] {
     const tools: ToolDoc[] = [];
+    const builderHook = new BuilderHook();
 
     for (const info of infos) {
         const paramMetas = [...(info.paramSchemas || [])]
@@ -76,14 +79,29 @@ function collectTools(infos: ExtendedToolInfo[]): ToolDoc[] {
             .filter((p) => p.name);
 
         const shape: Record<string, z.ZodTypeAny> = {};
+        let schemaNote: string | undefined;
         for (const p of paramMetas) {
-            shape[p.name as string] = p.schema as z.ZodTypeAny;
+            const param = {
+                name: p.name as string,
+                schema: p.schema as z.ZodTypeAny,
+                index: p.index,
+            };
+            builderHook.onRegisterParam(info.toolName, param, shape);
+            if (!shape[param.name]) {
+                shape[param.name] = param.schema;
+            }
+            if (info.toolName === 'builder-build' && param.name === 'options') {
+                schemaNote =
+                    '`options` is rewritten by BuilderHook to `z.object({}).passthrough().optional()` for tools/list; full SchemaBuildOption runs only in onBeforeExecute.';
+            }
         }
 
         const inputZod = z.object(shape);
         const outputZod = info.returnSchema
             ? z.object({ result: info.returnSchema as z.ZodTypeAny })
             : z.object({ result: z.any() });
+        const inputSchema = toMcpListJsonSchema(inputZod);
+        const props = (inputSchema.properties || {}) as Record<string, JsonSchema>;
 
         tools.push({
             name: info.toolName,
@@ -91,12 +109,13 @@ function collectTools(infos: ExtendedToolInfo[]): ToolDoc[] {
             description: info.description || `Tool: ${info.toolName}`,
             category: info.category || 'Unknown',
             methodName: info.methodName,
-            inputSchema: toJsonSchema(inputZod, `${info.toolName}_input`),
-            outputSchema: toJsonSchema(outputZod, `${info.toolName}_output`),
-            params: paramMetas.map((p) => ({
-                name: p.name as string,
-                schema: toJsonSchema(p.schema, `${info.toolName}_${p.name}`),
+            inputSchema,
+            outputSchema: toMcpListJsonSchema(outputZod),
+            params: Object.keys(props).map((name) => ({
+                name,
+                schema: props[name] || {},
             })),
+            schemaNote,
         });
     }
 
@@ -115,9 +134,22 @@ function renderToolMarkdown(tool: ToolDoc): string {
         '',
         tool.description || '_No description_',
         '',
+    ];
+
+    if (tool.schemaNote) {
+        lines.push('> ' + tool.schemaNote, '');
+    }
+
+    lines.push(
+        '## Input schema (tools/list shape)',
+        '',
+        '```json',
+        JSON.stringify(tool.inputSchema, null, 2),
+        '```',
+        '',
         '## Parameters',
         '',
-    ];
+    );
 
     if (tool.params.length === 0) {
         lines.push('_No parameters._', '');
@@ -128,12 +160,6 @@ function renderToolMarkdown(tool: ToolDoc): string {
     }
 
     lines.push(
-        '## Input schema (tools/list shape)',
-        '',
-        '```json',
-        JSON.stringify(tool.inputSchema, null, 2),
-        '```',
-        '',
         '## Output schema',
         '',
         '```json',
