@@ -5,6 +5,8 @@ import { Engine } from '../../engine';
 import { join } from 'path';
 import { serviceManager } from './service/service-manager';
 import { installSceneEditorShim } from './editor-shim';
+import { loadHeadlessDesignResolution } from '../../engine/headless-design-resolution';
+import { setHeadlessResolutionLoader } from '../../engine/editor-design-resolution';
 
 async function startup() {
     // 监听进程退出事件
@@ -35,15 +37,19 @@ async function startup() {
     serviceManager.initialize(serverURL ?? '');
 
     await Engine.init(enginePath);
+    const loadResolution = () => loadHeadlessDesignResolution(projectPath, serverURL, Engine.getConfig().designResolution);
+    const designResolution = await loadResolution();
     const libraryPath = join(projectPath, 'library');
     const assetBase = resolveSceneAssetBase(serverURL, libraryPath);
     await Engine.initEngine({
+        designResolution,
         serverURL: serverURL,
         importBase: assetBase,
         nativeBase: assetBase,
         writablePath: join(projectPath, 'temp'),
         enableCustomPipeline: false,
     }, async () => {
+        setHeadlessResolutionLoader(cc, loadResolution);
         // 导入 service，处理装饰器，捕获开发的 api
         await import('./service');
         console.log('[Scene] import service');

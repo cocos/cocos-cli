@@ -61,12 +61,18 @@ async function watchDesignResolutionChange() {
     const { configurationManager } = await import('../configuration');
     const { MessageType } = await import('../configuration/script/interface');
     const { socketService } = await import('../../server/socket');
+    const { Rpc } = await import('./main-process/rpc');
     const push = () => {
         socketService.io?.emit('scene:invoke', { module: 'Engine', method: 'syncDesignResolution', args: [] });
+        if (Rpc.isConnect()) {
+            void Rpc.request('Engine', 'syncDesignResolution', []).catch((error) => {
+                console.debug('[Scene] syncDesignResolution failed:', error);
+            });
+        }
     };
     // 进程内变更（PinK/调用方走 cli 配置系统 set/reload 时触发）
     configurationManager.on(MessageType.Update, (key: string) => {
-        if (typeof key === 'string' && key.startsWith('engine.designResolution')) {
+        if (typeof key === 'string' && (key === 'engine' || key.startsWith('engine.designResolution'))) {
             push();
         }
     });

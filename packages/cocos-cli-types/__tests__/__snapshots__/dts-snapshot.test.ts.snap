@@ -6749,6 +6749,7 @@ export declare interface IEditorService extends IServiceEvents {
 export declare interface IEngineService extends IServiceEvents {
     init(): Promise<void>;
     repaintInEditMode(): Promise<void>;
+    syncDesignResolution(): Promise<void>;
     pause(): void;
     resume(): void;
     stopTick(): void;
@@ -8506,6 +8507,7 @@ export declare interface IInitEngineInfo {
     writablePath: string;
     serverURL?: string;
     enableCustomPipeline?: boolean;
+    designResolution?: IDesignResolution;
 }
 export declare interface IJointTextureLayoutDeviceTip {
     level: JointTextureLayoutDeviceTipLevel;
@@ -9902,6 +9904,7 @@ export declare interface IInitEngineInfo {
     writablePath: string;
     serverURL?: string;
     enableCustomPipeline?: boolean;
+    designResolution?: IDesignResolution;
 }
 export declare interface IJointTextureLayoutDeviceTip {
     level: JointTextureLayoutDeviceTipLevel;

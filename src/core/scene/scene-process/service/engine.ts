@@ -11,6 +11,7 @@ import { NodeEventType } from '../../common';
 import { Rpc } from '../rpc';
 import { serviceManager } from './service-manager';
 import { TimerUtil } from './utils/timer-util';
+import { applyEditorDesignResolution, loadEditorDesignResolution } from '../../../engine/editor-design-resolution';
 
 const tickTime = 1000 / 60;
 // Engine Layers reserves bits 20-31 for built-ins; user custom layers live in bit positions 0-19.
@@ -145,55 +146,19 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         void this.repaintInEditMode();
     }
 
-     /* 从服务端拉取当前工程的设计分辨率，同步到 cc.view 并重排已打开场景里的 Canvas。
-     *
-     * 为什么必须手动重排：编辑器模式（EDITOR_NOT_IN_PREVIEW）下 cc.Canvas 不会注册
-     * 'design-resolution-changed' 监听（只有预览/运行模式才注册），只在场景实例化的 __preload 里
-     * 调 fitDesignResolution_EDITOR 对齐一次。因此改分辨率后：新实例化的场景会自动对齐，但
-     * 已打开、未重新实例化的场景不会更新——需要在这里手动调 fitDesignResolution_EDITOR
-     * （与 cocos-editor startup.initDesignResolution 的重排逻辑一致）。
-     *
-     * 在打开场景、重开同一场景、以及选中节点时都会调用：由于浏览器场景收不到主进程的配置变更推送，
-     * 只能在这些交互时机主动拉取比对。cc.view 未变化时直接返回（每次仅一次极小的读取），
-     * 变化时才更新并重排——因为 cc.view 每次变化都会连同重排当前场景，故不会出现“已更新但场景未重排”的情况。
+    /**
+     * Reload project dimensions and realign the editor Canvas. Headless workers also
+     * synchronize their virtual screen/camera; browsers keep their real window size.
+     * EDITOR Canvas does not subscribe to design-resolution-changed itself.
      */
     public async syncDesignResolution() {
         try {
-            const view = (cc as any).view;
-            if (!view || typeof fetch !== 'function') {
-                return;
+            const resolution = await loadEditorDesignResolution(cc, serviceManager.getServerUrl());
+            if (applyEditorDesignResolution(cc, resolution)) {
+                void this.repaintInEditMode();
             }
-            const serverURL = serviceManager.getServerUrl();
-            const res = await fetch(`${serverURL}/scripting/engine/design-resolution`);
-            const dr = await res.json();
-            const width = Number(dr?.width);
-            const height = Number(dr?.height);
-            if (Number.isNaN(width) || Number.isNaN(height)) {
-                return;
-            }
-            const size = view.getDesignResolutionSize();
-            if (size && size.width === width && size.height === height) {
-                return; // 未变化，无需处理
-            }
-            // 保持与场景进程启动时一致的 ResolutionPolicy
-            view.setDesignResolutionSize(width, height, view.getResolutionPolicy());
-            // 手动对齐已打开场景里的 Canvas（编辑器模式不会自动响应 design-resolution-changed）
-            const scene = director.getScene();
-            if (scene) {
-                const canvases = (scene as any).getComponentsInChildren('cc.Canvas') as any[];
-                canvases.forEach((canvas) => {
-                    if (!canvas || !canvas.node) {
-                        return;
-                    }
-                    // 带 Widget 的 Canvas 由 Widget 对齐；未激活/未启用的跳过
-                    if (canvas.node.getComponent('cc.Widget') || !canvas.node.active || !canvas.enabled) {
-                        return;
-                    }
-                    canvas.fitDesignResolution_EDITOR?.();
-                });
-            }
-            void this.repaintInEditMode();
         } catch (error) {
+            // Keep the last valid dimensions on transient fetch/config errors.
             console.debug('[Engine] syncDesignResolution failed:', error);
         }
     }

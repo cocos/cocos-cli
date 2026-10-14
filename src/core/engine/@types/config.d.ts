@@ -170,6 +170,8 @@ export interface IInitEngineInfo {
     writablePath: string;
     serverURL?: string;
     enableCustomPipeline?: boolean;
+    /** Authoritative project resolution for a headless worker. */
+    designResolution?: IDesignResolution;
 }
 
 interface CCEModuleConfig {

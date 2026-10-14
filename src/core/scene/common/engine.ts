@@ -31,6 +31,9 @@ export interface IEngineService extends IServiceEvents {
      */
     repaintInEditMode(): Promise<void>;
 
+    /** Synchronize the editor viewport with the current project configuration. */
+    syncDesignResolution(): Promise<void>;
+
     pause(): void;
     resume(): void;
     /**
