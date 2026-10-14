@@ -1,7 +1,7 @@
 import type { IScene } from './scene';
 import type { Node, Scene } from 'cc';
 import type { INode } from '../node';
-import type { ICloseOptions, ICreateOptions, IOpenOptions, IReloadOptions, ISaveOptions } from './options';
+import type { ICloseOptions, ICreateOptions, IDiscardOptions, IOpenOptions, IReloadFromDiskOptions, IReloadOptions, ISaveOptions } from './options';
 import { ReloadResult } from './type';
 import { IAssetInfo } from '../../../assets/@types/public';
 import { IBaseIdentifier } from './base';
@@ -62,6 +62,12 @@ export interface IEditorService extends IServiceEvents {
      * 关闭当前资产
      */
     close(params: ICloseOptions): Promise<boolean>;
+
+    /** Close without saving. Requires explicit consent to discard in-memory changes. */
+    discard(params: IDiscardOptions): Promise<boolean>;
+
+    /** Reimport and reopen the current source asset without first saving it. */
+    reloadFromDisk(params: IReloadFromDiskOptions): Promise<TEditorEntity>;
 
     /**
      * 保存资产

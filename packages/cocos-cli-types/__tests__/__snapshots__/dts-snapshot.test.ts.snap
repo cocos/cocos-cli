@@ -6725,6 +6725,9 @@ export declare interface IDeleteNodeParams {
 export declare interface IDeleteNodeResult {
     path: string;
 }
+export declare interface IDiscardOptions {
+    discardChanges: true;
+}
 export declare interface IDuplicateParams {
     paths: string[];
 }
@@ -6732,6 +6735,8 @@ export declare interface IEditorService extends IServiceEvents {
     getCurrentEditorType(): 'scene' | 'prefab' | 'unknown';
     open(params: IOpenOptions): Promise<TEditorEntity>;
     close(params: ICloseOptions): Promise<boolean>;
+    discard(params: IDiscardOptions): Promise<boolean>;
+    reloadFromDisk(params: IReloadFromDiskOptions): Promise<TEditorEntity>;
     save(params: ISaveOptions): Promise<IAssetInfo>;
     reload(params: IReloadOptions): Promise<ReloadResult>;
     create(params: ICreateOptions): Promise<IBaseIdentifier>;
@@ -7477,6 +7482,8 @@ export declare interface IRegeneratePolygon2DPointsResult {
     changed: boolean;
     pointCount: number;
     source: Polygon2DPointsSource;
+}
+export declare interface IReloadFromDiskOptions extends IDiscardOptions, INodeDumpOptions {
 }
 export declare interface IReloadOptions {
     urlOrUUID?: string;

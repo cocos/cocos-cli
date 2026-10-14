@@ -5,9 +5,11 @@ import {
     IBaseIdentifier,
     ICloseOptions,
     ICreateOptions,
+    IDiscardOptions,
     IEditorEvents,
     IEditorService,
     IOpenOptions,
+    IReloadFromDiskOptions,
     IReloadOptions,
     ISaveOptions,
     ReloadResult,
@@ -440,6 +442,66 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             return targetType === 'scene' || targetType === 'cc.SceneAsset';
         }
         return targetType === 'prefab' || targetType === 'cc.Prefab';
+    }
+
+    /** Explicit recovery path: never save the in-memory scene before closing it. */
+    async discard(params: IDiscardOptions): Promise<boolean> {
+        const session = this.getEditorSession();
+        return this.runLifecycle(async () => {
+            this.assertDiscardSession(params, session);
+            if (!session.uuid) return true;
+            await this.waitLocks();
+            return this.closeUnlocked({
+                urlOrUUID: session.uuid,
+                save: false,
+                allowDeletedSourceFallback: true,
+                expectedCurrentUuid: session.uuid,
+            });
+        });
+    }
+
+    /** Discard first, then import/open the source. Import or open failures leave the editor closed. */
+    async reloadFromDisk(params: IReloadFromDiskOptions): Promise<TEditorEntity> {
+        const session = this.getEditorSession();
+        return this.runLifecycle(async () => {
+            this.assertDiscardSession(params, session);
+            if (!session.uuid) {
+                throw new Error('No scene/prefab is currently open.');
+            }
+            const rpc = Rpc.getInstance();
+            const assetInfo = await rpc.request('assetManager', 'queryAssetInfo', [session.uuid]);
+            if (!assetInfo) {
+                throw new Error('The source asset no longer exists. Use discard to close without saving.');
+            }
+            const editor = this.editorMap.get(session.uuid);
+            if (!editor || !this.isSaveTargetCompatible(editor, assetInfo.type)) {
+                throw new Error('The source asset type no longer matches the current editor.');
+            }
+            await this.waitLocks();
+            this.assertDiscardSession(params, session);
+            await this.closeUnlocked({ urlOrUUID: session.uuid, save: false });
+            // Dispose the old editor before import notifications can reload or release its assets.
+            const imported = await rpc.request('assetManager', 'reimportAsset', [session.uuid]);
+            if (!imported || imported.uuid !== session.uuid || imported.type !== assetInfo.type) {
+                throw new Error('The reimported source asset no longer matches the current editor.');
+            }
+            // No current editor remains, so openUnlocked cannot auto-save stale memory.
+            return this.openUnlocked({
+                urlOrUUID: session.uuid,
+                includeChildren: params.includeChildren,
+                includeComponents: params.includeComponents,
+                includeLightProbeData: params.includeLightProbeData,
+            });
+        });
+    }
+
+    private assertDiscardSession(params: IDiscardOptions, session: IEditorSessionSnapshot): void {
+        if (params?.discardChanges !== true) {
+            throw new Error('Explicit discardChanges: true is required to discard in-memory changes.');
+        }
+        if (session.generation !== this.editorSessionGeneration || session.uuid !== this.currentEditorUuid) {
+            throw new Error('The source scene session changed before its changes could be discarded.');
+        }
     }
 
     async reload(params: IReloadOptions): Promise<ReloadResult> {
