@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>scene-set-component-property</code></h1>
 <p class="meta"><span class="badge">Component</span> 方法 <code>setProperty</code> · Set component property</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;scene-set-component-property&quot;,
-  &quot;title&quot;: &quot;Set component property&quot;,
   &quot;description&quot;: &quot;Set component properties. Query scene-query-component first and match each Asset reference to the returned property type. Asset values use { uuid: \&quot;...\&quot; }; uuid may be an exact UUID or db:// URL. If a parent asset has exactly one compatible sub-asset, it is normalized automatically; incompatible or ambiguous references return 400 without modifying the component.&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -87,7 +86,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Set component property&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -140,61 +146,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>setPropertyOptions</code></h3><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;componentPath&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;description&quot;: &quot;Component path&quot;
-    },
-    &quot;properties&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;additionalProperties&quot;: {
-        &quot;anyOf&quot;: [
-          {
-            &quot;type&quot;: &quot;object&quot;,
-            &quot;additionalProperties&quot;: {},
-            &quot;description&quot;: &quot;Any type Object&quot;
-          },
-          {
-            &quot;type&quot;: &quot;array&quot;,
-            &quot;items&quot;: {},
-            &quot;description&quot;: &quot;Any type Array&quot;
-          },
-          {
-            &quot;type&quot;: &quot;string&quot;,
-            &quot;description&quot;: &quot;String type&quot;
-          },
-          {
-            &quot;type&quot;: &quot;number&quot;,
-            &quot;description&quot;: &quot;Number type&quot;
-          },
-          {
-            &quot;type&quot;: &quot;boolean&quot;,
-            &quot;description&quot;: &quot;Boolean type&quot;
-          },
-          {
-            &quot;type&quot;: &quot;null&quot;,
-            &quot;description&quot;: &quot;Null type&quot;
-          },
-          {
-            &quot;description&quot;: &quot;Any type&quot;
-          }
-        ],
-        &quot;description&quot;: &quot;Property type, can be any type in the union&quot;
-      }
-    }
-  },
-  &quot;required&quot;: [
-    &quot;componentPath&quot;,
-    &quot;properties&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;description&quot;: &quot;Information required to set component properties&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

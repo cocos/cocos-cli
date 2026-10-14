@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>scene-bake-reflection-probe</code></h1>
 <p class="meta"><span class="badge">ReflectionProbe</span> 方法 <code>bake</code> · Bake reflection probe</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;scene-bake-reflection-probe&quot;,
-  &quot;title&quot;: &quot;Bake reflection probe&quot;,
   &quot;description&quot;: &quot;Bake a cube reflection probe in the active Pink/browser scene, hot-apply its TextureCube to that same scene, and optionally save it. No scene-open call is required.&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -85,7 +84,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Bake reflection probe&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -167,59 +173,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>options</code></h3><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;source&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;runtimeId&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;minLength&quot;: 1
-        },
-        &quot;sceneUuid&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;minLength&quot;: 1
-        },
-        &quot;generation&quot;: {
-          &quot;type&quot;: &quot;integer&quot;,
-          &quot;minimum&quot;: 0
-        }
-      },
-      &quot;required&quot;: [
-        &quot;runtimeId&quot;,
-        &quot;sceneUuid&quot;,
-        &quot;generation&quot;
-      ],
-      &quot;additionalProperties&quot;: false
-    },
-    &quot;nodePath&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;minLength&quot;: 1,
-      &quot;description&quot;: &quot;Path of the node containing cc.ReflectionProbe in the active Pink/browser scene&quot;
-    },
-    &quot;saveScene&quot;: {
-      &quot;type&quot;: &quot;boolean&quot;,
-      &quot;default&quot;: true,
-      &quot;description&quot;: &quot;Save the same live scene after hot-applying the cubemap&quot;
-    },
-    &quot;timeoutMs&quot;: {
-      &quot;type&quot;: &quot;integer&quot;,
-      &quot;exclusiveMinimum&quot;: 0,
-      &quot;maximum&quot;: 600000,
-      &quot;default&quot;: 120000,
-      &quot;description&quot;: &quot;Timeout for capture, cmft, asset import, binding, and scene save&quot;
-    }
-  },
-  &quot;required&quot;: [
-    &quot;nodePath&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;description&quot;: &quot;Reflection probe bake options&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

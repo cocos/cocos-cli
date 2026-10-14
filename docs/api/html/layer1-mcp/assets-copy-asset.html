@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>assets-copy-asset</code></h1>
 <p class="meta"><span class="badge">Assets</span> 方法 <code>copyAsset</code> · Copy Asset</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;assets-copy-asset&quot;,
-  &quot;title&quot;: &quot;Copy Asset&quot;,
   &quot;description&quot;: &quot;Copy an existing main asset to a new location together with its complete metadata. The copied asset receives new UUIDs while preserving importer settings, userData, subMetas, and internal references. Supports overwrite or automatic rename on conflicts.&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -61,7 +60,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Copy Asset&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -487,32 +493,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>source</code></h3><pre>{
-  &quot;type&quot;: &quot;string&quot;,
-  &quot;minLength&quot;: 1,
-  &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
-}</pre><h3><code>target</code></h3><pre>{
-  &quot;type&quot;: &quot;string&quot;,
-  &quot;minLength&quot;: 1,
-  &quot;description&quot;: &quot;Target path, asset will be created or imported to this path&quot;
-}</pre><h3><code>options</code></h3><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;overwrite&quot;: {
-      &quot;type&quot;: &quot;boolean&quot;,
-      &quot;description&quot;: &quot;Whether to force overwrite existing files, default false&quot;
-    },
-    &quot;rename&quot;: {
-      &quot;type&quot;: &quot;boolean&quot;,
-      &quot;description&quot;: &quot;Whether to automatically rename conflicting files, default false&quot;
-    }
-  },
-  &quot;additionalProperties&quot;: false,
-  &quot;description&quot;: &quot;Asset operation options&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

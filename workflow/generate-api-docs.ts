@@ -19,9 +19,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { BuilderHook } from '../src/mcp/hooks/builder.hook';
 
 type JsonSchema = Record<string, unknown>;
+
+/** Minimal surface of BuilderHook used for tools/list fidelity. */
+interface McpParamHook {
+    onRegisterParam(
+        toolName: string,
+        param: { name: string; schema: z.ZodTypeAny; index: number },
+        inputSchemaFields: Record<string, z.ZodTypeAny>,
+    ): void;
+}
 
 interface McpToolDoc {
     name: string;
@@ -127,7 +135,7 @@ function toMcpListJsonSchema(zodSchema: unknown): JsonSchema {
 function applyMcpListParamHooks(
     toolName: string,
     paramMetas: Array<{ name: string; schema: z.ZodTypeAny; index: number }>,
-    builderHook: BuilderHook,
+    builderHook: McpParamHook,
 ): { shape: Record<string, z.ZodTypeAny>; note?: string } {
     const shape: Record<string, z.ZodTypeAny> = {};
     let note: string | undefined;
@@ -140,8 +148,8 @@ function applyMcpListParamHooks(
         }
         if (toolName === 'builder-build' && param.name === 'options') {
             note =
-                'builder-build.options 在 MCP 注册时被 BuilderHook 收成 z.object({}).passthrough().optional()；' +
-                '完整平台联合校验只在执行前 onBeforeExecute 做，不会进入 tools/list。';
+                '注册时 BuilderHook：options → 空 object passthrough；platform 描述会拼上 packages/platforms 扫描到的平台。' +
+                '完整 SchemaBuildOption 只在 onBeforeExecute 校验，不进 tools/list。';
         }
     }
     return { shape, note };
@@ -313,40 +321,41 @@ pre {
 `;
 }
 
-/** Layer-1 index：短说明（工具详情页用文档框展示实际 payload） */
+/** Layer-1 index：短说明 */
 function mcpLlmPromptCallout(): string {
     return `<aside class="callout">
-  <p>LLM 只看到 MCP <code>tools/list</code> 返回的字段（<code>src/mcp/mcp.middleware.ts</code>），看不到本站其它说明。</p>
-  <ul>
-    <li><code>name</code> / <code>title</code> / <code>description</code> ← 装饰器</li>
-    <li><code>inputSchema</code> / <code>outputSchema</code> ← Zod（含注册 hook 改写）→ jsonSchema7</li>
-  </ul>
-  <p>改 Agent 行为：改装饰器 / hook / Zod <code>.describe()</code>。</p>
+  <p>模型侧工具定义通常是 <code>name</code> + <code>description</code> + <code>inputSchema</code>（经 hook 改写后的 jsonSchema7）。</p>
+  <p><code>tools/list</code> 另可带 <code>title</code>（UI）与 <code>outputSchema</code>（结果校验），宿主不一定塞进提示词。见 <code>src/mcp/mcp.middleware.ts</code>。</p>
 </aside>`;
 }
 
-/** 工具详情：把 tools/list 载荷放进 Markdown 风格文档框 */
+/** 工具详情：模型侧定义框 + tools/list 其余字段 */
 function renderLlmViewBox(tool: McpToolDoc): string {
-    const payload = {
+    // PinK / 常见 MCP client：进模型的是调用契约，不是完整 tools/list 条目。
+    const modelPayload = {
         name: tool.name,
-        title: tool.title,
         description: tool.description,
         inputSchema: tool.inputSchema,
+    };
+    const listExtras = {
+        title: tool.title,
         outputSchema: tool.outputSchema,
     };
-    const json = JSON.stringify(payload, null, 2);
     const note = tool.schemaNote
         ? `<p class="note">${esc(tool.schemaNote)}</p>`
         : '';
-    return `${note}<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+    return `${note}<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">\`\`\`json</span>
-${esc(json)}
+${esc(JSON.stringify(modelPayload, null, 2))}
 <span class="fence-lang">\`\`\`</span></pre>
-</section>`;
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>${esc(JSON.stringify(listExtras, null, 2))}</pre>`;
 }
 
 // ---------------- Layer 1: MCP ----------------
@@ -354,7 +363,10 @@ ${esc(json)}
 async function collectMcpTools(): Promise<McpToolDoc[]> {
     const { scanToolsFromRegistry } = await import('../e2e/scripts/tool-utils');
     const infos = await scanToolsFromRegistry();
-    const builderHook = new BuilderHook();
+    // Must load BuilderHook from dist/ so __dirname resolves next to packages/platforms
+    // (same as the running MCP server). Importing from src/ misses dynamic platforms.
+    const { BuilderHook } = await import('../dist/mcp/hooks/builder.hook.js');
+    const builderHook = new BuilderHook() as McpParamHook;
     const tools: McpToolDoc[] = [];
     for (const info of infos) {
         const paramMetas = [...(info.paramSchemas || [])]
@@ -422,17 +434,9 @@ ${mcpLlmPromptCallout()}
     );
 
     for (const t of tools) {
-        let body = `<h1><code>${esc(t.name)}</code></h1>
+        const body = `<h1><code>${esc(t.name)}</code></h1>
 <p class="meta"><span class="badge">${esc(t.category)}</span> 方法 <code>${esc(t.methodName)}</code> · ${esc(t.title)}</p>
-${renderLlmViewBox(t)}
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p>`;
-        if (!t.params.length) body += `<p class="meta">无参数。</p>`;
-        else {
-            for (const p of t.params) {
-                body += `<h3><code>${esc(p.name)}</code></h3><pre>${esc(JSON.stringify(p.schema, null, 2))}</pre>`;
-            }
-        }
+${renderLlmViewBox(t)}`;
         writeFile(
             path.join(layerDir, `${t.name}.html`),
             page(t.name, body, [
@@ -736,7 +740,7 @@ function writeHome(
   └─ 第 3 层  Lib 门面          （src/lib → 动态 import core）
 实现
   └─ 第 4 层  Core + scene RPC  （src/core）</pre>
-<p class="lead">第 1 层工具页用文档框标出 LLM 实际看到的 <code>tools/list</code> JSON（name / title / description / inputSchema / outputSchema）。</p>
+<p class="lead">第 1 层工具页用文档框标出模型侧定义（name / description / inputSchema），并单独列出 tools/list 另含字段。</p>
 `;
     writeFile(
         path.join(outDir, 'index.html'),

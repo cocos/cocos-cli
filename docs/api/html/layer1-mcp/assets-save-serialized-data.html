@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>assets-save-serialized-data</code></h1>
 <p class="meta"><span class="badge">Assets</span> 方法 <code>saveSerializedData</code> · Save Serialized Asset Data</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;assets-save-serialized-data&quot;,
-  &quot;title&quot;: &quot;Save Serialized Asset Data&quot;,
   &quot;description&quot;: &quot;Save Creator-compatible serialized asset dump data through assets.serializedData.save. Supports only cc.PhysicsMaterial and cc.RenderPipeline in the first batch. Prefer passing an IProperty or full dump patch returned by assets-query-serialized-data; unknown fields are rejected, and hidden or readonly fields can only pass through unchanged.&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -162,7 +161,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Save Serialized Asset Data&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -360,134 +366,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>uuidOrUrlOrPath</code></h3><pre>{
-  &quot;type&quot;: &quot;string&quot;,
-  &quot;minLength&quot;: 1,
-  &quot;description&quot;: &quot;Asset URL, UUID, sub asset UUID, or file path&quot;
-}</pre><h3><code>patch</code></h3><pre>{
-  &quot;anyOf&quot;: [
-    {
-      &quot;anyOf&quot;: [
-        {
-          &quot;type&quot;: &quot;object&quot;,
-          &quot;additionalProperties&quot;: {
-            &quot;type&quot;: &quot;object&quot;,
-            &quot;properties&quot;: {
-              &quot;name&quot;: {
-                &quot;type&quot;: &quot;string&quot;,
-                &quot;description&quot;: &quot;Property name&quot;
-              },
-              &quot;value&quot;: {
-                &quot;description&quot;: &quot;Property value or nested property map&quot;
-              },
-              &quot;default&quot;: {
-                &quot;description&quot;: &quot;Default value&quot;
-              },
-              &quot;type&quot;: {
-                &quot;type&quot;: &quot;string&quot;,
-                &quot;description&quot;: &quot;Cocos class or value type&quot;
-              },
-              &quot;path&quot;: {
-                &quot;type&quot;: &quot;string&quot;,
-                &quot;description&quot;: &quot;Dump property path&quot;
-              },
-              &quot;readonly&quot;: {
-                &quot;type&quot;: &quot;boolean&quot;,
-                &quot;description&quot;: &quot;Whether property is read-only&quot;
-              },
-              &quot;visible&quot;: {
-                &quot;type&quot;: &quot;boolean&quot;,
-                &quot;description&quot;: &quot;Whether property is visible&quot;
-              },
-              &quot;isArray&quot;: {
-                &quot;type&quot;: &quot;boolean&quot;,
-                &quot;description&quot;: &quot;Whether property value is an array&quot;
-              },
-              &quot;enumList&quot;: {
-                &quot;type&quot;: &quot;array&quot;,
-                &quot;items&quot;: {},
-                &quot;description&quot;: &quot;Enum option list&quot;
-              },
-              &quot;optionalTypes&quot;: {
-                &quot;type&quot;: &quot;array&quot;,
-                &quot;items&quot;: {
-                  &quot;type&quot;: &quot;string&quot;
-                },
-                &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
-              },
-              &quot;elementTypeData&quot;: {
-                &quot;description&quot;: &quot;Default dump data for array elements&quot;
-              }
-            },
-            &quot;additionalProperties&quot;: true,
-            &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
-          }
-        },
-        {
-          &quot;type&quot;: &quot;object&quot;,
-          &quot;properties&quot;: {
-            &quot;name&quot;: {
-              &quot;type&quot;: &quot;string&quot;,
-              &quot;description&quot;: &quot;Property name&quot;
-            },
-            &quot;value&quot;: {
-              &quot;description&quot;: &quot;Property value or nested property map&quot;
-            },
-            &quot;default&quot;: {
-              &quot;description&quot;: &quot;Default value&quot;
-            },
-            &quot;type&quot;: {
-              &quot;type&quot;: &quot;string&quot;,
-              &quot;description&quot;: &quot;Cocos class or value type&quot;
-            },
-            &quot;path&quot;: {
-              &quot;type&quot;: &quot;string&quot;,
-              &quot;description&quot;: &quot;Dump property path&quot;
-            },
-            &quot;readonly&quot;: {
-              &quot;type&quot;: &quot;boolean&quot;,
-              &quot;description&quot;: &quot;Whether property is read-only&quot;
-            },
-            &quot;visible&quot;: {
-              &quot;type&quot;: &quot;boolean&quot;,
-              &quot;description&quot;: &quot;Whether property is visible&quot;
-            },
-            &quot;isArray&quot;: {
-              &quot;type&quot;: &quot;boolean&quot;,
-              &quot;description&quot;: &quot;Whether property value is an array&quot;
-            },
-            &quot;enumList&quot;: {
-              &quot;type&quot;: &quot;array&quot;,
-              &quot;items&quot;: {},
-              &quot;description&quot;: &quot;Enum option list&quot;
-            },
-            &quot;optionalTypes&quot;: {
-              &quot;type&quot;: &quot;array&quot;,
-              &quot;items&quot;: {
-                &quot;type&quot;: &quot;string&quot;
-              },
-              &quot;description&quot;: &quot;Optional concrete types for variable type properties&quot;
-            },
-            &quot;elementTypeData&quot;: {
-              &quot;description&quot;: &quot;Default dump data for array elements&quot;
-            }
-          },
-          &quot;additionalProperties&quot;: true,
-          &quot;description&quot;: &quot;Creator-compatible serialized asset IProperty dump&quot;
-        }
-      ],
-      &quot;description&quot;: &quot;Creator-compatible serialized asset dump. PhysicsMaterial returns a property map, RenderPipeline returns a top-level IProperty.&quot;
-    },
-    {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;additionalProperties&quot;: {}
-    }
-  ],
-  &quot;description&quot;: &quot;Serialized asset patch. Prefer IProperty or full dump patches; raw value maps are accepted only for convenience.&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

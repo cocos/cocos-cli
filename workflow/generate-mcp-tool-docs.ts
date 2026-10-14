@@ -19,7 +19,6 @@ import * as path from 'path';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { scanToolsFromRegistry, ExtendedToolInfo } from '../e2e/scripts/tool-utils';
-import { BuilderHook } from '../src/mcp/hooks/builder.hook';
 
 type JsonSchema = Record<string, unknown>;
 
@@ -69,8 +68,10 @@ function stableStringify(value: unknown): string {
     return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-function collectTools(infos: ExtendedToolInfo[]): ToolDoc[] {
+async function collectTools(infos: ExtendedToolInfo[]): Promise<ToolDoc[]> {
     const tools: ToolDoc[] = [];
+    // Load from dist so BuilderHook scans packages/platforms like the MCP server.
+    const { BuilderHook } = await import('../dist/mcp/hooks/builder.hook.js');
     const builderHook = new BuilderHook();
 
     for (const info of infos) {
@@ -92,7 +93,7 @@ function collectTools(infos: ExtendedToolInfo[]): ToolDoc[] {
             }
             if (info.toolName === 'builder-build' && param.name === 'options') {
                 schemaNote =
-                    '`options` is rewritten by BuilderHook to `z.object({}).passthrough().optional()` for tools/list; full SchemaBuildOption runs only in onBeforeExecute.';
+                    '`options` → passthrough object; `platform` description includes packages/platforms scan. Full SchemaBuildOption only in onBeforeExecute.';
             }
         }
 
@@ -275,7 +276,7 @@ async function main() {
     if (!infos.length) {
         throw new Error('toolRegistry is empty — build dist/ and ensure API modules register @tool entries');
     }
-    const tools = collectTools(infos);
+    const tools = await collectTools(infos);
     console.log(`Found ${tools.length} tools\n`);
 
     if (check) {

@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>scene-start-reflection-probe-bake</code></h1>
 <p class="meta"><span class="badge">ReflectionProbe</span> 方法 <code>startBake</code> · Start or queue reflection-probe baking</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;scene-start-reflection-probe-bake&quot;,
-  &quot;title&quot;: &quot;Start or queue reflection-probe baking&quot;,
   &quot;description&quot;: &quot;Accept a reflection-probe bake task immediately, or append selected component UUIDs to the running task. Query the task to observe completion.&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -95,7 +94,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Start or queue reflection-probe baking&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -338,69 +344,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>options</code></h3><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;source&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;runtimeId&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;minLength&quot;: 1
-        },
-        &quot;sceneUuid&quot;: {
-          &quot;type&quot;: &quot;string&quot;,
-          &quot;minLength&quot;: 1
-        },
-        &quot;generation&quot;: {
-          &quot;type&quot;: &quot;integer&quot;,
-          &quot;minimum&quot;: 0
-        }
-      },
-      &quot;required&quot;: [
-        &quot;runtimeId&quot;,
-        &quot;sceneUuid&quot;,
-        &quot;generation&quot;
-      ],
-      &quot;additionalProperties&quot;: false
-    },
-    &quot;componentUuids&quot;: {
-      &quot;type&quot;: &quot;array&quot;,
-      &quot;items&quot;: {
-        &quot;type&quot;: &quot;string&quot;,
-        &quot;minLength&quot;: 1
-      },
-      &quot;minItems&quot;: 1,
-      &quot;description&quot;: &quot;Explicit reflection-probe component UUIDs; cannot be combined with nodePaths&quot;
-    },
-    &quot;nodePaths&quot;: {
-      &quot;type&quot;: &quot;array&quot;,
-      &quot;items&quot;: {
-        &quot;type&quot;: &quot;string&quot;,
-        &quot;minLength&quot;: 1
-      },
-      &quot;minItems&quot;: 1,
-      &quot;description&quot;: &quot;Explicit reflection-probe node paths; omit both selections to bake all&quot;
-    },
-    &quot;saveScene&quot;: {
-      &quot;type&quot;: &quot;boolean&quot;,
-      &quot;default&quot;: true,
-      &quot;description&quot;: &quot;Save the active scene once after all successful probes are hot-applied&quot;
-    },
-    &quot;timeoutMs&quot;: {
-      &quot;type&quot;: &quot;integer&quot;,
-      &quot;exclusiveMinimum&quot;: 0,
-      &quot;maximum&quot;: 3600000,
-      &quot;default&quot;: 600000,
-      &quot;description&quot;: &quot;Timeout for the complete batch operation&quot;
-    }
-  },
-  &quot;additionalProperties&quot;: false,
-  &quot;description&quot;: &quot;Bake-all reflection probe options&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

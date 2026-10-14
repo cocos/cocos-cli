@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>scene-delete-component</code></h1>
 <p class="meta"><span class="badge">Component</span> 方法 <code>removeComponent</code> · Remove component</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;scene-delete-component&quot;,
-  &quot;title&quot;: &quot;Remove component&quot;,
   &quot;description&quot;: &quot;Remove node component, returns true on success, false on failure&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -49,7 +48,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Remove component&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -102,23 +108,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>component</code></h3><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;componentPath&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;description&quot;: &quot;Component path = node path + \&quot;/\&quot; + component type name, e.g. \&quot;Canvas/Node1/cc.Label\&quot; or \&quot;Canvas/Node1/cc.Sprite\&quot;. Must end with the component type (e.g. cc.Label, cc.Sprite). Do NOT pass a bare node path like \&quot;Canvas/Node1\&quot;.&quot;
-    }
-  },
-  &quot;required&quot;: [
-    &quot;componentPath&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;description&quot;: &quot;Information required to remove a component&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

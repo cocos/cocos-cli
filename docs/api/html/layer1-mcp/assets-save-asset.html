@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>assets-save-asset</code></h1>
 <p class="meta"><span class="badge">Assets</span> 方法 <code>saveAsset</code> · Save Asset Data</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;assets-save-asset&quot;,
-  &quot;title&quot;: &quot;Save Asset Data&quot;,
   &quot;description&quot;: &quot;Save complete content to an existing asset file. Required arguments: pathOrUrlOrUUID (existing asset URL, UUID, or file path) and data (complete file content). Do not call this tool with empty arguments. This tool does not create new assets or temporary files; create the asset first with assets-create-asset-by-type or assets-create-asset, then call save. For scripts, pass complete syntactically valid content. For scene and prefab assets, pass complete valid Cocos serialized JSON; prefer scene-* tools and scene-save for scene graph edits.&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -46,7 +45,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Save Asset Data&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -472,18 +478,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>pathOrUrlOrUUID</code></h3><pre>{
-  &quot;type&quot;: &quot;string&quot;,
-  &quot;minLength&quot;: 1,
-  &quot;description&quot;: &quot;Required existing asset URL, UUID, or file path to save. This must refer to an asset that already exists in the asset database.&quot;
-}</pre><h3><code>data</code></h3><pre>{
-  &quot;type&quot;: &quot;string&quot;,
-  &quot;minLength&quot;: 1,
-  &quot;description&quot;: &quot;Required complete file content to save. Do not omit this field, pass an empty string, or pass partial/truncated script content.&quot;
 }</pre>
   </main>
   <footer class="wrap foot">

@@ -16,15 +16,14 @@
   <main class="wrap">
 <h1><code>scene-create-node-by-asset</code></h1>
 <p class="meta"><span class="badge">Node</span> 方法 <code>createNodeByAsset</code> · Create Node By Asset</p>
-<section class="md-box" aria-label="LLM 实际看到的 tools/list 内容">
+<section class="md-box" aria-label="模型侧工具定义">
   <div class="md-box-bar">
-    <strong>LLM 实际看到</strong>
-    <span><code>tools/list</code> · 下列 JSON 会进入模型上下文</span>
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
   </div>
   <pre><span class="fence-lang">```json</span>
 {
   &quot;name&quot;: &quot;scene-create-node-by-asset&quot;,
-  &quot;title&quot;: &quot;Create Node By Asset&quot;,
   &quot;description&quot;: &quot;Create a node named name using dbURL asset under the path in the currently opened scene. The node path must be unique. If multi-level nodes are not created, empty nodes will be automatically completed. Example of resource dbURL format: db://assets/sample.prefab&quot;,
   &quot;inputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
@@ -119,7 +118,14 @@
     ],
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
-  },
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Create Node By Asset&quot;,
   &quot;outputSchema&quot;: {
     &quot;type&quot;: &quot;object&quot;,
     &quot;properties&quot;: {
@@ -943,93 +949,6 @@
     &quot;additionalProperties&quot;: false,
     &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
   }
-}
-<span class="fence-lang">```</span></pre>
-</section>
-<h2>参数分项（人类阅读，不另注入）</h2>
-<p class="note">与上方 <code>inputSchema.properties</code> 相同，拆开便于浏览。</p><h3><code>options</code></h3><pre>{
-  &quot;type&quot;: &quot;object&quot;,
-  &quot;properties&quot;: {
-    &quot;path&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;description&quot;: &quot;Parent path for append creation. When insertSide is set, this is the sibling anchor path. The scene root path is \&quot;/\&quot;, and the API returns the full path of the created node.&quot;
-    },
-    &quot;insertSide&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;enum&quot;: [
-        &quot;before&quot;,
-        &quot;after&quot;
-      ],
-      &quot;description&quot;: &quot;Create beside the existing sibling at path. When omitted, path remains the parent and the new node appends.&quot;
-    },
-    &quot;name&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;description&quot;: &quot;Name of the node. Characters /\\:*?\&quot;&lt;&gt;| are not allowed. If not passed, the system will default a name.&quot;
-    },
-    &quot;workMode&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;enum&quot;: [
-        &quot;2d&quot;,
-        &quot;3d&quot;
-      ],
-      &quot;description&quot;: &quot;Node work mode, 2D or 3D; same nodeType may support both 2d and 3d&quot;
-    },
-    &quot;keepWorldTransform&quot;: {
-      &quot;type&quot;: &quot;boolean&quot;,
-      &quot;description&quot;: &quot;Keep world transform&quot;
-    },
-    &quot;position&quot;: {
-      &quot;type&quot;: &quot;object&quot;,
-      &quot;properties&quot;: {
-        &quot;x&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;description&quot;: &quot;X axis coordinate&quot;
-        },
-        &quot;y&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;description&quot;: &quot;Y axis coordinate&quot;
-        },
-        &quot;z&quot;: {
-          &quot;type&quot;: &quot;number&quot;,
-          &quot;description&quot;: &quot;Z axis coordinate&quot;
-        }
-      },
-      &quot;required&quot;: [
-        &quot;x&quot;,
-        &quot;y&quot;,
-        &quot;z&quot;
-      ],
-      &quot;additionalProperties&quot;: false,
-      &quot;description&quot;: &quot;Node position&quot;
-    },
-    &quot;canvasRequired&quot;: {
-      &quot;type&quot;: &quot;boolean&quot;,
-      &quot;description&quot;: &quot;Whether Canvas is required&quot;
-    },
-    &quot;prefabCanvasHandling&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;enum&quot;: [
-        &quot;add-root-ui-transform&quot;,
-        &quot;create-canvas&quot;
-      ],
-      &quot;description&quot;: &quot;Prefab Canvas handling when canvasRequired is true and the parent has no Canvas or UITransform ancestor. add-root-ui-transform adds UITransform to the prefab root and creates a hidden preview Canvas if needed. create-canvas creates a Canvas parent for the new node. Omit this option to skip Canvas creation when the host cancels the prefab Canvas prompt.&quot;
-    },
-    &quot;preflightToken&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;description&quot;: &quot;Opaque token returned by preflightCreate. Pass it to the matching create request to reject stale Canvas decisions.&quot;
-    },
-    &quot;dbURL&quot;: {
-      &quot;type&quot;: &quot;string&quot;,
-      &quot;minLength&quot;: 1,
-      &quot;description&quot;: &quot;Prefab asset path, if created from a prefab, please pass this parameter, format is custom db path e.g. db://assets/abc.prefab&quot;
-    }
-  },
-  &quot;required&quot;: [
-    &quot;path&quot;,
-    &quot;dbURL&quot;
-  ],
-  &quot;additionalProperties&quot;: false,
-  &quot;description&quot;: &quot;To configure options for node creation, the Scene must be open first.&quot;
 }</pre>
   </main>
   <footer class="wrap foot">
