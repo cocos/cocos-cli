@@ -505,7 +505,10 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             if (!this.isCurrentEditorSession(session)) {
                 return ReloadResult.EDITOR_NOT_FOUND;
             }
-            return prefabWriteSession.edit(() => this.reloadUnlocked(params), true);
+            return prefabWriteSession.edit(() => this.reloadUnlocked({
+                ...params,
+                preserveUndoHistory: params.preserveUndoHistory || Service.Undo.isDirty(),
+            }), true);
         });
     }
 

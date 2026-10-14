@@ -16,6 +16,16 @@ type ReloadEditor = (params: IReloadOptions, session?: IEditorSessionSnapshot) =
 type EmitAssetReload = (uuid: string) => void;
 type GetCurrentEditorSession = () => IEditorSessionSnapshot;
 
+interface IReloadBatch {
+    assetUuids: Set<string>;
+    deletedUuids: Set<string>;
+    preserveUndoHistory: boolean;
+    session: IEditorSessionSnapshot;
+}
+
+/** Returns true only when retry has been registered for a temporary edit conflict. */
+type RetryWhenIdle = (error: unknown, retry: () => void) => boolean;
+
 interface IReloadWaiter {
     resolve: () => void;
     reject: (error: Error) => void;
@@ -24,9 +34,9 @@ interface IReloadWaiter {
 
 export class PrefabSoftReloadScheduler {
     private _timer: ReturnType<typeof setTimeout> | null = null;
-    private _assetUuids = new Set<string>();
-    private _preserveUndoHistory = false;
-    private _editorSession: IEditorSessionSnapshot | null = null;
+    private _pending: IReloadBatch | null = null;
+    private _retryToken: object | null = null;
+    private _epoch = 0;
     private _reloadWaiters = new Map<string, Set<IReloadWaiter>>();
     private _idleWaiters = new Set<() => void>();
     private _flushPromise: Promise<void> | null = null;
@@ -37,31 +47,32 @@ export class PrefabSoftReloadScheduler {
         private readonly _getCurrentEditorSession: GetCurrentEditorSession,
         private readonly _debounceMs = PREFAB_SOFT_RELOAD_DEBOUNCE_MS,
         private readonly _waitTimeoutMs = PREFAB_SOFT_RELOAD_WAIT_TIMEOUT_MS,
+        private readonly _retryWhenIdle?: RetryWhenIdle,
     ) { }
 
     schedule(options: IPrefabSoftReloadOptions): void {
+        const session = options.editorSession ?? this._getCurrentEditorSession();
+        if (this._pending && !this._sameSession(this._pending.session, session)) this.invalidate();
+        const batch = this._pending ??= {
+            assetUuids: new Set(), deletedUuids: new Set(), preserveUndoHistory: false, session: { ...session },
+        };
         if (options.changedUuid) {
-            this._assetUuids.add(options.changedUuid);
+            batch.assetUuids.add(options.changedUuid);
+            batch.deletedUuids.delete(options.changedUuid);
         }
         if (options.deletedUuid) {
-            this._assetUuids.delete(options.deletedUuid);
+            batch.assetUuids.delete(options.deletedUuid);
+            batch.deletedUuids.add(options.deletedUuid);
         }
+        batch.preserveUndoHistory = batch.assetUuids.size > 0
+            && (batch.preserveUndoHistory || !!options.preserveUndoHistory);
+        this._scheduleFlush();
+    }
 
-        if (this._assetUuids.size > 0) {
-            this._preserveUndoHistory ||= !!options.preserveUndoHistory;
-        } else {
-            this._preserveUndoHistory = false;
-        }
-
-        const currentSession = this._getCurrentEditorSession();
-        this._editorSession ??= options.editorSession ?? currentSession;
-
-        if (this._timer) {
-            clearTimeout(this._timer);
-        }
-        this._timer = setTimeout(() => {
-            void this._flush();
-        }, this._debounceMs);
+    private _scheduleFlush(): void {
+        if (!this._pending || this._flushPromise || this._retryToken) return;
+        if (this._timer) clearTimeout(this._timer);
+        this._timer = setTimeout(() => { void this._flush(); }, this._debounceMs);
     }
 
     waitForAssetReload(uuid: string): { promise: Promise<void>; cancel: () => void } {
@@ -97,9 +108,9 @@ export class PrefabSoftReloadScheduler {
             clearTimeout(this._timer);
             this._timer = null;
         }
-        this._assetUuids.clear();
-        this._preserveUndoHistory = false;
-        this._editorSession = null;
+        this._epoch++;
+        this._pending = null;
+        this._retryToken = null;
         const error = new Error(reason);
         for (const waiters of this._reloadWaiters.values()) {
             waiters.forEach(waiter => {
@@ -112,7 +123,7 @@ export class PrefabSoftReloadScheduler {
     }
 
     waitForIdle(): Promise<void> {
-        if (!this._timer && !this._flushPromise) {
+        if (!this._pending && !this._timer && !this._flushPromise) {
             return Promise.resolve();
         }
 
@@ -122,56 +133,86 @@ export class PrefabSoftReloadScheduler {
     }
 
     private async _flush(): Promise<void> {
-        const reloadedUuids = [...this._assetUuids];
-        const preserveUndoHistory = this._preserveUndoHistory;
-        const session = this._editorSession ?? this._getCurrentEditorSession();
-
         this._timer = null;
-        this._assetUuids.clear();
-        this._preserveUndoHistory = false;
-        this._editorSession = null;
-
-        this._flushPromise = (async () => {
-            const currentSession = this._getCurrentEditorSession();
-            if (currentSession.uuid !== session.uuid || currentSession.generation !== session.generation) {
-                this._rejectAssetReloadWaiters(reloadedUuids, new Error('Editor session changed before Prefab reload'));
-                return;
-            }
-
-            const reloadParams = {
-                preserveUndoHistory,
-                urlOrUUID: session.uuid ?? undefined,
-            };
-            let result: ReloadResult;
-            try {
-                result = await this._reloadEditor(reloadParams, session);
-            } catch (error) {
-                this._rejectAssetReloadWaiters(reloadedUuids, error instanceof Error ? error : new Error(String(error)));
-                return;
-            }
-            if (result !== ReloadResult.SUCCESS) {
-                this._rejectAssetReloadWaiters(reloadedUuids, new Error(`Prefab reload failed: ${String(result)}`));
-                return;
-            }
-
-            const reloadedSession = this._getCurrentEditorSession();
-            if (reloadedSession.uuid !== session.uuid || reloadedSession.generation !== session.generation) {
-                this._rejectAssetReloadWaiters(reloadedUuids, new Error('Editor session changed during Prefab reload'));
-                return;
-            }
-
-            reloadedUuids.forEach((uuid) => {
-                this._emitAssetReload(uuid);
-                this._resolveAssetReloadWaiters(uuid);
-            });
-        })();
-
+        if (this._flushPromise || this._retryToken || !this._pending) return;
+        const batch = this._pending;
+        const epoch = this._epoch;
+        this._pending = null;
+        // Publish the running promise before invoking callbacks that may schedule more work.
+        this._flushPromise = Promise.resolve().then(() => this._reloadBatch(batch, epoch));
         try {
             await this._flushPromise;
         } finally {
             this._flushPromise = null;
+            this._scheduleFlush();
             this._resolveIdleWaitersIfIdle();
         }
+    }
+
+    private async _reloadBatch(batch: IReloadBatch, epoch: number): Promise<void> {
+        const uuids = [...batch.assetUuids];
+        if (epoch !== this._epoch) return;
+        if (!this._sameSession(batch.session, this._getCurrentEditorSession())) {
+            this._rejectAssetReloadWaiters(uuids, new Error('Editor session changed before Prefab reload'));
+            return;
+        }
+        let result: ReloadResult;
+        try {
+            result = await this._reloadEditor({
+                preserveUndoHistory: batch.preserveUndoHistory,
+                urlOrUUID: batch.session.uuid ?? undefined,
+            }, batch.session);
+        } catch (error) {
+            if (epoch !== this._epoch) return;
+            if (this._sameSession(batch.session, this._getCurrentEditorSession())
+                && this._deferUntilIdle(batch, error)) return;
+            this._rejectAssetReloadWaiters(uuids, error instanceof Error ? error : new Error(String(error)));
+            return;
+        }
+        if (result !== ReloadResult.SUCCESS) {
+            this._rejectAssetReloadWaiters(uuids, new Error(`Prefab reload failed: ${String(result)}`));
+            return;
+        }
+        if (epoch !== this._epoch) return;
+        if (!this._sameSession(batch.session, this._getCurrentEditorSession())) {
+            this._rejectAssetReloadWaiters(uuids, new Error('Editor session changed during Prefab reload'));
+            return;
+        }
+        uuids.forEach(uuid => {
+            if (this._pending?.deletedUuids.has(uuid)) return;
+            this._emitAssetReload(uuid);
+            this._resolveAssetReloadWaiters(uuid);
+        });
+    }
+
+    private _deferUntilIdle(batch: IReloadBatch, error: unknown): boolean {
+        if (!this._retryWhenIdle) return false;
+        const pending = this._pending;
+        if (pending && !this._sameSession(batch.session, pending.session)) return false;
+        // Preserve the failed batch while incorporating notifications received during its attempt.
+        const assetUuids = new Set(batch.assetUuids);
+        pending?.deletedUuids.forEach(uuid => assetUuids.delete(uuid));
+        pending?.assetUuids.forEach(uuid => assetUuids.add(uuid));
+        const token = {};
+        this._retryToken = token;
+        this._pending = {
+            assetUuids,
+            deletedUuids: new Set([...(batch.deletedUuids), ...(pending?.deletedUuids ?? [])]),
+            preserveUndoHistory: assetUuids.size > 0 && (batch.preserveUndoHistory || !!pending?.preserveUndoHistory),
+            session: batch.session,
+        };
+        if (this._retryWhenIdle(error, () => {
+            if (this._retryToken !== token) return;
+            this._retryToken = null;
+            this._scheduleFlush();
+        })) return true;
+        this._retryToken = null;
+        this._pending = pending;
+        return false;
+    }
+
+    private _sameSession(left: IEditorSessionSnapshot, right: IEditorSessionSnapshot): boolean {
+        return left.uuid === right.uuid && left.generation === right.generation;
     }
 
     private _rejectAssetReloadWaiters(uuids: string[], error: Error): void {
@@ -221,7 +262,7 @@ export class PrefabSoftReloadScheduler {
     }
 
     private _resolveIdleWaitersIfIdle(): void {
-        if (this._timer || this._flushPromise || this._idleWaiters.size === 0) {
+        if (this._pending || this._timer || this._flushPromise || this._idleWaiters.size === 0) {
             return;
         }
 

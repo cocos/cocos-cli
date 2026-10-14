@@ -46,6 +46,13 @@ export class PrefabService extends BaseService<IPrefabEvents> implements IPrefab
         },
         (uuid) => ServiceEvents.emit('prefab:asset-reload', uuid),
         getCurrentEditorSession,
+        undefined,
+        undefined,
+        (error, retry) => {
+            if (!(error instanceof PrefabWriteConflict) || error.code !== 'PREFAB_BUSY' || !prefabWriteSession.editing) return false;
+            prefabWriteSession.whenIdle(retry);
+            return true;
+        },
     );
     private _undo = new PrefabUndoHelper();
     private _utils = prefabUtils;

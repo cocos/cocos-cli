@@ -273,9 +273,95 @@ describe('PrefabSoftReloadScheduler', () => {
         await flushPromises();
         expect(onReload).toHaveBeenCalledTimes(1);
     });
+    it('keeps idle pending while an edit blocks reload and coalesces changes and deletions', async () => {
+        let retry!: () => void;
+        const busy = new Error('busy');
+        const reload = jest.fn().mockRejectedValueOnce(busy).mockResolvedValue(ReloadResult.SUCCESS);
+        const emit = jest.fn();
+        const onIdle = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(reload, emit, () => ({ uuid: 'scene', generation: 1 }), 500, 10000,
+            (error, callback) => { expect(error).toBe(busy); retry = callback; return true; });
+        scheduler.schedule({ changedUuid: 'a', preserveUndoHistory: true });
+        void scheduler.waitForIdle().then(onIdle);
+        await jest.advanceTimersByTimeAsync(500);
+        expect(onIdle).not.toHaveBeenCalled();
+        scheduler.schedule({ changedUuid: 'a' });
+        scheduler.schedule({ deletedUuid: 'a' });
+        scheduler.schedule({ changedUuid: 'b' });
+        await jest.advanceTimersByTimeAsync(5000);
+        expect(reload).toHaveBeenCalledTimes(1);
+        retry();
+        await jest.advanceTimersByTimeAsync(500);
+        expect(reload).toHaveBeenCalledTimes(2);
+        expect(reload).toHaveBeenLastCalledWith({ urlOrUUID: 'scene', preserveUndoHistory: false }, { uuid: 'scene', generation: 1 });
+        expect(emit.mock.calls).toEqual([['b']]);
+        expect(onIdle).toHaveBeenCalledTimes(1);
+    });
+
+    it('merges notifications received during a failed attempt without resurrecting deleted assets', async () => {
+        let reject!: (error: Error) => void;
+        let retry!: () => void;
+        const reload = jest.fn().mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }))
+            .mockResolvedValue(ReloadResult.SUCCESS);
+        const emit = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(reload, emit, () => ({ uuid: 'scene', generation: 1 }), 500, 10000,
+            (_error, callback) => { retry = callback; return true; });
+        scheduler.schedule({ changedUuid: 'a' });
+        await jest.advanceTimersByTimeAsync(500);
+        scheduler.schedule({ changedUuid: 'b' });
+        scheduler.schedule({ deletedUuid: 'a' });
+        await jest.advanceTimersByTimeAsync(500);
+        expect(reload).toHaveBeenCalledTimes(1);
+        reject(new Error('busy'));
+        await flushPromises();
+        retry();
+        await jest.advanceTimersByTimeAsync(500);
+        expect(emit.mock.calls).toEqual([['b']]);
+    });
+
+    it('cancels a deferred retry on invalidation and releases idle waiters', async () => {
+        let retry!: () => void;
+        const reload = jest.fn().mockRejectedValue(new Error('busy'));
+        const emit = jest.fn();
+        const scheduler = new PrefabSoftReloadScheduler(reload, emit, () => ({ uuid: 'scene', generation: 1 }), 500, 10000,
+            (_error, callback) => { retry = callback; return true; });
+        const waiter = scheduler.waitForAssetReload('a').promise.catch(error => error);
+        scheduler.schedule({ changedUuid: 'a' });
+        const idle = scheduler.waitForIdle();
+        await jest.advanceTimersByTimeAsync(500);
+        scheduler.invalidate();
+        await expect(waiter).resolves.toMatchObject({ message: 'Editor session changed' });
+        await idle;
+        retry();
+        await jest.advanceTimersByTimeAsync(500);
+        expect(reload).toHaveBeenCalledTimes(1);
+        expect(emit).not.toHaveBeenCalled();
+    });
+
+    it('does not let an invalidated in-flight failure reject a new session waiter', async () => {
+        let reject!: (error: Error) => void;
+        let session = { uuid: 'scene', generation: 1 };
+        const reload = jest.fn().mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }))
+            .mockResolvedValue(ReloadResult.SUCCESS);
+        const scheduler = new PrefabSoftReloadScheduler(reload, jest.fn(), () => session);
+        scheduler.schedule({ changedUuid: 'a' });
+        await jest.advanceTimersByTimeAsync(500);
+        scheduler.invalidate();
+        session = { uuid: 'other-scene', generation: 2 };
+        const done = jest.fn();
+        const failed = jest.fn();
+        void scheduler.waitForAssetReload('a').promise.then(done, failed);
+        scheduler.schedule({ changedUuid: 'a' });
+        reject(new Error('old session failed'));
+        await flushPromises();
+        expect(failed).not.toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(500);
+        expect(done).toHaveBeenCalledTimes(1);
+        expect(failed).not.toHaveBeenCalled();
+    });
+
 });
 
 async function flushPromises(): Promise<void> {
-    await Promise.resolve();
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(0);
 }
