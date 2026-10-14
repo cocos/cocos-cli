@@ -10,6 +10,8 @@ import { assetManager } from '../assets';
 import { getEngineDynamicConfigContribution, getEngineRenderConfig, getLocalizedEngineRenderConfig } from './dynamic-metadata';
 import { createEngineMetadataNodes } from './metadata';
 import i18n from '../base/i18n';
+import { applyEditorDesignResolution, installHeadlessScreen } from './editor-design-resolution';
+import { loadHeadlessDesignResolution } from './headless-design-resolution';
 import {
     CUSTOM_PIPELINE_MODULE,
     CUSTOM_PIPELINE_NAME_KEY,
@@ -496,6 +498,8 @@ class EngineManager implements IEngine {
         });
         await this.initEditorExtensions();
 
+        const designResolution = info.designResolution ?? this.getConfig().designResolution;
+        installHeadlessScreen(cc, designResolution);
         const modules = this.getConfig().includeModules || [];
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality, renderPipeline, customPipeline, customJointTextureLayouts } = this.getConfig();
         const enableCustomPipeline = info.enableCustomPipeline ?? customPipeline;
@@ -523,6 +527,7 @@ class EngineManager implements IEngine {
                 screen: {
                     frameRate: 30,
                     exactFitScreen: true,
+                    designResolution,
                 },
                 rendering: {
                     renderMode: 3,
@@ -553,6 +558,8 @@ class EngineManager implements IEngine {
             await onBeforeGameInit();
         }
         await cc.game.init(defaultConfig);
+        // EDITOR mode skips settings.screen.designResolution inside View.init().
+        applyEditorDesignResolution(cc, designResolution, true);
         if (onAfterGameInit) {
             await onAfterGameInit();
         }
@@ -707,8 +714,10 @@ export { Engine };
  */
 export async function initEngine(enginePath: string, projectPath: string, serverURL?: string) {
     await Engine.init(enginePath);
+    const designResolution = await loadHeadlessDesignResolution(projectPath, serverURL, Engine.getConfig().designResolution);
     // 这里 importBase 与 nativeBase 用服务器是为了让服务器转换资源真实存放的路径
     await Engine.initEngine({
+        designResolution,
         serverURL: serverURL,
         importBase: serverURL ?? join(projectPath, 'library'),
         nativeBase: serverURL ?? join(projectPath, 'library'),
