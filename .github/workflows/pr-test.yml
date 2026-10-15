@@ -146,4 +146,3 @@ jobs:
         uses: ./.github/actions/check-e2e-coverage
         with:
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
-

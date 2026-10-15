@@ -26,7 +26,7 @@ export default class Launcher {
     private _init = false;
     private _import = false;
 
-    constructor(projectPath: string) {
+    constructor(projectPath: string, private options: { enginePath?: string } = {}) {
         this.projectPath = projectPath;
         // 初始化日志系统
         newConsole.init(join(this.projectPath, 'temp', 'logs', 'cocos.log'), true);
@@ -37,7 +37,6 @@ export default class Launcher {
         if (this._init) {
             return;
         }
-        this._init = true;
         /**
          * 初始化一些基础模块信息
          */
@@ -47,6 +46,10 @@ export default class Launcher {
         });
         const { configurationManager } = await import('./configuration');
         await configurationManager.initialize(this.projectPath);
+        const { selectProjectEngine } = await import('./engine/selection');
+        const selectedEngine = await selectProjectEngine(this.projectPath, this.options.enginePath);
+        const { checkEngineCompatibility } = require('../../workflow/engine-compatibility');
+        checkEngineCompatibility(selectedEngine, GlobalPaths.workspace, 'web');
         // 初始化项目信息
         const { default: Project } = await import('./project');
         await Project.open(this.projectPath);
@@ -54,6 +57,7 @@ export default class Launcher {
         const { initEngine } = await import('./engine');
         await initEngine(GlobalPaths.enginePath, this.projectPath);
         console.log('initEngine success');
+        this._init = true;
     }
 
     /**
@@ -63,7 +67,6 @@ export default class Launcher {
         if (this._import) {
             return;
         }
-        this._import = true;
         await this.init();
         // 在导入资源之前，初始化 scripting 模块，才能正常导入编译脚本
         const { Engine } = await import('./engine');
@@ -76,6 +79,7 @@ export default class Launcher {
         const { initAssetDB, startAssetDB } = await import('./assets');
         await initAssetDB();
         await startAssetDB();
+        this._import = true;
     }
 
     /**

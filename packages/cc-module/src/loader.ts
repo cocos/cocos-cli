@@ -27,6 +27,9 @@ export class EngineLoader {
             default: IEngineLoader;
         };
 
+        if (!loaderModule.default || typeof loaderModule.default.import !== 'function') {
+            throw new Error(`Engine loader at ${engineDevPath} must export default.import()`);
+        }
         return loaderModule.default;
     }
 
@@ -71,9 +74,11 @@ export class EngineLoader {
 
         for (const module of modules) {
             try {
-                EngineLoader.engineModules[module] = await this.loader!.import(module);
+                const loaded = await this.loader!.import(module);
+                if (loaded == null) throw new Error('Module returned no exports');
+                EngineLoader.engineModules[module] = loaded;
             } catch (e) {
-                console.error(`Failed to load engine module: ${module}  e: ${e}`);
+                throw new Error(`Failed to load required engine module ${module}: ${e}`);
             }
         }
     }

@@ -197,6 +197,8 @@ async function updateRepos() {
  */
 async function installDeps() {
     await runCommand('npm', ['install'], { cwd: context.rootDir });
+    await runCommand('npm', ['run', 'install:engine'], { cwd: context.rootDir });
+    await runCommand('npm', ['run', 'setup:dev', '--', '--force'], { cwd: context.rootDir });
 }
 
 /**
