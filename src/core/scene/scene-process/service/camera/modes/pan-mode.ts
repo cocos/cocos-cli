@@ -1,59 +1,47 @@
-import { Vec3 } from 'cc';
+import type { Vec3 } from 'cc';
 import ModeBase3D from './mode-base-3d';
 import { CameraMoveMode } from '../utils';
 import type { ISceneMouseEvent } from '../../operation/types';
 import type { CameraController3D } from '../camera-controller-3d';
 import { enterCameraState, exitCameraState, NeedAnimState } from './engine-state';
 
-const v3a = new Vec3();
-const v3b = new Vec3();
-
 class PanMode extends ModeBase3D {
-    private _right = new Vec3();
-    private _up = new Vec3();
-    private _panningSpeed = 0.4;
+    private _reference?: Vec3;
 
     constructor(cameraCtrl: CameraController3D) {
         super(cameraCtrl, CameraMoveMode.PAN);
     }
 
-    public async enter() {
-        const node = this._cameraCtrl.node;
-        node.getWorldRotation(this._curRot);
-
-        Vec3.transformQuat(this._right, Vec3.UNIT_X, this._curRot);
-        Vec3.normalize(this._right, this._right);
-        Vec3.transformQuat(this._up, Vec3.UNIT_Y, this._curRot);
-        Vec3.normalize(this._up, this._up);
+    /**
+     * 进入平移模式并记录本次拖动的参考点
+     *
+     * 空格键进入时没有鼠标坐标，参考点延迟到首次移动时确定
+     */
+    public async enter(options?: { event?: ISceneMouseEvent }) {
+        const event = options?.event;
+        this._reference = event ? this._cameraCtrl.getPanPoint(event.x, event.y) : undefined;
 
         this._cameraCtrl.emit('camera-move-mode', CameraMoveMode.PAN);
         enterCameraState(NeedAnimState.CAMERA_PAN);
     }
 
+    /** 结束拖动并同步聚焦点，为后续环绕和缩放提供参考 */
     public async exit() {
+        this._reference = undefined;
         this._cameraCtrl.updateViewCenterByDist(-this._cameraCtrl.viewDist);
+
         exitCameraState(NeedAnimState.CAMERA_PAN);
     }
 
+    /** 按本次拖动固定的参考深度处理鼠标位移 */
     onMouseMove(event: ISceneMouseEvent): boolean {
-        const dx = event.moveDeltaX;
-        const dy = event.moveDeltaY;
-        const scalar = this._cameraCtrl.viewDist / 800;
+        // 用当前位置减去本次增量还原起点，后续移动复用同一个参考点
+        this._reference ??= this._cameraCtrl.getPanPoint(
+            event.x - event.moveDeltaX,
+            event.y - event.moveDeltaY,
+        );
 
-        Vec3.multiplyScalar(v3a, this._right, -dx * this._panningSpeed * scalar);
-        Vec3.multiplyScalar(v3b, this._up, dy * this._panningSpeed * scalar);
-
-        this._cameraCtrl.node.getWorldPosition(this._curPos);
-        Vec3.add(this._curPos, this._curPos, v3a);
-        Vec3.add(this._curPos, this._curPos, v3b);
-        this._cameraCtrl.node.setWorldPosition(this._curPos);
-
-        Vec3.add(this._cameraCtrl.sceneViewCenter, this._cameraCtrl.sceneViewCenter, v3a);
-        Vec3.add(this._cameraCtrl.sceneViewCenter, this._cameraCtrl.sceneViewCenter, v3b);
-        this._cameraCtrl.viewDist = Vec3.distance(this._curPos, this._cameraCtrl.sceneViewCenter);
-
-        this._cameraCtrl.updateGrid();
-
+        this._cameraCtrl.pan(event.moveDeltaX, event.moveDeltaY, this._reference);
         return false;
     }
 }

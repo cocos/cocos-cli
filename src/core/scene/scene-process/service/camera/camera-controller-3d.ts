@@ -397,9 +397,23 @@ export function smoothMouseWheelScale(delta: number): number {
 // ---------- constants ----------
 
 const _maxTicks = 100;
-
 const ORTHO = Camera.ProjectionType.ORTHO;
 const PERSPECTIVE = Camera.ProjectionType.PERSPECTIVE;
+
+// 基准高度下网格向相机两侧各延伸的距离，单位为世界单位
+const gridRange = 5000;
+
+// 网格范围随相机高度等比缩放时使用的基准高度，单位为世界单位
+const gridReferenceHeight = 500;
+
+/**
+ * 按相机高度计算网格单侧延伸量，供绘制与交点范围检查共用
+ *
+ * 结果向零取整并转换为有符号的 32 位整数
+ */
+function getGridHalfExtent(cameraHeight: number): number {
+    return (gridRange * (cameraHeight / gridReferenceHeight)) | 0;
+}
 
 enum ModeCommand {
     ToIdle = 'toIdle',
@@ -413,6 +427,12 @@ export class CameraController3D extends CameraControllerBase {
     private v3b = new Vec3();
     private v3c = new Vec3();
     private v3d = new Vec3();
+
+    // 缩放前的世界锚点需保留到位置补偿结束
+    private _zoomAnchor = new Vec3();
+
+    private _inputRay = new geometry.Ray();
+    private _inputPlane = new geometry.Plane();
 
     protected _wheelSpeed = 0.01;
     protected _near = 0.1;
@@ -557,17 +577,14 @@ export class CameraController3D extends CameraControllerBase {
         const cameraPos = new Vec3();
         this.node.getPosition(cameraPos);
 
-        const distance = cameraPos.y;
-        const scale = distance / 500;
-        const range = 5000;
-        const scaleRange = (range * scale) | 0;
+        const scaleRange = getGridHalfExtent(cameraPos.y);
 
         const curStartX = -scaleRange + cameraPos.x;
         const curEndX = scaleRange + cameraPos.x;
         const curStartY = -scaleRange + cameraPos.z;
         const curEndY = scaleRange + cameraPos.z;
-        this.hTicks?.range(curStartX, curEndX, range);
-        this.vTicks?.range(curStartY, curEndY, range);
+        this.hTicks?.range(curStartX, curEndX, gridRange);
+        this.vTicks?.range(curStartY, curEndY, gridRange);
 
         return {
             startX: curStartX,
@@ -698,9 +715,9 @@ export class CameraController3D extends CameraControllerBase {
     }
 
     // ---------- 模式切换 ----------
-    changeMode(modeCommand: ModeCommand) {
+    changeMode(modeCommand: ModeCommand, event?: ISceneMouseEvent) {
         if (!this._modeFSM) return;
-        this._modeFSM.issueCommand(modeCommand);
+        this._modeFSM.issueCommand(modeCommand, { event });
         let mode = CameraMoveMode.IDLE;
         switch (modeCommand) {
             case ModeCommand.ToIdle: mode = CameraMoveMode.IDLE; break;
@@ -731,33 +748,174 @@ export class CameraController3D extends CameraControllerBase {
         Vec3.add(this._sceneViewCenter, this._curEye, this.v3a);
     }
 
+    // ---------- 输入投影 ----------
+
+    /**
+     * 同步相机并更新鼠标位置对应的世界射线
+     *
+     * 输入为渲染画布左上角起算的像素坐标，视口或射线无效时返回 false
+     */
+    private _updateInputRay(x: number, y: number): boolean {
+        const camera = this._camera.camera;
+        if (!camera || camera.width <= 0 || camera.height <= 0) {
+            return false;
+        }
+
+        // 输入可能发生在下一帧渲染前，需要先同步相机位置和投影矩阵
+        camera.update();
+        return !!camera.screenPointToRay(this._inputRay, x, camera.height - y);
+    }
+
+    /**
+     * 将鼠标位置投影到经过参考点、垂直于视线的平面
+     *
+     * 参考点默认为聚焦点，输入使用渲染画布左上角像素
+     * 视口无效或射线无法向前命中时返回 false，不修改输出向量
+     */
+    private _screenToViewPlane(
+        out: Vec3, x: number, y: number, reference = this._sceneViewCenter,
+    ): boolean {
+        if (!this._updateInputRay(x, y)) {
+            return false;
+        }
+
+        // 使用朝向相机的平面，让同一参考深度上的像素位移对应一致的世界位移
+        this.node.getWorldRotation(this._curRot);
+        Vec3.transformQuat(this.forward, Vec3.UNIT_Z, this._curRot);
+        geometry.Plane.fromNormalAndPoint(this._inputPlane, this.forward, reference);
+
+        const distance = geometry.intersect.rayPlane(this._inputRay, this._inputPlane);
+        if (!Number.isFinite(distance) || distance <= 0) {
+            return false;
+        }
+
+        Vec3.scaleAndAdd(out, this._inputRay.o, this._inputRay.d, distance);
+        return true;
+    }
+
+    /** 同步平移相机与聚焦点，保持后续环绕和缩放的参考深度 */
+    private _translateView(delta: Vec3): void {
+        this.node.getWorldPosition(this._curEye);
+        Vec3.add(this._curEye, this._curEye, delta);
+        this.node.setWorldPosition(this._curEye);
+
+        Vec3.add(this._sceneViewCenter, this._sceneViewCenter, delta);
+        this.viewDist = Vec3.distance(this._curEye, this._sceneViewCenter);
+    }
+
+    // ---------- 平移 ----------
+
+    /**
+     * 获取一次拖动使用的平移参考点
+     *
+     * 透视视图采用网格覆盖范围和相机裁剪范围内的交点，其他情况使用聚焦点
+     * 返回独立快照，拖动过程中不会随相机或聚焦点变化
+     */
+    getPanPoint(x: number, y: number): Vec3 {
+        const focusPoint = this._sceneViewCenter.clone();
+        const gridNode = this._gridMeshComp?.node;
+        if (this.isOrtho() || !gridNode?.active || !this._updateInputRay(x, y)) {
+            return focusPoint;
+        }
+
+        // 空白网格也有实际深度，使用网格节点的世界变换构建平面
+        Vec3.transformQuat(this.v3a, Vec3.UNIT_Z, gridNode.worldRotation);
+        geometry.Plane.fromNormalAndPoint(this._inputPlane, this.v3a, gridNode.worldPosition);
+        const distance = geometry.intersect.rayPlane(this._inputRay, this._inputPlane);
+        if (!Number.isFinite(distance) || distance <= 0) {
+            return focusPoint;
+        }
+
+        // 裁剪面按视线方向的深度判断，不能直接使用斜射线上的距离
+        const point = Vec3.scaleAndAdd(new Vec3(), this._inputRay.o, this._inputRay.d, distance);
+        this.node.getWorldPosition(this._curEye);
+        this.node.getWorldRotation(this._curRot);
+        Vec3.transformQuat(this.forward, Vec3.UNIT_Z, this._curRot);
+        Vec3.subtract(this.v3b, this._curEye, point);
+        const depth = Vec3.dot(this.v3b, this.forward);
+        const withinClipRange = depth >= this._camera.near && depth <= this._camera.far;
+        if (!withinClipRange) {
+            return focusPoint;
+        }
+
+        // 网格顶点位于局部 XY 平面；只接受绘制范围内的交点，避免平视时取到远处延长线
+        const localPoint = gridNode.inverseTransformPoint(this.v3a, point);
+        const cameraPosition = this.node.getPosition(this.v3c);
+        const halfExtent = Math.abs(getGridHalfExtent(cameraPosition.y));
+        const withinGrid = Math.abs(localPoint.x - cameraPosition.x) < halfExtent
+            && Math.abs(localPoint.y - cameraPosition.z) < halfExtent;
+
+        return withinGrid ? point : focusPoint;
+    }
+
+    /** 在本次拖动的参考深度上按鼠标的渲染像素位移平移场景 */
+    pan(deltaX: number, deltaY: number, reference = this._sceneViewCenter): void {
+        // 视平面上的位移与起点无关，用两个屏幕点求差即可换算鼠标增量
+        if (!this._screenToViewPlane(this.v3a, 0, 0, reference)
+            || !this._screenToViewPlane(this.v3b, deltaX, deltaY, reference)) {
+            return;
+        }
+
+        Vec3.subtract(this.v3c, this.v3a, this.v3b);
+        this._translateView(this.v3c);
+        this.updateGrid();
+    }
+
     // ---------- 缩放 ----------
 
-    scale(delta: number) {
-        let scalar = this.viewDist;
-        if (Math.abs(scalar) < this._minScalar) {
-            scalar = 1;
-        }
+    /**
+     * 缩放视图并保持鼠标下方的世界锚点
+     *
+     * 未提供完整鼠标坐标或无法投影时，仅执行以视图中心为基准的缩放
+     */
+    scale(delta: number, offsetX?: number, offsetY?: number): void {
+        // 先记录缩放前的世界锚点，避免投影变化后丢失补偿位置
+        const hasAnchor = offsetX !== undefined && offsetY !== undefined
+            && this._screenToViewPlane(this._zoomAnchor, offsetX, offsetY);
+        const distanceScale = Math.abs(this.viewDist) < this._minScalar ? 1 : this.viewDist;
+
+        // 正交视图调整可见高度，透视视图沿视线移动相机
         if (this.isOrtho()) {
-            let newOrthoHeight = this._camera.orthoHeight;
-            newOrthoHeight += delta * this._wheelSpeed * scalar * this._orthoScale;
+            const newOrthoHeight = this._camera.orthoHeight
+                + delta * this._wheelSpeed * distanceScale * this._orthoScale;
             this.setOrthoHeight(newOrthoHeight);
         } else {
-            delta = this.smoothScale(delta);
-            this.node.getWorldPosition(this._curEye);
-            this.node.getWorldRotation(this._curRot);
-            Vec3.transformQuat(this.forward, Vec3.UNIT_Z, this._curRot);
+            this._scalePerspective(delta, distanceScale, hasAnchor);
+        }
 
-            Vec3.multiplyScalar(this.v3a, this.forward, delta * this._wheelSpeed * scalar);
-            Vec3.add(this._curEye, this._curEye, this.v3a);
-            makeVec3InRange(this._curEye, -1e12, 1e12);
-
-            this.viewDist = Vec3.distance(this._curEye, this._sceneViewCenter);
-            this.node.setWorldPosition(this._curEye);
+        // 同一屏幕位置重新投影后，用前后差值同步平移相机与聚焦点
+        if (hasAnchor && this._screenToViewPlane(this.v3b, offsetX, offsetY)) {
+            Vec3.subtract(this.v3c, this._zoomAnchor, this.v3b);
+            this._translateView(this.v3c);
         }
 
         this.updateGrid();
         Service.Engine?.repaintInEditMode?.();
+    }
+
+    /**
+     * 沿视线移动透视相机，并更新相机到聚焦点的距离
+     *
+     * 保持鼠标锚点时，将聚焦平面留在近裁剪面之外，避免相机越过锚点
+     */
+    private _scalePerspective(delta: number, distanceScale: number, keepFocusPlane: boolean): void {
+        this.node.getWorldPosition(this._curEye);
+        this.node.getWorldRotation(this._curRot);
+        Vec3.transformQuat(this.forward, Vec3.UNIT_Z, this._curRot);
+
+        // 直接从相机和聚焦点计算深度，不依赖输入投影使用的临时平面
+        let distance = this.smoothScale(delta) * this._wheelSpeed * distanceScale;
+        if (keepFocusPlane) {
+            Vec3.subtract(this.v3a, this._curEye, this._sceneViewCenter);
+            const depth = Vec3.dot(this.v3a, this.forward);
+            const minDepth = Math.max(this._camera.near * 1.01, 0.01);
+            distance = Math.max(distance, minDepth - depth);
+        }
+
+        Vec3.scaleAndAdd(this._curEye, this._curEye, this.forward, distance);
+        makeVec3InRange(this._curEye, -1e12, 1e12);
+        this.viewDist = Vec3.distance(this._curEye, this._sceneViewCenter);
+        this.node.setWorldPosition(this._curEye);
     }
 
     smoothScale(delta: number) {
@@ -765,6 +923,38 @@ export class CameraController3D extends CameraControllerBase {
     }
 
     // ---------- 焦点 ----------
+
+    /**
+     * 将相机移动到目标位置，并让动画轨迹跟随聚焦点的平移
+     *
+     * 目标位置使用节点局部坐标，动画期间的聚焦点世界位移同步叠加到每一帧
+     */
+    private _animatePosition(target: Vec3): void {
+        const startPosition = this.node.getPosition();
+        const referenceCenter = this._sceneViewCenter.clone();
+
+        tweenPosition(startPosition, target, 300).step(position => {
+            // 输入产生的世界位移需转换到节点局部空间，再应用于相机轨迹
+            const parent = this.node.parent;
+            if (parent) {
+                parent.inverseTransformPoint(this.v3a, this._sceneViewCenter);
+                parent.inverseTransformPoint(this.v3b, referenceCenter);
+                Vec3.subtract(this.v3a, this.v3a, this.v3b);
+            } else {
+                Vec3.subtract(this.v3a, this._sceneViewCenter, referenceCenter);
+            }
+            Vec3.add(this.v3a, position, this.v3a);
+            this.node.setPosition(this.v3a);
+
+            // 相机与聚焦点保持同一平移量，后续投影切换可继续使用一致的距离状态
+            this.node.getWorldPosition(this._curEye);
+            this.viewDist = Vec3.distance(this._curEye, this._sceneViewCenter);
+
+            this.updateGrid();
+            Service.Engine?.repaintInEditMode?.();
+        });
+    }
+
     private focusByNode(nodes: Node[], notChangeDist = true, immediate = false) {
         if (nodes.length === 0) return;
 
@@ -837,14 +1027,7 @@ export class CameraController3D extends CameraControllerBase {
             this.updateGrid();
             Service.Engine?.repaintInEditMode?.();
         } else {
-            const startPosition = this.node.getPosition();
-            tweenPosition(startPosition, this.v3d, 300).step((position: Vec3) => {
-                this.node.setPosition(position);
-                Vec3.copy(this._curEye, position);
-                this.viewDist = Vec3.distance(position, this._sceneViewCenter);
-                this.updateGrid();
-                Service.Engine?.repaintInEditMode?.();
-            });
+            this._animatePosition(this.v3d);
         }
     }
 
@@ -853,7 +1036,6 @@ export class CameraController3D extends CameraControllerBase {
         if (!this._camera?.camera) return;
 
         if (editorCameraInfo) {
-            const startPosition = this.node.getPosition();
             const startRotation = this.node.getRotation();
             const { position, rotation, viewCenter } = editorCameraInfo;
 
@@ -888,11 +1070,7 @@ export class CameraController3D extends CameraControllerBase {
                 this.updateGrid();
                 Service.Engine?.repaintInEditMode?.();
             } else {
-                tweenPosition(startPosition, this._curEye, 300).step((position: Vec3) => {
-                    this.node.setPosition(position);
-                    this.updateGrid();
-                    Service.Engine?.repaintInEditMode?.();
-                });
+                this._animatePosition(this._curEye);
                 tweenRotation(startRotation, this._curRot, 300).step((rotation: Quat) => {
                     this.node.setRotation(rotation);
                     this.updateGrid();
@@ -1037,7 +1215,7 @@ export class CameraController3D extends CameraControllerBase {
 
         const isViewMode = !!Service.Gizmo?.isViewMode;
         if (event.middleButton || (!event.rightButton && isViewMode)) {
-            this.changeMode(ModeCommand.ToPan);
+            this.changeMode(ModeCommand.ToPan, event);
         } else if (event.rightButton && !event.leftButton) {
             this.changeMode(ModeCommand.ToWander);
         } else if (event.leftButton) {
@@ -1096,7 +1274,7 @@ export class CameraController3D extends CameraControllerBase {
             if (Math.abs(deltaY - this.lastMouseWheelDeltaY) > this.maxMouseWheelDeltaY) {
                 deltaY = this.lastMouseWheelDeltaY + Math.sign(deltaY) * this.maxMouseWheelDeltaY;
             }
-            this.scale(deltaY * this._wheelBaseScale);
+            this.scale(deltaY * this._wheelBaseScale, event.x, event.y);
         }
 
         (this._modeFSM.currentState as ModeBase3D).onMouseWheel(event);
@@ -1166,17 +1344,14 @@ export class CameraController3D extends CameraControllerBase {
         const cameraPos = new Vec3();
         this.node.getPosition(cameraPos);
 
-        const distance = cameraPos.y;
-        const scale = distance / 500;
-        const range = 5000;
-        const scaleRange = (range * scale) | 0;
+        const scaleRange = getGridHalfExtent(cameraPos.y);
 
         const curStartX = -scaleRange + cameraPos.x;
         const curEndX = scaleRange + cameraPos.x;
         const curStartY = -scaleRange + cameraPos.z;
         const curEndY = scaleRange + cameraPos.z;
-        this.hTicks.range(curStartX, curEndX, range);
-        this.vTicks.range(curStartY, curEndY, range);
+        this.hTicks.range(curStartX, curEndX, gridRange);
+        this.vTicks.range(curStartY, curEndY, gridRange);
 
         const r = lineColor.r / 255;
         const g = lineColor.g / 255;
@@ -1261,9 +1436,7 @@ export class CameraController3D extends CameraControllerBase {
     // ---------- 旋转相机到指定方向 ----------
 
     rotateCameraToDir(dir: Vec3, rotateByViewDist: boolean) {
-        const startPosition = new Vec3();
         const startRotation = new Quat();
-        this.node.getPosition(startPosition);
         this.node.getRotation(startRotation);
 
         Quat.rotationTo(this._curRot, Vec3.UNIT_Z, dir);
@@ -1275,11 +1448,7 @@ export class CameraController3D extends CameraControllerBase {
             Vec3.add(this._curEye, this._sceneViewCenter, offset);
         }
 
-        tweenPosition(startPosition, this._curEye, 300).step((position: Vec3) => {
-            this.node.setPosition(position);
-            this.updateGrid();
-            Service.Engine?.repaintInEditMode?.();
-        });
+        this._animatePosition(this._curEye);
         tweenRotation(startRotation, this._curRot, 300).step((rotation: Quat) => {
             this.node.setRotation(rotation);
             this.updateGrid();
@@ -1314,7 +1483,7 @@ export class CameraController3D extends CameraControllerBase {
     }
 
     setOrthoHeight(newOrthoHeight: number) {
-        if (newOrthoHeight < 0) {
+        if (newOrthoHeight <= 0) {
             newOrthoHeight = 0.01;
         }
         this._camera.orthoHeight = newOrthoHeight;

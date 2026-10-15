@@ -35,17 +35,22 @@ function stopAnim() {
     time = 0;
 }
 
+/**
+ * 在固定的起止位置之间执行插值
+ *
+ * 构造时复制起止值，调用方后续复用向量不会改变动画轨迹
+ */
 export class PositionAnimation {
     public target: Vec3 = cc.v3();
-    public func: Function | null = null;
+    public func: ((position: Vec3) => void) | null = null;
     public start: Vec3 = new Vec3();
     public end: Vec3 = new Vec3();
     public travel = 0;
     public time = 0;
 
     constructor(start: Vec3, end: Vec3, time: number) {
-        this.start = start;
-        this.end = end;
+        Vec3.copy(this.start, start);
+        Vec3.copy(this.end, end);
         this.time = time;
     }
 
@@ -53,26 +58,31 @@ export class PositionAnimation {
         this.travel += time;
         const t = Math.min(this.travel / this.time, 1);
         cc.Vec3.lerp(this.target, this.start, this.end, t);
-        this.func && this.func(this.target);
+        this.func?.(this.target);
         return t < 1;
     }
 
-    public step(func: Function | null) {
+    public step(func: ((position: Vec3) => void) | null) {
         this.func = func;
     }
 }
 
+/**
+ * 在固定的起止朝向之间执行插值
+ *
+ * 构造时复制起止值，调用方后续复用四元数不会改变动画轨迹
+ */
 export class RotationAnimation {
     public target: Quat = cc.quat();
-    public func: Function | null = null;
+    public func: ((rotation: Quat) => void) | null = null;
     public start = new Quat();
     public end = new Quat();
     public travel = 0;
     public time = 0;
 
     constructor(start: Quat, end: Quat, time: number) {
-        this.start = start;
-        this.end = end;
+        Quat.copy(this.start, start);
+        Quat.copy(this.end, end);
         this.time = time;
     }
 
@@ -80,18 +90,18 @@ export class RotationAnimation {
         this.travel += time;
         const t = Math.min(this.travel / this.time, 1);
         Quat.slerp(this.target, this.start, this.end, t);
-        this.func && this.func(this.target);
+        this.func?.(this.target);
         return t < 1;
     }
 
-    public step(func: Function | null) {
+    public step(func: ((rotation: Quat) => void) | null) {
         this.func = func;
     }
 }
 
 export class NumberAnimation {
     public target = 0;
-    public func: Function | null = null;
+    public func: ((value: number) => void) | null = null;
     public start = 0;
     public end = 0;
     public travel = 0;
@@ -110,11 +120,11 @@ export class NumberAnimation {
         this.travel += time;
         const t = Math.min(this.travel / this.time, 1);
         this.target = (1 - t) * this.start + t * this.end;
-        this.func && this.func(this.target);
+        this.func?.(this.target);
         return t < 1;
     }
 
-    public step(func: Function | null) {
+    public step(func: ((value: number) => void) | null) {
         this.func = func;
     }
 }
