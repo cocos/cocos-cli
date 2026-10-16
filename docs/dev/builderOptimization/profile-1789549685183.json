@@ -1,0 +1,368 @@
+{
+  "meta": {
+    "taskId": "1789549685183",
+    "taskName": "web-mobile",
+    "platform": "web-mobile",
+    "logDest": "H:\\cocossolution\\cocos-cliori\\cocos-cli\\tests\\fixtures\\projects\\asset-operation\\temp\\builder\\log\\web-mobile-build-1789549685183.log",
+    "startTime": "2026-09-16T09:08:05.286Z",
+    "endTime": "2026-09-16T09:08:16.959Z",
+    "totalDurationMs": 11673,
+    "success": true,
+    "code": 0,
+    "dest": "project://build/web-mobile-test",
+    "env": {
+      "nodeVersion": "v22.23.1",
+      "platform": "win32",
+      "arch": "x64",
+      "cpuCount": 32,
+      "cpuModel": "Intel(R) Core(TM) i9-14900HX",
+      "totalMemoryMB": 32509
+    }
+  },
+  "entries": [
+    {
+      "name": "init",
+      "stage": "",
+      "startOffsetMs": 7,
+      "durationMs": 1,
+      "heapUsedStartMB": 856.1,
+      "heapUsedEndMB": 856.4,
+      "rssStartMB": 1070.9,
+      "rssEndMB": 1070.9
+    },
+    {
+      "name": "hook:web-mobile:onAfterInit",
+      "stage": "",
+      "startOffsetMs": 8,
+      "durationMs": 1,
+      "heapUsedStartMB": 856.4,
+      "heapUsedEndMB": 856.4,
+      "rssStartMB": 1070.9,
+      "rssEndMB": 1071
+    },
+    {
+      "name": "hook:web-mobile:onAfterBundleInit",
+      "stage": "initBundleManager",
+      "startOffsetMs": 18,
+      "durationMs": 0,
+      "heapUsedStartMB": 857.8,
+      "heapUsedEndMB": 857.9,
+      "rssStartMB": 1071.5,
+      "rssEndMB": 1071.5
+    },
+    {
+      "name": "initBundleManager",
+      "stage": "",
+      "startOffsetMs": 9,
+      "durationMs": 10,
+      "heapUsedStartMB": 856.5,
+      "heapUsedEndMB": 858,
+      "rssStartMB": 1071,
+      "rssEndMB": 1071.5
+    },
+    {
+      "name": "data-task/asset_bundle",
+      "stage": "dataTasks",
+      "startOffsetMs": 20,
+      "durationMs": 75,
+      "heapUsedStartMB": 858,
+      "heapUsedEndMB": 861.4,
+      "rssStartMB": 1071.5,
+      "rssEndMB": 1080.7
+    },
+    {
+      "name": "data-task/asset_script",
+      "stage": "dataTasks",
+      "startOffsetMs": 95,
+      "durationMs": 1,
+      "heapUsedStartMB": 861.6,
+      "heapUsedEndMB": 861.8,
+      "rssStartMB": 1080.8,
+      "rssEndMB": 1080.8
+    },
+    {
+      "name": "dataTasks",
+      "stage": "",
+      "startOffsetMs": 19,
+      "durationMs": 77,
+      "heapUsedStartMB": 858,
+      "heapUsedEndMB": 861.9,
+      "rssStartMB": 1071.5,
+      "rssEndMB": 1080.8
+    },
+    {
+      "name": "subprocess:build-polyfills",
+      "stage": "buildTasks",
+      "startOffsetMs": 98,
+      "durationMs": 8210,
+      "heapUsedStartMB": 862,
+      "heapUsedEndMB": 273.6,
+      "rssStartMB": 1080.8,
+      "rssEndMB": 430.7
+    },
+    {
+      "name": "subprocess:build-systemjs",
+      "stage": "buildTasks",
+      "startOffsetMs": 8308,
+      "durationMs": 1303,
+      "heapUsedStartMB": 273.6,
+      "heapUsedEndMB": 273.7,
+      "rssStartMB": 430.7,
+      "rssEndMB": 429.3
+    },
+    {
+      "name": "subprocess:build-script",
+      "stage": "buildTasks",
+      "startOffsetMs": 10442,
+      "durationMs": 424,
+      "heapUsedStartMB": 274.2,
+      "heapUsedEndMB": 274.2,
+      "rssStartMB": 431.7,
+      "rssEndMB": 431.8
+    },
+    {
+      "name": "Package scripts",
+      "stage": "buildTasks",
+      "startOffsetMs": 97,
+      "durationMs": 11054,
+      "heapUsedStartMB": 862,
+      "heapUsedEndMB": 275,
+      "rssStartMB": 1080.8,
+      "rssEndMB": 433
+    },
+    {
+      "name": "Build Assets",
+      "stage": "buildTasks",
+      "startOffsetMs": 11151,
+      "durationMs": 330,
+      "heapUsedStartMB": 275.1,
+      "heapUsedEndMB": 289.3,
+      "rssStartMB": 433,
+      "rssEndMB": 453.3
+    },
+    {
+      "name": "buildTasks",
+      "stage": "",
+      "startOffsetMs": 97,
+      "durationMs": 11385,
+      "heapUsedStartMB": 861.9,
+      "heapUsedEndMB": 289.4,
+      "rssStartMB": 1080.8,
+      "rssEndMB": 453.3
+    },
+    {
+      "name": "Organize some build option data to settings.json",
+      "stage": "settingTasks",
+      "startOffsetMs": 11483,
+      "durationMs": 0,
+      "heapUsedStartMB": 289.4,
+      "heapUsedEndMB": 289.5,
+      "rssStartMB": 453.4,
+      "rssEndMB": 453.4
+    },
+    {
+      "name": "Fill script data to settings.json",
+      "stage": "settingTasks",
+      "startOffsetMs": 11483,
+      "durationMs": 0,
+      "heapUsedStartMB": 289.5,
+      "heapUsedEndMB": 289.5,
+      "rssStartMB": 453.5,
+      "rssEndMB": 453.5
+    },
+    {
+      "name": "Organize some build option data to settings.json",
+      "stage": "settingTasks",
+      "startOffsetMs": 11484,
+      "durationMs": 1,
+      "heapUsedStartMB": 289.6,
+      "heapUsedEndMB": 289.8,
+      "rssStartMB": 453.7,
+      "rssEndMB": 454.5
+    },
+    {
+      "name": "settingTasks",
+      "stage": "",
+      "startOffsetMs": 11482,
+      "durationMs": 3,
+      "heapUsedStartMB": 289.4,
+      "heapUsedEndMB": 289.9,
+      "rssStartMB": 453.3,
+      "rssEndMB": 454.6
+    },
+    {
+      "name": "hook:web-mobile:onBeforeCompressSettings",
+      "stage": "",
+      "startOffsetMs": 11485,
+      "durationMs": 0,
+      "heapUsedStartMB": 289.9,
+      "heapUsedEndMB": 289.9,
+      "rssStartMB": 454.6,
+      "rssEndMB": 454.7
+    },
+    {
+      "name": "build-task/template",
+      "stage": "postprocessTasks",
+      "startOffsetMs": 11486,
+      "durationMs": 133,
+      "heapUsedStartMB": 290,
+      "heapUsedEndMB": 286,
+      "rssStartMB": 455,
+      "rssEndMB": 461
+    },
+    {
+      "name": "postprocessTasks",
+      "stage": "",
+      "startOffsetMs": 11486,
+      "durationMs": 133,
+      "heapUsedStartMB": 290,
+      "heapUsedEndMB": 286,
+      "rssStartMB": 454.8,
+      "rssEndMB": 461
+    },
+    {
+      "name": "hook:web-mobile:onBeforeCopyBuildTemplate",
+      "stage": "",
+      "startOffsetMs": 11619,
+      "durationMs": 24,
+      "heapUsedStartMB": 286,
+      "heapUsedEndMB": 290.3,
+      "rssStartMB": 461,
+      "rssEndMB": 461.1
+    },
+    {
+      "name": "copyBuildTemplate",
+      "stage": "",
+      "startOffsetMs": 11644,
+      "durationMs": 0,
+      "heapUsedStartMB": 290.4,
+      "heapUsedEndMB": 290.4,
+      "rssStartMB": 461.1,
+      "rssEndMB": 461.1
+    },
+    {
+      "name": "build-task/suffix",
+      "stage": "md5Tasks",
+      "startOffsetMs": 11645,
+      "durationMs": 25,
+      "heapUsedStartMB": 290.4,
+      "heapUsedEndMB": 288,
+      "rssStartMB": 461.1,
+      "rssEndMB": 463.4
+    },
+    {
+      "name": "md5Tasks",
+      "stage": "",
+      "startOffsetMs": 11645,
+      "durationMs": 25,
+      "heapUsedStartMB": 290.4,
+      "heapUsedEndMB": 288,
+      "rssStartMB": 461.1,
+      "rssEndMB": 463.4
+    },
+    {
+      "name": "hook:web-mobile:onAfterBuild",
+      "stage": "",
+      "startOffsetMs": 11670,
+      "durationMs": 1,
+      "heapUsedStartMB": 288,
+      "heapUsedEndMB": 288.2,
+      "rssStartMB": 463.4,
+      "rssEndMB": 463.6
+    },
+    {
+      "name": "postBuild",
+      "stage": "",
+      "startOffsetMs": 11671,
+      "durationMs": 1,
+      "heapUsedStartMB": 288.3,
+      "heapUsedEndMB": 288.3,
+      "rssStartMB": 463.6,
+      "rssEndMB": 463.6
+    }
+  ],
+  "summary": {
+    "byStage": {
+      "(root)": {
+        "count": 13,
+        "totalDurationMs": 11661
+      },
+      "initBundleManager": {
+        "count": 1,
+        "totalDurationMs": 0
+      },
+      "dataTasks": {
+        "count": 2,
+        "totalDurationMs": 76
+      },
+      "buildTasks": {
+        "count": 5,
+        "totalDurationMs": 21321
+      },
+      "settingTasks": {
+        "count": 3,
+        "totalDurationMs": 1
+      },
+      "postprocessTasks": {
+        "count": 1,
+        "totalDurationMs": 133
+      },
+      "md5Tasks": {
+        "count": 1,
+        "totalDurationMs": 25
+      }
+    },
+    "top": [
+      {
+        "name": "buildTasks",
+        "stage": "",
+        "durationMs": 11385
+      },
+      {
+        "name": "Package scripts",
+        "stage": "buildTasks",
+        "durationMs": 11054
+      },
+      {
+        "name": "subprocess:build-polyfills",
+        "stage": "buildTasks",
+        "durationMs": 8210
+      },
+      {
+        "name": "subprocess:build-systemjs",
+        "stage": "buildTasks",
+        "durationMs": 1303
+      },
+      {
+        "name": "subprocess:build-script",
+        "stage": "buildTasks",
+        "durationMs": 424
+      },
+      {
+        "name": "Build Assets",
+        "stage": "buildTasks",
+        "durationMs": 330
+      },
+      {
+        "name": "build-task/template",
+        "stage": "postprocessTasks",
+        "durationMs": 133
+      },
+      {
+        "name": "postprocessTasks",
+        "stage": "",
+        "durationMs": 133
+      },
+      {
+        "name": "dataTasks",
+        "stage": "",
+        "durationMs": 77
+      },
+      {
+        "name": "data-task/asset_bundle",
+        "stage": "dataTasks",
+        "durationMs": 75
+      }
+    ]
+  }
+}

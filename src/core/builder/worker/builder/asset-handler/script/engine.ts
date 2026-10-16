@@ -13,6 +13,7 @@ import * as ccBuild from '@cocos/ccbuild';
 import fs from 'fs-extra';
 import ps from 'path';
 import { workerManager } from '../../../worker-pools/sub-process-manager';
+import { profiled } from '../../../../profile';
 import fg from 'fast-glob';
 
 import { parseMangleConfig } from './mangle-config-parser';
@@ -205,7 +206,7 @@ async function buildEngine(options: IBuildEngineParam, ccEnvConstants: StatsQuer
     });
     console.debug(`Cache is invalid, start build engine with options: ${JSON.stringify(buildOptions, null, 2)}`);
     console.debug(`md5String: ${md5String.split(',').join(',\n')}`);
-    await workerManager.runTask('build-engine', 'buildEngineCommand', [buildOptions], logDest);
+    await profiled('subprocess:build-engine', () => workerManager.runTask('build-engine', 'buildEngineCommand', [buildOptions], logDest));
     // await buildEngineCommand(buildOptions);
 
     await outputCacheJson(options, output);
@@ -225,7 +226,7 @@ export async function buildSplitEngine(options: IBuildSeparateEngineOptions, log
         name: 'build-engine',
         path: join(__dirname, './build-engine'),
     });
-    return await workerManager.runTask('build-engine', 'buildSeparateEngine', [options], logDest);
+    return await profiled('subprocess:build-separate-engine', () => workerManager.runTask('build-engine', 'buildSeparateEngine', [options], logDest));
     // return await buildSeparateEngine(options);
 }
 /**
