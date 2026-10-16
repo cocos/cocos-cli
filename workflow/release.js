@@ -241,12 +241,16 @@ async function findNativeBinaries(extensionDir) {
             const toolBinaries = await globby([
                 'astc-encoder/astcenc',
                 'cmft/cmftRelease64',
+                'libwebp_darwin/bin/cwebp',
                 'lightmap-tools/LightFX',
+                'LightFX/uvunwrap',
                 'mali_darwin/astcenc',
                 'mali_darwin/composite',
                 'mali_darwin/convert',
                 'mali_darwin/etcpack',
                 'PVRTexTool_darwin/PVRTexToolCLI',
+                'process-info/mac_arm.node',
+                'process-info/mac_x64.node',
             ], {
                 cwd: staticToolsPath,
                 absolute: true,
