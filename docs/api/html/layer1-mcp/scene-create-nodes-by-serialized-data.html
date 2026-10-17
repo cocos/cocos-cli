@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>scene-create-nodes-by-serialized-data · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>scene-create-nodes-by-serialized-data</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>scene-create-nodes-by-serialized-data</code></h1>
+<p class="meta"><span class="badge">Node</span> 方法 <code>createNodesBySerializedData</code> · Create Nodes From Serialized Data</p>
+<section class="md-box" aria-label="模型侧工具定义">
+  <div class="md-box-bar">
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-create-nodes-by-serialized-data&quot;,
+  &quot;description&quot;: &quot;Create a batch of nodes in the currently opened destination scene using the complete data returned by scene-serialize-nodes in the same project. The parent must exist. Creates new node and component identities, preserves internal references, asset references, and complete Prefab instances, and resolves name conflicts. External node and component references default to clear; use resolve only when pasting into the source Runtime. Success records one undo operation; failure rolls back the batch. Returns the new root node paths. Does not save the scene automatically; use scene-save to persist the result.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;data&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;properties&quot;: {
+              &quot;version&quot;: {
+                &quot;type&quot;: &quot;number&quot;,
+                &quot;const&quot;: 1,
+                &quot;description&quot;: &quot;Serialized node data format version&quot;
+              },
+              &quot;serialized&quot;: {
+                &quot;type&quot;: &quot;string&quot;,
+                &quot;minLength&quot;: 1,
+                &quot;description&quot;: &quot;Opaque Cocos JSON object graph returned by scene-serialize-nodes; pass it unchanged&quot;
+              },
+              &quot;rootTransforms&quot;: {
+                &quot;type&quot;: &quot;array&quot;,
+                &quot;items&quot;: {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;position&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;z&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;z&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    &quot;rotation&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;z&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;w&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;z&quot;,
+                        &quot;w&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    },
+                    &quot;scale&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;z&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;z&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;position&quot;,
+                    &quot;rotation&quot;,
+                    &quot;scale&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false
+                },
+                &quot;minItems&quot;: 1,
+                &quot;description&quot;: &quot;Saved world transforms in serialized root order&quot;
+              },
+              &quot;externalReferences&quot;: {
+                &quot;type&quot;: &quot;array&quot;,
+                &quot;items&quot;: {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;properties&quot;: {
+                    &quot;id&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;minLength&quot;: 1,
+                      &quot;description&quot;: &quot;Reference placeholder ID in the serialized graph&quot;
+                    },
+                    &quot;type&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;enum&quot;: [
+                        &quot;node&quot;,
+                        &quot;component&quot;
+                      ]
+                    },
+                    &quot;uuid&quot;: {
+                      &quot;type&quot;: &quot;string&quot;,
+                      &quot;minLength&quot;: 1,
+                      &quot;description&quot;: &quot;Original target UUID, resolved only within the destination Runtime&quot;
+                    }
+                  },
+                  &quot;required&quot;: [
+                    &quot;id&quot;,
+                    &quot;type&quot;,
+                    &quot;uuid&quot;
+                  ],
+                  &quot;additionalProperties&quot;: false
+                },
+                &quot;description&quot;: &quot;References to nodes or components outside this batch; asset references remain in the serialized graph&quot;
+              }
+            },
+            &quot;required&quot;: [
+              &quot;version&quot;,
+              &quot;serialized&quot;,
+              &quot;rootTransforms&quot;,
+              &quot;externalReferences&quot;
+            ],
+            &quot;additionalProperties&quot;: false,
+            &quot;description&quot;: &quot;Complete node batch returned by scene-serialize-nodes, including all reference and transform metadata. Pass the entire object unchanged to scene-create-nodes-by-serialized-data.&quot;
+          },
+          &quot;parentPath&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;Existing parent path in the destination scene; use / for the editor root&quot;
+          },
+          &quot;siblingIndex&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;description&quot;: &quot;Zero-based insertion index; defaults to appending after existing children&quot;
+          },
+          &quot;keepWorldTransform&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Restore saved world transforms when true; defaults to preserving local transforms&quot;
+          },
+          &quot;externalReferences&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;enum&quot;: [
+              &quot;clear&quot;,
+              &quot;resolve&quot;
+            ],
+            &quot;description&quot;: &quot;Defaults to clear for cross-scene copies. Use resolve only in the source Runtime to look up original UUIDs; missing references become null&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;data&quot;,
+          &quot;parentPath&quot;
+        ],
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Create a complete node batch in the destination scene from previously serialized data&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Create Nodes From Serialized Data&quot;,
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;array&quot;,
+                &quot;items&quot;: {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                &quot;description&quot;: &quot;New root node paths in serialized order, after resolving name conflicts&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>

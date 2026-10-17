@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>assets-create-asset · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>assets-create-asset</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>assets-create-asset</code></h1>
+<p class="meta"><span class="badge">Assets</span> 方法 <code>createAsset</code> · Create Asset</p>
+<section class="md-box" aria-label="模型侧工具定义">
+  <div class="md-box-bar">
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;assets-create-asset&quot;,
+  &quot;description&quot;: &quot;Create a Cocos asset from file content or a template. Set options.target to an asset-db URL such as db://assets/scripts/GameManager.ts, or to an absolute file path inside an asset database root. Do not pass a web URL or a plain relative path as target.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;overwrite&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Whether to force overwrite existing files, default false&quot;
+          },
+          &quot;rename&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Whether to automatically rename conflicting files, default false&quot;
+          },
+          &quot;content&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;description&quot;: &quot;Asset content, supports string and Buffer types, when both content and template are passed, content is used first to create file, creates folder when not passed&quot;
+          },
+          &quot;target&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;Output address for asset creation. Prefer an asset-db URL starting with db://, for example db://assets/scripts/GameManager.ts. You may also pass an absolute file path inside an asset database root such as the project assets directory.&quot;
+          },
+          &quot;template&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;Asset file template address. Use an asset-db URL starting with db://, for example db://internal/default_file_content/animation.anim, or an absolute file path to an existing template file. This is not a web URL.&quot;
+          },
+          &quot;uuid&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;Specify uuid, since uuid may also conflict, uuid will be automatically reassigned when conflict occurs&quot;
+          },
+          &quot;userData&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;additionalProperties&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;number&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;boolean&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;null&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;array&quot;,
+                  &quot;items&quot;: {}
+                },
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;additionalProperties&quot;: {}
+                }
+              ]
+            },
+            &quot;propertyNames&quot;: {
+              &quot;minLength&quot;: 1
+            },
+            &quot;description&quot;: &quot;Some userData default configuration values specified when creating new asset&quot;
+          },
+          &quot;customOptions&quot;: {
+            &quot;type&quot;: &quot;object&quot;,
+            &quot;additionalProperties&quot;: {
+              &quot;anyOf&quot;: [
+                {
+                  &quot;type&quot;: &quot;string&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;number&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;boolean&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;null&quot;
+                },
+                {
+                  &quot;type&quot;: &quot;array&quot;,
+                  &quot;items&quot;: {}
+                },
+                {
+                  &quot;type&quot;: &quot;object&quot;,
+                  &quot;additionalProperties&quot;: {}
+                }
+              ]
+            },
+            &quot;propertyNames&quot;: {
+              &quot;minLength&quot;: 1
+            },
+            &quot;description&quot;: &quot;Pass some custom configuration information, can be used in custom asset handler&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;target&quot;
+        ],
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Create asset options&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Create Asset&quot;,
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;anyOf&quot;: [
+                  {
+                    &quot;type&quot;: &quot;object&quot;,
+                    &quot;properties&quot;: {
+                      &quot;name&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Asset name&quot;
+                      },
+                      &quot;source&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;URL address&quot;
+                      },
+                      &quot;loadUrl&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Loader loading hierarchy address, mainly used for splicing asset url loading in scripts&quot;
+                      },
+                      &quot;url&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Loader loading address (including extension)&quot;
+                      },
+                      &quot;file&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Absolute path&quot;
+                      },
+                      &quot;uuid&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Unique ID of the asset&quot;
+                      },
+                      &quot;importer&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;enum&quot;: [
+                          &quot;directory&quot;,
+                          &quot;unknown&quot;,
+                          &quot;text&quot;,
+                          &quot;json&quot;,
+                          &quot;spine-data&quot;,
+                          &quot;dragonbones&quot;,
+                          &quot;dragonbones-atlas&quot;,
+                          &quot;terrain&quot;,
+                          &quot;javascript&quot;,
+                          &quot;typescript&quot;,
+                          &quot;scene&quot;,
+                          &quot;prefab&quot;,
+                          &quot;sprite-frame&quot;,
+                          &quot;tiled-map&quot;,
+                          &quot;buffer&quot;,
+                          &quot;image&quot;,
+                          &quot;sign-image&quot;,
+                          &quot;alpha-image&quot;,
+                          &quot;texture&quot;,
+                          &quot;texture-cube&quot;,
+                          &quot;erp-texture-cube&quot;,
+                          &quot;render-texture&quot;,
+                          &quot;texture-cube-face&quot;,
+                          &quot;rt-sprite-frame&quot;,
+                          &quot;gltf&quot;,
+                          &quot;gltf-mesh&quot;,
+                          &quot;gltf-animation&quot;,
+                          &quot;gltf-skeleton&quot;,
+                          &quot;gltf-material&quot;,
+                          &quot;gltf-scene&quot;,
+                          &quot;gltf-embeded-image&quot;,
+                          &quot;fbx&quot;,
+                          &quot;material&quot;,
+                          &quot;physics-material&quot;,
+                          &quot;effect&quot;,
+                          &quot;effect-header&quot;,
+                          &quot;audio-clip&quot;,
+                          &quot;animation-clip&quot;,
+                          &quot;animation-graph&quot;,
+                          &quot;animation-graph-variant&quot;,
+                          &quot;animation-mask&quot;,
+                          &quot;ttf-font&quot;,
+                          &quot;bitmap-font&quot;,
+                          &quot;particle&quot;,
+                          &quot;sprite-atlas&quot;,
+                          &quot;auto-atlas&quot;,
+                          &quot;label-atlas&quot;,
+                          &quot;render-pipeline&quot;,
+                          &quot;render-stage&quot;,
+                          &quot;render-flow&quot;,
+                          &quot;instantiation-material&quot;,
+                          &quot;instantiation-mesh&quot;,
+                          &quot;instantiation-skeleton&quot;,
+                          &quot;instantiation-animation&quot;,
+                          &quot;video-clip&quot;,
+                          &quot;*&quot;,
+                          &quot;database&quot;
+                        ],
+                        &quot;description&quot;: &quot;Importer name used, corresponding to asset handler type&quot;
+                      },
+                      &quot;imported&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether the import process is finished&quot;
+                      },
+                      &quot;invalid&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether import was successful&quot;
+                      },
+                      &quot;type&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Asset type, e.g. cc.ImageAsset&quot;
+                      },
+                      &quot;isDirectory&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether it is a folder&quot;
+                      },
+                      &quot;library&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;additionalProperties&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;Map of imported assets&quot;
+                      },
+                      &quot;isBundle&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether it is an asset bundle&quot;
+                      },
+                      &quot;displayName&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Name used for asset display&quot;
+                      },
+                      &quot;readonly&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether read-only&quot;
+                      },
+                      &quot;visible&quot;: {
+                        &quot;type&quot;: &quot;boolean&quot;,
+                        &quot;description&quot;: &quot;Whether to display&quot;
+                      },
+                      &quot;subAssets&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;additionalProperties&quot;: {},
+                        &quot;description&quot;: &quot;Sub-asset map&quot;
+                      },
+                      &quot;instantiation&quot;: {
+                        &quot;type&quot;: &quot;string&quot;,
+                        &quot;description&quot;: &quot;Extension for virtual assets that can be instantiated into entities&quot;
+                      },
+                      &quot;redirect&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;properties&quot;: {
+                          &quot;type&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;Type of redirected asset&quot;
+                          },
+                          &quot;uuid&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;UUID of redirected asset&quot;
+                          }
+                        },
+                        &quot;required&quot;: [
+                          &quot;type&quot;,
+                          &quot;uuid&quot;
+                        ],
+                        &quot;additionalProperties&quot;: false,
+                        &quot;description&quot;: &quot;Redirect to asset&quot;
+                      },
+                      &quot;meta&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;properties&quot;: {
+                          &quot;ver&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;Version number&quot;
+                          },
+                          &quot;importer&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;enum&quot;: [
+                              &quot;directory&quot;,
+                              &quot;unknown&quot;,
+                              &quot;text&quot;,
+                              &quot;json&quot;,
+                              &quot;spine-data&quot;,
+                              &quot;dragonbones&quot;,
+                              &quot;dragonbones-atlas&quot;,
+                              &quot;terrain&quot;,
+                              &quot;javascript&quot;,
+                              &quot;typescript&quot;,
+                              &quot;scene&quot;,
+                              &quot;prefab&quot;,
+                              &quot;sprite-frame&quot;,
+                              &quot;tiled-map&quot;,
+                              &quot;buffer&quot;,
+                              &quot;image&quot;,
+                              &quot;sign-image&quot;,
+                              &quot;alpha-image&quot;,
+                              &quot;texture&quot;,
+                              &quot;texture-cube&quot;,
+                              &quot;erp-texture-cube&quot;,
+                              &quot;render-texture&quot;,
+                              &quot;texture-cube-face&quot;,
+                              &quot;rt-sprite-frame&quot;,
+                              &quot;gltf&quot;,
+                              &quot;gltf-mesh&quot;,
+                              &quot;gltf-animation&quot;,
+                              &quot;gltf-skeleton&quot;,
+                              &quot;gltf-material&quot;,
+                              &quot;gltf-scene&quot;,
+                              &quot;gltf-embeded-image&quot;,
+                              &quot;fbx&quot;,
+                              &quot;material&quot;,
+                              &quot;physics-material&quot;,
+                              &quot;effect&quot;,
+                              &quot;effect-header&quot;,
+                              &quot;audio-clip&quot;,
+                              &quot;animation-clip&quot;,
+                              &quot;animation-graph&quot;,
+                              &quot;animation-graph-variant&quot;,
+                              &quot;animation-mask&quot;,
+                              &quot;ttf-font&quot;,
+                              &quot;bitmap-font&quot;,
+                              &quot;particle&quot;,
+                              &quot;sprite-atlas&quot;,
+                              &quot;auto-atlas&quot;,
+                              &quot;label-atlas&quot;,
+                              &quot;render-pipeline&quot;,
+                              &quot;render-stage&quot;,
+                              &quot;render-flow&quot;,
+                              &quot;instantiation-material&quot;,
+                              &quot;instantiation-mesh&quot;,
+                              &quot;instantiation-skeleton&quot;,
+                              &quot;instantiation-animation&quot;,
+                              &quot;video-clip&quot;,
+                              &quot;*&quot;,
+                              &quot;database&quot;
+                            ],
+                            &quot;description&quot;: &quot;Importer name, corresponding to asset handler type&quot;
+                          },
+                          &quot;imported&quot;: {
+                            &quot;type&quot;: &quot;boolean&quot;,
+                            &quot;description&quot;: &quot;Whether imported&quot;
+                          },
+                          &quot;uuid&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;Asset unique identifier&quot;
+                          },
+                          &quot;files&quot;: {
+                            &quot;type&quot;: &quot;array&quot;,
+                            &quot;items&quot;: {
+                              &quot;type&quot;: &quot;string&quot;
+                            },
+                            &quot;description&quot;: &quot;List of associated files&quot;
+                          },
+                          &quot;subMetas&quot;: {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;additionalProperties&quot;: {},
+                            &quot;description&quot;: &quot;Sub-asset metadata map&quot;
+                          },
+                          &quot;userData&quot;: {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;additionalProperties&quot;: {
+                              &quot;anyOf&quot;: [
+                                {
+                                  &quot;type&quot;: &quot;string&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;number&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;boolean&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;null&quot;
+                                },
+                                {
+                                  &quot;type&quot;: &quot;array&quot;,
+                                  &quot;items&quot;: {}
+                                },
+                                {
+                                  &quot;type&quot;: &quot;object&quot;,
+                                  &quot;additionalProperties&quot;: {}
+                                }
+                              ]
+                            },
+                            &quot;description&quot;: &quot;User custom data&quot;
+                          },
+                          &quot;displayName&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;Display name&quot;
+                          },
+                          &quot;id&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;Asset ID, only sub-assets have this field&quot;
+                          },
+                          &quot;name&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;Asset name&quot;
+                          }
+                        },
+                        &quot;required&quot;: [
+                          &quot;ver&quot;,
+                          &quot;importer&quot;,
+                          &quot;imported&quot;,
+                          &quot;uuid&quot;,
+                          &quot;files&quot;,
+                          &quot;subMetas&quot;,
+                          &quot;userData&quot;
+                        ],
+                        &quot;additionalProperties&quot;: false,
+                        &quot;description&quot;: &quot;Asset metadata&quot;
+                      },
+                      &quot;parent&quot;: {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;properties&quot;: {
+                          &quot;source&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;URL address of parent asset&quot;
+                          },
+                          &quot;library&quot;: {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;additionalProperties&quot;: {
+                              &quot;type&quot;: &quot;string&quot;
+                            },
+                            &quot;description&quot;: &quot;Imported asset map of parent asset&quot;
+                          },
+                          &quot;uuid&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;description&quot;: &quot;UUID of parent asset&quot;
+                          }
+                        },
+                        &quot;required&quot;: [
+                          &quot;source&quot;,
+                          &quot;library&quot;,
+                          &quot;uuid&quot;
+                        ],
+                        &quot;additionalProperties&quot;: false,
+                        &quot;description&quot;: &quot;Parent asset information&quot;
+                      },
+                      &quot;extends&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;Asset inheritance chain information&quot;
+                      },
+                      &quot;mtime&quot;: {
+                        &quot;type&quot;: &quot;number&quot;,
+                        &quot;description&quot;: &quot;Modification time of asset file&quot;
+                      },
+                      &quot;depends&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;List of dependent asset UUIDs&quot;
+                      },
+                      &quot;dependeds&quot;: {
+                        &quot;type&quot;: &quot;array&quot;,
+                        &quot;items&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;description&quot;: &quot;List of depended asset UUIDs&quot;
+                      }
+                    },
+                    &quot;required&quot;: [
+                      &quot;name&quot;,
+                      &quot;source&quot;,
+                      &quot;loadUrl&quot;,
+                      &quot;url&quot;,
+                      &quot;file&quot;,
+                      &quot;uuid&quot;,
+                      &quot;importer&quot;,
+                      &quot;imported&quot;,
+                      &quot;invalid&quot;,
+                      &quot;type&quot;,
+                      &quot;isDirectory&quot;,
+                      &quot;library&quot;
+                    ],
+                    &quot;additionalProperties&quot;: false
+                  },
+                  {
+                    &quot;type&quot;: &quot;null&quot;
+                  }
+                ],
+                &quot;description&quot;: &quot;Created asset information object&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>
