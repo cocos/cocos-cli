@@ -22,17 +22,23 @@ export class AssetService extends BaseService<IAssetEvents> implements IAssetSer
         return queryRegisteredService<IEditorSessionService>('Editor')?.isCurrentEditorSession?.(session) ?? true;
     }
 
-    public async assetChanged(uuid: string) {
+    public async assetChanged(uuid: string): Promise<void> {
         const session = this.getEditorSession();
         if (!this.isCurrentEditorSession(session)) {
-            return;
+            throw new Error('Scene changed before asset refresh.');
         }
+        let failure: Awaited<ReturnType<typeof assetWatcherManager.onAssetChanged>> = undefined;
         if (!this._preserveCurrentAnimationClipAsset(uuid)) {
             this.releaseAsset(uuid);
-            await assetWatcherManager.onAssetChanged(uuid);
+            failure = await assetWatcherManager.onAssetChanged(uuid);
         }
-        if (this.isCurrentEditorSession(session)) {
-            this.emit('asset:change', uuid);
+        if (failure?.cancelled || !this.isCurrentEditorSession(session)) {
+            throw new Error('Scene changed during asset refresh.');
+        }
+        // 加载失败也保留既有资源通知，再让显式调用者收到失败；普通通知队列负责记录错误。
+        this.emit('asset:change', uuid);
+        if (failure) {
+            throw failure.error;
         }
     }
 
