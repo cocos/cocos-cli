@@ -54,6 +54,8 @@ class AssetManager extends EventEmitter {
     renameAsset = assetOperation.renameAsset.bind(assetOperation);
     removeAsset = assetOperation.removeAsset.bind(assetOperation);
     moveAsset = assetOperation.moveAsset.bind(assetOperation);
+    preflightMoveAsset = assetOperation.preflightMoveAsset.bind(assetOperation);
+    resetMovePreflights = assetOperation.resetMovePreflights.bind(assetOperation);
     generateExportData = assetOperation.generateExportData.bind(assetOperation);
     outputExportData = assetOperation.outputExportData.bind(assetOperation);
     createAssetByType = assetOperation.createAssetByType.bind(assetOperation);
@@ -176,6 +178,7 @@ class AssetManager extends EventEmitter {
     }
 
     destroyed() {
+        this.resetMovePreflights();
         assetDBManager.removeListener('db-created', this._onAssetDBCreated);
         assetDBManager.removeListener('db-removed', this._onAssetDBRemoved);
     }
@@ -405,6 +408,8 @@ export interface TypedAssetManager extends EventEmitter {
     renameAsset: typeof assetOperation.renameAsset;
     removeAsset: typeof assetOperation.removeAsset;
     moveAsset: typeof assetOperation.moveAsset;
+    preflightMoveAsset: typeof assetOperation.preflightMoveAsset;
+    resetMovePreflights: typeof assetOperation.resetMovePreflights;
     generateExportData: typeof assetOperation.generateExportData;
     outputExportData: typeof assetOperation.outputExportData;
     createAssetByType: typeof assetOperation.createAssetByType;
