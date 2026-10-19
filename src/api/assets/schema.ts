@@ -276,7 +276,27 @@ export const SchemaPluginScriptInfo = z.object({
 export const SchemaAssetMoveOptions = z.object({
     overwrite: z.boolean().optional().describe('Whether to force overwrite existing files, default false'), // 是否强制覆盖已存在的文件，默认 false
     rename: z.boolean().optional().describe('Whether to automatically rename conflicting files, default false'), // 是否自动重命名冲突文件，默认 false
+    preflightToken: z.string().min(1).optional().describe('Single-use token returned by preflightMoveAsset. Changed requests or asset state are rejected before moving.'),
 }).optional().describe('Asset move options'); // 资源移动选项
+
+export const SchemaAssetMovePreflightResult = z.discriminatedUnion('action', [
+    z.object({
+        action: z.literal('move'),
+        preflightToken: z.string(),
+    }),
+    z.object({
+        action: z.literal('choose-conflict-handling'),
+        preflightToken: z.string(),
+        conflict: z.object({
+            sourceUrl: z.string(),
+            targetUrl: z.string(),
+            sourceIsDirectory: z.boolean(),
+            targetIsDirectory: z.boolean().nullable(),
+        }),
+    }),
+]).describe('Move preflight facts and a single-use observation token. No files are moved or reserved.');
+
+export type TAssetMovePreflightResult = z.infer<typeof SchemaAssetMovePreflightResult>;
 
 export const SchemaAssetRenameOptions = z.object({
     overwrite: z.boolean().optional().describe('Whether to force overwrite existing files, default false'), // 是否强制覆盖已存在的文件，默认 false

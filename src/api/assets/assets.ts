@@ -71,6 +71,8 @@ import {
     SchemaFilterPluginOptions,
     SchemaPluginScriptInfo,
     SchemaAssetMoveOptions,
+    SchemaAssetMovePreflightResult,
+    TAssetMovePreflightResult,
     SchemaAssetRenameOptions,
     SchemaUserDataHandler,
     TQueryAssetType,
@@ -1015,6 +1017,22 @@ export class AssetsApi {
     /**
      * Move Asset // 移动资源
      */
+    @tool('assets-preflight-move-asset')
+    @title('Preflight Asset Move')
+    @description('Inspect an asset move without changing files. A conflict requires the caller to choose overwrite or automatic rename, or cancel by not submitting. Pass the returned token to moveAsset; changes to the request or observed resource state reject the move.')
+    @result(SchemaAssetMovePreflightResult)
+    async preflightMoveAsset(
+        @param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath,
+    ): Promise<CommonResultType<TAssetMovePreflightResult>> {
+        try {
+            return { code: COMMON_STATUS.SUCCESS, data: await assetManager.preflightMoveAsset(source, target) };
+        } catch (error) {
+            return { code: COMMON_STATUS.FAIL, reason: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    /** Moves an asset, optionally validating a single-use preflight observation. */
     @tool('assets-move-asset')
     @title('Move Asset') // 移动资源
     @description('Move assets from the source location to the target location. Supports moving files and folders, with options to overwrite or automatically rename.') // 将资源从源位置移动到目标位置。支持移动文件和文件夹，可选择是否覆盖或自动重命名。
