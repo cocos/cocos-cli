@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>scene-insert-lod · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>scene-insert-lod</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>scene-insert-lod</code></h1>
+<p class="meta"><span class="badge">Component</span> 方法 <code>insertLOD</code> · Insert LOD level</p>
+<section class="md-box" aria-label="模型侧工具定义">
+  <div class="md-box-bar">
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-insert-lod&quot;,
+  &quot;description&quot;: &quot;Insert an LOD level into a cc.LODGroup. Index must be from 0 through lodCount, at most 8 levels are allowed, and screenUsagePercentage must be in (0, 1]. Omit screenUsagePercentage to let the engine calculate it.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;path&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;minLength&quot;: 1,
+            &quot;description&quot;: &quot;cc.LODGroup component path, e.g. \&quot;Root/LOD/cc.LODGroup\&quot;&quot;
+          },
+          &quot;index&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;description&quot;: &quot;Insertion index, from 0 through the current lodCount&quot;
+          },
+          &quot;screenUsagePercentage&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;exclusiveMinimum&quot;: 0,
+            &quot;maximum&quot;: 1,
+            &quot;description&quot;: &quot;Screen usage percentage in (0, 1]; omit it to let the engine calculate a value&quot;
+          },
+          &quot;record&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Whether to record undo, defaults to true&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;path&quot;,
+          &quot;index&quot;
+        ],
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Information required to insert an LOD level&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Insert LOD level&quot;,
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;lodCount&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;,
+                    &quot;minimum&quot;: 0,
+                    &quot;description&quot;: &quot;Current number of LOD levels&quot;
+                  },
+                  &quot;screenUsagePercentages&quot;: {
+                    &quot;type&quot;: &quot;array&quot;,
+                    &quot;items&quot;: {
+                      &quot;type&quot;: &quot;number&quot;
+                    },
+                    &quot;description&quot;: &quot;Screen usage percentages in LOD order&quot;
+                  }
+                },
+                &quot;required&quot;: [
+                  &quot;lodCount&quot;,
+                  &quot;screenUsagePercentages&quot;
+                ],
+                &quot;additionalProperties&quot;: false,
+                &quot;description&quot;: &quot;Current cc.LODGroup level state&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>

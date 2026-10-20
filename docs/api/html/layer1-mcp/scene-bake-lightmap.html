@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>scene-bake-lightmap · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>scene-bake-lightmap</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>scene-bake-lightmap</code></h1>
+<p class="meta"><span class="badge">LightFXBake</span> 方法 <code>bakeLightmap</code> · Bake lightmap</p>
+<section class="md-box" aria-label="模型侧工具定义">
+  <div class="md-box-bar">
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-bake-lightmap&quot;,
+  &quot;description&quot;: &quot;Bake the current scene lightmap with LightFX, import generated textures, bind them to renderers and save the scene.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;outputUrl&quot;: {
+            &quot;type&quot;: &quot;string&quot;,
+            &quot;description&quot;: &quot;Existing parent directory under db://assets. Saved results publish into scene-&lt;scene UUID&gt;/output; omitted or db://assets uses db://assets/LightFX as parent. Use returned texture URLs.&quot;
+          },
+          &quot;msaa&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              1,
+              2,
+              4,
+              8
+            ]
+          },
+          &quot;resolution&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              128,
+              256,
+              512,
+              1024,
+              2048
+            ]
+          },
+          &quot;filter&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;
+          },
+          &quot;highp&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;
+          },
+          &quot;giScale&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 100
+          },
+          &quot;giSamples&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1,
+            &quot;maximum&quot;: 2590,
+            &quot;description&quot;: &quot;Lightmap GI sampling factor; 1–2590. Large values have quadratic memory and time costs.&quot;
+          },
+          &quot;giPathLength&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          &quot;aoLevel&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              0,
+              1,
+              2
+            ]
+          },
+          &quot;aoStrength&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0
+          },
+          &quot;aoRadius&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0
+          },
+          &quot;aoColor&quot;: {
+            &quot;type&quot;: &quot;array&quot;,
+            &quot;minItems&quot;: 4,
+            &quot;maxItems&quot;: 4,
+            &quot;items&quot;: [
+              {
+                &quot;type&quot;: &quot;number&quot;,
+                &quot;minimum&quot;: 0,
+                &quot;maximum&quot;: 255
+              },
+              {
+                &quot;type&quot;: &quot;number&quot;,
+                &quot;minimum&quot;: 0,
+                &quot;maximum&quot;: 255
+              },
+              {
+                &quot;type&quot;: &quot;number&quot;,
+                &quot;minimum&quot;: 0,
+                &quot;maximum&quot;: 255
+              },
+              {
+                &quot;anyOf&quot;: [
+                  {
+                    &quot;not&quot;: {}
+                  },
+                  {
+                    &quot;type&quot;: &quot;number&quot;,
+                    &quot;minimum&quot;: 0,
+                    &quot;maximum&quot;: 255
+                  }
+                ]
+              }
+            ]
+          },
+          &quot;threads&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1,
+            &quot;maximum&quot;: 256
+          },
+          &quot;saveScene&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Save the current scene after applying the bake result; defaults to true&quot;
+          },
+          &quot;timeoutMs&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1000,
+            &quot;maximum&quot;: 3600000,
+            &quot;description&quot;: &quot;Whole-operation timeout in milliseconds&quot;
+          }
+        },
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Lightmap bake options&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Bake lightmap&quot;,
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;sceneUrl&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
+                  },
+                  &quot;textureUrls&quot;: {
+                    &quot;type&quot;: &quot;array&quot;,
+                    &quot;items&quot;: {
+                      &quot;type&quot;: &quot;string&quot;
+                    }
+                  },
+                  &quot;meshCount&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;,
+                    &quot;minimum&quot;: 0
+                  },
+                  &quot;terrainCount&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;,
+                    &quot;minimum&quot;: 0
+                  },
+                  &quot;durationMs&quot;: {
+                    &quot;type&quot;: &quot;number&quot;,
+                    &quot;minimum&quot;: 0
+                  }
+                },
+                &quot;required&quot;: [
+                  &quot;sceneUrl&quot;,
+                  &quot;textureUrls&quot;,
+                  &quot;meshCount&quot;,
+                  &quot;terrainCount&quot;,
+                  &quot;durationMs&quot;
+                ],
+                &quot;additionalProperties&quot;: false
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>

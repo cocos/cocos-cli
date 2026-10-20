@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>scene-bake-light-probes · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>scene-bake-light-probes</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>scene-bake-light-probes</code></h1>
+<p class="meta"><span class="badge">LightFXBake</span> 方法 <code>bakeLightProbes</code> · Bake light probes</p>
+<section class="md-box" aria-label="模型侧工具定义">
+  <div class="md-box-bar">
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;scene-bake-light-probes&quot;,
+  &quot;description&quot;: &quot;Bake all light probes with the effective panel settings and write both settings and spherical-harmonic coefficients back to the current scene.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;options&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;giScale&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 100,
+            &quot;description&quot;: &quot;GI multiplier; defaults to the current scene value&quot;
+          },
+          &quot;giSamples&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 64,
+            &quot;maximum&quot;: 65535,
+            &quot;description&quot;: &quot;GI probe sample count; defaults to the current scene value&quot;
+          },
+          &quot;bounces&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1,
+            &quot;maximum&quot;: 4,
+            &quot;description&quot;: &quot;Probe ray bounce count; defaults to the current scene value&quot;
+          },
+          &quot;reduceRinging&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 0.05,
+            &quot;description&quot;: &quot;Spherical-harmonic ringing reduction; defaults to the current scene value&quot;
+          },
+          &quot;showWireframe&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Show light-probe connections in the scene view; defaults to the current scene value&quot;
+          },
+          &quot;showConvex&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Show the light-probe convex hull in the scene view; defaults to the current scene value&quot;
+          },
+          &quot;lightProbeSphereVolume&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 100,
+            &quot;description&quot;: &quot;Light-probe sphere display size; defaults to the current scene value&quot;
+          },
+          &quot;saveScene&quot;: {
+            &quot;type&quot;: &quot;boolean&quot;,
+            &quot;description&quot;: &quot;Save the current scene after applying the bake result; defaults to true&quot;
+          },
+          &quot;timeoutMs&quot;: {
+            &quot;type&quot;: &quot;integer&quot;,
+            &quot;minimum&quot;: 1000,
+            &quot;maximum&quot;: 3600000,
+            &quot;description&quot;: &quot;Whole-operation timeout in milliseconds&quot;
+          }
+        },
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Light probe bake options&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;options&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Bake light probes&quot;,
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;sceneUrl&quot;: {
+                    &quot;type&quot;: &quot;string&quot;
+                  },
+                  &quot;probeCount&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;,
+                    &quot;minimum&quot;: 0
+                  },
+                  &quot;giScale&quot;: {
+                    &quot;type&quot;: &quot;number&quot;
+                  },
+                  &quot;giSamples&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;
+                  },
+                  &quot;bounces&quot;: {
+                    &quot;type&quot;: &quot;integer&quot;
+                  },
+                  &quot;reduceRinging&quot;: {
+                    &quot;type&quot;: &quot;number&quot;
+                  },
+                  &quot;showWireframe&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;showConvex&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;lightProbeSphereVolume&quot;: {
+                    &quot;type&quot;: &quot;number&quot;
+                  },
+                  &quot;durationMs&quot;: {
+                    &quot;type&quot;: &quot;number&quot;,
+                    &quot;minimum&quot;: 0
+                  }
+                },
+                &quot;required&quot;: [
+                  &quot;sceneUrl&quot;,
+                  &quot;probeCount&quot;,
+                  &quot;giScale&quot;,
+                  &quot;giSamples&quot;,
+                  &quot;bounces&quot;,
+                  &quot;reduceRinging&quot;,
+                  &quot;showWireframe&quot;,
+                  &quot;showConvex&quot;,
+                  &quot;lightProbeSphereVolume&quot;,
+                  &quot;durationMs&quot;
+                ],
+                &quot;additionalProperties&quot;: false
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>

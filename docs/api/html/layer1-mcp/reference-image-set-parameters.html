@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>reference-image-set-parameters · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="../../assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="../../index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><a href="../index.html">首页</a> <span class="sep">/</span> <a href="index.html">第 1 层 · MCP</a> <span class="sep">/</span> <span>reference-image-set-parameters</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1><code>reference-image-set-parameters</code></h1>
+<p class="meta"><span class="badge">ReferenceImage</span> 方法 <code>setParameters</code> · Set reference image parameters</p>
+<section class="md-box" aria-label="模型侧工具定义">
+  <div class="md-box-bar">
+    <strong>模型侧工具定义</strong>
+    <span>通常注入 · <code>name</code> / <code>description</code> / <code>inputSchema</code></span>
+  </div>
+  <pre><span class="fence-lang">```json</span>
+{
+  &quot;name&quot;: &quot;reference-image-set-parameters&quot;,
+  &quot;description&quot;: &quot;Persist finite position or scale values and opacity from 0 to 100 for the image bound to the current scene or prefab.&quot;,
+  &quot;inputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;patch&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;x&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;description&quot;: &quot;Horizontal offset in 2D scene world units&quot;
+          },
+          &quot;y&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;description&quot;: &quot;Vertical offset in 2D scene world units&quot;
+          },
+          &quot;scaleX&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;description&quot;: &quot;Horizontal scale factor&quot;
+          },
+          &quot;scaleY&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;description&quot;: &quot;Vertical scale factor&quot;
+          },
+          &quot;opacity&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;minimum&quot;: 0,
+            &quot;maximum&quot;: 100,
+            &quot;description&quot;: &quot;Opacity percentage from 0 to 100&quot;
+          }
+        },
+        &quot;additionalProperties&quot;: false,
+        &quot;description&quot;: &quot;Reference image parameters&quot;
+      }
+    },
+    &quot;required&quot;: [
+      &quot;patch&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}
+<span class="fence-lang">```</span></pre>
+</section>
+<h2>tools/list 另含（未必进模型）</h2>
+<p class="note"><code>title</code> 偏 UI 展示；<code>outputSchema</code> 供结构化结果校验。</p>
+<pre>{
+  &quot;title&quot;: &quot;Set reference image parameters&quot;,
+  &quot;outputSchema&quot;: {
+    &quot;type&quot;: &quot;object&quot;,
+    &quot;properties&quot;: {
+      &quot;result&quot;: {
+        &quot;type&quot;: &quot;object&quot;,
+        &quot;properties&quot;: {
+          &quot;code&quot;: {
+            &quot;type&quot;: &quot;number&quot;,
+            &quot;enum&quot;: [
+              200,
+              400,
+              404,
+              500
+            ],
+            &quot;description&quot;: &quot;200 indicates success, other values indicate failure&quot;
+          },
+          &quot;data&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;object&quot;,
+                &quot;properties&quot;: {
+                  &quot;images&quot;: {
+                    &quot;type&quot;: &quot;array&quot;,
+                    &quot;items&quot;: {
+                      &quot;type&quot;: &quot;object&quot;,
+                      &quot;properties&quot;: {
+                        &quot;path&quot;: {
+                          &quot;type&quot;: &quot;string&quot;
+                        },
+                        &quot;x&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;y&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;scaleX&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;scaleY&quot;: {
+                          &quot;type&quot;: &quot;number&quot;
+                        },
+                        &quot;opacity&quot;: {
+                          &quot;type&quot;: &quot;number&quot;,
+                          &quot;minimum&quot;: 0,
+                          &quot;maximum&quot;: 100
+                        },
+                        &quot;missing&quot;: {
+                          &quot;type&quot;: &quot;boolean&quot;
+                        }
+                      },
+                      &quot;required&quot;: [
+                        &quot;path&quot;,
+                        &quot;x&quot;,
+                        &quot;y&quot;,
+                        &quot;scaleX&quot;,
+                        &quot;scaleY&quot;,
+                        &quot;opacity&quot;,
+                        &quot;missing&quot;
+                      ],
+                      &quot;additionalProperties&quot;: false
+                    }
+                  },
+                  &quot;current&quot;: {
+                    &quot;type&quot;: &quot;object&quot;,
+                    &quot;properties&quot;: {
+                      &quot;sceneUuid&quot;: {
+                        &quot;type&quot;: [
+                          &quot;string&quot;,
+                          &quot;null&quot;
+                        ]
+                      },
+                      &quot;imagePath&quot;: {
+                        &quot;type&quot;: [
+                          &quot;string&quot;,
+                          &quot;null&quot;
+                        ]
+                      },
+                      &quot;image&quot;: {
+                        &quot;anyOf&quot;: [
+                          {
+                            &quot;type&quot;: &quot;object&quot;,
+                            &quot;properties&quot;: {
+                              &quot;path&quot;: {
+                                &quot;type&quot;: &quot;string&quot;
+                              },
+                              &quot;x&quot;: {
+                                &quot;type&quot;: &quot;number&quot;
+                              },
+                              &quot;y&quot;: {
+                                &quot;type&quot;: &quot;number&quot;
+                              },
+                              &quot;scaleX&quot;: {
+                                &quot;type&quot;: &quot;number&quot;
+                              },
+                              &quot;scaleY&quot;: {
+                                &quot;type&quot;: &quot;number&quot;
+                              },
+                              &quot;opacity&quot;: {
+                                &quot;type&quot;: &quot;number&quot;,
+                                &quot;minimum&quot;: 0,
+                                &quot;maximum&quot;: 100
+                              },
+                              &quot;missing&quot;: {
+                                &quot;type&quot;: &quot;boolean&quot;
+                              }
+                            },
+                            &quot;required&quot;: [
+                              &quot;path&quot;,
+                              &quot;x&quot;,
+                              &quot;y&quot;,
+                              &quot;scaleX&quot;,
+                              &quot;scaleY&quot;,
+                              &quot;opacity&quot;,
+                              &quot;missing&quot;
+                            ],
+                            &quot;additionalProperties&quot;: false
+                          },
+                          {
+                            &quot;type&quot;: &quot;null&quot;
+                          }
+                        ]
+                      }
+                    },
+                    &quot;required&quot;: [
+                      &quot;sceneUuid&quot;,
+                      &quot;imagePath&quot;,
+                      &quot;image&quot;
+                    ],
+                    &quot;additionalProperties&quot;: false
+                  },
+                  &quot;desiredVisible&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;effectiveVisible&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;visibilityReason&quot;: {
+                    &quot;type&quot;: &quot;string&quot;,
+                    &quot;enum&quot;: [
+                      &quot;visible&quot;,
+                      &quot;disabled&quot;,
+                      &quot;no-editor&quot;,
+                      &quot;not-2d&quot;,
+                      &quot;unbound&quot;,
+                      &quot;missing&quot;,
+                      &quot;load-error&quot;
+                    ]
+                  },
+                  &quot;is2D&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;hasOpenEditor&quot;: {
+                    &quot;type&quot;: &quot;boolean&quot;
+                  },
+                  &quot;error&quot;: {
+                    &quot;anyOf&quot;: [
+                      {
+                        &quot;type&quot;: &quot;object&quot;,
+                        &quot;properties&quot;: {
+                          &quot;stage&quot;: {
+                            &quot;type&quot;: &quot;string&quot;,
+                            &quot;enum&quot;: [
+                              &quot;config&quot;,
+                              &quot;file&quot;,
+                              &quot;decode&quot;
+                            ]
+                          },
+                          &quot;message&quot;: {
+                            &quot;type&quot;: &quot;string&quot;
+                          }
+                        },
+                        &quot;required&quot;: [
+                          &quot;stage&quot;,
+                          &quot;message&quot;
+                        ],
+                        &quot;additionalProperties&quot;: false
+                      },
+                      {
+                        &quot;type&quot;: &quot;null&quot;
+                      }
+                    ]
+                  }
+                },
+                &quot;required&quot;: [
+                  &quot;images&quot;,
+                  &quot;current&quot;,
+                  &quot;desiredVisible&quot;,
+                  &quot;effectiveVisible&quot;,
+                  &quot;visibilityReason&quot;,
+                  &quot;is2D&quot;,
+                  &quot;hasOpenEditor&quot;,
+                  &quot;error&quot;
+                ],
+                &quot;additionalProperties&quot;: false,
+                &quot;description&quot;: &quot;Current editor reference-image state&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When successful, the data field returns the result&quot;
+          },
+          &quot;reason&quot;: {
+            &quot;anyOf&quot;: [
+              {
+                &quot;type&quot;: &quot;string&quot;
+              },
+              {
+                &quot;not&quot;: {}
+              }
+            ],
+            &quot;description&quot;: &quot;When failed, the reason field provides error information&quot;
+          }
+        },
+        &quot;required&quot;: [
+          &quot;code&quot;
+        ],
+        &quot;additionalProperties&quot;: false
+      }
+    },
+    &quot;required&quot;: [
+      &quot;result&quot;
+    ],
+    &quot;additionalProperties&quot;: false,
+    &quot;$schema&quot;: &quot;http://json-schema.org/draft-07/schema#&quot;
+  }
+}</pre>
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>
