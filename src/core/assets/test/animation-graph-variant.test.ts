@@ -51,6 +51,9 @@ const mockAssets = new Map<string, any>();
 const mockSavedAssets: Array<{ uuid: string; content: string }> = [];
 const mockAssetQuery = {
     queryAsset: jest.fn((uuid: string) => mockAssets.get(uuid) || null),
+    queryAssetProperty: jest.fn((asset: { type?: string; meta?: { importer?: string } }, property: string) => (
+        property === 'type' && asset.meta?.importer === 'gltf-animation' ? 'cc.AnimationClip' : asset[property as keyof typeof asset]
+    )),
     queryAssetMtime: jest.fn((uuid: string) => {
         const asset = mockAssets.get(uuid);
         return asset ? mockMtimes.get(asset.source) ?? null : null;
@@ -161,6 +164,32 @@ describe('animation graph variant asset service', () => {
             },
         });
         await expect(animationGraphVariant.save('variant-save')).rejects.toThrow('pending edit');
+    });
+
+    it('saves model-imported original and replacement clips without a direct type property', async () => {
+        registerVariantFixture('variant-gltf', 'graph-gltf', ['origin-gltf'], {});
+        registerAsset('origin-gltf', 'gltf-animation', '', 'model.fbx');
+        registerAsset('replacement-gltf', 'gltf-animation', '', 'replacement.fbx');
+        delete mockAssets.get('origin-gltf').type;
+        delete mockAssets.get('replacement-gltf').type;
+
+        await animationGraphVariant.change('variant-gltf', {
+            graphUuid: 'graph-gltf', clips: { 'origin-gltf': 'replacement-gltf' },
+        });
+        await animationGraphVariant.save('variant-gltf');
+
+        expect(JSON.parse(mockSavedAssets[0].content).overrides).toEqual({ 'origin-gltf': 'replacement-gltf' });
+        expect((await animationGraphVariant.query('variant-gltf')).clips).toEqual({ 'origin-gltf': 'replacement-gltf' });
+    });
+
+    it('rejects a non-animation replacement before saving', async () => {
+        registerVariantFixture('variant-wrong-type', 'graph-wrong-type', ['origin-wrong-type'], {});
+        registerAsset('texture', 'texture', 'cc.Texture2D', 'texture.png');
+        await animationGraphVariant.change('variant-wrong-type', {
+            graphUuid: 'graph-wrong-type', clips: { 'origin-wrong-type': 'texture' },
+        });
+        await expect(animationGraphVariant.save('variant-wrong-type')).rejects.toThrow('Expected cc.AnimationClip asset');
+        expect(mockAssetOperation.saveAsset).not.toHaveBeenCalled();
     });
 
     it('rebuilds rows when graphUuid changes and moves incompatible saved overrides to invalids', async () => {

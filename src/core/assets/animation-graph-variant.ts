@@ -267,7 +267,7 @@ class AnimationGraphVariantAssetService {
         }
 
         const assetImporter = asset.meta?.importer;
-        const assetType = (asset as any).type;
+        const assetType = assetQuery.queryAssetProperty(asset, 'type');
         if (assetImporter !== importer && assetType !== type) {
             throw new Error(`Expected ${type} asset, got importer ${assetImporter || 'unknown'} type ${assetType || 'unknown'}: ${uuidOrUrlOrPath}`);
         }
