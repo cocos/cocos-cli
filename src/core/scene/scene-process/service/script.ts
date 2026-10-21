@@ -7,6 +7,7 @@ import { IScriptEvents, IScriptService } from '../../common';
 import utils from '../../../base/utils';
 import i18n from '../i18n';
 import { serviceManager } from './service-manager';
+import type { ImportMap } from '../../../builder/@types/protected/import-map';
 
 /**
  * 异步迭代。有以下特点：
@@ -107,7 +108,10 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
         const quickPackLoaderContext = QuickPackLoaderContext.deserialize(serializedPackLoaderContext);
 
         const cceModuleMap = await Rpc.getInstance().request('programming', 'queryCCEModuleMap');
-        const isWebEnv = typeof (globalThis as any).EditorExtends !== 'undefined' && typeof System !== 'undefined' && typeof System.import === 'function' && !(process as any)?.versions?.node;
+        // The browser bundle supplies a Node compatibility stub, including versions.node.
+        const isWebEnv = typeof window !== 'undefined' && typeof System !== 'undefined'
+            && typeof System.import === 'function'
+            && (typeof process === 'undefined' || (process.platform as string) === 'browser' || !process.versions?.node);
         this._isWebEnv = isWebEnv;
         let loadDynamic: any;
         if (!isWebEnv) {
@@ -231,24 +235,11 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
 
             return globalEnv.record(
                 async () => {
-                    // Refresh pack import map before reload: after server-side recompilation,
-                    // chunk hashes change and the browser's cached import map becomes stale.
+                    // Refresh before invalidating and reimporting project modules. Placeholder
+                    // names can change even when the prerequisite chunk URL stays the same.
                     const serverURL = serviceManager.getServerUrl();
                     if (this._isWebEnv && serverURL) {
-                        try {
-                            const res = await fetch(`${serverURL}/scripting/x/pack-import-map-url`);
-                            if (res.ok) {
-                                const map = await res.json();
-                                const script = document.createElement('script');
-                                script.type = 'systemjs-importmap';
-                                script.textContent = JSON.stringify(map);
-                                document.head.appendChild(script);
-                                // Force SystemJS to re-process all import maps
-                                if ((System as any).prepareImport) {
-                                    await (System as any).prepareImport(true);
-                                }
-                            }
-                        } catch {}
+                        await this._refreshWebImportMap(serverURL);
                     }
                     await this._executor.reload();
                 },
@@ -258,6 +249,38 @@ export class ScriptService extends BaseService<IScriptEvents> implements IScript
                 this.emit('script:execution-finished');
             });
         });
+    }
+
+    /** Refresh the browser loader's map using the backend URL as its base. */
+    private async _refreshWebImportMap(serverURL: string): Promise<void> {
+        const mapURL = new URL('scripting/x/pack-import-map-url', serverURL.endsWith('/') ? serverURL : `${serverURL}/`);
+        const response = await fetch(mapURL.href, { cache: 'no-store' });
+        if (!response.ok) {
+            throw new Error(`Import map query failed: ${mapURL.href} (${response.status})`);
+        }
+        const map: ImportMap = await response.json();
+        // Inline maps otherwise resolve ./chunks against the Webview document URL.
+        // Keep bare targets intact so SystemJS can resolve aliases through earlier maps.
+        const address = (value: string) => /^(\.\.?\/|\/|[a-zA-Z][\w+.-]*:)/.test(value)
+            ? new URL(value, mapURL).href : value;
+        const imports = (values: Record<string, string> = {}) => Object.fromEntries(
+            Object.entries(values).map(([key, value]) => [address(key), address(value)]),
+        );
+        const script = document.createElement('script');
+        script.type = 'systemjs-importmap';
+        script.textContent = JSON.stringify({
+            ...map,
+            imports: imports(map.imports),
+            scopes: Object.fromEntries(Object.entries(map.scopes || {}).map(([scope, values]) => [
+                new URL(scope, mapURL).href, imports(values),
+            ])),
+        });
+        document.head.appendChild(script);
+        try {
+            await (System as typeof System & { prepareImport(force: boolean): Promise<void> }).prepareImport(true);
+        } finally {
+            script.remove();
+        }
     }
 
     /**
