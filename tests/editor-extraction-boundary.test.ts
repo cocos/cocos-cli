@@ -5,7 +5,7 @@ import baseline from './fixtures/mcp-before-editor-extraction.json';
 
 const root = path.resolve(__dirname, '..');
 
-it('preserves all scene MCP declarations including every baking tool', () => {
+it('preserves pre-extraction MCP declarations while allowing new tools', () => {
     const actual: typeof baseline = [];
     for (const file of new Set(baseline.map(tool => tool.file))) {
         const source = ts.createSourceFile(file, fs.readFileSync(path.join(root, file), 'utf8'), ts.ScriptTarget.Latest, true);
@@ -24,6 +24,9 @@ it('preserves all scene MCP declarations including every baking tool', () => {
         visit(source);
     }
     expect(baseline).toHaveLength(104);
+    const baselineNames = new Set(baseline.map(tool => tool.name));
+    expect(baselineNames.size).toBe(baseline.length);
+    expect(new Set(actual.map(tool => tool.name)).size).toBe(actual.length);
     // The fixture was recorded on Windows; compare declarations independent of checkout EOLs.
     const normalizeText = (text: string) => text.replace(/\r\n/g, '\n');
     const normalize = (entries: typeof baseline) => entries.map(entry => ({
@@ -32,8 +35,9 @@ it('preserves all scene MCP declarations including every baking tool', () => {
         parameters: entry.parameters.map(normalizeText),
         ...(entry.returnType ? { returnType: normalizeText(entry.returnType) } : {}),
     }));
-    expect(normalize(actual.sort((a, b) => a.name.localeCompare(b.name)))).toEqual(normalize(baseline));
-    expect(actual).toHaveLength(104);
+    // Preserve the historical declarations without freezing the current tool inventory.
+    const historical = actual.filter(tool => baselineNames.has(tool.name));
+    expect(normalize(historical.sort((a, b) => a.name.localeCompare(b.name)))).toEqual(normalize(baseline));
 });
 
 it('publishes a CLI without private package dependencies or preview commands', () => {
