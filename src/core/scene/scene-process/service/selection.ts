@@ -3,7 +3,7 @@ import { register } from './core/decorator';
 import { ServiceEvents } from './core/global-events';
 import type { ISelectionService, ISelectionEvents, IChangeNodeOptions } from '../../common';
 import { NodeEventType } from '../../common';
-import type { Node } from 'cc';
+import { ParticleSystem2D, type Node } from 'cc';
 import { getEditorNodeByUuid, getEditorNodePath, getEditorNodeUuidByPath } from './utils/editor-node';
 import { normalizeNodePath } from '../../../engine/editor-extends/manager/path-utils';
 
@@ -119,6 +119,11 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
             for (const comp of node.components) {
                 if (comp?.onFocusInEditor) {
                     comp.onFocusInEditor();
+                    // Preview-enabled 2D emitters can remain idle after scene loading.
+                    // Preserve the focus hook and only start emitters that are not running.
+                    if (comp instanceof ParticleSystem2D && comp.enabledInHierarchy && comp.preview && !comp.active) {
+                        comp.resetSystem();
+                    }
                 }
             }
         } catch (e) {
