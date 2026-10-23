@@ -1623,7 +1623,7 @@ export declare interface BuilderCache {
     getInstance: (uuid: string) => Promise<any>;
     outputAssetJson: (uuid: string, destDir: string, options: IInternalBuildOptions) => Promise<void>;
 }
-export declare const enum BuildExitCode {
+export declare enum BuildExitCode {
     PARAM_ERROR = 32,
     BUILD_FAILED = 34,
     BUILD_SUCCESS = 0,
@@ -1788,7 +1788,7 @@ export declare interface BuildTemplateConfig {
     pkgName?: string;
     dirname?: string;
 }
-export declare const enum BuiltinBundleName {
+export declare enum BuiltinBundleName {
     RESOURCES = "resources",
     MAIN = "main",
     START_SCENE = "start-scene",
@@ -1801,7 +1801,7 @@ export declare enum BuiltinBundleName_2 {
     INTERNAL = "internal"
 }
 export declare type BundleCompressionType = 'none' | 'merge_dep' | 'merge_all_json' | 'subpackage' | 'zip';
-export declare const enum BundleCompressionTypes {
+export declare enum BundleCompressionTypes {
     NONE = "none",
     MERGE_DEP = "merge_dep",
     MERGE_ALL_JSON = "merge_all_json",
@@ -5426,7 +5426,7 @@ export declare enum TangentImportSetting {
     require = 2,
     recalculate = 3
 }
-export declare const enum TaskAddResult {
+export declare enum TaskAddResult {
     BUSY = 0,
     SUCCESS = 1,
     PARAM_ERROR = 2

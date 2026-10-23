@@ -53,3 +53,7 @@ profiles/cocos.config.json
 
 # performance profiling artifacts
 perf/
+
+static/scene-runtime/
+
+packages/scene-editor-types/

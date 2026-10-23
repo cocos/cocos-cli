@@ -42,8 +42,8 @@
         "build:simulator:native": "node workflow/build-simulator.js",
         "build:simulator:runtime": "node workflow/build-simulator-runtime.js",
         "build:simulator": "npm run build:simulator:native && npm run build:simulator:runtime",
-        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views",
-        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && node workflow/generate-schema.js",
+        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views && npm run build:scene-runtime && npm run build:scene-editor-types",
+        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && node workflow/generate-schema.js && npm run build:scene-runtime && npm run build:scene-editor-types",
         "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
         "postinstall": "node workflow/postinstall.js",
@@ -54,7 +54,9 @@
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
         "rebuild": "node workflow/electron-rebuild.js",
-        "rebuild:node-gyp": "node workflow/node-gyp-rebuild.js"
+        "rebuild:node-gyp": "node workflow/node-gyp-rebuild.js",
+        "build:scene-runtime": "node workflow/build-scene-runtime.js",
+        "build:scene-editor-types": "node workflow/build-scene-editor-types.js"
     },
     "author": "COCOS",
     "files": [
@@ -113,7 +115,19 @@
         "tsx": "^4.19.2",
         "typescript": "^5.4.5",
         "typescript-eslint": "^8.42.0",
-        "typescript-json-schema": "^0.65.1"
+        "typescript-json-schema": "^0.65.1",
+        "rollup": "2.79.2",
+        "@rollup/plugin-commonjs": "26.0.3",
+        "@rollup/plugin-virtual": "3.0.2",
+        "@rollup/plugin-json": "6.1.0",
+        "@rollup/plugin-node-resolve": "13.3.0",
+        "events": "2.1.0",
+        "path-browserify": "0.0.1",
+        "os-browserify": "0.3.0",
+        "util": "0.10.4",
+        "url": "0.11.4",
+        "core-js-bundle": "3.46.0",
+        "regenerator-runtime": "0.13.11"
     },
     "dependencies": {
         "@babel/core": "7.22.20",
@@ -579,6 +593,182 @@
         "./host/core/scene/scene-process/service/node/prefab-canvas-mutation": {
             "types": "./dist/core/scene/scene-process/service/node/prefab-canvas-mutation.d.ts",
             "default": "./dist/core/scene/scene-process/service/node/prefab-canvas-mutation.js"
+        },
+        "./browser/scene": {
+            "types": "./dist/core/scene/runtime/browser/scene.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene.js"
+        },
+        "./browser/scene/context": {
+            "types": "./dist/core/scene/runtime/browser/scene/context.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/context.js"
+        },
+        "./browser/scene/common": {
+            "types": "./dist/core/scene/runtime/browser/scene/common.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/common.js"
+        },
+        "./browser/scene/config": {
+            "types": "./dist/core/scene/runtime/browser/scene/config.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/config.js"
+        },
+        "./browser/scene/i18n": {
+            "types": "./dist/core/scene/runtime/browser/scene/i18n.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/i18n.js"
+        },
+        "./browser/scene/rpc": {
+            "types": "./dist/core/scene/runtime/browser/scene/rpc.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/rpc.js"
+        },
+        "./browser/scene/light-probe-normal-reset": {
+            "types": "./dist/core/scene/runtime/browser/scene/light-probe-normal-reset.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/light-probe-normal-reset.js"
+        },
+        "./browser/scene/animation/property-commit-event": {
+            "types": "./dist/core/scene/runtime/browser/scene/animation/property-commit-event.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/animation/property-commit-event.js"
+        },
+        "./browser/scene/editor-session": {
+            "types": "./dist/core/scene/runtime/browser/scene/editor-session.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/editor-session.js"
+        },
+        "./browser/scene/dump": {
+            "types": "./dist/core/scene/runtime/browser/scene/dump.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/dump.js"
+        },
+        "./browser/scene/engine": {
+            "types": "./dist/core/scene/runtime/browser/scene/engine.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/engine.js"
+        },
+        "./browser/scene/message": {
+            "types": "./dist/core/scene/runtime/browser/scene/message.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/message.js"
+        },
+        "./browser/scene/node": {
+            "types": "./dist/core/scene/runtime/browser/scene/node.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/node.js"
+        },
+        "./browser/scene/node/node-create": {
+            "types": "./dist/core/scene/runtime/browser/scene/node/node-create.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/node/node-create.js"
+        },
+        "./browser/scene/node/node-type-config": {
+            "types": "./dist/core/scene/runtime/browser/scene/node/node-type-config.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/node/node-type-config.js"
+        },
+        "./browser/scene/node/node-utils": {
+            "types": "./dist/core/scene/runtime/browser/scene/node/node-utils.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/node/node-utils.js"
+        },
+        "./browser/scene/node/prefab-canvas-mutation": {
+            "types": "./dist/core/scene/runtime/browser/scene/node/prefab-canvas-mutation.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/node/prefab-canvas-mutation.js"
+        },
+        "./browser/scene/operation/types": {
+            "types": "./dist/core/scene/runtime/browser/scene/operation/types.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/operation/types.js"
+        },
+        "./browser/scene/prefab/prefab-editor-utils": {
+            "types": "./dist/core/scene/runtime/browser/scene/prefab/prefab-editor-utils.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/prefab/prefab-editor-utils.js"
+        },
+        "./browser/scene/reference-image": {
+            "types": "./dist/core/scene/runtime/browser/scene/reference-image.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/reference-image.js"
+        },
+        "./browser/scene/scene/light-probe-snapshot": {
+            "types": "./dist/core/scene/runtime/browser/scene/scene/light-probe-snapshot.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/scene/light-probe-snapshot.js"
+        },
+        "./browser/scene/scene/light-probe-transform": {
+            "types": "./dist/core/scene/runtime/browser/scene/scene/light-probe-transform.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/scene/light-probe-transform.js"
+        },
+        "./browser/scene/scene/utils": {
+            "types": "./dist/core/scene/runtime/browser/scene/scene/utils.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/scene/utils.js"
+        },
+        "./browser/scene/service-manager": {
+            "types": "./dist/core/scene/runtime/browser/scene/service-manager.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/service-manager.js"
+        },
+        "./browser/scene/utils/asset-reload": {
+            "types": "./dist/core/scene/runtime/browser/scene/utils/asset-reload.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/utils/asset-reload.js"
+        },
+        "./browser/scene/utils/editor-node": {
+            "types": "./dist/core/scene/runtime/browser/scene/utils/editor-node.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/utils/editor-node.js"
+        },
+        "./browser/scene/utils/state-machine/finite-state-machine": {
+            "types": "./dist/core/scene/runtime/browser/scene/utils/state-machine/finite-state-machine.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/utils/state-machine/finite-state-machine.js"
+        },
+        "./browser/scene/utils/state-machine/state-interface": {
+            "types": "./dist/core/scene/runtime/browser/scene/utils/state-machine/state-interface.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/utils/state-machine/state-interface.js"
+        },
+        "./browser/scene/session/client": {
+            "types": "./dist/core/scene/runtime/browser/scene/session/client.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/session/client.js"
+        },
+        "./browser/scene/session/methods": {
+            "types": "./dist/core/scene/runtime/browser/scene/session/methods.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/session/methods.js"
+        },
+        "./browser/scene/session/protocol": {
+            "types": "./dist/core/scene/runtime/browser/scene/session/protocol.d.ts",
+            "default": "./dist/core/scene/runtime/browser/scene/session/protocol.js"
+        },
+        "./browser/engine/editor-extends": {
+            "types": "./dist/core/scene/runtime/browser/engine/editor-extends.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/editor-extends.js"
+        },
+        "./browser/engine/node-path": {
+            "types": "./dist/core/scene/runtime/browser/engine/node-path.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/node-path.js"
+        },
+        "./browser/engine/serialize": {
+            "types": "./dist/core/scene/runtime/browser/engine/serialize.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/serialize.js"
+        },
+        "./browser/engine/deserialize": {
+            "types": "./dist/core/scene/runtime/browser/engine/deserialize.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/deserialize.js"
+        },
+        "./browser/engine/geometry": {
+            "types": "./dist/core/scene/runtime/browser/engine/geometry.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/geometry.js"
+        },
+        "./browser/engine/prefab": {
+            "types": "./dist/core/scene/runtime/browser/engine/prefab.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/prefab.js"
+        },
+        "./browser/engine/graphics-config": {
+            "types": "./dist/core/scene/runtime/browser/engine/graphics-config.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/graphics-config.js"
+        },
+        "./browser/engine/polyfill": {
+            "types": "./dist/core/scene/runtime/browser/engine/polyfill.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/polyfill.js"
+        },
+        "./browser/engine/overwrite": {
+            "types": "./dist/core/scene/runtime/browser/engine/overwrite.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/overwrite.js"
+        },
+        "./browser/engine/editor/2d-misc": {
+            "types": "./dist/core/scene/runtime/browser/engine/editor/2d-misc.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/editor/2d-misc.js"
+        },
+        "./browser/engine/editor/new-gen-anim": {
+            "types": "./dist/core/scene/runtime/browser/engine/editor/new-gen-anim.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/editor/new-gen-anim.js"
+        },
+        "./browser/engine/editor/lod-group-utils": {
+            "types": "./dist/core/scene/runtime/browser/engine/editor/lod-group-utils.d.ts",
+            "default": "./dist/core/scene/runtime/browser/engine/editor/lod-group-utils.js"
+        },
+        "./scene-editor/host": {
+            "types": "./dist/core/scene/runtime/plugin-host.d.ts",
+            "default": "./dist/core/scene/runtime/plugin-host.js"
         }
     }
 }

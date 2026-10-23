@@ -1,4 +1,5 @@
 import { describeChunkImport } from './module-diagnostic';
+import { browserRuntimeRoutes } from './browser-runtime';
 import type { Request, Response, NextFunction } from 'express';
 import path, { isAbsolute, join, relative } from 'path';
 import { pathExists, stat, readFile } from 'fs-extra';
@@ -107,6 +108,7 @@ function getAssetLibraryBaseUrl(serverBaseUrl: string): string {
  * 不包含各自专属的 `/` 入口路由。
  */
 export const scriptingRoutes = [
+    ...browserRuntimeRoutes,
     {
         url: '/scripting/module-diagnostic',
         async handler(req: Request, res: Response, next: NextFunction): Promise<Response | void> {
