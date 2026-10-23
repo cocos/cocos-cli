@@ -42,8 +42,8 @@
         "build:simulator:native": "node workflow/build-simulator.js",
         "build:simulator:runtime": "node workflow/build-simulator-runtime.js",
         "build:simulator": "npm run build:simulator:native && npm run build:simulator:runtime",
-        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views && npm run build:scene-runtime",
-        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && node workflow/generate-schema.js && npm run build:scene-runtime",
+        "build": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && node workflow/generate-schema.js && npm run generate:dts && npm run build:platform-views && npm run build:scene-runtime && npm run build:scene-editor-types",
+        "compile": "npm run build:asset-db && npm run build:clear && node workflow/prepare-dts.js && tsc -b && npm run build:platform-views && node workflow/generate-schema.js && npm run build:scene-runtime && npm run build:scene-editor-types",
         "build:clear": "node workflow/build-clear.js",
         "build:watch": "tsc -b --watch",
         "postinstall": "node workflow/postinstall.js",
@@ -55,7 +55,8 @@
         "cli": "node ./dist/cli.js",
         "rebuild": "node workflow/electron-rebuild.js",
         "rebuild:node-gyp": "node workflow/node-gyp-rebuild.js",
-        "build:scene-runtime": "node workflow/build-scene-runtime.js"
+        "build:scene-runtime": "node workflow/build-scene-runtime.js",
+        "build:scene-editor-types": "node workflow/build-scene-editor-types.js"
     },
     "author": "COCOS",
     "files": [
@@ -764,6 +765,10 @@
         "./browser/engine/editor/lod-group-utils": {
             "types": "./dist/core/scene/runtime/browser/engine/editor/lod-group-utils.d.ts",
             "default": "./dist/core/scene/runtime/browser/engine/editor/lod-group-utils.js"
+        },
+        "./scene-editor/host": {
+            "types": "./dist/core/scene/runtime/plugin-host.d.ts",
+            "default": "./dist/core/scene/runtime/plugin-host.js"
         }
     }
 }

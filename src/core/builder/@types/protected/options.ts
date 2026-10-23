@@ -42,7 +42,7 @@ export interface fileMap {
 export type Physics = 'cannon' | 'ammo' | 'builtin';
 export type Url = string; // 需要的是符合 url 标准的字符串
 export type AssetInfoArr = Array<string | number>; // 固定两位或三位数组 [url,ccType,isSubAsset]
-export const enum TaskAddResult {
+export enum TaskAddResult {
     BUSY,
     SUCCESS,
     PARAM_ERROR,
@@ -377,7 +377,7 @@ export interface IBuildStageOptions {
 
 export type BuildStageProgressCallback = (message: string, progress: number) => void;
 
-export const enum BuildExitCode {
+export enum BuildExitCode {
     PARAM_ERROR = 32,
     BUILD_FAILED = 34,
     BUILD_SUCCESS = 0,

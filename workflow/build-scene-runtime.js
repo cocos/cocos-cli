@@ -603,7 +603,7 @@ async function main() {
     await buildEditorExtends();
     await buildSceneRuntime();
     require('./build-scene-polyfills').buildScenePolyfills(out);
-    for (const name of ['editor-stub-preload.js', 'module-map-runtime.js', 'runtime-resources.js', 'loader.js']) {
+    for (const name of ['editor-stub-preload.js', 'module-map-runtime.js', 'runtime-resources.js', 'loader.js', 'host.js']) {
         fs.copyFileSync(path.join(root, 'src/core/scene/runtime/browser-assets', name), path.join(out, name));
     }
     const files = [];
@@ -614,7 +614,9 @@ async function main() {
     const buildId = hash.digest('hex').slice(0, 16);
     const entries = require('./scene-browser-entries.json');
     fs.writeFileSync(path.join(out, 'import-map.json'), JSON.stringify({ imports: Object.fromEntries(Object.keys(entries).map(id => ['cocos-cli/browser/' + id, './' + id + '.js'])) }, null, 2));
-    fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ apiVersion: 1, cliVersion: require('../package.json').version, buildId, loader: './' + buildId + '/loader.js', importMap: './' + buildId + '/import-map.json' }, null, 2));
+    // loadEngine remains API 1. Capability injection is an additive, independently
+    // versioned feature so existing protocol 2 extensions can keep using this manifest.
+    fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ apiVersion: 1, capabilitiesApiVersion: 1, cliVersion: require('../package.json').version, buildId, loader: './' + buildId + '/loader.js', importMap: './' + buildId + '/import-map.json' }, null, 2));
 }
 module.exports = { buildSceneRuntime, buildEditorExtends, main };
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });

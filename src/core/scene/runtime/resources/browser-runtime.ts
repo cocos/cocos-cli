@@ -18,6 +18,11 @@ export const browserRuntimeRoutes = [{
                 res.setHeader('Cache-Control', 'no-store');
                 return res.json(manifest);
             }
+            if (req.path === '/scripting/scene-runtime/host.js') {
+                res.setHeader('Cache-Control', 'no-store');
+                res.sendFile(join(root, 'host.js'), { dotfiles: 'allow' });
+                return;
+            }
             const prefix = `/scripting/scene-runtime/${manifest.buildId}/`;
             if (!req.path.startsWith(prefix)) return res.sendStatus(404);
             const name = decodeURIComponent(req.path.slice(prefix.length));
