@@ -71,7 +71,7 @@ describe('builder clearCache', () => {
         expect(await pathExists(legacyAssetOtherFile)).toBe(true);
     });
 
-    it('clears global engine cache directories', async () => {
+    it('clears only the global engine cache directory', async () => {
         const engineTempFile = join(mockGlobalPaths.enginePath, 'bin', 'temp', 'engine-cache.js');
         const editorCacheFile = join(mockGlobalPaths.enginePath, 'bin', '.cache', 'editor-cache', 'wechatgame', 'meta.json');
         const devCliCacheFile = join(mockGlobalPaths.enginePath, 'bin', '.cache', 'dev-cli', 'cc.js');
@@ -86,8 +86,8 @@ describe('builder clearCache', () => {
 
         expect(result.scope).toBe('global');
         await expect(readdir(join(mockGlobalPaths.enginePath, 'bin', 'temp'))).resolves.toEqual([]);
-        await expect(readdir(join(mockGlobalPaths.enginePath, 'bin', '.cache', 'editor-cache'))).resolves.toEqual([]);
-        await expect(readdir(join(mockGlobalPaths.enginePath, 'bin', '.cache', 'dev-cli'))).resolves.toEqual([]);
+        expect(await pathExists(editorCacheFile)).toBe(true);
+        expect(await pathExists(devCliCacheFile)).toBe(true);
         expect(await pathExists(engineLogFile)).toBe(true);
     });
 
