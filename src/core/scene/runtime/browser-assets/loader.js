@@ -1,6 +1,8 @@
 import { installModuleMapDiagnostics } from './module-map-runtime.js';
 /* global window, document, System, fetch */
 import { runtimeResource, backendResource, resolveImportMap } from './runtime-resources.js';
+let capabilityIds;
+let pageSystem;
 
 /**
  * 引擎加载公共流程。
@@ -41,6 +43,7 @@ export async function loadEngine(options = {}) {
         const res = await fetch(sourceUrl, { cache: 'no-store' });
         if (!res.ok) throw new Error(`Import map query failed: ${sourceUrl} (${res.status})`);
         const map = resolveImportMap(await res.json(), sourceUrl);
+        if (sourceUrl === sources[0]) capabilityIds = Object.keys(map.imports).filter(id => id.startsWith('cocos-cli/browser/'));
         const script = document.createElement('script');
         script.type = 'systemjs-importmap';
         script.textContent = JSON.stringify(map);
@@ -53,6 +56,7 @@ export async function loadEngine(options = {}) {
     });
 
     await System.prepareImport(true);
+    pageSystem = System;
     const packMapURL = backend('scripting/x/pack-import-map-url');
     installModuleMapDiagnostics(System, backendBaseUrl, {
         packMapURL,
@@ -75,4 +79,21 @@ export async function loadEngine(options = {}) {
     await import(backend('scripting/engine-dist/bundled/index.js'));
 
     return env;
+}
+
+/** Resolve shared implementations before evaluating the private view service classes. */
+export async function prepareSceneCapabilities(environment) {
+    if (!capabilityIds?.length) throw new Error('Load the engine before preparing scene capabilities');
+    // ScriptService bundles an Executor-owned SystemJS that assigns globalThis.System
+    // while evaluating. Keep the page loader instance so the import maps stay available
+    // for the remaining capability modules and for the private view bundle.
+    const system = pageSystem ?? System;
+    await system.import('cocos-cli/browser/scene');
+    if (globalThis.System !== system) globalThis.System = system;
+    const modules = Object.create(null);
+    for (const id of capabilityIds) {
+        const namespace = await system.import(id);
+        modules[id.slice('cocos-cli/browser/'.length)] = namespace.default || namespace;
+    }
+    return Object.freeze({ apiVersion: 1, identity: system, modules: Object.freeze(modules), environment });
 }
