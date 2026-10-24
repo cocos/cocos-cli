@@ -26,6 +26,16 @@ class ScriptManager {
     private _pendingCompileTimer: NodeJS.Timeout | null = null;
     private _pendingCompileTaskId: string | null = null;
     private _projectPath: string = '';
+    private _scriptRevision = 0;
+    private _loadedScripts: { revision: number; promise: Promise<void> } | undefined;
+
+    constructor() {
+        eventEmitter.on('pack-build-end', (target: string) => {
+            if (target === 'editor') {
+                ++this._scriptRevision;
+            }
+        });
+    }
 
     /**
      * 初始化Scripting模块
@@ -156,12 +166,53 @@ class ScriptManager {
     }
 
     /**
+     * 确保当前编辑器编译产物已在本进程执行；并发调用共享加载，编译变化后重新加载。
+     * @param scriptUuids 项目全部脚本的 UUID。
+     * @param pluginScripts 项目插件脚本。
+     * @returns 脚本执行完成；加载失败时保留原始异常并允许重试。
+     */
+    async ensureScriptsLoaded(scriptUuids: string[], pluginScripts: IPluginScriptInfo[] = []): Promise<void> {
+        /*
+        ```mermaid
+        flowchart LR
+            Graph[Graph query or open] --> Cache{Editor build cached?}
+            Cache -->|yes| Wait[Await shared execution]
+            Cache -->|no| Queue[Await previous execution]
+            Queue --> Reload[Executor reloads project scripts]
+            Wait --> Latest{Build changed?}
+            Reload --> Latest
+            Latest -->|yes| Cache
+            Latest -->|no| Ready[Use registered classes]
+        ```
+        */
+        const load = () => this.loadScript(scriptUuids, pluginScripts);
+        const pending = this._loadedScripts?.revision === this._scriptRevision ? this._loadedScripts : {
+            revision: this._scriptRevision,
+            promise: this._loadedScripts
+                ? this._loadedScripts.promise.then(load, load)
+                : load(),
+        };
+        this._loadedScripts = pending;
+        try {
+            await pending.promise;
+            if (pending.revision !== this._scriptRevision) {
+                await this.ensureScriptsLoaded(scriptUuids, pluginScripts);
+            }
+        } catch (error) {
+            if (this._loadedScripts === pending) {
+                this._loadedScripts = undefined;
+            }
+            throw error;
+        }
+    }
+
+    /**
      * 加载脚本并执行
      * @param scriptUuids 脚本UUID列表
      * @param pluginScripts 插件脚本信息列表
      */
     async loadScript(scriptUuids: string[], pluginScripts: IPluginScriptInfo[] = []) {
-        if (!scriptUuids.length) {
+        if (!scriptUuids.length && !executor) {
             console.debug('No script need reload.');
             return;
         }
@@ -243,6 +294,8 @@ class ScriptManager {
             executor = null;
         }
         this._initialized = false;
+        this._loadedScripts = undefined;
+        ++this._scriptRevision;
     }
 
 }

@@ -47,6 +47,7 @@ import {
     queryPropertyObjectOperationCapabilities,
 } from './serialized-data';
 import { serialize as editorSerialize } from '../engine/editor-extends';
+import scriptManager from '../scripting';
 
 type AnimationGraphChangeListener = (event: AnimationGraphChangedEvent) => void;
 
@@ -242,6 +243,7 @@ class AnimationGraphAssetService {
     }
 
     async queryStateMachineComponentTypes(): Promise<string[]> {
+        await this._loadProjectScripts();
         const js = getCC().js;
         const base = js.getClassByName('cc.animation.StateMachineComponent');
         if (!base) {
@@ -457,6 +459,7 @@ class AnimationGraphAssetService {
     }
 
     private async _getOrLoad(asset: IAsset): Promise<AnimationGraphDocument> {
+        await this._loadProjectScripts();
         const existing = this._documents.get(asset.uuid);
         if (existing) {
             return existing;
@@ -467,6 +470,7 @@ class AnimationGraphAssetService {
     }
 
     private async _loadDocument(asset: IAsset): Promise<AnimationGraphDocument> {
+        await this._loadProjectScripts();
         const content = await readFile(asset.source, 'utf8');
         let serialized: unknown;
         try {
@@ -490,6 +494,13 @@ class AnimationGraphAssetService {
             nodesById: new Map(),
             nextNodeId: 1,
         };
+    }
+
+    private _loadProjectScripts(): Promise<void> {
+        return scriptManager.ensureScriptsLoaded(
+            assetQuery.queryAssetInfos({ ccType: 'cc.Script' }).map(asset => asset.uuid),
+            assetQuery.querySortedPlugins({ loadPluginInEditor: true }),
+        );
     }
 
     private _queryAnimationGraphAsset(uuidOrUrlOrPath: string): IAsset {
