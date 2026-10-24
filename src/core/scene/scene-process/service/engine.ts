@@ -145,17 +145,10 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         void this.repaintInEditMode();
     }
 
-     /* 从服务端拉取当前工程的设计分辨率，同步到 cc.view 并重排已打开场景里的 Canvas。
-     *
-     * 为什么必须手动重排：编辑器模式（EDITOR_NOT_IN_PREVIEW）下 cc.Canvas 不会注册
-     * 'design-resolution-changed' 监听（只有预览/运行模式才注册），只在场景实例化的 __preload 里
-     * 调 fitDesignResolution_EDITOR 对齐一次。因此改分辨率后：新实例化的场景会自动对齐，但
-     * 已打开、未重新实例化的场景不会更新——需要在这里手动调 fitDesignResolution_EDITOR
-     * （与 cocos-editor startup.initDesignResolution 的重排逻辑一致）。
-     *
-     * 在打开场景、重开同一场景、以及选中节点时都会调用：由于浏览器场景收不到主进程的配置变更推送，
-     * 只能在这些交互时机主动拉取比对。cc.view 未变化时直接返回（每次仅一次极小的读取），
-     * 变化时才更新并重排——因为 cc.view 每次变化都会连同重排当前场景，故不会出现“已更新但场景未重排”的情况。
+    /**
+     * 拉取工程设计分辨率并重排已打开场景的 Canvas，保留宿主控制的编辑视口。
+     * 编辑模式的 Canvas 不监听 design-resolution-changed，需要手动重排。
+     * @returns 分辨率同步完成后的 Promise。
      */
     public async syncDesignResolution() {
         try {
@@ -166,15 +159,17 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
             const dr = await Rpc.getInstance().request('sceneConfigInstance', 'queryDesignResolution');
             const width = Number(dr?.width);
             const height = Number(dr?.height);
-            if (Number.isNaN(width) || Number.isNaN(height)) {
+            if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
                 return;
             }
             const size = view.getDesignResolutionSize();
             if (size && size.width === width && size.height === height) {
                 return; // 未变化，无需处理
             }
-            // 保持与场景进程启动时一致的 ResolutionPolicy
-            view.setDesignResolutionSize(width, height, view.getResolutionPolicy());
+            // 编辑视口由宿主控制，不能套用游戏分辨率策略改变画布和视口。
+            view._designResolutionSize.set(width, height);
+            cc.visibleRect.init(cc.rect(0, 0, width, height));
+            view.emit('design-resolution-changed');
             // 手动对齐已打开场景里的 Canvas（编辑器模式不会自动响应 design-resolution-changed）
             const scene = director.getScene();
             if (scene) {
@@ -183,7 +178,7 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
                     if (!canvas || !canvas.node) {
                         return;
                     }
-                    // 带 Widget 的 Canvas 由 Widget 对齐；未激活/未启用的跳过
+                    // Widget 通过分辨率事件在引擎帧中对齐，避免编辑模式回写其边距。
                     if (canvas.node.getComponent('cc.Widget') || !canvas.node.active || !canvas.enabled) {
                         return;
                     }
