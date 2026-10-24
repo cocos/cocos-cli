@@ -47,7 +47,6 @@ import {
     queryPropertyObjectOperationCapabilities,
 } from './serialized-data';
 import { serialize as editorSerialize } from '../engine/editor-extends';
-import scriptManager from '../scripting';
 
 type AnimationGraphChangeListener = (event: AnimationGraphChangedEvent) => void;
 
@@ -496,8 +495,9 @@ class AnimationGraphAssetService {
         };
     }
 
-    private _loadProjectScripts(): Promise<void> {
-        return scriptManager.ensureScriptsLoaded(
+    private async _loadProjectScripts(): Promise<void> {
+        const { default: scriptManager } = await import('../scripting');
+        await scriptManager.ensureScriptsLoaded(
             assetQuery.queryAssetInfos({ ccType: 'cc.Script' }).map(asset => asset.uuid),
             assetQuery.querySortedPlugins({ loadPluginInEditor: true }),
         );
