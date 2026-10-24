@@ -30,6 +30,7 @@ import { readFileSync, readJSONSync, remove } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import { assetManager } from '..';
+import { getDeserializeResult } from '../asset-handler/utils';
 import type { IProperty } from '../../scene/@types/public';
 import {
     applyPropertyObjectOperation,
@@ -44,6 +45,24 @@ describe('serialized asset data', function () {
 
     beforeAll(async () => {
         await globalSetup();
+    });
+
+    it.each([
+        ['cc.animation.PoseNodePlayMotion', 'cc.AnimationClip'],
+        ['cc.animation.PoseNodePlayMotion', 'cc.Asset'],
+        ['cc.animation.PoseNodeSampleMotion', 'cc.AnimationClip'],
+        ['cc.animation.PoseNodeSampleMotion', 'cc.Asset'],
+    ])('preserves the Clip Inspector for %s references serialized as %s', (nodeType, expectedType) => {
+        const engine = (globalThis as any).cc;
+        const uuid = 'd4e8f06a-4de9-4e52-9d84-494e2dde5f19';
+        const { instance } = getDeserializeResult([
+            { __type__: nodeType, motion: { __id__: 1 } },
+            { __type__: 'cc.animation.ClipMotion', clip: { __uuid__: uuid, __expectedType__: expectedType } },
+        ]);
+        expect(instance.motion.clip).toBeInstanceOf(engine.AnimationClip);
+        expect(instance.motion.clip._uuid).toBe(uuid);
+        const dump = encodePropertyObject(instance).value as DumpMap;
+        expect((dump.motion.value as DumpMap).clip).toMatchObject({ type: 'cc.AnimationClip', value: { uuid } });
     });
 
     afterAll(async () => {
