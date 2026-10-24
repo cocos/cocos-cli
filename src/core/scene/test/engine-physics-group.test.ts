@@ -5,6 +5,7 @@ jest.mock('cc', () => ({
     director: {
         getTotalFrames: jest.fn(() => 0),
         tick: jest.fn(),
+        getScene: jest.fn(),
     },
 }));
 
@@ -20,6 +21,71 @@ import { EngineService } from '../scene-process/service/engine';
 import { ServiceEvents } from '../scene-process/service/core/global-events';
 import { queryRegisteredService } from '../scene-process/service/core/decorator';
 import { director } from 'cc';
+import { Rpc } from '../scene-process/rpc';
+
+describe('Engine design resolution', () => {
+    let request: jest.Mock;
+    let size: { width: number; height: number; set: jest.Mock };
+    let canvas: { node: { active: boolean; getComponent: jest.Mock }; enabled: boolean; fitDesignResolution_EDITOR: jest.Mock };
+
+    beforeEach(() => {
+        request = jest.fn().mockResolvedValue({ width: 640, height: 720 });
+        jest.spyOn(Rpc, 'getInstance').mockReturnValue({ request } as any);
+        size = { width: 1280, height: 720, set: jest.fn((width, height) => Object.assign(size, { width, height })) };
+        (globalThis as any).cc = {
+            rect: (x: number, y: number, width: number, height: number) => ({ x, y, width, height }),
+            visibleRect: { init: jest.fn() },
+            view: {
+                _designResolutionSize: size,
+                getDesignResolutionSize: () => ({ width: size.width, height: size.height }),
+                emit: jest.fn(),
+                setDesignResolutionSize: jest.fn(() => { throw new Error('game policy must not resize editor viewport'); }),
+            },
+        };
+        canvas = { node: { active: true, getComponent: jest.fn() }, enabled: true, fitDesignResolution_EDITOR: jest.fn() };
+        (director.getScene as jest.Mock).mockReturnValue({ getComponentsInChildren: () => [canvas] });
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('updates Canvas layout without applying game viewport policy and skips unchanged dimensions', async () => {
+        const service = new EngineService();
+        await service.syncDesignResolution();
+        expect(size).toMatchObject({ width: 640, height: 720 });
+        expect((globalThis as any).cc.visibleRect.init).toHaveBeenCalledWith({ x: 0, y: 0, width: 640, height: 720 });
+        expect(canvas.fitDesignResolution_EDITOR).toHaveBeenCalledTimes(1);
+        expect((globalThis as any).cc.view.emit).toHaveBeenCalledWith('design-resolution-changed');
+        expect((globalThis as any).cc.view.setDesignResolutionSize).not.toHaveBeenCalled();
+        expect((service as any)._shouldRepaintInEM).toBe(true);
+        await service.syncDesignResolution();
+        expect(canvas.fitDesignResolution_EDITOR).toHaveBeenCalledTimes(1);
+        expect((globalThis as any).cc.view.emit).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([0, -1, NaN, Infinity, undefined])('ignores invalid dimensions %s', async (value) => {
+        for (const dimension of ['width', 'height']) {
+            request.mockResolvedValue({ width: 640, height: 720, [dimension]: value });
+            await new EngineService().syncDesignResolution();
+            expect(size.set).not.toHaveBeenCalled();
+            expect(canvas.fitDesignResolution_EDITOR).not.toHaveBeenCalled();
+        }
+    });
+
+    it('leaves Widget Canvas alignment to the resolution event', async () => {
+        canvas.node.getComponent.mockReturnValue({});
+        await new EngineService().syncDesignResolution();
+        expect((globalThis as any).cc.view.emit).toHaveBeenCalledWith('design-resolution-changed');
+        expect(canvas.fitDesignResolution_EDITOR).not.toHaveBeenCalled();
+    });
+
+    it.each(['inactive', 'disabled'])('preserves %s Canvas layout ownership', async (kind) => {
+        canvas.node.active = kind !== 'inactive';
+        canvas.enabled = kind !== 'disabled';
+        await new EngineService().syncDesignResolution();
+        expect(size.width).toBe(640);
+        expect(canvas.fitDesignResolution_EDITOR).not.toHaveBeenCalled();
+    });
+});
 
 describe('Engine repaint recovery', () => {
     it('accepts repaint requests after a failed frame without scheduling recursive repaint', async () => {

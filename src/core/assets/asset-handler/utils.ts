@@ -85,7 +85,9 @@ export function getDeserializeResult(json: CCON | Object) {
         classFinder,
     });
     deserializeDetails.assignAssetsBy(function (uuid: string, options: { owner: object; prop: string; type: Function }) {
-        return EditorExtends.serialize.asAsset(uuid);
+        const declaredType = options.type === cc.Asset ? cc.Class.attr(options.owner, options.prop).ctor : undefined;
+        const type = declaredType && cc.js.isChildClassOf(declaredType, cc.Asset) ? declaredType : options.type;
+        return EditorExtends.serialize.asAsset(uuid, type);
     });
     return {
         instance: deserializedAsset,

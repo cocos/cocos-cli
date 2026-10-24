@@ -242,6 +242,7 @@ class AnimationGraphAssetService {
     }
 
     async queryStateMachineComponentTypes(): Promise<string[]> {
+        await this._loadProjectScripts();
         const js = getCC().js;
         const base = js.getClassByName('cc.animation.StateMachineComponent');
         if (!base) {
@@ -457,6 +458,7 @@ class AnimationGraphAssetService {
     }
 
     private async _getOrLoad(asset: IAsset): Promise<AnimationGraphDocument> {
+        await this._loadProjectScripts();
         const existing = this._documents.get(asset.uuid);
         if (existing) {
             return existing;
@@ -467,6 +469,7 @@ class AnimationGraphAssetService {
     }
 
     private async _loadDocument(asset: IAsset): Promise<AnimationGraphDocument> {
+        await this._loadProjectScripts();
         const content = await readFile(asset.source, 'utf8');
         let serialized: unknown;
         try {
@@ -490,6 +493,14 @@ class AnimationGraphAssetService {
             nodesById: new Map(),
             nextNodeId: 1,
         };
+    }
+
+    private async _loadProjectScripts(): Promise<void> {
+        const { default: scriptManager } = await import('../scripting');
+        await scriptManager.ensureScriptsLoaded(
+            assetQuery.queryAssetInfos({ ccType: 'cc.Script' }).map(asset => asset.uuid),
+            assetQuery.querySortedPlugins({ loadPluginInEditor: true }),
+        );
     }
 
     private _queryAnimationGraphAsset(uuidOrUrlOrPath: string): IAsset {

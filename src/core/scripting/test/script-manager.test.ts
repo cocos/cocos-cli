@@ -536,6 +536,75 @@ describe('ScriptManager', () => {
         });
     });
 
+    describe('ensureScriptsLoaded', () => {
+        it('shares execution and reloads only after an editor build', async () => {
+            eventEmitter.emit('pack-build-end', 'editor');
+            const load = jest.spyOn(scriptManager, 'loadScript').mockResolvedValue();
+            try {
+                await Promise.all([
+                    scriptManager.ensureScriptsLoaded(['project-script']),
+                    scriptManager.ensureScriptsLoaded(['project-script']),
+                ]);
+                eventEmitter.emit('pack-build-end', 'preview');
+                await scriptManager.ensureScriptsLoaded(['project-script']);
+                expect(load).toHaveBeenCalledTimes(1);
+                eventEmitter.emit('pack-build-end', 'editor');
+                await scriptManager.ensureScriptsLoaded(['project-script']);
+                expect(load).toHaveBeenCalledTimes(2);
+            } finally {
+                load.mockRestore();
+                eventEmitter.emit('pack-build-end', 'editor');
+            }
+        });
+
+        it('serializes rebuilds and waits for the latest compilation', async () => {
+            let releaseFirst!: () => void;
+            let releaseSecond!: () => void;
+            const firstLoad = new Promise<void>(resolve => { releaseFirst = resolve; });
+            const secondLoad = new Promise<void>(resolve => { releaseSecond = resolve; });
+            const load = jest.spyOn(scriptManager, 'loadScript')
+                .mockReturnValueOnce(firstLoad).mockReturnValueOnce(secondLoad);
+            let firstFinished = false;
+            const requests: Promise<void>[] = [];
+            try {
+                const first = scriptManager.ensureScriptsLoaded(['project-script']).then(() => { firstFinished = true; });
+                requests.push(first);
+                await new Promise<void>(resolve => setImmediate(resolve));
+                eventEmitter.emit('pack-build-end', 'editor');
+                const second = scriptManager.ensureScriptsLoaded(['project-script']);
+                requests.push(second);
+                expect(load).toHaveBeenCalledTimes(1);
+                releaseFirst();
+                await new Promise<void>(resolve => setImmediate(resolve));
+                expect(load).toHaveBeenCalledTimes(2);
+                expect(firstFinished).toBe(false);
+                releaseSecond();
+                await Promise.all([first, second]);
+                expect(firstFinished).toBe(true);
+            } finally {
+                releaseFirst();
+                releaseSecond();
+                await Promise.allSettled(requests);
+                load.mockRestore();
+                eventEmitter.emit('pack-build-end', 'editor');
+            }
+        });
+
+        it('preserves a load failure and allows the next request to retry', async () => {
+            const failure = new Error('project script execution failed');
+            const load = jest.spyOn(scriptManager, 'loadScript')
+                .mockRejectedValueOnce(failure).mockResolvedValue();
+            try {
+                await expect(scriptManager.ensureScriptsLoaded(['project-script'])).rejects.toBe(failure);
+                await scriptManager.ensureScriptsLoaded(['project-script']);
+                expect(load).toHaveBeenCalledTimes(2);
+            } finally {
+                load.mockRestore();
+                eventEmitter.emit('pack-build-end', 'editor');
+            }
+        });
+    });
+
     describe('loadScript', () => {
 
         it('should return early when scriptUuids is empty', async () => {
