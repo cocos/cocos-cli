@@ -60,6 +60,12 @@ jest.mock('../../assets/manager/asset', () => ({
     },
 }));
 
+jest.mock('../worker/builder', () => ({
+    BuildUnitTask: class {
+        constructor(public id: string, public options: unknown) {}
+    },
+}));
+
 describe('createBuildStageTask', () => {
     const stageConfig = {
         name: 'run',
@@ -88,6 +94,38 @@ describe('createBuildStageTask', () => {
 
     afterEach(() => {
         jest.restoreAllMocks();
+    });
+
+    it('creates a resolved build unit without re-normalizing hook results or mutating input', async () => {
+        const { createResolvedBuildUnitTask } = await import('../index');
+        const options = { taskId: 'unit', platform: 'web-desktop', packages: { 'web-desktop': { token: 'hook' } } };
+        const task = await createResolvedBuildUnitTask(options as any);
+        expect(task.options.packages).toEqual(options.packages);
+        task.options.packages['web-desktop'].token = 'changed';
+        expect(options.packages['web-desktop'].token).toBe('hook');
+        expect(mockReadJSONSync).not.toHaveBeenCalled();
+    });
+
+    it('passes resolved options to a unit without reloading or resurrecting hook deletions', async () => {
+        const { createBuildStageUnitTask } = await import('../index');
+        mockReadJSONSync.mockReturnValue({ packages: { 'web-desktop': { removed: true } } });
+        const resolved = { platform: 'web-desktop', packages: { 'web-desktop': { token: 'hook-token' } } };
+        const task = await createBuildStageUnitTask('unit', 'run', {
+            dest: 'build/web-desktop', platform: 'web-desktop',
+        }, resolved as any);
+        expect(mockReadJSONSync).not.toHaveBeenCalled();
+        expect(task.options!.packages).toEqual(resolved.packages);
+        task.options!.packages['web-desktop'].token = 'cli-token';
+        expect(resolved.packages['web-desktop'].token).toBe('hook-token');
+    });
+
+    it('reads fresh stage options without changing the artifact or hiding malformed configuration', async () => {
+        const { readBuildStageOptions } = await import('../index');
+        const artifact = { platform: 'web-desktop', packages: { 'web-desktop': { token: 'latest' } } };
+        mockReadJSONSync.mockReturnValue(artifact);
+        expect((await readBuildStageOptions('build/web-desktop', 'web-desktop', 'run')).packages).toEqual(artifact.packages);
+        mockReadJSONSync.mockReturnValue([]);
+        expect(() => readBuildStageOptions('build/web-desktop', 'web-desktop', 'run')).toThrow();
     });
 
     it('synthesizes build options for registered web stage tasks without reading the compile config', async () => {

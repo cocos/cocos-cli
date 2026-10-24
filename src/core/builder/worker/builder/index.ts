@@ -173,6 +173,20 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 执行具体的构建任务
      */
     public async run() {
+        return this.runPipeline(true);
+    }
+
+    /** Execute this platform only. Follow-up options written by platform hooks do not schedule work. */
+    public async runUnit() {
+        this.options.generateCompileConfig = true;
+        this.options.childTaskIds = undefined;
+        this.options.subTaskBuildOutputs = undefined;
+        this.mainTaskWeight = 1;
+        this.hookWeight = this.taskManager.taskWeight;
+        return this.runPipeline(false);
+    }
+
+    private async runPipeline(includeFollowUps: boolean) {
         const restoreLogSink = newConsole.createLogSinkRestorer();
         let failed = false;
         const { dir } = this.result.paths;
@@ -225,12 +239,12 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             // 构建进程结束之前
             await this.runPluginTask(TaskManager.pluginTasks.onAfterBuild);
             await this.postBuild();
-            if(this.options.subTaskPlatforms) await this.runSubTaskBuilds();
+            if (includeFollowUps && this.options.subTaskPlatforms) await this.runSubTaskBuilds();
             if (this.error) {
                 failed = true;
                 return false;
             }
-            this.options.nextStages && (await this.handleBuildStageTask(this.options.nextStages));
+            if (includeFollowUps && this.options.nextStages) await this.handleBuildStageTask(this.options.nextStages);
             if (this.error) {
                 failed = true;
                 return false;
@@ -356,6 +370,39 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         outputJSONSync(this.result.paths.compileConfig, this.getCompileConfigOptions());
     }
 
+    /** Derive child requests using the same platform validation as the CLI workflow, without executing them. */
+    public async getSubBuildOptions(): Promise<IInternalBuildOptions[]> {
+        if (this.options.parentTaskId) return [];
+        const options: IInternalBuildOptions[] = [];
+        for (const platform of this.options.subTaskPlatforms || []) {
+            options.push(await this.createSubTaskOptions(platform));
+        }
+        return options;
+    }
+
+    /** Publish a completed child unit into the parent's output manifest for subsequent stages. */
+    public recordSubBuild(childTask: BuildTask): void {
+        const platform = String(childTask.options.platform);
+        const output: ISubTaskBuildOutput = {
+            platform,
+            dest: childTask.result.paths.dir,
+            buildPath: childTask.options.buildPath,
+            outputName: childTask.options.outputName,
+            taskId: childTask.options.taskId,
+            parentTaskId: this.options.taskId,
+            logDest: childTask.options.logDest,
+        };
+        this.options.childTaskIds ??= [];
+        if (output.taskId && !this.options.childTaskIds.includes(output.taskId)) this.options.childTaskIds.push(output.taskId);
+        this.options.subTaskBuildOutputs ??= {};
+        this.options.subTaskBuildOutputs[platform] = output;
+        this.syncSubTaskPackageOptions(platform, childTask);
+        this.subTaskBuildOptions[platform] = childTask.options;
+        const subTasks = this.buildExitRes.custom.subTasks ??= { platforms: this.options.subTaskPlatforms || [], outputs: {} };
+        subTasks.outputs[platform] = { ...output, custom: childTask.buildExitRes.custom };
+        outputJSONSync(this.result.paths.compileConfig, this.getCompileConfigOptions());
+    }
+
     private syncSubTaskPackageOptions(platform: string, childTask: BuildTask) {
         const childCompileOptions = childTask.result.compileOptions || childTask.options;
         const childPackageOptions = childCompileOptions.packages?.[platform];
@@ -373,7 +420,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
     }
 
     private async createSubTaskOptions(platform: string): Promise<IInternalBuildOptions> {
-        const childOptions = JSON.parse(JSON.stringify(this.options));
+        const childOptions = JSON.parse(JSON.stringify(this.getCompileConfigOptions()));
         childOptions.platform = platform;
         childOptions.outputName = platform;
         childOptions.buildPath = this.result.paths.dir;
@@ -387,7 +434,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         childOptions.nextStages = undefined;
         childOptions.buildStageGroup = undefined;
         childOptions.packages = {
-            [platform]: this.options.packages?.[platform] || {},
+            [platform]: childOptions.packages?.[platform] || {},
         };
         const checkedOptions = await pluginManager.checkOptions(childOptions as any);
         if (!checkedOptions) {
@@ -406,7 +453,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         return checkedOptions as IInternalBuildOptions;
     }
 
-    private getCompileConfigOptions() {
+    public getCompileConfigOptions(): IInternalBuildOptions {
         const compileOptions = this.result.compileOptions || this.options;
         if (this.options.parentTaskId) {
             compileOptions.parentTaskId = this.options.parentTaskId;
@@ -837,6 +884,13 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
  * 翻译 title
  * @param title 原始 title 或者带有 i18n 开头的 title
  */
+/** A build operation whose run method never dispatches children or follow-up stages. */
+export class BuildUnitTask extends BuildTask {
+    public override async run() {
+        return this.runUnit();
+    }
+}
+
 function transTitle(title: string): string {
     if (typeof title !== 'string') {
         return '';

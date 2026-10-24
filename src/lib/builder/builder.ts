@@ -13,12 +13,46 @@ export async function init(platform?: string[]): Promise<void> {
 
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
-    return builder.build(platform, options);
+    return builder.buildUnit(platform, options);
 }
 
 export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
     const builder = await import('../../core/builder');
-    return builder.createBuildTask(platform, options);
+    return builder.createBuildUnitTask(platform, options);
+}
+
+/** Create one platform build; the caller schedules children and subsequent stages. */
+export async function createBuildUnitTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+    const builder = await import('../../core/builder');
+    return builder.createBuildUnitTask(platform, options);
+}
+
+export async function resolveBuildUnitOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption> {
+    const builder = await import('../../core/builder');
+    return builder.resolveBuildUnitOptions(platform, options);
+}
+
+export async function createResolvedBuildUnitTask(options: IBuildTaskOption) {
+    const builder = await import('../../core/builder');
+    return builder.createResolvedBuildUnitTask(options);
+}
+
+/** Read the current artifact configuration for a single stage. */
+export async function readBuildStageOptions(dest: string, platform: string, stageName: string): Promise<IBuildTaskOption> {
+    const builder = await import('../../core/builder');
+    return builder.readBuildStageOptions(dest, platform, stageName);
+}
+
+/** Execute exactly one stage using the supplied resolved configuration. */
+export async function createBuildStageUnitTask(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions: IBuildTaskOption) {
+    const builder = await import('../../core/builder');
+    return builder.createBuildStageUnitTask(taskId, stageName, options, buildOptions);
+}
+
+/** Resolve the parent and child artifact targets without executing a workflow. */
+export async function getBuildStageTargets(platform: string, dest: string, options: IBuildTaskOption): Promise<Array<{ platform: string; dest: string; required: boolean }>> {
+    const builder = await import('../../core/builder');
+    return builder.getBuildStageTargets(platform, dest, options);
 }
 
 export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promise<IBuildResultData> {
@@ -33,12 +67,12 @@ export async function createBundleBuildTask(bundleOptions: IBundleBuildOptions) 
 
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
-    return builder.executeBuildStageTask(taskId, stageName, options, onProgress);
+    return builder.executeBuildStageUnit(taskId, stageName, options, onProgress);
 }
 
 export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions) {
     const builder = await import('../../core/builder');
-    return builder.createBuildStageTask(taskId, stageName, options);
+    return builder.createBuildStageFromArtifact(taskId, stageName, options);
 }
 
 export async function make(platform: Platform, dest: string) {

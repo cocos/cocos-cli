@@ -309,6 +309,50 @@ describe('BuildTask nextStages', () => {
         expect(mockRestoreLogSink).toHaveBeenCalled();
     });
 
+    it('runs a managed build unit without following submitted or hook-injected workflows', async () => {
+        const { BuildUnitTask } = await import('../worker/builder');
+        const task = new BuildUnitTask('unit', {
+            platform: 'test-platform', taskName: 'unit', outputName: 'unit',
+            nextStages: ['make'], subTaskPlatforms: ['web-desktop'], packages: {},
+        } as any);
+        const internal = task as any;
+        internal.lockAssetDB = jest.fn();
+        internal.init = jest.fn();
+        internal.runPluginTask = jest.fn(async () => {
+            task.options.nextStages = ['upload'];
+            task.options.subTaskPlatforms = ['web-mobile'];
+        });
+        internal.initBundleManager = jest.fn(async () => {
+            internal.bundleManager = { hookMap: {}, runPluginTask: jest.fn() };
+        });
+        internal.runBuildTask = jest.fn();
+        internal.postBuild = jest.fn();
+        internal.runSubTaskBuilds = jest.fn();
+        internal.handleBuildStageTask = jest.fn();
+
+        await expect(task.run()).resolves.toBe(true);
+        expect(internal.postBuild).toHaveBeenCalledTimes(1);
+        expect(internal.runSubTaskBuilds).not.toHaveBeenCalled();
+        expect(internal.handleBuildStageTask).not.toHaveBeenCalled();
+        expect(mockStageTaskRuns).toEqual([]);
+    });
+
+    it('derives child requests from current compiled parameters without running them', async () => {
+        const { BuildTask } = await import('../worker/builder');
+        const options = {
+            platform: 'parent', taskId: 'parent', taskName: 'parent', outputName: 'parent',
+            subTaskPlatforms: ['child'], packages: { child: { token: 'stale' } },
+        };
+        const task = new BuildTask('parent', options as any);
+        task.result.compileOptions = { ...options, packages: { child: { token: 'generated' } } } as any;
+        const children = await task.getSubBuildOptions();
+        expect(children.map(child => ({ platform: child.platform, taskId: child.taskId, packages: child.packages }))).toEqual([
+            { platform: 'child', taskId: 'parent:child', packages: { child: { token: 'generated' } } },
+        ]);
+        expect(options.packages.child.token).toBe('stale');
+        expect(mockStageTaskRuns).toEqual([]);
+    });
+
     it('restores log sink when main build fails', async () => {
         const { BuildTask } = await import('../worker/builder');
         const options = {

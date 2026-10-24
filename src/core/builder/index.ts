@@ -58,10 +58,8 @@ function ensureBuildLogSink(options: { logDest?: string; taskName?: string; plat
     return options.logDest;
 }
 
-export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
-    if (!options) {
-        options = await pluginManager.getOptionsByPlatform(platform);
-    }
+async function prepareBuildOptions<P extends Platform>(platform: P, input?: IBuildCommandOption) {
+    const options: IBuildCommandOption = input ?? await pluginManager.getOptionsByPlatform(platform);
     options.platform = platform;
     options.taskId = options.taskId || String(new Date().getTime());
     options.taskName = options.taskName || platform;
@@ -85,18 +83,51 @@ export async function createBuildTask<P extends Platform>(platform: P, options?:
 
     realOptions.logDest = options.logDest;
 
-    const { BuildTask } = await import('./worker/builder');
-    return new BuildTask(options.taskId, realOptions);
+    return realOptions;
 }
 
+export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+    const prepared = await prepareBuildOptions(platform, options);
+    const { BuildTask } = await import('./worker/builder');
+    return new BuildTask(prepared.taskId!, prepared);
+}
+
+/** Create a single-platform operation. The caller owns child builds and follow-up stages. */
+export async function createBuildUnitTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+    const prepared = await resolveBuildUnitOptions(platform, options);
+    return createResolvedBuildUnitTask(prepared);
+}
+
+/** Normalize before the host's pre-hook; never merge defaults after that hook. */
+export async function resolveBuildUnitOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption> {
+    return prepareBuildOptions(platform, options === undefined ? undefined : cloneConfigValue(options));
+}
+
+/** The supplied snapshot is authoritative, including deleted package fields. */
+export async function createResolvedBuildUnitTask(options: IBuildTaskOption) {
+    const prepared = cloneConfigValue(options);
+    const { BuildUnitTask } = await import('./worker/builder');
+    return new BuildUnitTask(prepared.taskId!, prepared);
+}
+
+
+/** Legacy command/MCP workflow. Library callers use buildUnit and own orchestration. */
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
+    return runBuild(platform, options, createBuildTask);
+}
+
+export async function buildUnit<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
+    return runBuild(platform, options, createBuildUnitTask);
+}
+
+async function runBuild<P extends Platform>(platform: P, options: IBuildCommandOption | undefined, createTask: typeof createBuildTask): Promise<IBuildResultData> {
     const startTime = Date.now();
     let buildSuccess = true;
     const restoreLogSink = newConsole.createLogSinkRestorer();
 
     // 显示构建开始信息
     try {
-        const builder = await createBuildTask(platform, options);
+        const builder = await createTask(platform, options);
         newConsole.buildStart(platform);
 
         // 监听构建进度
@@ -183,6 +214,44 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
     return createBuildStageTaskWithBuildOptions(taskId, stageName, options, readBuildOptionsForBuildStage(options));
 }
 
+/** Public library factory: read the current artifact and execute only this stage. */
+export async function createBuildStageFromArtifact(taskId: string, stageName: string, input: IBuildStageOptions) {
+    const options = cloneConfigValue(input);
+    const resolved = readBuildStageOptions(options.dest, options.platform, stageName);
+    mergeBuildStageRuntimeOptions(resolved, options);
+    return createBuildStageTaskWithBuildOptions(taskId, stageName, options, resolved);
+}
+
+/** Resolve the current artifact configuration without retaining a build-request snapshot. */
+export function readBuildStageOptions(dest: string, platform: string, stageName: string): IBuildTaskOption {
+    const root = utils.Path.resolveToRaw(dest);
+    const stage = pluginManager.getBuildStageWithHookTasks(platform, stageName);
+    let options: IBuildTaskOption;
+    try {
+        options = readBuildTaskOptions(root);
+    } catch (error) {
+        if (stage?.requiredBuildOptions !== false || (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        options = { platform, packages: {} } as IBuildTaskOption;
+    }
+    if (!options || typeof options !== 'object' || Array.isArray(options)) throw new Error('Build output configuration must be an object');
+    return cloneConfigValue({ ...options, platform, dest: root });
+}
+
+/** Create exactly one stage from already resolved options; no additional merge or platform cascade. */
+export async function createBuildStageUnitTask(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions: IBuildTaskOption) {
+    return createBuildStageTaskWithBuildOptions(taskId, stageName, cloneConfigValue(options), cloneConfigValue(buildOptions));
+}
+
+/** Enumerate actual artifact targets for one stage without executing the stage on any platform. */
+export function getBuildStageTargets(platform: string, dest: string, options: IBuildTaskOption): Array<{ platform: string; dest: string; required: boolean }> {
+    return [
+        { platform, dest, required: true },
+        ...(!options.parentTaskId ? options.subTaskPlatforms || [] : []).map(child => ({
+            platform: String(child), dest: options.subTaskBuildOutputs?.[child]?.dest || '', required: false,
+        })),
+    ];
+}
+
 async function createBuildStageTaskWithBuildOptions(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions?: IBuildTaskOption<any>) {
     options.dest = utils.Path.resolveToRaw(options.dest);
     const { BuildStageTask } = await import('./worker/builder/stage-task-manager');
@@ -259,6 +328,23 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
     } catch (error: any) {
         console.error(error);
         return { code: BuildExitCode.BUILD_FAILED, reason: error?.message || String(error) };
+    } finally {
+        restoreLogSink();
+    }
+}
+
+/** Single-stage library operation; no child or next-stage scheduling. */
+export async function executeBuildStageUnit(taskId: string, stageName: string, input: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
+    const options = cloneConfigValue(input);
+    const restoreLogSink = newConsole.createLogSinkRestorer();
+    try {
+        options.taskName ||= stageName;
+        ensureBuildLogSink(options, options.taskName, options.logDest);
+        const resolved = readBuildStageOptions(options.dest, options.platform, stageName);
+        mergeBuildStageRuntimeOptions(resolved, options);
+        return await executeSingleBuildStageTask(taskId, stageName, options, resolved, onProgress);
+    } catch (error) {
+        return failBuildStage(error instanceof Error ? error.message : String(error));
     } finally {
         restoreLogSink();
     }
