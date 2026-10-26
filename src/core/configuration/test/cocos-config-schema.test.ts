@@ -3,6 +3,8 @@ import path from 'path';
 const TJS = require('typescript-json-schema') as typeof import('typescript-json-schema');
 
 describe('cocos config schema', () => {
+    let schema: any;
+    beforeAll(() => { schema = generateSchema(); });
     function resolveDefinition(schema: any, ref: string): any {
         return schema.definitions[ref.replace('#/definitions/', '')];
     }
@@ -18,14 +20,12 @@ describe('cocos config schema', () => {
     }
 
     it('allows manager-owned top-level fields', () => {
-        const schema = generateSchema();
 
         expect(schema?.properties?.$schema).toBeDefined();
         expect(schema?.properties?.scene).toBeDefined();
     });
 
     it('describes bundle config custom entries with the custom bundle config shape', () => {
-        const schema = generateSchema();
         const bundleConfigRef = schema.definitions.BuildConfiguration.properties.bundleConfig.$ref;
         const bundleConfig = resolveDefinition(schema, bundleConfigRef);
         const customRef = bundleConfig.properties.custom.$ref;
@@ -36,7 +36,6 @@ describe('cocos config schema', () => {
     });
 
     it('allows platform-specific bundle override keys', () => {
-        const schema = generateSchema();
         const overwriteSettingsRef = schema.definitions.CustomBundleConfigItem
             .properties.overwriteSettings.$ref;
         const overwriteSettings = resolveDefinition(schema, overwriteSettingsRef);
@@ -45,7 +44,6 @@ describe('cocos config schema', () => {
     });
 
     it('allows script sortingPlugin as a UUID string array', () => {
-        const schema = generateSchema();
         const scriptConfigRef = schema.properties.script.$ref;
         const scriptConfig = resolveDefinition(schema, scriptConfigRef);
 

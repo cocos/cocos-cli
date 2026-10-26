@@ -1,5 +1,7 @@
 'use strict';
 
+import { checkStartScene } from '../../builder/share/common-options-validator';
+
 import { basename } from 'path';
 import { assetManager, assetDBManager } from '..';
 import { globalSetup } from '../../test/global-setup';
@@ -29,6 +31,15 @@ describe('测试 db 的查询接口', function () {
 
     afterAll(async function () {
         await assetManager.removeAsset(`db://assets/${name}`);
+    });
+
+    describe('start scene validation with the real asset database', () => {
+        it.each(['f895c111-fd50-4ed6-b07c-f514972cfbd1', 'db://assets/scene-2d.scene'])(
+            'accepts an existing scene: %s', id => { expect(checkStartScene(id)).toBe(true); },
+        );
+        it.each(['123', 'db://assets/scene-2d.scene1'])(
+            'rejects a missing scene: %s', id => { expect(checkStartScene(id)).toBeInstanceOf(Error); },
+        );
     });
 
     describe('query-create-list', () => {

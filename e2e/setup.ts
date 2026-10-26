@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync, unlinkSync, mkdirSync } from 'fs';
+import { existsSync, readdirSync, statSync, unlinkSync, mkdirSync, mkdtempSync } from 'fs';
 import { resolve, isAbsolute, join } from 'path';
 import chalk from 'chalk';
 import { getProjectManager } from './helpers/project-manager';
@@ -166,6 +166,10 @@ export default async function globalSetup() {
 
     // 初始化项目管理器
     console.log(chalk.cyan('📦 初始化测试工作区...'));
+    const workspaceParent = resolve(__dirname, '.workspace');
+    mkdirSync(workspaceParent, { recursive: true });
+    process.env.__E2E_WORKSPACE_ROOT__ = mkdtempSync(join(workspaceParent, 'run-'));
+    delete process.env.__E2E_SHARED_MCP__;
     const projectManager = getProjectManager({
         cleanBeforeTest: true,
         preserveAfterTest: preserveWorkspace,
@@ -187,6 +191,13 @@ export default async function globalSetup() {
     try {
         const sharedServer = getSharedMCPServer();
         await sharedServer.initialize();
+        const project = sharedServer.getTestProject();
+        process.env.__E2E_SHARED_MCP__ = JSON.stringify({
+            port: sharedServer.getClient().getPort(),
+            projectPath: project.path,
+            projectName: project.name,
+            fixtureProject: resolve(__dirname, '../tests/fixtures/projects/asset-operation'),
+        });
         console.log(chalk.green(`✅ 全局共享 MCP 服务器已启动，端口: ${sharedServer.getClient().getPort()}`));
     } catch (error) {
         // MCP 服务器初始化失败不影响其他测试

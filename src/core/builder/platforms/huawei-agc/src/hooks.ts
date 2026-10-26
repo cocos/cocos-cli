@@ -11,6 +11,7 @@ import { getAgconnectConfigPath, importAgconnectConfig } from './utils';
 
 export const throwError = true;
 export const onAfterBundleDataTask = nativeCommonHook.onAfterBundleDataTask;
+export const onAfterCompressSettings = nativeCommonHook.onAfterCompressSettings;
 export const onBeforeMake = nativeCommonHook.onBeforeMake;
 export const make = nativeCommonHook.make;
 export const run = nativeCommonHook.run;

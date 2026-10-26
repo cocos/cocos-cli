@@ -1,17 +1,31 @@
 'use strict';
 
 /**
- * return result of versionMax > versionMin，其中仅支持纯数字版本，最高支持三位数版本号：333.666.345
- * @example (3.6.2, 3.7.0) => false; (3.9.0, 3.8.0) => true; (3.8.0, 3.8.0) => false;
- * @param versionMax
- * @param versionMin
+ * Compare dotted numeric versions segment by segment.
+ * @example compareVersion('3.6.2', '3.7.0') => -1
+ * @example compareVersion('3.9.0', '3.8.0') => 1
+ * @example compareVersion('3.8.0', '3.8.0') => 0
+ * @param versionLeft
+ * @param versionRight
  * @param split
  */
-export function compareVersion(versionMax: string, versionMin: string, split = '.') {
-    if (typeof versionMax !== 'string' || typeof versionMin !== 'string') {
-        throw new Error(`invalid param: ${versionMax}, ${versionMin}`);
+export function compareVersion(versionLeft: string, versionRight: string, split = '.') {
+    if (typeof versionLeft !== 'string' || typeof versionRight !== 'string') {
+        throw new Error(`invalid param: ${versionLeft}, ${versionRight}`);
     }
-    versionMax = versionMax.replace(split, '').padStart(3, '0');
-    versionMin = versionMin.replace(split, '').padStart(3, '0');
-    return Number(versionMax) > Number(versionMin);
+
+    const leftParts = versionLeft.split(split).map((part) => Number.parseInt(part, 10) || 0);
+    const rightParts = versionRight.split(split).map((part) => Number.parseInt(part, 10) || 0);
+    const maxLength = Math.max(leftParts.length, rightParts.length);
+
+    for (let i = 0; i < maxLength; i++) {
+        const leftValue = leftParts[i] ?? 0;
+        const rightValue = rightParts[i] ?? 0;
+
+        if (leftValue !== rightValue) {
+            return leftValue - rightValue;
+        }
+    }
+
+    return 0;
 }

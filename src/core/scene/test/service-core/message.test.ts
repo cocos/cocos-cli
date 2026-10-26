@@ -156,6 +156,26 @@ describe('MessageManager', () => {
             expect(listener).toHaveBeenNthCalledWith(2, 'uuid-B');
         });
 
+        it('快速切换 Widget 后的位置通知不能覆盖最后一次组件刷新', () => {
+            const node = { uuid: 'widget-node', center: false };
+            const alignment = { type: 'set-property', propPath: '__comps__.1' };
+            const received: boolean[] = [];
+            messageManager.on('node:change', (_changed, options) => {
+                if (options?.propPath === alignment.propPath) {
+                    received.push(node.center);
+                }
+            });
+
+            messageManager.broadcastNodeChangeMsg(node, alignment);
+            node.center = true;
+            messageManager.broadcastNodeChangeMsg(node, alignment);
+            // Widget 更新布局后产生变换事件，消费方只会读取 position，不会刷新组件
+            messageManager.broadcastNodeChangeMsg(node, { type: 'transform-changed', propPath: 'position' });
+            jest.advanceTimersByTime(200);
+
+            expect(received).toEqual([false, true]);
+        });
+
         it('节流期间 process.send 不应被调用', () => {
             messageManager.broadcastNodeChangeMsg('uuid-1');
             messageManager.broadcastNodeChangeMsg('uuid-1');

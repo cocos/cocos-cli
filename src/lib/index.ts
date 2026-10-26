@@ -6,5 +6,6 @@ export * as Mcp from './mcp/mcp';
 export * as Project from './project/project';
 export * as Server from './server/server';
 export * as Scene from './scene/scene';
+export * as Simulator from './simulator/simulator';
 export * as Scripting from './scripting/scripting';
 export * as i18n from '../i18n';

@@ -4,11 +4,313 @@ exports[`DTS API compatibility assets.d.ts should match snapshot 1`] = `
 "export declare interface AnimationClipAssetUserData {
     name: string;
 }
+export declare const animationGraph: {
+    query(uuidOrUrlOrPath: string): Promise<AnimationGraphSnapshot>;
+    queryInspector(uuidOrUrlOrPath: string, target: AnimationGraphTarget): Promise<AnimationGraphInspectorSnapshot>;
+    queryMotionPreviewData(uuidOrUrlOrPath: string, target: Extract<AnimationGraphTarget, {
+        kind: "motion";
+    }>): Promise<AnimationGraphMotionPreviewData>;
+    queryPoseGraphAssetDragHandlers(): Promise<AnimationGraphPoseGraphAssetDragHandlersEntry[]>;
+    queryStateMachineComponentTypes(): Promise<string[]>;
+    setInspectorProperty(uuidOrUrlOrPath: string, request: SetAnimationGraphInspectorPropertyRequest): Promise<AnimationGraphInspectorSnapshot>;
+    resetInspectorProperty(uuidOrUrlOrPath: string, request: AnimationGraphInspectorPropertyOperationRequest): Promise<AnimationGraphInspectorSnapshot>;
+    createInspectorProperty(uuidOrUrlOrPath: string, request: AnimationGraphInspectorPropertyOperationRequest): Promise<AnimationGraphInspectorSnapshot>;
+    execute(uuidOrUrlOrPath: string, request: ExecuteAnimationGraphCommandRequest): Promise<AnimationGraphSnapshot>;
+    save(uuidOrUrlOrPath: string, expected: AnimationGraphExpectedVersion, sourceId?: string): Promise<AnimationGraphSnapshot>;
+    reload(uuidOrUrlOrPath: string, options?: ReloadAnimationGraphOptions, sourceId?: string): Promise<AnimationGraphSnapshot>;
+    onChanged(listener: (event: AnimationGraphChangedEvent) => void): () => void;
+};
+export declare interface AnimationGraphChangedEvent {
+    uuid: string;
+    reason: 'inspector' | 'structure' | 'save' | 'reload' | 'external';
+    version: AnimationGraphVersion;
+    sourceId?: string;
+    changedPaths?: string[];
+}
+export declare type AnimationGraphCommand =
+| { type: 'add-layer'; name?: string }
+| { type: 'remove-layer'; layerIndex: number }
+| { type: 'move-layer'; layerIndex: number; newIndex: number }
+| ({ type: 'add-state'; stateType: AnimationGraphStateType; name?: string; motionType?: AnimationGraphMotionType; clipUuid?: string; editorData?: Record<string, unknown> } & AnimationGraphStateMachineAddress)
+| ({ type: 'remove-state' } & AnimationGraphStateAddress)
+| ({ type: 'duplicate-state'; includeTransitions?: boolean; editorData?: Record<string, unknown> } & AnimationGraphStateAddress)
+| ({ type: 'set-state-editor-data'; editorData: Record<string, unknown> } & AnimationGraphStateAddress)
+| ({ type: 'add-transition'; fromStateIndex: number; toStateIndex: number } & AnimationGraphStateMachineAddress)
+| ({ type: 'remove-transition'; transitionIndex: number; allBetween?: boolean } & AnimationGraphStateMachineAddress)
+| ({ type: 'move-transition'; transitionIndex: number; offset: number } & AnimationGraphStateMachineAddress)
+| { type: 'add-transition-condition'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionType: AnimationGraphTransitionConditionType }
+| { type: 'remove-transition-condition'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number }
+| { type: 'set-transition-condition-property'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number; path: string; value: unknown }
+| { type: 'set-transition-condition-binding-class'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number; bindingClass: string }
+| ({ type: 'set-transition-event-binding'; transitionIndex: number; which: 'start' | 'end'; methodName: string } & AnimationGraphStateMachineAddress)
+| ({ type: 'set-motion'; motionType: AnimationGraphMotionType | 'none'; clipUuid?: string } & (AnimationGraphStateAddress | { poseGraph: AnimationGraphPoseGraphContext; nodeId: number }))
+| { type: 'add-motion-child'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; motionType: AnimationGraphMotionType; clipUuid?: string }
+| { type: 'remove-motion'; target: Extract<AnimationGraphTarget, { kind: 'motion' }> }
+| { type: 'set-motion-editor-data'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; editorData: Record<string, unknown> }
+| { type: 'set-motion-threshold'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; childIndex: number; threshold: number | { x: number; y: number } }
+| { type: 'set-direct-blend-weight'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; childIndex: number; value?: number; variable?: string }
+| ({ type: 'add-state-component'; componentType: string } & AnimationGraphStateAddress)
+| ({ type: 'remove-state-component'; componentIndex: number } & AnimationGraphStateAddress)
+| ({ type: 'add-pose-node'; nodeType: string; createArg?: unknown; editorData?: Record<string, unknown> } & AnimationGraphPoseGraphAddress)
+| ({ type: 'create-pose-node-on-asset-drag'; assetUuid: string; handlerId: string; editorData?: Record<string, unknown> } & AnimationGraphPoseGraphAddress)
+| { type: 'remove-pose-node'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }> }
+| ({ type: 'duplicate-pose-nodes'; nodeIds: number[] } & AnimationGraphPoseGraphAddress)
+| { type: 'set-pose-node-editor-data'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }>; editorData: Record<string, unknown> }
+| ({ type: 'connect-pose-nodes'; producerNodeId: number; producerOutputId: number; consumerNodeId: number; consumerInputId: string } & AnimationGraphPoseGraphAddress)
+| { type: 'disconnect-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-input' }> }
+| { type: 'insert-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }>; insertId: string }
+| { type: 'delete-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-input' }> }
+| { type: 'add-variable'; name: string; variableType: number; initialValue?: unknown }
+| { type: 'set-variable-value'; name: string; patch: IProperty | unknown }
+| { type: 'set-trigger-reset-mode'; name: string; resetMode: number }
+| { type: 'remove-variable'; name: string }
+| { type: 'rename-variable'; name: string; newName: string }
+| { type: 'add-stash'; layerIndex: number; name: string }
+| { type: 'remove-stash'; layerIndex: number; name: string }
+| { type: 'rename-stash'; layerIndex: number; name: string; newName: string }
+| { type: 'stash-pose-graph'; poseGraph: AnimationGraphPoseGraphContext; layerIndex: number; stashName?: string; editorData?: Record<string, unknown> };
+export declare interface AnimationGraphComponentView {
+    index: number;
+    type: string;
+}
+export declare type AnimationGraphEditErrorCode =
+| 'VERSION_CONFLICT'
+| 'DOCUMENT_RELOADED'
+| 'SOURCE_CHANGED'
+| 'TARGET_NOT_FOUND'
+| 'UNSUPPORTED_TARGET'
+| 'UNSUPPORTED_PROPERTY_OPERATION'
+| 'INVALID_PROPERTY_PATCH'
+| 'READONLY_PROPERTY'
+| 'NAME_CONFLICT'
+| 'DIRTY_DOCUMENT';
+export declare interface AnimationGraphExpectedVersion {
+    documentId: string;
+    revision: number;
+}
+export declare interface AnimationGraphInspectorPropertyCapabilities {
+    set: boolean;
+    reset: boolean;
+    create: boolean;
+}
+export declare interface AnimationGraphInspectorPropertyOperationRequest {
+    target: AnimationGraphTarget;
+    path: string;
+    expected: AnimationGraphExpectedVersion;
+    sourceId?: string;
+}
+export declare interface AnimationGraphInspectorSnapshot extends AnimationGraphVersion {
+    uuid: string;
+    target: AnimationGraphTarget;
+    dump: IProperty;
+    propertyCapabilities?: Record<string, AnimationGraphInspectorPropertyCapabilities>;
+}
+export declare interface AnimationGraphLayerView {
+    index: number;
+    name: string;
+    weight: number;
+    additive: boolean;
+    maskUuid: string | null;
+    stashes: string[];
+    stashPoseGraphs: Array<{ name: string; poseGraph: AnimationGraphPoseView; referenceCount?: number }>;
+    stateMachine: AnimationGraphStateMachineView;
+}
+export declare type AnimationGraphMotionAddress =
+| (AnimationGraphStateAddress & { level: number[] })
+| ({ poseGraph: AnimationGraphPoseGraphContext; nodeId: number; level: number[] });
+export declare interface AnimationGraphMotionPreviewData {
+    motion: AnimationGraphMotionView | null;
+    variables: AnimationGraphVariableView[];
+}
+export declare type AnimationGraphMotionType = 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct';
+export declare interface AnimationGraphMotionView {
+    level: number[];
+    target: Extract<AnimationGraphTarget, { kind: 'motion' }>;
+    type: 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct' | 'unknown';
+    name: string;
+    clipUuid?: string | null;
+    variable?: string;
+    value?: number;
+    variableX?: string;
+    valueX?: number;
+    variableY?: string;
+    valueY?: number;
+    algorithm?: number;
+    threshold?: number | { x: number; y: number };
+    weight?: { value: number; variable: string };
+    children?: AnimationGraphMotionView[];
+    editorData?: Record<string, unknown>;
+}
+export declare interface AnimationGraphPoseGraphAddNodeInfo {
+    typeId: string;
+    args: unknown;
+    menu: string;
+}
+export declare type AnimationGraphPoseGraphAddress =
+| { layerIndex: number; stateMachinePath: number[]; stateIndex: number }
+| { poseGraph: AnimationGraphPoseGraphContext };
+export declare interface AnimationGraphPoseGraphAssetDragHandlerInfo {
+    id: string;
+    displayName: string;
+}
+export declare interface AnimationGraphPoseGraphAssetDragHandlersEntry {
+    assetType: string;
+    handlers: AnimationGraphPoseGraphAssetDragHandlerInfo[];
+}
+export declare interface AnimationGraphPoseGraphAssetDragHandlersView {
+    handlers: Record<string, AnimationGraphPoseGraphAssetDragHandlerView>;
+}
+export declare interface AnimationGraphPoseGraphAssetDragHandlerView {
+    displayName: string;
+}
+export declare type AnimationGraphPoseGraphContext =
+| { kind: 'state-pose-graph'; stateMachine: AnimationGraphStateMachineContext; stateIndex: number }
+| { kind: 'layer-stash'; layerIndex: number; stashName: string };
+export declare interface AnimationGraphPoseInputView {
+    id: string;
+    displayName: string;
+    type: number;
+    deletable: boolean;
+    insertPoint: boolean;
+    connected: boolean;
+    producerNodeId?: number;
+    producerOutputId?: number;
+    value?: IProperty;
+}
+export declare type AnimationGraphPoseNodeAddress = AnimationGraphPoseGraphAddress & { nodeId: number };
+export declare interface AnimationGraphPoseNodeEnterInfo {
+    type: 'state-machine' | 'animation-blend' | 'stash';
+    stashName?: string;
+}
+export declare interface AnimationGraphPoseNodeView {
+    id: number;
+    type: string;
+    title: string;
+    outputTypes: number[];
+    inputs: AnimationGraphPoseInputView[];
+    inputInsertInfos: Record<string, { displayName: string }>;
+    stateMachine?: AnimationGraphStateMachineView;
+    motion?: AnimationGraphMotionView | null;
+    enterInfo?: AnimationGraphPoseNodeEnterInfo;
+    editorData?: Record<string, unknown>;
+}
+export declare interface AnimationGraphPoseView {
+    context: AnimationGraphPoseGraphContext;
+    rootOutputNodeId: number;
+    nodes: AnimationGraphPoseNodeView[];
+    addNodeInfos: AnimationGraphPoseGraphAddNodeInfo[];
+    assetDragHandlersMap: Record<string, AnimationGraphPoseGraphAssetDragHandlersView>;
+}
+export declare interface AnimationGraphSnapshot extends AnimationGraphVersion {
+    uuid: string;
+    url: string;
+    graph: AnimationGraphViewDump;
+}
+export declare type AnimationGraphStateAddress = AnimationGraphStateMachineAddress & { stateIndex: number };
+export declare type AnimationGraphStateMachineAddress =
+| { layerIndex: number; stateMachinePath: number[] }
+| { stateMachine: AnimationGraphStateMachineContext };
+export declare type AnimationGraphStateMachineContext =
+| { kind: 'layer-state-machine'; layerIndex: number; stateMachinePath: number[] }
+| { kind: 'pose-node-state-machine'; poseGraph: AnimationGraphPoseGraphContext; nodeId: number }
+| { kind: 'sub-state-machine'; stateMachine: AnimationGraphStateMachineContext; stateIndex: number };
+export declare interface AnimationGraphStateMachineView {
+    context: AnimationGraphStateMachineContext;
+    path: number[];
+    allowEmptyStates: boolean;
+    states: AnimationGraphStateView[];
+    transitions: AnimationGraphTransitionView[];
+    editorData?: Record<string, unknown>;
+}
+export declare type AnimationGraphStateType = 'motion' | 'empty' | 'sub-state-machine' | 'procedural-pose';
+export declare interface AnimationGraphStateView {
+    index: number;
+    type: 'entry' | 'exit' | 'any' | 'motion' | 'empty' | 'sub-state-machine' | 'procedural-pose' | 'unknown';
+    name: string;
+    incomingTransitionIndices: number[];
+    outgoingTransitionIndices: number[];
+    components: AnimationGraphComponentView[];
+    speed?: number;
+    speedMultiplier?: string;
+    speedMultiplierEnabled?: boolean;
+    motion?: AnimationGraphMotionView | null;
+    stateMachine?: AnimationGraphStateMachineView;
+    poseGraph?: AnimationGraphPoseView;
+    editorData?: Record<string, unknown>;
+}
+export declare type AnimationGraphTarget =
+| { kind: 'layer'; layerIndex: number }
+| ({ kind: 'state' } & AnimationGraphStateAddress)
+| ({ kind: 'transition'; transitionIndex: number } & AnimationGraphStateMachineAddress)
+| ({ kind: 'motion' } & AnimationGraphMotionAddress)
+| ({ kind: 'pose-node' } & AnimationGraphPoseNodeAddress)
+| ({ kind: 'pose-input'; inputId: string } & AnimationGraphPoseNodeAddress)
+| ({ kind: 'state-component'; componentIndex: number } & AnimationGraphStateAddress);
+export declare type AnimationGraphTransitionConditionType = 'binary' | 'unary' | 'trigger';
+export declare type AnimationGraphTransitionConditionView =
+| {
+    index: number;
+    type: 'BinaryCondition';
+    operator: number;
+    lhs: number;
+    lhsBinding: Record<string, unknown>;
+    bindingClass: string;
+    rhs: number;
+    isRhsInteger: boolean;
+}
+| {
+    index: number;
+    type: 'UnaryCondition';
+    operator: number;
+    operand: string;
+}
+| {
+    index: number;
+    type: 'TriggerCondition';
+    trigger: string;
+}
+| {
+    index: number;
+    type: 'Unknown';
+    className: string;
+};
+export declare interface AnimationGraphTransitionView {
+    index: number;
+    type: 'animation' | 'empty-state' | 'procedural-pose' | 'transition';
+    fromStateIndex: number;
+    toStateIndex: number;
+    priority: number;
+    conditions: AnimationGraphTransitionConditionView[];
+    duration?: number;
+    relativeDuration?: boolean;
+    exitConditionEnabled?: boolean;
+    exitCondition?: number;
+    destinationStart?: number;
+    relativeDestinationStart?: boolean;
+    startEvent?: string;
+    endEvent?: string;
+    editorData?: Record<string, unknown>;
+}
+export declare interface AnimationGraphVariableView {
+    name: string;
+    type: number;
+    value: IProperty;
+    resetMode?: number;
+}
 export declare const animationGraphVariant: {
     query(uuid: string): Promise<AnimGraphVariantDump>;
     change(uuid: string, dump: AnimGraphVariantDump): Promise<AnimGraphVariantDump>;
     save(uuid: string): Promise<void>;
 };
+export declare interface AnimationGraphVersion extends AnimationGraphExpectedVersion {
+    persistedRevision: number;
+    dirty: boolean;
+    externallyModified: boolean;
+}
+export declare interface AnimationGraphViewDump {
+    layers: AnimationGraphLayerView[];
+    variables: AnimationGraphVariableView[];
+}
 export declare interface AnimationImportSetting {
     name: string;
     duration: number;
@@ -60,7 +362,7 @@ export declare interface AnimGraphVariantDump {
     clips: Record<string, string>;
     invalids?: Record<string, string>;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare interface AssetDBOptions {
     name: string;
     target: string;
@@ -88,7 +390,9 @@ export declare interface AssetDBOptions_2 {
     };
     importConcurrency?: number;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetInfo extends IAssetInfo {
     name: string;
     displayName: string;
@@ -214,11 +518,17 @@ export declare interface EffectAssetUserData {
     combinations?: any;
     editor?: any;
 }
+export declare interface ExecuteAnimationGraphCommandRequest {
+    command: AnimationGraphCommand;
+    expected: AnimationGraphExpectedVersion;
+    sourceId?: string;
+}
 export declare interface ExecuteAssetDBScriptMethodOptions {
     name: string;
     method: string;
     args?: any[];
 }
+export declare function exportAssetPackage(urls: string[], destination: string, includeDependencies?: boolean): Promise<number>;
 export declare interface FileNameCheckConfig {
     regStr: string;
     failedType: 'error' | 'warn' | 'info',
@@ -503,13 +813,22 @@ export declare interface IPluginScriptInfo extends PluginScriptInfo {
     url: string;
 }
 export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    value: {
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType;
     default?: any;
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    values?: ({
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType)[];
+    lock?: {
+        [key in keyof Vec4]?: IPropertyLock;
+    };
     cid?: string;
     type?: string;
-    ui?: { name: string; data?: any };
+    ui?: {
+        name: string;
+        data?: any;
+    };
     readonly?: boolean;
     visible?: boolean;
     name?: string;
@@ -536,19 +855,21 @@ export declare interface IProperty {
     radian?: boolean;
     multiline?: boolean;
     optionalTypes?: string[];
-    userData?: { [key: string]: any };
+    userData?: {
+        [key: string]: any;
+    };
 }
 export declare interface IPropertyGroupOptions {
-    id: string
-    name: string,
-    displayOrder: number,
-    style: string
+    id: string;
+    name: string;
+    displayOrder: number;
+    style: string;
 }
 export declare type IPropertyLock = {
     default: number;
-    message: string
+    message: string;
 };
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
@@ -566,9 +887,9 @@ export declare type ISupportCreateCCType =
 | 'cc.PhysicsMaterial'
 | 'cc.LabelAtlas'
 | 'cc.RenderTexture'
-| 'cc.AnimationGraph'
+| 'cc.animation.AnimationGraph'
 | 'cc.AnimationMask'
-| 'cc.AnimationGraphVariant';
+| 'cc.animation.AnimationGraphVariant';
 export declare type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
 export declare interface IUerDataConfigItem {
     key?: string;
@@ -802,8 +1123,13 @@ export declare function querySortedPlugins(filterOptions?: FilterPluginOptions):
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;
+export declare function reconcileLocalizationRuntimeMount(): Promise<void>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo>;
+export declare interface ReloadAnimationGraphOptions {
+    expected?: AnimationGraphExpectedVersion;
+    discardDirty?: boolean;
+}
 export declare function renameAsset(source: string, newName: string, options?: AssetOperationOption): Promise<any>;
 export declare interface RenderTextureAssetUserData extends TextureBaseAssetUserData {
     width: number;
@@ -841,6 +1167,9 @@ export declare const serializedData: {
     query: typeof querySerializedData;
     save: typeof saveSerializedData;
 };
+export declare interface SetAnimationGraphInspectorPropertyRequest extends AnimationGraphInspectorPropertyOperationRequest {
+    patch: IProperty | unknown;
+}
 export declare function setFileSystemProvider(provider: IAssetFileSystemProvider): void;
 export declare interface SimplifyOptions {
     targetRatio?: number;
@@ -1058,7 +1387,7 @@ export declare class Asset extends VirtualAsset {
     save(): Promise<boolean>;
     isDirectory(): boolean;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare enum AssetActionEnum {
     'add' = 0,
     'change' = 1,
@@ -1149,7 +1478,9 @@ export declare interface AssetDBStartOptions {
 export declare namespace AssetHandlers {
     export type compressTextures = (tasks: ICompressConfig[]) => Promise<void>;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare type AssetInfoArr = Array<string | number>;
 export declare interface AssetSerializeOptions {
     'cc.EffectAsset': {
@@ -1313,6 +1644,7 @@ export declare namespace BuildHook {
     export type onBeforeUpload = IBuildStageHooks;
     export type upload = IBuildStageHooks;
     export type onAfterUpload = IBuildStageHooks;
+    export type publish = IBuildStageHooks;
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }
@@ -1598,7 +1930,10 @@ export declare interface ChokidarOptions {
     	useFsEvents?: boolean;
     	usePolling?: boolean;
 }
-export declare function clearCache(scope: BuildCacheScope): Promise<ClearCacheResult>;
+export declare function clearCache(options: ClearCacheOptions): Promise<ClearCacheResult>;
+export declare interface ClearCacheOptions {
+    scope: BuildCacheScope;
+}
 export declare interface ClearCacheResult {
     scope: BuildCacheScope;
     cleared: string[];
@@ -2232,6 +2567,7 @@ export declare interface IBuildCommonOptions {
     preview?: boolean;
     stage?: string;
     buildMode?: 'normal' | 'bundle' | 'script';
+    isApiBuild?: boolean;
     nextStages?: string[];
     subTaskPlatforms?: string[];
     subTaskBuildOutputs?: Record<string, ISubTaskBuildOutput>;
@@ -3070,6 +3406,7 @@ export declare namespace IInternalHook {
     export type onBeforeUpload = IInternalStageTaskHooks;
     export type upload = IInternalStageTaskHooks;
     export type onAfterUpload = IInternalStageTaskHooks;
+    export type publish = IInternalStageTaskHooks;
 }
 export declare interface IInternalPackOptions {
     maxWidth: number;
@@ -3654,9 +3991,9 @@ export declare type ISupportCreateCCType =
 | 'cc.PhysicsMaterial'
 | 'cc.LabelAtlas'
 | 'cc.RenderTexture'
-| 'cc.AnimationGraph'
+| 'cc.animation.AnimationGraph'
 | 'cc.AnimationMask'
-| 'cc.AnimationGraphVariant';
+| 'cc.animation.AnimationGraphVariant';
 export declare type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
 export declare interface ISupportFormat {
     rgb: ITextureCompressType[];
@@ -4371,6 +4708,8 @@ export declare class PluginManager extends EventEmitter {
     buildTemplateConfigMap: Record<string, BuildTemplateConfig>;
     configMap: Record<string, Record<string, IInternalBuildPluginConfig>>;
     private builderPathsMap;
+    private extensionBuilderHookSlots;
+    private extensionBuilderHooks;
     private customBuildStagesMap;
     protected customBuildStages: Record<string, {
         [pkgName: string]: IBuildStageItem[];
@@ -4383,6 +4722,8 @@ export declare class PluginManager extends EventEmitter {
     init(): Promise<void>;
     registerAllPlatform(): Promise<void>;
     register(platform: string): Promise<void>;
+    private registerExtensionBuilderHooks;
+    private scanBuiltinExtensionBuilderHooks;
     checkPlatform(platform: string): boolean;
     private registerPlatform;
     private internalRegister;
@@ -4480,6 +4821,7 @@ export declare interface PreviewPackResult {
     storeInfo: PacStoreInfo;
     atlases: IAtlasInfo[];
 }
+export declare function publish(platform: Platform, dest: string): Promise<IBuildResultData>;
 export declare type PureModulesOption = boolean | string[] | IsPureModule;
 export declare function queryAssetsInBundle(uuid: string, bundleFilterConfig?: BundleFilterConfig[]): Promise<string[]>;
 export declare function queryAutoAtlasFileCache(pacUuid: string): Promise<PreviewPackResult | null>;
@@ -5248,8 +5590,6 @@ export declare interface TypedEventEmitter<T extends { [event: string]: (...args
     	setMaxListeners(n: number): this;
 }
 export declare function upload(platform: Platform, dest: string, accessToken?: string): Promise<IBuildResultData>;
-export declare type UploadEnv = 'dev' | 'fat' | 'prod';
-export declare type UploadEnv_2 = 'dev' | 'fat' | 'prod';
 export declare type Url = string;
 export declare interface UserCompressConfig {
     customConfigs: Record<string, ICustomConfig>;
@@ -5353,15 +5693,6 @@ export declare interface WatcherOptions {
 }
 export declare type WebDesktopBuildOptions = IBuildTaskOption<'web-desktop'>;
 export declare interface webDesktopOptions {
-    appid?: string;
-    versionName?: string;
-    uploadEnv?: UploadEnv;
-    accessToken?: string;
-    codeVersion?: string | number | null;
-    bridgeLink?: string;
-    bridgeBuildToken?: string;
-    entryPath?: string;
-    encryptKey?: string;
     useWebGPU: boolean;
     resolution: {
         designHeight: number;
@@ -5370,15 +5701,6 @@ export declare interface webDesktopOptions {
 }
 export declare type WebMobileBuildOptions = IBuildTaskOption<'web-mobile'>;
 export declare interface webMobileOptions {
-    appid?: string;
-    versionName?: string;
-    uploadEnv?: UploadEnv_2;
-    accessToken?: string;
-    codeVersion?: string | number | null;
-    bridgeLink?: string;
-    bridgeBuildToken?: string;
-    entryPath?: string;
-    encryptKey?: string;
     useWebGPU: boolean;
     orientation: IOrientation_2;
     embedWebDebugger: boolean;
@@ -5406,9 +5728,11 @@ export { }
 `;
 
 exports[`DTS API compatibility cli.d.ts should match snapshot 1`] = `
-"import type { Component } from 'cc';
+"import type { Camera } from 'cc';
+import type { Component } from 'cc';
 import type { Node as Node_2 } from 'cc';
 import type { Scene } from 'cc';
+import type { Terrain } from 'cc';
 import type { Vec3 as Vec3_2 } from 'cc';
 export declare interface AnimationClipAssetUserData {
     name: string;
@@ -5441,8 +5765,10 @@ export declare interface AnimationImportSetting {
 export declare type AnimationMode = 'general' | 'prefab' | 'animation' | 'preview' | 'unknown';
 export declare type AnimationPlayOperation = 'play' | 'pause' | 'resume' | 'stop';
 export declare type AnimationPlayState_2 = 'stop' | 'playing' | 'pause';
-export declare const ASSET_HANDLER_TYPES: string[];
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetUserDataMap {
     'animation-clip': AnimationClipAssetUserData;
     'auto-atlas': AutoAtlasAssetUserData;
@@ -5501,12 +5827,76 @@ export declare interface AutoAtlasAssetUserData {
     platformSettings: any;
     textureSetting: any;
 }
+export declare type BeginCreateDragResult = CreateDragResult<CreateDragSession>;
 export declare interface BitmapFontAssetUserData {
     _fntConfig: any;
     fontSize: number;
     textureUuid: string;
 }
+export declare type CancelCreateDragResult = CreateDragResult<Extract<CreateDragSession, {
+    state: 'committed' | 'cancelled';
+}>>;
+export declare type CommitCreateDragResult = CreateDragResult<Extract<CreateDragSession, {
+    state: 'committed' | 'needs-confirmation' | 'cancelled';
+}>>;
 export declare const CREATE_TYPES: readonly ["scene", "prefab"];
+export declare type CreateDragCancelReason =
+'leave'
+| 'escape'
+| 'source-ended'
+| 'replaced'
+| 'runtime-invalidated'
+| 'scene-operation'
+| 'disposed'
+| 'user-cancelled'
+| 'error';
+export declare type CreateDragError = {
+    code: Exclude<CreateDragErrorCode, 'COMMIT_RECOVERY_FAILED'>;
+    message: string;
+} | {
+    code: 'COMMIT_RECOVERY_FAILED';
+    message: string;
+    affectedNodePaths: string[];
+};
+export declare type CreateDragErrorCode =
+'UNSUPPORTED'
+| 'INVALID_REQUEST'
+| 'SESSION_CONFLICT'
+| 'SESSION_CLOSED'
+| 'STALE_SCENE'
+| 'NOT_EDITABLE'
+| 'NO_CREATABLE_ITEMS'
+| 'ASSET_LOAD_FAILED'
+| 'VIEWPORT_CHANGED'
+| 'INVALID_CONFIRMATION'
+| 'NO_PLACEMENT'
+| 'COMMIT_FAILED'
+| 'COMMIT_RECOVERY_FAILED';
+export declare type CreateDragResult<T> = {
+    ok: true;
+    value: T;
+} | {
+    ok: false;
+    error: CreateDragError;
+};
+export declare type CreateDragSession = {
+    sessionId: string;
+    state: 'preparing' | 'previewing' | 'committing';
+}
+| {
+    sessionId: string;
+    state: 'needs-confirmation';
+    confirmation: ICreateDragConfirmation;
+}
+| {
+    sessionId: string;
+    state: 'committed';
+    nodePaths: string[];
+}
+| {
+    sessionId: string;
+    state: 'cancelled';
+};
 export declare interface DirectoryAssetUserData {
     isBundle?: boolean;
     bundleConfigID?: string;
@@ -6137,6 +6527,7 @@ export declare type IAssetType =
 | 'RenderFlow';
 export declare interface IBaseCreateNodeParams {
     path: string;
+    insertSide?: 'before' | 'after';
     name?: string;
     workMode?: '2d' | '3d';
     position?: IVec3;
@@ -6151,6 +6542,11 @@ export declare interface IBaseIdentifier {
     assetUuid: string;
     assetUrl: string;
     assetType: string;
+}
+export declare interface IBeginCreateDragParams {
+    sessionId: string;
+    items: ICreateDragItem[];
+    pointer: ICreateDragPointer;
 }
 export declare interface ICameraConfig {
     color: number[];
@@ -6190,7 +6586,13 @@ export declare interface ICameraService {
     setGridColor(color: number[], persist?: boolean): void;
     setOriginAxes2D(config: IOriginAxesConfig): void;
     setOriginAxes3D(config: IOriginAxesConfig): void;
+    setRulerVisible(visible: boolean): void;
+    getCamera(): Camera | undefined;
     onUpdate(deltaTime: number): void;
+}
+export declare interface ICancelCreateDragParams {
+    sessionId: string;
+    reason: CreateDragCancelReason;
 }
 export declare interface IChangeNodeLockParams {
     paths: string[];
@@ -6219,6 +6621,14 @@ export declare interface ICloseOptions {
     allowDeletedSourceFallback?: boolean;
     expectedCurrentUuid?: string;
 }
+export declare interface ICommitCreateDragParams {
+    sessionId: string;
+    pointer: ICreateDragPointer;
+    confirmation?: {
+        id: string;
+        choiceId: PrefabCanvasHandling;
+    };
+}
 export declare interface IComponent extends IProperty {
     value: {
         enabled: IPropertyValueType;
@@ -6232,8 +6642,13 @@ export declare interface IComponentService extends IServiceEvents {
     add(params: IAddComponentOptions): Promise<IComponent>;
     remove(params: IRemoveComponentOptions): Promise<boolean>;
     setProperty(params: ISetPropertyOptions): Promise<boolean>;
+    regeneratePolygon2DPoints(options: IRegeneratePolygon2DPointsOptions): Promise<IRegeneratePolygon2DPointsResult>;
     query(params: IQueryComponentOptions | string): Promise<IComponent | null>;
     queryAll(): Promise<string[]>;
+    recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult>;
+    insertLOD(options: IInsertLODOptions): Promise<ILODGroupLevelsResult>;
+    eraseLOD(options: IEraseLODOptions): Promise<ILODGroupLevelsResult>;
+    queryLODGroupRelativeHeight(options: IQueryLODGroupRelativeHeightOptions): Promise<number>;
     reset(params: IQueryComponentOptions): Promise<boolean>;
     queryClasses(options?: IQueryClassesOptions): Promise<{
         name: string;
@@ -6258,6 +6673,35 @@ export declare interface ICreateByAssetParams extends IBaseCreateNodeParams {
 }
 export declare interface ICreateByNodeTypeParams extends IBaseCreateNodeParams {
     nodeType: NodeType;
+}
+export declare interface ICreateBySerializedDataParams {
+    data: SerializedNodeData;
+    parentPath: string;
+    siblingIndex?: number;
+    keepWorldTransform?: boolean;
+    externalReferences?: 'resolve' | 'clear';
+}
+export declare interface ICreateDragConfirmation {
+    id: string;
+    kind: 'prefab-canvas';
+    choices: PrefabCanvasHandling[];
+}
+export declare interface ICreateDragItem {
+    dbURL: string;
+    name?: string;
+}
+export declare interface ICreateDragPointer {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    viewport: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    };
+    sequence: number;
 }
 export declare interface ICreateNodePreflightResult {
     action: 'create' | 'choose-prefab-canvas-handling';
@@ -6304,7 +6748,12 @@ export declare interface IEditorService extends IServiceEvents {
     create(params: ICreateOptions): Promise<IBaseIdentifier>;
     hasOpen(): Promise<boolean>;
     queryCurrent(): Promise<TEditorEntity | null>;
+    querySceneSerializedData(): Promise<string>;
     getRootNode(): TEditorInstance | null;
+    adoptRuntimeScene(scene: Scene, identity?: {
+        url?: string;
+    }): void;
+    releaseRuntimeScene(): void;
     lock(): Promise<void>;
     unlock(): void;
 }
@@ -6313,9 +6762,15 @@ export declare interface IEngineService extends IServiceEvents {
     repaintInEditMode(): Promise<void>;
     pause(): void;
     resume(): void;
+    stopTick(): void;
     initCustomLayer(layers?: ICustomLayerConfig[]): Promise<void>;
     enterAnimationMode(): void;
     exitAnimationMode(): void;
+}
+export declare interface IEraseLODOptions {
+    path: string;
+    index: number;
+    record?: boolean;
 }
 export declare interface IExecuteComponentMethodOptions {
     path: string;
@@ -6353,6 +6808,7 @@ export declare interface IGizmoService {
     removeAllGizmoOfNode(node: any, recursive?: boolean): void;
     clearAllGizmos(): void;
     callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
+    getComponentGizmo(component: any): any;
     onUpdate(deltaTime: number): void;
     queryToolsVisibility3d(): boolean;
     setToolsVisibility3d(value: boolean): void;
@@ -6376,9 +6832,175 @@ export declare interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
+    toggleLightProbeEditMode(mode: boolean | undefined): boolean;
+    queryLightProbeEditMode(): boolean;
+    toggleLightProbeBoundingBoxEditMode(mode: boolean | undefined): boolean;
+    queryLightProbeBoundingBoxEditMode(): boolean;
+    selectAllLightProbes(): void;
+    unselectAllLightProbes(): void;
+    queryLightProbeSelectedCount(): number;
+    deleteSelectedLightProbes(): Promise<number>;
+    duplicateSelectedLightProbes(): Promise<number>;
+    generateLightProbes(): number;
+    regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
+}
+export declare interface IInsertLODOptions {
+    path: string;
+    index: number;
+    screenUsagePercentage?: number;
+    record?: boolean;
 }
 export declare interface IIsPrefabInstanceParams {
     nodePath: string;
+}
+export declare interface ILightFXCancelResult {
+    cancelled: boolean;
+    target: 'light-probe' | 'lightmap' | null;
+}
+export declare interface ILightFXDiagnostics {
+    operationId?: string;
+    version: 1;
+    stage: string;
+    logs: string[];
+    progress?: string;
+    rate?: number;
+}
+export declare interface ILightmapBakeCapabilities {
+    outputDirectory?: true;
+    diagnostics?: ILightFXDiagnostics;
+    version: 1;
+    resultLifecycleVersion: 1;
+    sceneTransactionVersion: 1;
+    assetVersion: 1;
+    assetCleanupVersion?: 1;
+    cancelVersion?: 1;
+    cancellable?: boolean;
+    busy: boolean;
+}
+export declare interface ILightmapBakeInfo {
+    sceneUrl: string;
+    baked: boolean;
+    meshCount: number;
+    terrainCount: number;
+    highp: boolean;
+    stationaryMainLight: boolean;
+    textures: ILightmapTextureInfo[];
+    missingTextureUuids: string[];
+}
+export declare interface ILightmapBakeOptions {
+    outputUrl?: string;
+    msaa?: 1 | 2 | 4 | 8;
+    resolution?: 128 | 256 | 512 | 1024 | 2048;
+    filter?: boolean;
+    highp?: boolean;
+    giScale?: number;
+    giSamples?: number;
+    giPathLength?: 1 | 2 | 3 | 4;
+    aoLevel?: 0 | 1 | 2;
+    aoStrength?: number;
+    aoRadius?: number;
+    aoColor?: [number, number, number, number?];
+    threads?: number;
+    saveScene?: boolean;
+    timeoutMs?: number;
+}
+export declare interface ILightmapBakeResult {
+    diagnostics?: ILightFXDiagnostics;
+    sceneUrl: string;
+    textureUrls: string[];
+    meshCount: number;
+    terrainCount: number;
+    durationMs: number;
+}
+export declare interface ILightmapBakeService extends IServiceEvents {
+    queryCapabilities(): Promise<ILightmapBakeCapabilities>;
+    bake(options: ILightmapBakeOptions): Promise<ILightmapBakeResult>;
+    queryBakeInfo(): Promise<ILightmapBakeInfo>;
+    clearBake(options?: {
+        saveScene?: boolean;
+        deleteAssets?: boolean;
+    }): Promise<ILightmapClearResult>;
+    cancel(): Promise<ILightFXCancelResult>;
+}
+export declare interface ILightmapClearResult {
+    clearedCount: number;
+    deletedAssetCount: number;
+    retainedAssetCount: number;
+    failedAssetCount: number;
+}
+export declare interface ILightmapTextureInfo {
+    uuid: string;
+    url: string;
+    filename: string;
+    size: number;
+    createdAt: number;
+    modifiedAt: number;
+}
+export declare interface ILightProbeBakeCapabilities {
+    diagnostics?: ILightFXDiagnostics;
+    version: 1;
+    cancelVersion?: 1;
+    cancellable?: boolean;
+    resultLifecycleVersion: 1;
+    sceneTransactionVersion: 1;
+    busy: boolean;
+}
+export declare interface ILightProbeBakeOptions {
+    giScale?: number;
+    giSamples?: number;
+    bounces?: number;
+    reduceRinging?: number;
+    showWireframe?: boolean;
+    showConvex?: boolean;
+    lightProbeSphereVolume?: number;
+    saveScene?: boolean;
+    timeoutMs?: number;
+}
+export declare interface ILightProbeBakeResult {
+    diagnostics?: ILightFXDiagnostics;
+    sceneUrl: string;
+    probeCount: number;
+    giScale: number;
+    giSamples: number;
+    bounces: number;
+    reduceRinging: number;
+    showWireframe: boolean;
+    showConvex: boolean;
+    lightProbeSphereVolume: number;
+    durationMs: number;
+}
+export declare interface ILightProbeBakeService extends IServiceEvents {
+    querySettings(): Promise<ILightProbeSettings>;
+    queryCapabilities(): Promise<ILightProbeBakeCapabilities>;
+    bake(options: ILightProbeBakeOptions): Promise<ILightProbeBakeResult>;
+    clearBake(options?: {
+        saveScene?: boolean;
+    }): Promise<{
+        probeCount: number;
+    }>;
+    cancel(): Promise<ILightFXCancelResult>;
+}
+export declare interface ILightProbeSetting<T extends number | boolean> {
+    value: T;
+    type: string;
+    readonly: boolean;
+}
+export declare interface ILightProbeSettings {
+    giScale: ILightProbeSetting<number>;
+    giSamples: ILightProbeSetting<number>;
+    bounces: ILightProbeSetting<number>;
+    reduceRinging: ILightProbeSetting<number>;
+    showWireframe: ILightProbeSetting<boolean>;
+    showConvex: ILightProbeSetting<boolean>;
+    lightProbeSphereVolume: ILightProbeSetting<number>;
+}
+export declare interface ILODGroupBoundsResult {
+    localBoundaryCenter: IVec3;
+    objectSize: number;
+}
+export declare interface ILODGroupLevelsResult {
+    lodCount: number;
+    screenUsagePercentages: number[];
 }
 export declare interface ImageAssetUserData {
     type: ImageImportType;
@@ -6397,6 +7019,42 @@ export declare interface ImageMeta {
     name?: string;
     uri?: string;
     remap?: string;
+}
+export declare interface IMotionPreviewService {
+    showMotion(desc: MotionPreviewDesc): Promise<boolean>;
+    hideMotion(): Promise<void>;
+    setMotionModel(uuid: string): Promise<void>;
+    setMotionTime(time: number): Promise<void>;
+    playMotion(): Promise<void>;
+    pauseMotion(): Promise<void>;
+    stopMotion(): Promise<void>;
+    setMotionVariable(name: string, value: number): Promise<void>;
+    setMotionParameter(axis: 'value' | 'x' | 'y', value: number): Promise<void>;
+    getMotionTimelineStats(): Promise<{
+        timeLineLength: number;
+    } | null>;
+    isMotionActive(): Promise<boolean>;
+    queryMotionImage(info: {
+        width: number;
+        height: number;
+    }): Promise<unknown>;
+    onMotionMouseDown(action: {
+        x: number;
+        y: number;
+        button: number;
+    }): Promise<void>;
+    onMotionMouseMove(action: {
+        movementX: number;
+        movementY: number;
+    }): Promise<void>;
+    onMotionMouseUp(action: {
+        x: number;
+        y: number;
+    }): Promise<void>;
+    onMotionMouseWheel(action: {
+        wheelDeltaY: number;
+        wheelDeltaX: number;
+    }): Promise<void>;
 }
 export declare interface IMoveArrayElementParams {
     nodePath: string;
@@ -6427,11 +7085,18 @@ export declare interface INode {
 export declare interface INodeDumpOptions {
     includeChildren?: boolean;
     includeComponents?: boolean;
+    includeLightProbeData?: boolean;
 }
 export declare interface INodeService extends IServiceEvents {
+    serialize(params: ISerializeNodesParams): Promise<SerializedNodeData>;
+    createBySerializedData(params: ICreateBySerializedDataParams): Promise<string[]>;
     createByType(params: ICreateByNodeTypeParams): Promise<INode | null>;
     createByAsset(params: ICreateByAssetParams): Promise<INode | null>;
     preflightCreate(params: ICreateByNodeTypeParams | ICreateByAssetParams): Promise<ICreateNodePreflightResult>;
+    beginCreateDrag(params: IBeginCreateDragParams): Promise<BeginCreateDragResult>;
+    updateCreateDrag(params: IUpdateCreateDragParams): Promise<UpdateCreateDragResult>;
+    commitCreateDrag(params: ICommitCreateDragParams): Promise<CommitCreateDragResult>;
+    cancelCreateDrag(params: ICancelCreateDragParams): Promise<CancelCreateDragResult>;
     delete(params: IDeleteNodeParams): Promise<IDeleteNodeResult | null>;
     query(params?: IQueryNodeParams): Promise<INode | IScene | null>;
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
@@ -6493,6 +7158,20 @@ export declare interface IOriginAxesConfig {
     y: boolean;
     z: boolean;
 }
+export declare interface IParticlePlayInfo {
+    speed: number;
+    time: number;
+    particle: number;
+    isPlaying: boolean;
+}
+export declare interface IParticleService {
+    queryPlayInfo(uuid: string): IParticlePlayInfo | null;
+    setPlaySpeed(uuid: string, speed: number): void;
+    play(): void;
+    stop(): void;
+    pause(): void;
+    restart(): void;
+}
 export declare interface IPasteParams {
     parentPath?: string;
     keepWorldTransform?: boolean;
@@ -6536,18 +7215,41 @@ export declare interface IPreviewInstance {
     resetCameraView(): void;
     hide(): void;
 }
-export declare interface IPreviewService {
+export declare interface IPreviewPlayService extends IServiceEvents {
+    start(serializedSceneJson: string, options?: IPreviewPlayStartOptions): Promise<void>;
+    stop(): Promise<void>;
+    pause(isPause: boolean): Promise<void>;
+    step(): boolean;
+    isPause(): boolean;
+    getState(): PreviewPlayState;
+    setFps(fps: number): void;
+    showState(show: boolean): void;
+}
+export declare interface IPreviewPlayStartOptions {
+    paused?: boolean;
+    sceneUrl?: string;
+}
+export declare interface IPreviewService extends IMotionPreviewService {
     open(uuid: string): Promise<IPreviewInstance | null>;
     generateThumbnail(uuid: string, assetType: string, width?: number, height?: number): Promise<any>;
 }
 export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    value: {
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType;
     default?: any;
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    values?: ({
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType)[];
+    lock?: {
+        [key in keyof Vec4]?: IPropertyLock;
+    };
     cid?: string;
     type?: string;
-    ui?: { name: string; data?: any };
+    ui?: {
+        name: string;
+        data?: any;
+    };
     readonly?: boolean;
     visible?: boolean;
     name?: string;
@@ -6574,19 +7276,27 @@ export declare interface IProperty {
     radian?: boolean;
     multiline?: boolean;
     optionalTypes?: string[];
-    userData?: { [key: string]: any };
+    userData?: {
+        [key: string]: any;
+    };
 }
 export declare interface IPropertyGroupOptions {
-    id: string
-    name: string,
-    displayOrder: number,
-    style: string
+    id: string;
+    name: string;
+    displayOrder: number;
+    style: string;
 }
 export declare type IPropertyLock = {
     default: number;
-    message: string
+    message: string;
 };
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
+export declare interface IQuat {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
 export declare interface IQueryClassesOptions {
     extends?: string | string[];
     excludeSelf?: boolean;
@@ -6594,11 +7304,18 @@ export declare interface IQueryClassesOptions {
 export declare interface IQueryComponentOptions {
     path: string;
 }
+export declare interface IQueryLODGroupRelativeHeightOptions {
+    path: string;
+}
 export declare interface IQueryNodeParams extends INodeDumpOptions {
     path: string;
 }
 export declare interface IQueryNodeTreeParams {
     path?: string;
+}
+export declare interface IRecalculateLODGroupBoundsOptions {
+    path: string;
+    record?: boolean;
 }
 export declare interface IRectSnapConfigData {
     enableSnapping: boolean;
@@ -6611,6 +7328,177 @@ export declare interface IRedirectInfo {
 export declare interface IRedoService {
     redo(options?: IUndoOperationOptions): Promise<IUndoRedoResult>;
     canRedo(options?: IUndoOperationOptions): boolean;
+}
+export declare interface IReferenceImageCancelOptions {
+    interactionId: number;
+}
+export declare interface IReferenceImageCommitOptions {
+    interactionId?: number;
+    patch: IReferenceImageParameters;
+}
+export declare interface IReferenceImageConfigItem {
+    path: string;
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    opacity: number;
+}
+export declare interface IReferenceImageError {
+    stage: 'config' | 'file' | 'decode';
+    message: string;
+}
+export declare interface IReferenceImageItem extends IReferenceImageConfigItem {
+    missing: boolean;
+}
+export declare interface IReferenceImageParameters {
+    x?: number;
+    y?: number;
+    scaleX?: number;
+    scaleY?: number;
+    opacity?: number;
+}
+export declare interface IReferenceImagePathOptions {
+    path: string;
+}
+export declare interface IReferenceImagePreviewOptions {
+    interactionId: number;
+    patch: IReferenceImageParameters;
+}
+export declare interface IReferenceImageService extends IServiceEvents {
+    getState(): Promise<IReferenceImageState>;
+    addAndSelect(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    remove(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    select(options: IReferenceImagePathOptions): Promise<IReferenceImageState>;
+    clearBinding(): Promise<IReferenceImageState>;
+    setVisible(options: IReferenceImageVisibilityOptions): Promise<IReferenceImageState>;
+    refresh(): Promise<IReferenceImageState>;
+    previewParameters(options: IReferenceImagePreviewOptions): Promise<IReferenceImageState>;
+    commitParameters(options: IReferenceImageCommitOptions): Promise<IReferenceImageState>;
+    cancelPreview(options: IReferenceImageCancelOptions): Promise<IReferenceImageState>;
+}
+export declare interface IReferenceImageState {
+    images: IReferenceImageItem[];
+    current: {
+        sceneUuid: string | null;
+        imagePath: string | null;
+        image: IReferenceImageItem | null;
+    };
+    desiredVisible: boolean;
+    effectiveVisible: boolean;
+    visibilityReason: ReferenceImageVisibilityReason;
+    is2D: boolean;
+    hasOpenEditor: boolean;
+    error: IReferenceImageError | null;
+}
+export declare interface IReferenceImageVisibilityOptions {
+    desiredVisible: boolean;
+}
+export declare interface IReflectionProbeBakeAllOptions {
+    source?: IReflectionProbeSceneIdentity;
+    componentUuids?: string[];
+    nodePaths?: string[];
+    saveScene?: boolean;
+    timeoutMs?: number;
+}
+export declare interface IReflectionProbeBakeAllResult {
+    sceneUrl: string;
+    totalCount: number;
+    bakedCount: number;
+    failedCount: number;
+    results: IReflectionProbeBakeResult[];
+    failures: IReflectionProbeBakeFailure[];
+    durationMs: number;
+}
+export declare interface IReflectionProbeBakeFailure {
+    nodePath: string;
+    componentUuid?: string;
+    reason: string;
+}
+export declare interface IReflectionProbeBakeOptions {
+    source?: IReflectionProbeSceneIdentity;
+    nodePath: string;
+    saveScene?: boolean;
+    timeoutMs?: number;
+}
+export declare interface IReflectionProbeBakeResult {
+    nodePath: string;
+    componentUuid: string;
+    probeId: number;
+    cubemapUuid: string;
+    cubemapUrl: string;
+    fastBake: boolean;
+}
+export declare interface IReflectionProbeCancelOptions {
+    taskId: string;
+    source?: IReflectionProbeSceneIdentity;
+}
+export declare interface IReflectionProbeClearFailure {
+    assetUrl: string;
+    reason: string;
+}
+export declare interface IReflectionProbeClearOptions {
+    source?: IReflectionProbeSceneIdentity;
+    saveScene?: boolean;
+    deleteAssets?: boolean;
+    timeoutMs?: number;
+}
+export declare interface IReflectionProbeClearResult {
+    sceneUrl: string;
+    totalCount: number;
+    clearedCount: number;
+    deletedAssetUrls: string[];
+    failures: IReflectionProbeClearFailure[];
+    durationMs: number;
+}
+export declare interface IReflectionProbeSceneIdentity {
+    runtimeId: string;
+    sceneUuid: string;
+    generation: number;
+}
+export declare interface IReflectionProbeService extends IServiceEvents {
+    getSceneIdentity(): Promise<IReflectionProbeSceneIdentity>;
+    startBake(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeTaskState>;
+    cancelBake(options: IReflectionProbeCancelOptions): Promise<IReflectionProbeTaskState>;
+    getTaskState(source?: IReflectionProbeSceneIdentity): Promise<IReflectionProbeTaskState>;
+    bake(options: IReflectionProbeBakeOptions): Promise<IReflectionProbeBakeResult>;
+    bakeAll(options: IReflectionProbeBakeAllOptions): Promise<IReflectionProbeBakeAllResult>;
+    clearAll(options?: IReflectionProbeClearOptions): Promise<IReflectionProbeClearResult>;
+}
+export declare interface IReflectionProbeTaskState {
+    revision: number;
+    logs: Array<{
+        id: number;
+        timestamp: number;
+        level: 'info' | 'error';
+        message: string;
+    }>;
+    taskId: string | null;
+    source?: IReflectionProbeSceneIdentity;
+    status: 'idle' | 'baking' | 'clearing' | 'completed' | 'failed' | 'cancelling' | 'cancelled';
+    current?: {
+        nodePath: string;
+        componentUuid: string;
+    };
+    remaining: Array<{
+        nodePath: string;
+        componentUuid: string;
+    }>;
+    total: number;
+    completed: number;
+    results: IReflectionProbeBakeResult[];
+    failures: IReflectionProbeBakeFailure[];
+    error?: string;
+}
+export declare interface IRegeneratePolygon2DPointsOptions {
+    path: string;
+    record?: boolean;
+}
+export declare interface IRegeneratePolygon2DPointsResult {
+    path: string;
+    changed: boolean;
+    pointCount: number;
+    source: Polygon2DPointsSource;
 }
 export declare interface IReloadOptions {
     urlOrUUID?: string;
@@ -6708,6 +7596,9 @@ export declare interface ISelectionService {
     isSelect(path: string): boolean;
     reset(): void;
 }
+export declare interface ISerializeNodesParams {
+    paths: string[];
+}
 export declare interface IServiceEvents {
     onEditorOpened?(): void;
     onEditorReload?(): void;
@@ -6755,7 +7646,14 @@ export declare interface IServiceManager {
     Gizmo: IGizmoService;
     SceneView: ISceneViewService;
     Preview: IPreviewService;
+    PreviewPlay: IPreviewPlayService;
     UI: IUIService;
+    ReflectionProbe: IReflectionProbeService;
+    ReferenceImage: IReferenceImageService;
+    LightProbeBake: ILightProbeBakeService;
+    LightmapBake: ILightmapBakeService;
+    Particle: IParticleService;
+    Terrain: ITerrainService;
 }
 export declare interface ISetParentParams {
     paths: string[];
@@ -6781,9 +7679,9 @@ export declare type ISupportCreateCCType =
 | 'cc.PhysicsMaterial'
 | 'cc.LabelAtlas'
 | 'cc.RenderTexture'
-| 'cc.AnimationGraph'
+| 'cc.animation.AnimationGraph'
 | 'cc.AnimationMask'
-| 'cc.AnimationGraphVariant';
+| 'cc.animation.AnimationGraphVariant';
 export declare type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
 export declare interface ITargetOverrideInfo {
     source: string;
@@ -6791,6 +7689,128 @@ export declare interface ITargetOverrideInfo {
     propertyPath: string[];
     target: string;
     targetInfo?: string[];
+}
+export declare interface ITerrainBlockData {
+    index: {
+        x: number;
+        y: number;
+    };
+    layers: Array<ITerrainBlockLayerSlot | null>;
+    weight: {
+        width: number;
+        height: number;
+        data: Uint8Array;
+    } | null;
+}
+export declare interface ITerrainBlockLayerSlot {
+    layerIndex: number;
+    detailMapUuid: string | null;
+}
+export declare interface ITerrainBlockSnapshot {
+    target: ITerrainTarget;
+    valid: true;
+    block: ITerrainBlockData | null;
+}
+export declare interface ITerrainBrushPatch {
+    radius?: number;
+    strength?: number;
+    rotation?: number;
+    setHeight?: number;
+}
+export declare interface ITerrainBrushState {
+    kind: TerrainBrushKind;
+    imageUuid: string | null;
+    radius: number;
+    strength: number;
+    rotation: number;
+    setHeight: number;
+}
+export declare interface ITerrainEditorState {
+    manage: ITerrainManageState;
+    layers: Array<ITerrainLayerState | null>;
+    mode: TerrainEditorMode;
+    currentLayer: number;
+    sculpt: ITerrainSculptState;
+    paint: ITerrainPaintState;
+}
+export declare interface ITerrainInvalidSnapshot {
+    target: ITerrainTarget;
+    valid: false;
+}
+export declare interface ITerrainLayerPatch {
+    detailMapUuid?: string | null;
+    normalMapUuid?: string | null;
+    metallic?: number;
+    roughness?: number;
+    tileSize?: number;
+}
+export declare interface ITerrainLayerState {
+    detailMapUuid: string | null;
+    normalMapUuid: string | null;
+    metallic: number;
+    roughness: number;
+    tileSize: number;
+}
+export declare interface ITerrainManageState {
+    tileSize: number;
+    weightMapSize: number;
+    lightMapSize: number;
+    blockCount: [number, number];
+}
+export declare interface ITerrainPaintBrushPatch extends ITerrainBrushPatch {
+    falloff?: number;
+}
+export declare interface ITerrainPaintBrushState extends ITerrainBrushState {
+    falloff: number;
+}
+export declare interface ITerrainPaintSessionPatch {
+    brush?: ITerrainPaintBrushPatch;
+}
+export declare interface ITerrainPaintState {
+    brush: ITerrainPaintBrushState;
+}
+export declare interface ITerrainSculptSessionPatch {
+    tool?: TerrainSculptTool;
+    brush?: ITerrainBrushPatch;
+}
+export declare interface ITerrainSculptState {
+    tool: TerrainSculptTool;
+    brush: ITerrainBrushState;
+}
+export declare interface ITerrainService {
+    readonly name: 'cc.Terrain';
+    readonly editedComponents: Terrain[];
+    readonly selectedComponents: Terrain[];
+    isTerrainChange: boolean;
+    select(nodeUuid: string): void;
+    unselect(nodeUuid: string): void;
+    close(): Promise<0 | 1 | 2>;
+    saveAsset(isClose?: boolean, component?: Terrain): Promise<0 | 1 | 2>;
+    saveAssetDialog(file?: string, isClose?: boolean): Promise<0 | 1 | 2>;
+    addAssetToComp(assetUuid: string): Promise<void>;
+    serialize(component: Terrain): Uint8Array;
+    onSculpt(node: any): void;
+    read(target: ITerrainTarget): TerrainReadResult;
+    setMode(target: ITerrainTarget, mode: TerrainEditorMode): TerrainReadResult;
+    setCurrentLayer(target: ITerrainTarget, currentLayer: number): TerrainReadResult;
+    setSculptSession(target: ITerrainTarget, patch: ITerrainSculptSessionPatch): TerrainReadResult;
+    setSculptBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
+    setPaintBrushAsset(target: ITerrainTarget, assetUuid: string | null): Promise<TerrainReadResult>;
+    setPaintSession(target: ITerrainTarget, patch: ITerrainPaintSessionPatch): TerrainReadResult;
+    saveManage(target: ITerrainTarget, manage: ITerrainManageState): Promise<TerrainReadResult>;
+    addLayer(target: ITerrainTarget, layer?: ITerrainLayerState): Promise<TerrainReadResult>;
+    removeLayer(target: ITerrainTarget, index: number): Promise<TerrainReadResult>;
+    updateLayer(target: ITerrainTarget, index: number, patch: ITerrainLayerPatch): Promise<TerrainReadResult>;
+    readBlock(target: ITerrainTarget): TerrainBlockReadResult;
+}
+export declare interface ITerrainSnapshot extends ITerrainEditorState {
+    target: ITerrainTarget;
+    assetUuid: string | null;
+    valid: true;
+}
+export declare interface ITerrainTarget {
+    nodeUuid: string;
+    componentUuid: string;
 }
 export declare interface IUIService {
     alignSelection(type: UIAlignType): Promise<void>;
@@ -6880,6 +7900,10 @@ export declare interface IUnpackPrefabInstanceParams {
     nodePath: string;
     recursive?: boolean;
 }
+export declare interface IUpdateCreateDragParams {
+    sessionId: string;
+    pointer: ICreateDragPointer;
+}
 export declare interface IVec3 {
     x: number;
     y: number;
@@ -6959,6 +7983,46 @@ export declare interface MeshSimplifyOptions {
     autoErrorRate?: boolean;
     errorRate?: number;
     lockBoundary?: boolean;
+}
+export declare interface MotionPreviewDesc {
+    motion: MotionPreviewDescNode | null;
+    variables: MotionPreviewVariable[];
+}
+export declare type MotionPreviewDescNode = {
+    kind: 'clip';
+    clipUuid: string | null;
+} | {
+    kind: 'blend-1d';
+    variable: string | null;
+    value: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: number;
+    }[];
+} | {
+    kind: 'blend-2d';
+    variableX: string | null;
+    valueX: number;
+    variableY: string | null;
+    valueY: number;
+    algorithm?: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: {
+            x: number;
+            y: number;
+        };
+    }[];
+} | {
+    kind: 'blend-direct';
+    children: {
+        motion: MotionPreviewDescNode | null;
+        weight: number;
+    }[];
+};
+export declare interface MotionPreviewVariable {
+    name: string;
+    value: number | null;
 }
 export declare enum NodeEventType {
     TRANSFORM_CHANGED = "transform-changed",
@@ -7079,6 +8143,7 @@ export declare interface PluginScriptUserData {
     loadPluginInMiniGame?: boolean;
     loadPluginInNative?: boolean;
 }
+export declare type Polygon2DPointsSource = 'sprite-alpha' | 'rect-fallback';
 export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
@@ -7090,6 +8155,8 @@ export declare enum PrefabState {
     PrefabInstance = 2,
     PrefabLostAsset = 3
 }
+export declare type PreviewPlayState = 'stop' | 'play' | 'pause';
+export declare type ReferenceImageVisibilityReason = 'visible' | 'disabled' | 'no-editor' | 'not-2d' | 'unbound' | 'missing' | 'load-error';
 export declare enum ReloadResult {
     SUCCESS = 0,
     FAILED = 1,
@@ -7121,6 +8188,20 @@ export declare interface SerializedAssetFinder {
     textures?: Array<string | null>;
     materials?: Array<string | null>;
     scenes?: Array<string | null>;
+}
+export declare interface SerializedNodeData {
+    version: 1;
+    serialized: string;
+    rootTransforms: {
+        position: IVec3;
+        rotation: IQuat;
+        scale: IVec3;
+    }[];
+    externalReferences: {
+        id: string;
+        type: 'node' | 'component';
+        uuid: string;
+    }[];
 }
 export declare interface SimplifyOptions {
     targetRatio?: number;
@@ -7183,6 +8264,11 @@ export declare enum TangentImportSetting {
 }
 export declare type TEditorEntity = IScene | INode;
 export declare type TEditorInstance = Scene | Node_2;
+export declare type TerrainBlockReadResult = ITerrainBlockSnapshot | ITerrainInvalidSnapshot;
+export declare type TerrainBrushKind = 'circle' | 'image';
+export declare type TerrainEditorMode = 'manage' | 'sculpt' | 'paint' | 'block';
+export declare type TerrainReadResult = ITerrainSnapshot | ITerrainInvalidSnapshot;
+export declare type TerrainSculptTool = 'bulge' | 'sunken' | 'smooth' | 'flatten' | 'set-height';
 export declare interface Texture2DAssetUserData extends TextureBaseAssetUserData {
     isUuid?: boolean;
     imageUuidOrDatabaseUri?: string;
@@ -7210,6 +8296,10 @@ export declare interface TextureCubeAssetUserData extends TextureBaseAssetUserDa
 }
 export declare type TSceneTemplateType = typeof SCENE_TEMPLATE_TYPE[number];
 export declare type UIAlignType = 'top' | 'v-center' | 'bottom' | 'left' | 'h-center' | 'right';
+export declare type UpdateCreateDragResult = CreateDragResult<CreateDragSession | {
+    sessionId: string;
+    state: 'ignored';
+}>;
 export declare interface Vec2 {
     x: number;
     y: number;
@@ -7433,6 +8523,9 @@ export declare interface IFeatureItem extends BaseItem {
 export declare type IFlags = Record<string, boolean | number>;
 export declare type IFlags_2 = Record<string, boolean | number>;
 export declare interface IInitEngineInfo {
+    editorMode?: boolean;
+    previewMode?: boolean;
+    enableOffscreenRendering?: boolean;
     importBase: string;
     nativeBase: string;
     writablePath: string;
@@ -7567,6 +8660,7 @@ export { }
 
 exports[`DTS API compatibility index.d.ts should match snapshot 1`] = `
 "import { __private } from 'cc';
+import type { ChildProcess } from 'child_process';
 import { ChunkInfo } from '@cocos/creator-programming-quick-pack/lib/loader';
 import { EventEmitter } from 'events';
 import { default as i18n_2 } from 'i18next';
@@ -7576,11 +8670,313 @@ import { Response as Response_2 } from 'express';
 export declare interface AnimationClipAssetUserData {
     name: string;
 }
+export declare const animationGraph: {
+    query(uuidOrUrlOrPath: string): Promise<AnimationGraphSnapshot>;
+    queryInspector(uuidOrUrlOrPath: string, target: AnimationGraphTarget): Promise<AnimationGraphInspectorSnapshot>;
+    queryMotionPreviewData(uuidOrUrlOrPath: string, target: Extract<AnimationGraphTarget, {
+        kind: "motion";
+    }>): Promise<AnimationGraphMotionPreviewData>;
+    queryPoseGraphAssetDragHandlers(): Promise<AnimationGraphPoseGraphAssetDragHandlersEntry[]>;
+    queryStateMachineComponentTypes(): Promise<string[]>;
+    setInspectorProperty(uuidOrUrlOrPath: string, request: SetAnimationGraphInspectorPropertyRequest): Promise<AnimationGraphInspectorSnapshot>;
+    resetInspectorProperty(uuidOrUrlOrPath: string, request: AnimationGraphInspectorPropertyOperationRequest): Promise<AnimationGraphInspectorSnapshot>;
+    createInspectorProperty(uuidOrUrlOrPath: string, request: AnimationGraphInspectorPropertyOperationRequest): Promise<AnimationGraphInspectorSnapshot>;
+    execute(uuidOrUrlOrPath: string, request: ExecuteAnimationGraphCommandRequest): Promise<AnimationGraphSnapshot>;
+    save(uuidOrUrlOrPath: string, expected: AnimationGraphExpectedVersion, sourceId?: string): Promise<AnimationGraphSnapshot>;
+    reload(uuidOrUrlOrPath: string, options?: ReloadAnimationGraphOptions, sourceId?: string): Promise<AnimationGraphSnapshot>;
+    onChanged(listener: (event: AnimationGraphChangedEvent) => void): () => void;
+};
+export declare interface AnimationGraphChangedEvent {
+    uuid: string;
+    reason: 'inspector' | 'structure' | 'save' | 'reload' | 'external';
+    version: AnimationGraphVersion;
+    sourceId?: string;
+    changedPaths?: string[];
+}
+export declare type AnimationGraphCommand =
+| { type: 'add-layer'; name?: string }
+| { type: 'remove-layer'; layerIndex: number }
+| { type: 'move-layer'; layerIndex: number; newIndex: number }
+| ({ type: 'add-state'; stateType: AnimationGraphStateType; name?: string; motionType?: AnimationGraphMotionType; clipUuid?: string; editorData?: Record<string, unknown> } & AnimationGraphStateMachineAddress)
+| ({ type: 'remove-state' } & AnimationGraphStateAddress)
+| ({ type: 'duplicate-state'; includeTransitions?: boolean; editorData?: Record<string, unknown> } & AnimationGraphStateAddress)
+| ({ type: 'set-state-editor-data'; editorData: Record<string, unknown> } & AnimationGraphStateAddress)
+| ({ type: 'add-transition'; fromStateIndex: number; toStateIndex: number } & AnimationGraphStateMachineAddress)
+| ({ type: 'remove-transition'; transitionIndex: number; allBetween?: boolean } & AnimationGraphStateMachineAddress)
+| ({ type: 'move-transition'; transitionIndex: number; offset: number } & AnimationGraphStateMachineAddress)
+| { type: 'add-transition-condition'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionType: AnimationGraphTransitionConditionType }
+| { type: 'remove-transition-condition'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number }
+| { type: 'set-transition-condition-property'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number; path: string; value: unknown }
+| { type: 'set-transition-condition-binding-class'; target: Extract<AnimationGraphTarget, { kind: 'transition' }>; conditionIndex: number; bindingClass: string }
+| ({ type: 'set-transition-event-binding'; transitionIndex: number; which: 'start' | 'end'; methodName: string } & AnimationGraphStateMachineAddress)
+| ({ type: 'set-motion'; motionType: AnimationGraphMotionType | 'none'; clipUuid?: string } & (AnimationGraphStateAddress | { poseGraph: AnimationGraphPoseGraphContext; nodeId: number }))
+| { type: 'add-motion-child'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; motionType: AnimationGraphMotionType; clipUuid?: string }
+| { type: 'remove-motion'; target: Extract<AnimationGraphTarget, { kind: 'motion' }> }
+| { type: 'set-motion-editor-data'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; editorData: Record<string, unknown> }
+| { type: 'set-motion-threshold'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; childIndex: number; threshold: number | { x: number; y: number } }
+| { type: 'set-direct-blend-weight'; target: Extract<AnimationGraphTarget, { kind: 'motion' }>; childIndex: number; value?: number; variable?: string }
+| ({ type: 'add-state-component'; componentType: string } & AnimationGraphStateAddress)
+| ({ type: 'remove-state-component'; componentIndex: number } & AnimationGraphStateAddress)
+| ({ type: 'add-pose-node'; nodeType: string; createArg?: unknown; editorData?: Record<string, unknown> } & AnimationGraphPoseGraphAddress)
+| ({ type: 'create-pose-node-on-asset-drag'; assetUuid: string; handlerId: string; editorData?: Record<string, unknown> } & AnimationGraphPoseGraphAddress)
+| { type: 'remove-pose-node'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }> }
+| ({ type: 'duplicate-pose-nodes'; nodeIds: number[] } & AnimationGraphPoseGraphAddress)
+| { type: 'set-pose-node-editor-data'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }>; editorData: Record<string, unknown> }
+| ({ type: 'connect-pose-nodes'; producerNodeId: number; producerOutputId: number; consumerNodeId: number; consumerInputId: string } & AnimationGraphPoseGraphAddress)
+| { type: 'disconnect-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-input' }> }
+| { type: 'insert-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-node' }>; insertId: string }
+| { type: 'delete-pose-input'; target: Extract<AnimationGraphTarget, { kind: 'pose-input' }> }
+| { type: 'add-variable'; name: string; variableType: number; initialValue?: unknown }
+| { type: 'set-variable-value'; name: string; patch: IProperty | unknown }
+| { type: 'set-trigger-reset-mode'; name: string; resetMode: number }
+| { type: 'remove-variable'; name: string }
+| { type: 'rename-variable'; name: string; newName: string }
+| { type: 'add-stash'; layerIndex: number; name: string }
+| { type: 'remove-stash'; layerIndex: number; name: string }
+| { type: 'rename-stash'; layerIndex: number; name: string; newName: string }
+| { type: 'stash-pose-graph'; poseGraph: AnimationGraphPoseGraphContext; layerIndex: number; stashName?: string; editorData?: Record<string, unknown> };
+export declare interface AnimationGraphComponentView {
+    index: number;
+    type: string;
+}
+export declare type AnimationGraphEditErrorCode =
+| 'VERSION_CONFLICT'
+| 'DOCUMENT_RELOADED'
+| 'SOURCE_CHANGED'
+| 'TARGET_NOT_FOUND'
+| 'UNSUPPORTED_TARGET'
+| 'UNSUPPORTED_PROPERTY_OPERATION'
+| 'INVALID_PROPERTY_PATCH'
+| 'READONLY_PROPERTY'
+| 'NAME_CONFLICT'
+| 'DIRTY_DOCUMENT';
+export declare interface AnimationGraphExpectedVersion {
+    documentId: string;
+    revision: number;
+}
+export declare interface AnimationGraphInspectorPropertyCapabilities {
+    set: boolean;
+    reset: boolean;
+    create: boolean;
+}
+export declare interface AnimationGraphInspectorPropertyOperationRequest {
+    target: AnimationGraphTarget;
+    path: string;
+    expected: AnimationGraphExpectedVersion;
+    sourceId?: string;
+}
+export declare interface AnimationGraphInspectorSnapshot extends AnimationGraphVersion {
+    uuid: string;
+    target: AnimationGraphTarget;
+    dump: IProperty;
+    propertyCapabilities?: Record<string, AnimationGraphInspectorPropertyCapabilities>;
+}
+export declare interface AnimationGraphLayerView {
+    index: number;
+    name: string;
+    weight: number;
+    additive: boolean;
+    maskUuid: string | null;
+    stashes: string[];
+    stashPoseGraphs: Array<{ name: string; poseGraph: AnimationGraphPoseView; referenceCount?: number }>;
+    stateMachine: AnimationGraphStateMachineView;
+}
+export declare type AnimationGraphMotionAddress =
+| (AnimationGraphStateAddress & { level: number[] })
+| ({ poseGraph: AnimationGraphPoseGraphContext; nodeId: number; level: number[] });
+export declare interface AnimationGraphMotionPreviewData {
+    motion: AnimationGraphMotionView | null;
+    variables: AnimationGraphVariableView[];
+}
+export declare type AnimationGraphMotionType = 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct';
+export declare interface AnimationGraphMotionView {
+    level: number[];
+    target: Extract<AnimationGraphTarget, { kind: 'motion' }>;
+    type: 'clip' | 'blend-1d' | 'blend-2d' | 'blend-direct' | 'unknown';
+    name: string;
+    clipUuid?: string | null;
+    variable?: string;
+    value?: number;
+    variableX?: string;
+    valueX?: number;
+    variableY?: string;
+    valueY?: number;
+    algorithm?: number;
+    threshold?: number | { x: number; y: number };
+    weight?: { value: number; variable: string };
+    children?: AnimationGraphMotionView[];
+    editorData?: Record<string, unknown>;
+}
+export declare interface AnimationGraphPoseGraphAddNodeInfo {
+    typeId: string;
+    args: unknown;
+    menu: string;
+}
+export declare type AnimationGraphPoseGraphAddress =
+| { layerIndex: number; stateMachinePath: number[]; stateIndex: number }
+| { poseGraph: AnimationGraphPoseGraphContext };
+export declare interface AnimationGraphPoseGraphAssetDragHandlerInfo {
+    id: string;
+    displayName: string;
+}
+export declare interface AnimationGraphPoseGraphAssetDragHandlersEntry {
+    assetType: string;
+    handlers: AnimationGraphPoseGraphAssetDragHandlerInfo[];
+}
+export declare interface AnimationGraphPoseGraphAssetDragHandlersView {
+    handlers: Record<string, AnimationGraphPoseGraphAssetDragHandlerView>;
+}
+export declare interface AnimationGraphPoseGraphAssetDragHandlerView {
+    displayName: string;
+}
+export declare type AnimationGraphPoseGraphContext =
+| { kind: 'state-pose-graph'; stateMachine: AnimationGraphStateMachineContext; stateIndex: number }
+| { kind: 'layer-stash'; layerIndex: number; stashName: string };
+export declare interface AnimationGraphPoseInputView {
+    id: string;
+    displayName: string;
+    type: number;
+    deletable: boolean;
+    insertPoint: boolean;
+    connected: boolean;
+    producerNodeId?: number;
+    producerOutputId?: number;
+    value?: IProperty;
+}
+export declare type AnimationGraphPoseNodeAddress = AnimationGraphPoseGraphAddress & { nodeId: number };
+export declare interface AnimationGraphPoseNodeEnterInfo {
+    type: 'state-machine' | 'animation-blend' | 'stash';
+    stashName?: string;
+}
+export declare interface AnimationGraphPoseNodeView {
+    id: number;
+    type: string;
+    title: string;
+    outputTypes: number[];
+    inputs: AnimationGraphPoseInputView[];
+    inputInsertInfos: Record<string, { displayName: string }>;
+    stateMachine?: AnimationGraphStateMachineView;
+    motion?: AnimationGraphMotionView | null;
+    enterInfo?: AnimationGraphPoseNodeEnterInfo;
+    editorData?: Record<string, unknown>;
+}
+export declare interface AnimationGraphPoseView {
+    context: AnimationGraphPoseGraphContext;
+    rootOutputNodeId: number;
+    nodes: AnimationGraphPoseNodeView[];
+    addNodeInfos: AnimationGraphPoseGraphAddNodeInfo[];
+    assetDragHandlersMap: Record<string, AnimationGraphPoseGraphAssetDragHandlersView>;
+}
+export declare interface AnimationGraphSnapshot extends AnimationGraphVersion {
+    uuid: string;
+    url: string;
+    graph: AnimationGraphViewDump;
+}
+export declare type AnimationGraphStateAddress = AnimationGraphStateMachineAddress & { stateIndex: number };
+export declare type AnimationGraphStateMachineAddress =
+| { layerIndex: number; stateMachinePath: number[] }
+| { stateMachine: AnimationGraphStateMachineContext };
+export declare type AnimationGraphStateMachineContext =
+| { kind: 'layer-state-machine'; layerIndex: number; stateMachinePath: number[] }
+| { kind: 'pose-node-state-machine'; poseGraph: AnimationGraphPoseGraphContext; nodeId: number }
+| { kind: 'sub-state-machine'; stateMachine: AnimationGraphStateMachineContext; stateIndex: number };
+export declare interface AnimationGraphStateMachineView {
+    context: AnimationGraphStateMachineContext;
+    path: number[];
+    allowEmptyStates: boolean;
+    states: AnimationGraphStateView[];
+    transitions: AnimationGraphTransitionView[];
+    editorData?: Record<string, unknown>;
+}
+export declare type AnimationGraphStateType = 'motion' | 'empty' | 'sub-state-machine' | 'procedural-pose';
+export declare interface AnimationGraphStateView {
+    index: number;
+    type: 'entry' | 'exit' | 'any' | 'motion' | 'empty' | 'sub-state-machine' | 'procedural-pose' | 'unknown';
+    name: string;
+    incomingTransitionIndices: number[];
+    outgoingTransitionIndices: number[];
+    components: AnimationGraphComponentView[];
+    speed?: number;
+    speedMultiplier?: string;
+    speedMultiplierEnabled?: boolean;
+    motion?: AnimationGraphMotionView | null;
+    stateMachine?: AnimationGraphStateMachineView;
+    poseGraph?: AnimationGraphPoseView;
+    editorData?: Record<string, unknown>;
+}
+export declare type AnimationGraphTarget =
+| { kind: 'layer'; layerIndex: number }
+| ({ kind: 'state' } & AnimationGraphStateAddress)
+| ({ kind: 'transition'; transitionIndex: number } & AnimationGraphStateMachineAddress)
+| ({ kind: 'motion' } & AnimationGraphMotionAddress)
+| ({ kind: 'pose-node' } & AnimationGraphPoseNodeAddress)
+| ({ kind: 'pose-input'; inputId: string } & AnimationGraphPoseNodeAddress)
+| ({ kind: 'state-component'; componentIndex: number } & AnimationGraphStateAddress);
+export declare type AnimationGraphTransitionConditionType = 'binary' | 'unary' | 'trigger';
+export declare type AnimationGraphTransitionConditionView =
+| {
+    index: number;
+    type: 'BinaryCondition';
+    operator: number;
+    lhs: number;
+    lhsBinding: Record<string, unknown>;
+    bindingClass: string;
+    rhs: number;
+    isRhsInteger: boolean;
+}
+| {
+    index: number;
+    type: 'UnaryCondition';
+    operator: number;
+    operand: string;
+}
+| {
+    index: number;
+    type: 'TriggerCondition';
+    trigger: string;
+}
+| {
+    index: number;
+    type: 'Unknown';
+    className: string;
+};
+export declare interface AnimationGraphTransitionView {
+    index: number;
+    type: 'animation' | 'empty-state' | 'procedural-pose' | 'transition';
+    fromStateIndex: number;
+    toStateIndex: number;
+    priority: number;
+    conditions: AnimationGraphTransitionConditionView[];
+    duration?: number;
+    relativeDuration?: boolean;
+    exitConditionEnabled?: boolean;
+    exitCondition?: number;
+    destinationStart?: number;
+    relativeDestinationStart?: boolean;
+    startEvent?: string;
+    endEvent?: string;
+    editorData?: Record<string, unknown>;
+}
+export declare interface AnimationGraphVariableView {
+    name: string;
+    type: number;
+    value: IProperty;
+    resetMode?: number;
+}
 export declare const animationGraphVariant: {
     query(uuid: string): Promise<AnimGraphVariantDump>;
     change(uuid: string, dump: AnimGraphVariantDump): Promise<AnimGraphVariantDump>;
     save(uuid: string): Promise<void>;
 };
+export declare interface AnimationGraphVersion extends AnimationGraphExpectedVersion {
+    persistedRevision: number;
+    dirty: boolean;
+    externallyModified: boolean;
+}
+export declare interface AnimationGraphViewDump {
+    layers: AnimationGraphLayerView[];
+    variables: AnimationGraphVariableView[];
+}
 export declare interface AnimationImportSetting {
     name: string;
     duration: number;
@@ -7632,7 +9028,7 @@ export declare interface AnimGraphVariantDump {
     clips: Record<string, string>;
     invalids?: Record<string, string>;
 }
-export declare const ASSET_HANDLER_TYPES: string[];
+export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 export declare enum AssetActionEnum {
     'add' = 0,
     'change' = 1,
@@ -7674,7 +9070,9 @@ export declare interface AssetDBOptions_2 {
     visible: boolean;
     ignoreGlob?: string;
 }
-export declare type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+export declare type AssetHandlerType =
+| typeof ASSET_HANDLER_TYPES[number]
+| (string & {});
 export declare interface AssetInfo extends IAssetInfo {
     name: string;
     displayName: string;
@@ -7710,6 +9108,7 @@ export declare namespace Assets {
         init,
         setFileSystemProvider,
         start,
+        reconcileLocalizationRuntimeMount,
         onReady,
         onDBReady,
         onProgress,
@@ -7724,6 +9123,7 @@ export declare namespace Assets {
         createAsset,
         importAsset,
         copyAsset,
+        exportAssetPackage,
         reimportAsset,
         saveAsset,
         querySerializedData,
@@ -7761,6 +9161,7 @@ export declare namespace Assets {
         IPluginScriptInfo,
         AnimGraphVariantDump,
         animationGraphVariant,
+        animationGraph,
         animationMask,
         serializedData,
         material,
@@ -7776,6 +9177,48 @@ export declare namespace Assets {
         SerializedAssetDump,
         SerializedAssetPatch,
         SerializedAssetQueryResult,
+        AnimationGraphExpectedVersion,
+        AnimationGraphVersion,
+        AnimationGraphStateMachineContext,
+        AnimationGraphPoseGraphContext,
+        AnimationGraphStateMachineAddress,
+        AnimationGraphStateAddress,
+        AnimationGraphPoseGraphAddress,
+        AnimationGraphPoseNodeAddress,
+        AnimationGraphMotionAddress,
+        AnimationGraphTarget,
+        AnimationGraphComponentView,
+        AnimationGraphMotionView,
+        AnimationGraphPoseInputView,
+        AnimationGraphPoseNodeEnterInfo,
+        AnimationGraphPoseNodeView,
+        AnimationGraphPoseGraphAddNodeInfo,
+        AnimationGraphPoseGraphAssetDragHandlerView,
+        AnimationGraphPoseGraphAssetDragHandlersView,
+        AnimationGraphPoseView,
+        AnimationGraphPoseGraphAssetDragHandlerInfo,
+        AnimationGraphPoseGraphAssetDragHandlersEntry,
+        AnimationGraphStateView,
+        AnimationGraphTransitionView,
+        AnimationGraphTransitionConditionView,
+        AnimationGraphStateMachineView,
+        AnimationGraphLayerView,
+        AnimationGraphVariableView,
+        AnimationGraphMotionPreviewData,
+        AnimationGraphViewDump,
+        AnimationGraphSnapshot,
+        AnimationGraphInspectorPropertyCapabilities,
+        AnimationGraphInspectorSnapshot,
+        AnimationGraphInspectorPropertyOperationRequest,
+        SetAnimationGraphInspectorPropertyRequest,
+        AnimationGraphStateType,
+        AnimationGraphMotionType,
+        AnimationGraphTransitionConditionType,
+        AnimationGraphCommand,
+        ExecuteAnimationGraphCommandRequest,
+        ReloadAnimationGraphOptions,
+        AnimationGraphChangedEvent,
+        AnimationGraphEditErrorCode,
         MaterialEffectInfo,
         MaterialPassDump,
         MaterialTechniqueDump,
@@ -7878,6 +9321,33 @@ export declare interface BitmapFontAssetUserData {
     fontSize: number;
     textureUuid: string;
 }
+export declare const build: (enginePath?: string) => Promise<void>;
+export declare const buildNative: (enginePath?: string) => Promise<void>;
+export declare const buildRuntime: (enginePath?: string) => Promise<void>;
+export declare const BUILTIN_NODE_CREATE_TARGETS: Readonly<{
+    readonly empty: "db:
+    readonly label: "db:
+    readonly 'particle-system-2d': "db:
+    readonly 'rich-text': "db:
+    readonly sprite: "db:
+    readonly 'sprite-splash': "db:
+    readonly 'tiled-map': "db:
+    readonly button: "db:
+    readonly 'canvas-2d': "db:
+    readonly 'canvas-3d': "db:
+    readonly 'edit-box': "db:
+    readonly layout: "db:
+    readonly mask: "db:
+    readonly 'progress-bar': "db:
+    readonly 'scroll-view': "db:
+    readonly slider: "db:
+    readonly toggle: "db:
+    readonly 'toggle-group': "db:
+    readonly 'video-player': "db:
+    readonly 'web-view': "db:
+    readonly widget: "db:
+}>;
+export declare type BuiltinNodeCreateEntryId = keyof typeof BUILTIN_NODE_CREATE_TARGETS;
 export declare interface CategoryDetail extends CategoryInfo {
     modules: IModules;
 }
@@ -7947,6 +9417,7 @@ export declare interface DirectoryAssetUserData {
     bundleName?: string;
     priority?: number;
 }
+export declare function discoverProjectBackend(project: string): Promise<ProjectBackendDescriptor | null>;
 export declare interface EffectAssetUserData {
     combinations?: any;
     editor?: any;
@@ -8023,12 +9494,19 @@ export declare interface EngineInfo {
     tmpDir: string;
     version: string;
 }
+export declare function ensureProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
 export declare type EventEmitterMethods = Pick<EventEmitter, 'on' | 'off' | 'once' | 'emit'>;
+export declare interface ExecuteAnimationGraphCommandRequest {
+    command: AnimationGraphCommand;
+    expected: AnimationGraphExpectedVersion;
+    sourceId?: string;
+}
 export declare interface ExecuteAssetDBScriptMethodOptions {
     name: string;
     method: string;
     args?: any[];
 }
+export declare function exportAssetPackage(urls: string[], destination: string, includeDependencies?: boolean): Promise<number>;
 export declare interface Features {
     [feature: string]: IModuleItem;
 }
@@ -8070,8 +9548,11 @@ export declare function get<T>(key: string, scope?: ConfigurationScope): Promise
 export declare function get_2(): Promise<Project_2>;
 export declare function getConfig(useDefault?: boolean): Promise<IEngineConfig>;
 export declare function getConfigPath(scope?: ConfigurationScope): Promise<string>;
+export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext> | undefined;
+export declare const getExecutablePath: (enginePath?: string) => Promise<string | null>;
 export declare function getInfo(): Promise<EngineInfo>;
 export declare function getInfo_2(): Promise<ProjectInfo>;
+export declare const getManifest: (enginePath?: string) => Promise<ISimulatorManifest | null>;
 export declare function getMetadata(): Promise<ICocosConfigurationNode[]>;
 export declare function getProgrammingFacet(): Promise<ProgrammingFacet>;
 export declare function getRenderConfig(): Promise<ModuleRenderConfig>;
@@ -8436,6 +9917,9 @@ export declare interface IGetPostConfig {
     handler: (req: Request_2, res: Response_2, next?: NextFunction) => Promise<void>;
 }
 export declare interface IInitEngineInfo {
+    editorMode?: boolean;
+    previewMode?: boolean;
+    enableOffscreenRendering?: boolean;
     importBase: string;
     nativeBase: string;
     writablePath: string;
@@ -8557,13 +10041,22 @@ export declare interface IProject {
     updateInfo<T>(keyOrValue: string | ProjectInfo, value?: T): Promise<boolean>;
 }
 export declare interface IProperty {
-    value: { [key: string]: IPropertyValueType } | IPropertyValueType;
+    value: {
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType;
     default?: any;
-    values?: ({ [key: string]: IPropertyValueType } | IPropertyValueType)[];
-    lock?: { [key in keyof Vec4]?: IPropertyLock };
+    values?: ({
+        [key: string]: IPropertyValueType;
+    } | IPropertyValueType)[];
+    lock?: {
+        [key in keyof Vec4]?: IPropertyLock;
+    };
     cid?: string;
     type?: string;
-    ui?: { name: string; data?: any };
+    ui?: {
+        name: string;
+        data?: any;
+    };
     readonly?: boolean;
     visible?: boolean;
     name?: string;
@@ -8590,19 +10083,21 @@ export declare interface IProperty {
     radian?: boolean;
     multiline?: boolean;
     optionalTypes?: string[];
-    userData?: { [key: string]: any };
+    userData?: {
+        [key: string]: any;
+    };
 }
 export declare interface IPropertyGroupOptions {
-    id: string
-    name: string,
-    displayOrder: number,
-    style: string
+    id: string;
+    name: string;
+    displayOrder: number;
+    style: string;
 }
 export declare type IPropertyLock = {
     default: number;
-    message: string
+    message: string;
 };
-export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>
+export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IRedirectInfo {
     type: string;
     uuid: string;
@@ -8614,6 +10109,34 @@ export declare interface IResolvedChunkContent {
 export declare interface IResolvedCustomJointTextureLayout {
     textureLength: number;
     contents: IResolvedChunkContent[];
+}
+export declare const isBuilt: (enginePath?: string) => Promise<boolean>;
+export declare interface ISceneCommandProvider {
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify?(module: string, method: string, args?: any[]): void;
+    isConnect?(): boolean | undefined;
+    dispose?(): void;
+}
+export declare interface ISimulatorBuildState {
+    step: 'native' | 'runtime';
+    state: 'start' | 'success' | 'failed';
+    error?: string;
+}
+export declare interface ISimulatorLogEntry {
+    source: 'build';
+    level: 'log' | 'error';
+    message: string;
+}
+export declare interface ISimulatorManifest {
+    platform: NodeJS.Platform;
+    arch: string;
+    bundle: string;
+    entry: string;
+    engineVersion?: string;
+    builtAt?: string;
+    runtimePath: string;
+    artifactRoot: string;
+    formatVersion: 1;
 }
 export declare interface ISocketConfig {
     connection: (socket: any) => void;
@@ -8659,9 +10182,9 @@ export declare type ISupportCreateCCType =
 | 'cc.PhysicsMaterial'
 | 'cc.LabelAtlas'
 | 'cc.RenderTexture'
-| 'cc.AnimationGraph'
+| 'cc.animation.AnimationGraph'
 | 'cc.AnimationMask'
-| 'cc.AnimationGraphVariant';
+| 'cc.animation.AnimationGraphVariant';
 export declare type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
 export declare interface IUerDataConfigItem {
     key?: string;
@@ -8778,9 +10301,19 @@ export declare namespace Mcp {
     export {
         register,
         unregister,
-        getStatus
+        getStatus,
+        McpToolCallContext,
+        McpToolCallLifecycleState,
+        getCurrentToolCallContext,
+        registerToolCallFinalizer
     }
 }
+export declare interface McpToolCallContext {
+    readonly operationId: string;
+    readonly lifecycleState: McpToolCallLifecycleState;
+    getHeader(name: string): string | undefined;
+}
+export declare type McpToolCallLifecycleState = 'running' | 'completing' | 'completed';
 export declare interface MeshClusterOptions {
     enable: boolean;
     coneCluster?: boolean;
@@ -8823,6 +10356,46 @@ export declare interface ModuleRenderConfig {
     version: string;
     migrationScript?: string;
 }
+export declare interface MotionPreviewDesc {
+    motion: MotionPreviewDescNode | null;
+    variables: MotionPreviewVariable[];
+}
+export declare type MotionPreviewDescNode = {
+    kind: 'clip';
+    clipUuid: string | null;
+} | {
+    kind: 'blend-1d';
+    variable: string | null;
+    value: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: number;
+    }[];
+} | {
+    kind: 'blend-2d';
+    variableX: string | null;
+    valueX: number;
+    variableY: string | null;
+    valueY: number;
+    algorithm?: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: {
+            x: number;
+            y: number;
+        };
+    }[];
+} | {
+    kind: 'blend-direct';
+    children: {
+        motion: MotionPreviewDescNode | null;
+        weight: number;
+    }[];
+};
+export declare interface MotionPreviewVariable {
+    name: string;
+    value: number | null;
+}
 export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
 export declare enum NormalImportSetting {
     optional = 0,
@@ -8841,7 +10414,9 @@ export declare function onCompileStart(listener: (e: {
     taskId?: string;
 }) => void): () => void;
 export declare function onDBReady(listener: (dbInfo: IAssetDBInfo) => void): () => void;
+export declare const onDidChangeBuildState: (listener: (state: ISimulatorBuildState) => void) => () => void;
 export declare function onDidSave(callback: () => void, scope?: ConfigurationScope): () => void;
+export declare const onLog: (listener: (entry: ISimulatorLogEntry) => void) => () => void;
 export declare function onPackBuildEnd(listener: (e: {
     targetName: string;
 }) => void): () => void;
@@ -8954,7 +10529,14 @@ export declare namespace Project {
         open_2 as open,
         close_2 as close,
         getInfo_2 as getInfo,
-        get_2 as get
+        get_2 as get,
+        discoverProjectBackend,
+        ProjectBackendError,
+        ProjectBackendDescriptor,
+        startProjectBackend,
+        ensureProjectBackend,
+        stopProjectBackend,
+        StartProjectBackendOptions
     }
 }
 export declare class Project_2 implements IProject {
@@ -8979,6 +10561,23 @@ export declare class Project_2 implements IProject {
     close(): Promise<boolean>;
     private static generateProjectInfo;
     private isValid;
+}
+export declare interface ProjectBackendDescriptor {
+    protocol: 1;
+    project: string;
+    projectKey: string;
+    ownerId: string;
+    pid: number;
+    url: string;
+    token: string;
+    state: 'initializing' | 'ready' | 'stopping' | 'failed';
+    sceneSession?: SceneSessionDescriptor;
+    mcpUrl?: string;
+}
+export declare class ProjectBackendError extends Error {
+    readonly code: string;
+    readonly backend?: ProjectBackendDescriptor | undefined;
+    constructor(code: string, message: string, backend?: ProjectBackendDescriptor | undefined);
 }
 export declare interface ProjectCreatorInfo {
     version: string;
@@ -9033,17 +10632,24 @@ export declare function querySortingLayerBuiltin(): Promise<readonly __private._
 export declare function queryThumbnailHandlers(): string[];
 export declare function queryUrl(uuidOrPath: string): Promise<string>;
 export declare function queryUUID(urlOrPath: string): Promise<string | null>;
+export declare function reconcileLocalizationRuntimeMount(): Promise<void>;
 export declare function refresh(dir: string): Promise<number>;
 export declare function register(): Promise<string>;
 export declare function register_2(name: string, module: IMiddlewareContribution): Promise<void>;
+export declare function registerToolCallFinalizer(key: string | symbol, callback: () => void | Promise<void>): void;
 export declare function reimportAsset(pathOrUrlOrUUID: string): Promise<IAssetInfo>;
 export declare function reload(): Promise<void>;
+export declare interface ReloadAnimationGraphOptions {
+    expected?: AnimationGraphExpectedVersion;
+    discardDirty?: boolean;
+}
 export declare function remove(key: string, scope?: ConfigurationScope): Promise<boolean>;
 export declare function renameAsset(source: string, newName: string, options?: AssetOperationOption): Promise<any>;
 export declare interface RenderTextureAssetUserData extends TextureBaseAssetUserData {
     width: number;
     height: number;
 }
+export declare function resetCommandProvider(): void;
 export declare interface RtSpriteFrameAssetUserData {
     imageUuidOrDatabaseUri: string;
     width?: number;
@@ -9055,9 +10661,121 @@ export declare function saveMaterial(uuidOrUrlOrPath: string, dump: MaterialDump
 export declare function saveSerializedData(uuidOrUrlOrPath: string, patch: SerializedAssetPatch): Promise<SerializedAssetQueryResult>;
 export declare namespace Scene {
     export {
+        startSessionServer,
         init_6 as init,
-        startupWorker
+        startupWorker,
+        setCommandProvider,
+        resetCommandProvider,
+        BUILTIN_NODE_CREATE_TARGETS,
+        BuiltinNodeCreateEntryId,
+        MotionPreviewDesc,
+        MotionPreviewDescNode,
+        ISceneCommandProvider,
+        SceneCommandProviderRegistration,
+        SceneCommandRequestOptions,
+        WorkerSceneCommandProvider,
+        SceneSessionClient,
+        SceneSessionServerOptions,
+        SceneSessionServer,
+        SceneVersion,
+        SceneCommand,
+        SceneSessionCommand,
+        SceneSessionEvent,
+        SceneSessionSnapshot,
+        SceneRenderSnapshot,
+        SceneRecordedChange,
+        SceneSessionDescriptor,
+        SceneCommandResult,
+        SceneEventBatch,
+        SceneSessionError
     }
+}
+export declare interface SceneCommand {
+    module: string;
+    method: string;
+    args?: unknown[];
+}
+export declare interface SceneCommandProviderRegistration {
+    dispose(): void;
+}
+export declare interface SceneCommandRequestOptions {
+    timeout?: number;
+}
+export declare interface SceneCommandResult {
+    value: unknown;
+    version: SceneVersion;
+}
+export declare interface SceneEventBatch {
+    version: SceneVersion;
+    sequence: number;
+    resync: boolean;
+    events: SceneSessionEvent[];
+}
+export declare interface SceneRecordedChange {
+    uuid: string;
+    kind: 'node' | 'component';
+    dump: any;
+}
+export declare interface SceneRenderSnapshot {
+    serializedScene: string;
+    rootUuid: string;
+    assetUuid: string;
+    kind: 'scene' | 'prefab';
+    prefabUUIDs: unknown;
+}
+export declare class SceneSessionClient {
+    readonly descriptor: SceneSessionDescriptor;
+    constructor(descriptor: SceneSessionDescriptor);
+    snapshot(signal?: AbortSignal): Promise<SceneSessionSnapshot>;
+    command(command: SceneSessionCommand, signal?: AbortSignal): Promise<SceneCommandResult>;
+    events(version: SceneVersion, after: number, signal?: AbortSignal): Promise<SceneEventBatch>;
+    private fetch;
+}
+export declare interface SceneSessionCommand extends SceneCommand {
+    source: string;
+    operationId: string;
+    expected: SceneVersion;
+}
+export declare interface SceneSessionDescriptor {
+    protocol: 1;
+    project: string;
+    url: string;
+    token: string;
+}
+export declare class SceneSessionError extends Error {
+    readonly code: string;
+    constructor(code: string, message: string);
+}
+export declare interface SceneSessionEvent {
+    sequence: number;
+    version: SceneVersion;
+    source?: string;
+    operationId?: string;
+    events: string[];
+}
+export declare interface SceneSessionServer {
+    descriptor: SceneSessionDescriptor;
+    close(): Promise<void>;
+}
+export declare interface SceneSessionServerOptions {
+    project: string;
+    port?: number;
+    allowedOrigins?: string[];
+}
+export declare interface SceneSessionSnapshot {
+    project: string;
+    version: SceneVersion;
+    sequence: number;
+    current: unknown;
+    serializedScene: string | null;
+    render?: SceneRenderSnapshot | null;
+    dirty: boolean;
+    canUndo: boolean;
+    canRedo: boolean;
+}
+export declare interface SceneVersion {
+    epoch: string;
+    revision: number;
 }
 export declare namespace Scripting {
     export {
@@ -9108,6 +10826,10 @@ export declare namespace Server {
     }
 }
 export declare function set<T>(key: string, value: T, scope?: ConfigurationScope): Promise<boolean>;
+export declare interface SetAnimationGraphInspectorPropertyRequest extends AnimationGraphInspectorPropertyOperationRequest {
+    patch: IProperty | unknown;
+}
+export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
 export declare function setFileSystemProvider(provider: IAssetFileSystemProvider): void;
 export declare interface SharedSettings {
     useDefineForClassFields: boolean;
@@ -9129,6 +10851,21 @@ export declare interface SimplifyOptions {
     enableSmartLink?: boolean;
     agressiveness?: number;
     maxIterationCount?: number;
+}
+export declare namespace Simulator {
+    export {
+        ISimulatorBuildState,
+        ISimulatorLogEntry,
+        ISimulatorManifest,
+        build,
+        buildNative,
+        buildRuntime,
+        isBuilt,
+        getManifest,
+        getExecutablePath,
+        onLog,
+        onDidChangeBuildState
+    }
 }
 export declare interface SpineAssetUserData {
     atlasUuid: string;
@@ -9180,8 +10917,18 @@ export declare function start(): Promise<void>;
 export declare function start_2(port?: number, host?: string): Promise<string>;
 export declare function startCompileScript(assetChanges?: AssetChangeInfo[]): Promise<void>;
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
+export declare function startProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
+export declare interface StartProjectBackendOptions {
+    port?: number;
+    allowedOrigins?: string[];
+    executable?: string;
+    startupTimeoutMs?: number;
+    requireMcp?: boolean;
+}
+export declare function startSessionServer(options: SceneSessionServerOptions): Promise<SceneSessionServer>;
 export declare function startupWorker(projectPath: string): Promise<void>;
 export declare function stop_2(): Promise<void>;
+export declare function stopProjectBackend(backend: ProjectBackendDescriptor): Promise<void>;
 export declare const SUPPORT_CREATE_TYPES: readonly ["animation-clip", "typescript", "auto-atlas", "effect", "scene", "prefab", "material", "texture-cube", "terrain", "physics-material", "label-atlas", "render-texture", "directory", "effect-header"];
 export declare enum TangentImportSetting {
     exclude = 0,
@@ -9238,7 +10985,34 @@ export declare interface Vec4 {
     z: number;
     w: number;
 }
+export declare class WorkerSceneCommandProvider implements ISceneCommandProvider {
+    private readonly rpc;
+    constructor(process: ChildProcess | NodeJS.Process);
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify(module: string, method: string, args?: any[]): void;
+    isConnect(): boolean | undefined;
+    dispose(): void;
+}
 export declare type WrapMode = 'repeat' | 'clamp-to-edge' | 'mirrored-repeat';
+export { }
+"
+`;
+
+exports[`DTS API compatibility mcp.d.ts should match snapshot 1`] = `
+"export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext> | undefined;
+export declare function getStatus(): {
+    registered: boolean;
+    url?: string;
+};
+export declare interface McpToolCallContext {
+    readonly operationId: string;
+    readonly lifecycleState: McpToolCallLifecycleState;
+    getHeader(name: string): string | undefined;
+}
+export declare type McpToolCallLifecycleState = 'running' | 'completing' | 'completed';
+export declare function register(): Promise<string>;
+export declare function registerToolCallFinalizer(key: string | symbol, callback: () => void | Promise<void>): void;
+export declare function unregister(): Promise<void>;
 export { }
 "
 `;
@@ -9246,6 +11020,8 @@ export { }
 exports[`DTS API compatibility project.d.ts should match snapshot 1`] = `
 "export declare function close_2(): Promise<void>;
 export { close_2 as close }
+export declare function discoverProjectBackend(project: string): Promise<ProjectBackendDescriptor | null>;
+export declare function ensureProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
 export declare function get(): Promise<Project>;
 export declare function getInfo(): Promise<ProjectInfo>;
 export declare function init(projectPath: string): Promise<void>;
@@ -9287,6 +11063,23 @@ export declare class Project implements IProject {
     private static generateProjectInfo;
     private isValid;
 }
+export declare interface ProjectBackendDescriptor {
+    protocol: 1;
+    project: string;
+    projectKey: string;
+    ownerId: string;
+    pid: number;
+    url: string;
+    token: string;
+    state: 'initializing' | 'ready' | 'stopping' | 'failed';
+    sceneSession?: SceneSessionDescriptor;
+    mcpUrl?: string;
+}
+export declare class ProjectBackendError extends Error {
+    readonly code: string;
+    readonly backend?: ProjectBackendDescriptor | undefined;
+    constructor(code: string, message: string, backend?: ProjectBackendDescriptor | undefined);
+}
 export declare interface ProjectCreatorInfo {
     version: string;
     dependencies?: {
@@ -9305,6 +11098,197 @@ export declare interface ProjectInfo {
     [key: string]: any;
 }
 export declare type ProjectType = '2d' | '3d';
+export declare interface SceneSessionDescriptor {
+    protocol: 1;
+    project: string;
+    url: string;
+    token: string;
+}
+export declare function startProjectBackend(project: string, options?: StartProjectBackendOptions): Promise<ProjectBackendDescriptor>;
+export declare interface StartProjectBackendOptions {
+    port?: number;
+    allowedOrigins?: string[];
+    executable?: string;
+    startupTimeoutMs?: number;
+    requireMcp?: boolean;
+}
+export declare function stopProjectBackend(backend: ProjectBackendDescriptor): Promise<void>;
+export { }
+"
+`;
+
+exports[`DTS API compatibility scene.d.ts should match snapshot 1`] = `
+"import type { ChildProcess } from 'child_process';
+export declare const BUILTIN_NODE_CREATE_TARGETS: Readonly<{
+    readonly empty: "db:
+    readonly label: "db:
+    readonly 'particle-system-2d': "db:
+    readonly 'rich-text': "db:
+    readonly sprite: "db:
+    readonly 'sprite-splash': "db:
+    readonly 'tiled-map': "db:
+    readonly button: "db:
+    readonly 'canvas-2d': "db:
+    readonly 'canvas-3d': "db:
+    readonly 'edit-box': "db:
+    readonly layout: "db:
+    readonly mask: "db:
+    readonly 'progress-bar': "db:
+    readonly 'scroll-view': "db:
+    readonly slider: "db:
+    readonly toggle: "db:
+    readonly 'toggle-group': "db:
+    readonly 'video-player': "db:
+    readonly 'web-view': "db:
+    readonly widget: "db:
+}>;
+export declare type BuiltinNodeCreateEntryId = keyof typeof BUILTIN_NODE_CREATE_TARGETS;
+export declare function init(): Promise<void>;
+export declare interface ISceneCommandProvider {
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify?(module: string, method: string, args?: any[]): void;
+    isConnect?(): boolean | undefined;
+    dispose?(): void;
+}
+export declare interface MotionPreviewDesc {
+    motion: MotionPreviewDescNode | null;
+    variables: MotionPreviewVariable[];
+}
+export declare type MotionPreviewDescNode = {
+    kind: 'clip';
+    clipUuid: string | null;
+} | {
+    kind: 'blend-1d';
+    variable: string | null;
+    value: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: number;
+    }[];
+} | {
+    kind: 'blend-2d';
+    variableX: string | null;
+    valueX: number;
+    variableY: string | null;
+    valueY: number;
+    algorithm?: number;
+    children: {
+        motion: MotionPreviewDescNode | null;
+        threshold: {
+            x: number;
+            y: number;
+        };
+    }[];
+} | {
+    kind: 'blend-direct';
+    children: {
+        motion: MotionPreviewDescNode | null;
+        weight: number;
+    }[];
+};
+export declare interface MotionPreviewVariable {
+    name: string;
+    value: number | null;
+}
+export declare function resetCommandProvider(): void;
+export declare interface SceneCommand {
+    module: string;
+    method: string;
+    args?: unknown[];
+}
+export declare interface SceneCommandProviderRegistration {
+    dispose(): void;
+}
+export declare interface SceneCommandRequestOptions {
+    timeout?: number;
+}
+export declare interface SceneCommandResult {
+    value: unknown;
+    version: SceneVersion;
+}
+export declare interface SceneEventBatch {
+    version: SceneVersion;
+    sequence: number;
+    resync: boolean;
+    events: SceneSessionEvent[];
+}
+export declare interface SceneRecordedChange {
+    uuid: string;
+    kind: 'node' | 'component';
+    dump: any;
+}
+export declare interface SceneRenderSnapshot {
+    serializedScene: string;
+    rootUuid: string;
+    assetUuid: string;
+    kind: 'scene' | 'prefab';
+    prefabUUIDs: unknown;
+}
+export declare class SceneSessionClient {
+    readonly descriptor: SceneSessionDescriptor;
+    constructor(descriptor: SceneSessionDescriptor);
+    snapshot(signal?: AbortSignal): Promise<SceneSessionSnapshot>;
+    command(command: SceneSessionCommand, signal?: AbortSignal): Promise<SceneCommandResult>;
+    events(version: SceneVersion, after: number, signal?: AbortSignal): Promise<SceneEventBatch>;
+    private fetch;
+}
+export declare interface SceneSessionCommand extends SceneCommand {
+    source: string;
+    operationId: string;
+    expected: SceneVersion;
+}
+export declare interface SceneSessionDescriptor {
+    protocol: 1;
+    project: string;
+    url: string;
+    token: string;
+}
+export declare class SceneSessionError extends Error {
+    readonly code: string;
+    constructor(code: string, message: string);
+}
+export declare interface SceneSessionEvent {
+    sequence: number;
+    version: SceneVersion;
+    source?: string;
+    operationId?: string;
+    events: string[];
+}
+export declare interface SceneSessionServer {
+    descriptor: SceneSessionDescriptor;
+    close(): Promise<void>;
+}
+export declare interface SceneSessionServerOptions {
+    project: string;
+    port?: number;
+    allowedOrigins?: string[];
+}
+export declare interface SceneSessionSnapshot {
+    project: string;
+    version: SceneVersion;
+    sequence: number;
+    current: unknown;
+    serializedScene: string | null;
+    render?: SceneRenderSnapshot | null;
+    dirty: boolean;
+    canUndo: boolean;
+    canRedo: boolean;
+}
+export declare interface SceneVersion {
+    epoch: string;
+    revision: number;
+}
+export declare function setCommandProvider(provider: ISceneCommandProvider): SceneCommandProviderRegistration;
+export declare function startSessionServer(options: SceneSessionServerOptions): Promise<SceneSessionServer>;
+export declare function startupWorker(projectPath: string): Promise<void>;
+export declare class WorkerSceneCommandProvider implements ISceneCommandProvider {
+    private readonly rpc;
+    constructor(process: ChildProcess | NodeJS.Process);
+    request(module: string, method: string, args?: any[], options?: SceneCommandRequestOptions): Promise<any>;
+    notify(module: string, method: string, args?: any[]): void;
+    isConnect(): boolean | undefined;
+    dispose(): void;
+}
 export { }
 "
 `;
@@ -9416,6 +11400,40 @@ export declare interface SharedSettings {
     };
 }
 export declare function startCompileScript(assetChanges?: AssetChangeInfo[]): Promise<void>;
+export { }
+"
+`;
+
+exports[`DTS API compatibility simulator.d.ts should match snapshot 1`] = `
+"export declare const build: (enginePath?: string) => Promise<void>;
+export declare const buildNative: (enginePath?: string) => Promise<void>;
+export declare const buildRuntime: (enginePath?: string) => Promise<void>;
+export declare const getExecutablePath: (enginePath?: string) => Promise<string | null>;
+export declare const getManifest: (enginePath?: string) => Promise<ISimulatorManifest | null>;
+export declare const isBuilt: (enginePath?: string) => Promise<boolean>;
+export declare interface ISimulatorBuildState {
+    step: 'native' | 'runtime';
+    state: 'start' | 'success' | 'failed';
+    error?: string;
+}
+export declare interface ISimulatorLogEntry {
+    source: 'build';
+    level: 'log' | 'error';
+    message: string;
+}
+export declare interface ISimulatorManifest {
+    platform: NodeJS.Platform;
+    arch: string;
+    bundle: string;
+    entry: string;
+    engineVersion?: string;
+    builtAt?: string;
+    runtimePath: string;
+    artifactRoot: string;
+    formatVersion: 1;
+}
+export declare const onDidChangeBuildState: (listener: (state: ISimulatorBuildState) => void) => () => void;
+export declare const onLog: (listener: (entry: ISimulatorLogEntry) => void) => () => void;
 export { }
 "
 `;

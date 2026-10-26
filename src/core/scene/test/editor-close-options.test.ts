@@ -20,6 +20,7 @@ jest.mock('../scene-process/service/scene/utils', () => ({
         generateNodeDump: jest.fn(),
         loadAny: jest.fn(),
         runScene: jest.fn(async () => undefined),
+        runSceneImmediateByJson: jest.fn(),
         serialize: jest.fn(),
     },
 }));
@@ -51,6 +52,7 @@ import { SceneEditor } from '../scene-process/service/editors/scene-editor';
 import { PrefabEditor } from '../scene-process/service/editors/prefab-editor';
 import { sceneUtils } from '../scene-process/service/scene/utils';
 import { editorPrefabUtils } from '../scene-process/service/prefab/prefab-editor-utils';
+import { deletedLightmapAssets } from '../scene-process/service/baking/lightfx/deleted-lightmap-assets';
 
 type CloseableEditor = SceneEditor | PrefabEditor;
 
@@ -88,6 +90,23 @@ describe('Editor close options', () => {
     it('scene close saves by default and can skip save', async () => {
         await expectCloseSaveCalls(new SceneEditor(), undefined, 1);
         await expectCloseSaveCalls(new SceneEditor(), { save: false }, 0);
+    });
+
+    it('scene reload carries deleted Lightmap protection to the replacement Scene', async () => {
+        const editor = new SceneEditor();
+        setOpen(editor);
+        const scene = editor.getRootNode()!;
+        const replacement = {};
+        (sceneUtils.runSceneImmediateByJson as jest.Mock).mockResolvedValue(replacement);
+        (sceneUtils.generateNodeDump as jest.Mock).mockReturnValue({});
+        deletedLightmapAssets.begin(scene, ['deleted-texture'])(['deleted-texture']);
+
+        await editor.reload();
+
+        expect(editor.getRootNode()).toBe(replacement);
+        expect(deletedLightmapAssets.filter(replacement, { __uuid__: 'deleted-texture' }, 'serialized')).toBeNull();
+        expect(deletedLightmapAssets.filter({}, { __uuid__: 'deleted-texture' }, 'serialized'))
+            .toEqual({ __uuid__: 'deleted-texture' });
     });
 
     it('prefab close saves by default and can skip save', async () => {

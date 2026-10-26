@@ -166,7 +166,11 @@ export interface IBuildStageTask {
 
 export interface IBuildHooksInfo {
     pkgNameOrder: string[];
-    infos: Record<string, { path: string; internal: boolean }>;
+    infos: Record<string, {
+        path: string;
+        /** Whether the hook uses the internal Builder ABI. */
+        internal: boolean;
+    }>;
 }
 
 export interface IBundle {

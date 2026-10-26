@@ -8,7 +8,8 @@ describe('MCP Prefab API', () => {
     let sceneAssetUUID: string;
 
     beforeAll(async () => {
-        context = await setupAssetsTestEnvironment();
+        // Keep prefab overwrite tests independent of other API files.
+        context = await setupAssetsTestEnvironment(undefined, 'mcp-e2e-prefab');
         mcpClient = context.mcpClient;
         testDirURL = `${context.testRootUrl}/prefab-test`;
 

@@ -1,5 +1,6 @@
 import { configurationRegistry, ConfigurationScope, IBaseConfiguration } from '../configuration';
 import { createSceneMetadataNodes } from './metadata';
+import type { IReferenceImageConfig } from './common/reference-image';
 
 export interface IOriginAxesConfig {
     x: boolean;
@@ -54,6 +55,7 @@ export interface IGizmoConfig {
 
 export interface ISceneViewConfig {
     sceneLightOn: boolean;
+    initialModes?: Record<string, '2d' | '3d'>;
 }
 
 export interface ISceneConfig {
@@ -82,6 +84,8 @@ export interface ISceneConfig {
      * 记录过相机视角信息的节点 uuid 列表，运行期由 Camera 服务写入。
      */
     'camera-uuids'?: string[];
+    /** Personal editor-only reference-image library and Scene bindings; never committed with Scene data. */
+    referenceImage?: IReferenceImageConfig;
 }
 
 class SceneConfig {
@@ -131,12 +135,17 @@ class SceneConfig {
         // 运行期由 Camera 服务写入；提供空默认值，避免首次 get 时配置层抛错并被 RPC 中间件记为错误日志
         'camera-infos': {},
         'camera-uuids': [],
+        referenceImage: {
+            images: [],
+            sceneBindings: {},
+            desiredVisible: true,
+        },
     };
 
     private configInstance!: IBaseConfiguration;
 
     // 个人/本机键：存 local(profiles/)，不进版本库
-    private static readonly PERSONAL_KEYS = ['camera', 'gizmo', 'sceneView', 'camera-infos', 'camera-uuids'];
+    private static readonly PERSONAL_KEYS = ['camera', 'gizmo', 'sceneView', 'camera-infos', 'camera-uuids', 'referenceImage'];
 
     async init() {
         this.configInstance = await configurationRegistry.register('scene', {
@@ -175,6 +184,26 @@ class SceneConfig {
 
     public get<T>(path?: string, scope?: ConfigurationScope): Promise<T> {
         return this.configInstance.get(path, scope);
+    }
+
+    public async queryDesignResolution() {
+        const { Engine } = await import('../engine');
+        const { configurationManager } = await import('../configuration');
+        const { pathExists, readJSON } = await import('fs-extra');
+        let resolution = Engine.getConfig().designResolution;
+        const configPath = await configurationManager.getConfigPath();
+        if (await pathExists(configPath)) {
+            const disk = (await readJSON(configPath))?.engine?.designResolution;
+            if (typeof disk?.width === 'number' && typeof disk?.height === 'number') resolution = { ...resolution, ...disk };
+        }
+        return resolution;
+    }
+
+    async recordInitialView(uuid: string, mode: '2d' | '3d'): Promise<void> {
+        if (!this.configInstance) await this.init();
+        const local = this.configInstance.getAll('local') || {};
+        if (local.sceneView?.initialModes?.[uuid] !== undefined) return;
+        await this.configInstance.set(`sceneView.initialModes.${uuid}`, mode, 'local');
     }
 
     public set(path: string, value: any, scope?: ConfigurationScope) {

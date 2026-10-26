@@ -14,9 +14,38 @@ import stripAnsi from 'strip-ansi';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { assetManager } from '../core/assets';
+import {
+    completeMcpToolCallContext,
+    runWithMcpToolCallContext,
+} from './tool-call-context';
+import type { McpRequestHeaders } from './tool-call-context';
 
 export function isToolErrorCode(code: unknown): boolean {
     return typeof code === 'number' && code >= 500 && code < 600;
+}
+
+interface McpToolHandlerExtra {
+    requestInfo?: {
+        headers?: McpRequestHeaders;
+    };
+}
+
+function withMcpToolCallContext<T>(
+    callback: (args: any) => Promise<T>,
+): (args: any, extra: McpToolHandlerExtra) => Promise<T> {
+    return async (args, extra) => runWithMcpToolCallContext(extra.requestInfo?.headers, async () => {
+        try {
+            return await callback(args);
+        } finally {
+            try {
+                await completeMcpToolCallContext();
+            } catch {
+                // Do not log finalization error details or request metadata, which may contain
+                // sensitive information. A finalization failure must not replace the tool result.
+                console.error('[MCP] Tool-call finalization failed.');
+            }
+        }
+    });
 }
 
 export class McpMiddleware {
@@ -146,7 +175,7 @@ export class McpMiddleware {
                     toolName,
                     meta.description || `Tool: ${toolName}`,
                     inputSchemaFields,
-                    async (args) => {
+                    withMcpToolCallContext(async (args) => {
                         // args 已经是验证过的参数对象 (对于 builder-build.options 是 any)
                         try {
                             this.builderHook.onBeforeExecute(toolName, args);
@@ -154,9 +183,9 @@ export class McpMiddleware {
                             // 注意：args 是对象，prepareMethodArguments 需要处理对象
                             const methodArgs = this.prepareMethodArguments(meta, args, toolName);
                             const result = await this.callToolMethod(target, meta, methodArgs);
-                            
+
                             const formattedResult = this.formatToolResult(meta, result);
-                            
+
                             let structuredContent: any;
                             if (meta.returnSchema) {
                                 try {
@@ -178,21 +207,21 @@ export class McpMiddleware {
                         } catch (error) {
                              const errorMessage = error instanceof Error ? error.message : String(error);
                              const errorStack = error instanceof Error ? error.stack : undefined;
-                             
+
                              let detailedReason = `Tool execution failed (${toolName}): ${errorMessage}`;
                              if (errorStack && process.env.NODE_ENV === 'development') {
                                  detailedReason += `\n\nStack trace:\n${errorStack}`;
                              }
                              detailedReason += `\n\nParameters passed:\n${JSON.stringify(args, null, 2)}`;
-                             
+
                              console.error(`[MCP] ${detailedReason}`);
-                             
+
                              const errorResult: { code: HttpStatusCode; data?: any; reason?: string } = {
                                  code: HTTP_STATUS.INTERNAL_SERVER_ERROR,
                                  data: undefined,
                                  reason: detailedReason,
                              };
-                             
+
                              const formattedResult = JSON.stringify({ result: errorResult }, null, 2);
                              return {
                                  content: [{ type: 'text' as const, text: formattedResult }],
@@ -200,7 +229,7 @@ export class McpMiddleware {
                                  isError: true
                              };
                         }
-                    }
+                    })
                 );
             } catch (error) {
                 console.error(`Failed to register tool ${toolName}:`, error);

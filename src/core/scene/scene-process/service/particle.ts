@@ -2,6 +2,7 @@
 
 import { Component, Node } from 'cc';
 import { BaseService, register } from './core';
+import { INodeEvents, IParticleService, NodeEventType } from '../../common';
 
 function getNodeByPath(path: string): Node | null {
     const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
@@ -39,7 +40,7 @@ function getParticleSystemsInChildren(node: Node): Component[] {
 
 // 与 cocos-editor ParticleManager 一致：管理粒子系统在编辑模式下的播放
 @register('Particle')
-export class ParticleService extends BaseService<Record<string, never>> {
+export class ParticleService extends BaseService<Pick<INodeEvents, 'node:change'>> implements IParticleService {
     private _selectedUUIDs: string[] = [];
     private _stoppedSet = new WeakSet<Component>();
 
@@ -121,5 +122,128 @@ export class ParticleService extends BaseService<Record<string, never>> {
 
     onEditorDisposed() {
         this._selectedUUIDs = [];
+    }
+
+    /**
+     * 请求粒子系统运行时的数据，与 cocos-editor ParticleManager.queryPlayInfo 一致。
+     * @param uuid 粒子组件的 uuid
+     */
+    public queryPlayInfo(uuid: string) {
+        const comp = this._findComponentByUuid(uuid);
+        if (!comp) {
+            return null;
+        }
+        const ps: any = comp;
+        return {
+            speed: ps.simulationSpeed,
+            time: Number(ps.time?.toFixed?.(2) ?? 0),
+            particle: ps.getParticleCount?.() ?? 0,
+            isPlaying: !!ps.isPlaying,
+        };
+    }
+
+    /**
+     * 设置粒子的运行速度，与 cocos-editor ParticleManager.setPlaySpeed 一致。
+     * @param uuid 组件的 uuid
+     * @param speed 粒子组件的运行速度
+     */
+    public setPlaySpeed(uuid: string, speed: number) {
+        const comp = this._findComponentByUuid(uuid);
+        if (!comp) {
+            return;
+        }
+        const ps: any = comp;
+        const node = ps.node;
+        const index = node['_components']?.indexOf(ps);
+        if (index === -1 || index === undefined) {
+            return;
+        }
+        ps.simulationSpeed = speed;
+
+        // Notify the exact property so hosts can refresh it; callers own undo recording.
+        this.emit('node:change', node, {
+            type: NodeEventType.SET_PROPERTY,
+            propPath: `__comps__.${index}.simulationSpeed`,
+            record: false,
+        });
+    }
+
+    /**
+     * 这个播放的行为会将递归找当前选中节点的父节点，直到找到非包含粒子组件的节点为止，将找到的父节点一起播放。
+     * 与 cocos-editor ParticleManager.play 一致。
+     */
+    public play() {
+        this._getSelectedParticleSystemComponents().forEach((comp: any) => {
+            if (!comp.isPlaying) {
+                comp.play();
+                this._stoppedSet.delete(comp);
+            }
+        });
+    }
+
+    /**
+     * 这个停止的行为会将递归找当前选中节点父节点，直到找到非包含粒子组件的节点为止，将找到的父节点一起停止。
+     * 与 cocos-editor ParticleManager.stop 一致。
+     */
+    public stop() {
+        this._getSelectedParticleSystemComponents().forEach((comp: any) => {
+            if (!comp.isStopped) {
+                comp.stop();
+                this._stoppedSet.add(comp);
+            }
+        });
+    }
+
+    /**
+     * 这个暂停的行为会将递归找当前选中的节点的父节点，直到找到非包含粒子组件的节点为止，将找到的父节点一起暂停。
+     * 与 cocos-editor ParticleManager.pause 一致。
+     */
+    public pause() {
+        this._getSelectedParticleSystemComponents().forEach((comp: any) => {
+            if (!comp.isPaused) {
+                comp.pause();
+                this._stoppedSet.add(comp);
+            }
+        });
+    }
+
+    /**
+     * 重新开始播放选中的粒子，与 cocos-editor ParticleManager.restart 一致。
+     */
+    public restart() {
+        this._getSelectedParticleSystemComponents().forEach((comp: any) => {
+            if (!comp.isStopped) {
+                comp.stop();
+            }
+            if (!comp.isPlaying) {
+                comp.play();
+                this._stoppedSet.delete(comp);
+            }
+        });
+    }
+
+    /**
+     * 通过组件 uuid 查找粒子组件实例。
+     *
+     * 与真实 EditorExtends.Component 接口对齐：组件管理器的查询方法是
+     * getComponent(uuid)，而非 query。组件在编辑器中注册后即可通过其 uuid
+     * 直接查到，无需依赖当前选中集合。
+     */
+    private _findComponentByUuid(uuid: string): Component | null {
+        const EditorExtends = (cc as any).EditorExtends || (globalThis as any).EditorExtends;
+        const ComponentManager = EditorExtends?.Component;
+        if (ComponentManager?.getComponent) {
+            const comp = ComponentManager.getComponent(uuid);
+            if (comp && isParticleSystem(comp)) {
+                return comp;
+            }
+        }
+        // 退而求其次：从选中的粒子组件集合里查找
+        for (const comp of this._getSelectedParticleSystemComponents()) {
+            if ((comp as any).uuid === uuid) {
+                return comp;
+            }
+        }
+        return null;
     }
 }

@@ -13,7 +13,9 @@ if (!utils.hasDevelopmentEnvironment()) return;
     const engine = path.join(__dirname, '..', 'packages', 'engine');
     const hasDev =fse.existsSync(path.join(engine, 'bin', '.cache', 'dev-cli'));
 
-    if (hasDev && !isForce) {
+    const versionFile = path.join(engine, 'bin', '.cache', 'dev-cli', 'VERSION');
+    const currentVersion = fse.existsSync(versionFile) && fse.readFileSync(versionFile, 'utf8').trim() === '4';
+    if (hasDev && currentVersion && !isForce) {
         console.log('[Skip] compiler engine');
         return;
     }

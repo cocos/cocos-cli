@@ -9,12 +9,13 @@ import { socketService } from './socket';
 import { consoleLogService } from './console-log';
 import { middlewareService } from './middleware';
 import { cors } from './utils/cors';
+import { createRequestGuard, RequestGuardConfig } from './utils/request-guard';
 import path from 'path';
 import { IMiddlewareContribution } from './interfaces';
 
 interface ServerOptions {
     port: number,// 端口
-    host?: string,// 绑定/对外地址(ip 或 host);省略则绑定所有网卡
+    host?: string,// 绑定/对外地址(ip 或 host);省略则只绑定 127.0.0.1，局域网访问需显式传 0.0.0.0 或网卡 IP
     useHttps: boolean;// 是否启动 HTTPS
     keyFile?: string; // HTTPS 私钥文件路径
     certFile?: string;// HTTPS 证书文件路径
@@ -49,6 +50,10 @@ export class ServerService {
         return this._port;
     }
 
+    public get requestGuardConfig(): RequestGuardConfig {
+        return { configuredHost: this._host };
+    }
+
     async start(port?: number, host?: string) {
         console.log('🚀 开始启动服务器...');
         this.init();
@@ -59,13 +64,14 @@ export class ServerService {
         const { server, port: actualPort } = await this.createServerWithRetry(preferredPort, host);
         this._port = actualPort;
         this.server = server;
-        socketService.startup(this.server);
+        socketService.startup(this.server, () => this.requestGuardConfig);
         consoleLogService.startup(this.server);
         // 打印服务器地址
         this.printServerUrls();
     }
 
     async stop(): Promise<void> {
+        if (!this.server) return;
         return new Promise((resolve, reject) => {
             this.server?.close((err?: Error) => {
                 if (err) {
@@ -128,12 +134,8 @@ export class ServerService {
                 reject(err);
             });
 
-            // host 省略时 listen(port, undefined) 等价于绑定所有网卡(保持原行为)。
-            if (host) {
-                server.listen(port, host);
-            } else {
-                server.listen(port);
-            }
+            // The server has no authentication; never expose it beyond loopback unless asked to.
+            server.listen(port, host || '127.0.0.1');
         });
     }
 
@@ -166,6 +168,7 @@ export class ServerService {
     }
 
     init() {
+        this.app.use(createRequestGuard(() => this.requestGuardConfig));
         this.app.use(cors);
         this.app.use(compression());
         this.app.use(express.json({ limit: '50mb' }));

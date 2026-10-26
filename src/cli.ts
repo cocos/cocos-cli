@@ -3,9 +3,8 @@ import { initSentry } from './core/base/sentry';
 initSentry();
 
 import { Command } from 'commander';
-import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand, MakeCommand, RunCommand, UploadCommand } from './commands';
+import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand, MakeCommand, RunCommand, UploadCommand, PublishCommand } from './commands';
 import { config } from './display/config';
-import { PreviewCommand } from './commands/preview';
 
 const program = new Command();
 
@@ -13,7 +12,7 @@ const program = new Command();
 program
     .name('cocos')
     .description('Cocos CLI tool for project management and building')
-    .version('0.0.1-alpha.39')
+    .version('0.2.0-beta.0')
     .option('--debug', 'Enable debug mode')
     .option('--no-interactive', 'Disable interactive mode (for CI)')
     .option('--config <path>', 'Specify config file path');
@@ -29,7 +28,7 @@ commandRegistry.register(new McpServerCommand(program));
 commandRegistry.register(new MakeCommand(program));
 commandRegistry.register(new RunCommand(program));
 commandRegistry.register(new UploadCommand(program));
-commandRegistry.register(new PreviewCommand(program));
+commandRegistry.register(new PublishCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();

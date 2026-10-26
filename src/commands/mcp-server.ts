@@ -12,6 +12,8 @@ export class McpServerCommand extends BaseCommand {
             .description('Start MCP (Model Context Protocol) server for Cocos project')
             .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
             .option('-p, --port <number>', 'Port number for the MCP server', '9527')
+            .option('--scene-session-file <path>', 'Write a shared scene connection descriptor for a separate editor process')
+            .option('--scene-session-origin <origin>', 'Allow this editor WebView origin to connect to the shared scene session')
             .action(async (options: any) => {
                 try {
                     const resolvedPath = this.validateProjectPath(options.project);
@@ -25,7 +27,7 @@ export class McpServerCommand extends BaseCommand {
 
                     CommandUtils.showMcpServerInfo(resolvedPath, port);
                     // 启动 MCP 服务器
-                    await startServer(resolvedPath, port);
+                    await startServer(resolvedPath, port, { sceneSessionFile: options.sceneSessionFile, sceneSessionOrigin: options.sceneSessionOrigin });
 
                     // 保持进程运行
                     process.stdin.resume();

@@ -35,7 +35,7 @@ export function register(name?: string): ClassDecorator {
         const managerName = (name || target.name) as ServiceName;
 
         _serviceRegistry[managerName] = instance;
-        console.log(`[Manager] Registered: ${managerName}`);
+        console.debug(`[Manager] Registered: ${managerName}`);
     };
 }
 

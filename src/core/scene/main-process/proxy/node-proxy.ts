@@ -9,6 +9,17 @@ import {
     IUpdateNodeParams,
     IUpdateNodeResult,
     IPublicNodeService,
+    ISerializeNodesParams,
+    ICreateBySerializedDataParams,
+    SerializedNodeData,
+    IBeginCreateDragParams,
+    IUpdateCreateDragParams,
+    ICommitCreateDragParams,
+    ICancelCreateDragParams,
+    BeginCreateDragResult,
+    UpdateCreateDragResult,
+    CommitCreateDragResult,
+    CancelCreateDragResult,
 } from '../../common';
 import { INodeInfo } from '../../common/cli/node';
 import { Rpc } from '../rpc';
@@ -22,6 +33,12 @@ export interface INodeProxy extends Omit<IPublicNodeService, 'createByType' | 'c
 }
 
 export const NodeProxy: INodeProxy = {
+    serialize(params: ISerializeNodesParams): Promise<SerializedNodeData> {
+        return Rpc.getInstance().request('Node', 'serialize', [params]);
+    },
+    createBySerializedData(params: ICreateBySerializedDataParams): Promise<string[]> {
+        return Rpc.getInstance().request('Node', 'createBySerializedData', [params]);
+    },
     async createByType(params: ICreateByNodeTypeParams): Promise<INodeInfo | null> {
         const result: any = await Rpc.getInstance().request('Node', 'createByType', [params]);
         return result ? DumpConverter.toNode(result) : null;
@@ -93,11 +110,24 @@ export const NodeProxy: INodeProxy = {
             path: params?.path ?? '',
             includeChildren: params?.includeChildren ?? false,
             includeComponents: params?.includeComponents ?? false,
+            includeLightProbeData: params?.includeLightProbeData,
         }]);
         if (!result) return null;
         return DumpConverter.toNode(result, { path: params?.path });
     },
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null> {
         return Rpc.getInstance().request('Node', 'queryNodeTree', [params]);
+    },
+    beginCreateDrag(params: IBeginCreateDragParams): Promise<BeginCreateDragResult> {
+        return Rpc.getInstance().request('Node', 'beginCreateDrag', [params]);
+    },
+    updateCreateDrag(params: IUpdateCreateDragParams): Promise<UpdateCreateDragResult> {
+        return Rpc.getInstance().request('Node', 'updateCreateDrag', [params]);
+    },
+    commitCreateDrag(params: ICommitCreateDragParams): Promise<CommitCreateDragResult> {
+        return Rpc.getInstance().request('Node', 'commitCreateDrag', [params]);
+    },
+    cancelCreateDrag(params: ICancelCreateDragParams): Promise<CancelCreateDragResult> {
+        return Rpc.getInstance().request('Node', 'cancelCreateDrag', [params]);
     },
 };

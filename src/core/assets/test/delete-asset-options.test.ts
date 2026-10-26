@@ -16,6 +16,8 @@ jest.mock('../utils', () => ({
     url2path: jest.fn((value) => value),
     ensureOutputData: jest.fn(),
     url2uuid: jest.fn((value) => value),
+    pathToDbUrlIfAssetDBPath: jest.fn((value) => value),
+    dirnameForDbUrlOrPath: jest.fn((value: string) => value.replace(/[\\/][^\\/]*$/, '')),
 }));
 
 jest.mock('../manager/filesystem', () => ({

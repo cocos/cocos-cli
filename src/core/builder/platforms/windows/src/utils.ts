@@ -19,6 +19,7 @@ interface VisualStudioProbe {
 const CMAKE_TEST_DIR = join(os.tmpdir(), 'cmake-vs');
 const CMAKE_PROBE_TIMEOUT = 15000;
 const VS_PROBES: VisualStudioProbe[] = [
+    { args: ['-G', 'Visual Studio 18 2026'], version: '2026' },
     { args: ['-G', 'Visual Studio 17 2022'], version: '2022' },
     { args: ['-G', 'Visual Studio 16 2019'], version: '2019' },
     { args: ['-G', 'Visual Studio 15 2017', '-A', 'x64'], version: '2017' },

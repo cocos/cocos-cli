@@ -5,8 +5,7 @@ import { resolve, join } from 'path';
 import { E2E_DEBUG } from '../config';
 
 /**
- * 全局共享的 MCP 服务器管理器
- * 所有测试共享同一个服务器实例，避免重复启动
+ * 默认 API 组连接 globalSetup 的服务器；命名项目组使用独立服务器。
  */
 class SharedMCPServerManager {
     private static instance: SharedMCPServerManager | null = null;
@@ -62,6 +61,25 @@ class SharedMCPServerManager {
         }
 
         try {
+            const descriptor = process.env.__E2E_SHARED_MCP__;
+            if (descriptor) {
+                const shared = JSON.parse(descriptor) as {
+                    port: number; projectPath: string; projectName: string; fixtureProject: string;
+                };
+                if (this.projectName === shared.projectName && resolve(this.fixtureProject!) !== shared.fixtureProject) {
+                    throw new Error('The requested MCP fixture does not match the shared server');
+                }
+                if (this.projectName === shared.projectName) {
+                    this.testProject = { path: shared.projectPath, name: shared.projectName, cleanup: async () => {} };
+                    this.mcpClient = new MCPTestClient({ projectPath: shared.projectPath, port: shared.port });
+                    await this.mcpClient.connectToRunningServer();
+                    // Each file starts with no open scene, even when the previous file failed.
+                    const closed = await this.mcpClient.callTool('scene-close', {});
+                    if (closed.code !== 200) throw new Error(`Cannot reset shared scene: ${closed.reason}`);
+                    this.isInitialized = true;
+                    return;
+                }
+            }
             // 使用共享项目（所有测试复用同一个项目实例）
             this.testProject = await getSharedTestProject(this.fixtureProject!, this.projectName!);
 
@@ -78,6 +96,9 @@ class SharedMCPServerManager {
 
             this.isInitialized = true;
         } catch (error) {
+            await this.mcpClient?.close();
+            this.mcpClient = null;
+            this.initializationPromise = null;
             if (E2E_DEBUG) {
                 console.error('❌ 初始化全局共享 MCP 服务器失败:', error);
             }
@@ -138,7 +159,7 @@ class SharedMCPServerManager {
     }
 
     /**
-     * 清理资源（在所有测试完成后调用）
+     * 清理当前客户端及其拥有的服务器，不停止外部共享服务器。
      */
     async cleanup(): Promise<void> {
         if (!this.isInitialized) {

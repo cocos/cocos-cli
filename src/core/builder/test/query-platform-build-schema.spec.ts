@@ -256,10 +256,8 @@ describe('PluginManager platform config schema queries', () => {
     it('returns common options and platform options for a platform', () => {
         const result = pm.getPlatformBuildSchema(TEST_PLATFORM);
 
-        // name 标记为 hidden -> 在源头过滤(配置系统 schema 无 hidden 字段)
-        expect(result.common.properties!.name).toMatchObject({
-            hidden: true,
-        });
+        // name 标记为 hidden -> 在源头整体删除(配置系统 schema 无 hidden 字段)
+        expect(result.common.properties!.name).toBeUndefined();
         expect(result.common.properties!.mainBundleCompressionType).toMatchObject({
             title: 'Main Bundle Compression',
             type: 'string',
@@ -560,9 +558,7 @@ describe('PluginManager platform config schema queries', () => {
 
         expect(platforms[0].displayName).toBe('测试平台');
         expect(platforms[0].createTemplateLabel).toBe('测试平台');
-        expect(schema.common.properties!.name).toMatchObject({
-            hidden: true,
-        });
+        expect(schema.common.properties!.name).toBeUndefined();
         expect(schema.common.properties!.mainBundleCompressionType).toMatchObject({
             enum: ['none', 'merge_dep', 'zip'],
             enumDescriptions: ['无', '合并依赖', 'Zip'],

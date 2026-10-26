@@ -1,173 +1,33 @@
-const mockLock = jest.fn(async () => undefined);
-const mockUnlock = jest.fn();
-const mockGetCurrentEditorType = jest.fn(() => 'scene');
-const mockGetRootNode = jest.fn();
-const mockRemovePrefabInfoFromNode = jest.fn();
-const mockCreateNodeByAsset = jest.fn();
-const mockCreateShouldHideInHierarchyCanvasNode = jest.fn();
-const mockLoadAny = jest.fn();
-const mockQueryCanvasRequiredByAsset = jest.fn();
-const mockRpcRequest = jest.fn();
-const mockGetUICanvasNode = jest.fn();
-const mockGetUITransformParentNode = jest.fn();
-const mockInstantiate = jest.fn();
-const mockScene = { name: 'Scene' };
-
-class MockCanvas {}
-class MockUITransform {}
-
-class MockNode {
-    uuid: string;
-    name: string;
-    parent: MockNode | null = null;
-    children: MockNode[] = [];
-    components: any[] = [];
-    layer = 0;
-    position = { z: 0 };
-    addChild = jest.fn((node: MockNode) => {
-        this.children.push(node);
-        node.parent = this;
-    });
-    addComponent = jest.fn((component: any) => {
-        const instance = component === 'cc.UITransform' ? new MockUITransform() : new component();
-        this.components.push(instance);
-        return instance;
-    });
-    setPosition = jest.fn();
-    setParent = jest.fn((parent: MockNode | null) => {
-        this.parent = parent;
-    });
-    getChildByName: (name: string) => MockNode | null = jest.fn((name: string): MockNode | null => (
-        this.children.find((child: MockNode): boolean => child.name === name) ?? null
-    ));
-    getSiblingIndex = jest.fn(() => this.parent?.children.indexOf(this) ?? 0);
-
-    constructor(name = 'Node') {
-        this.name = name;
-        this.uuid = `${name}-uuid`;
-    }
-
-    get isValid() {
-        return true;
-    }
-}
-
-(global as any).EditorExtends = {
-    Node: {
-        getNodeByPath: jest.fn(),
-        getNodePath: jest.fn((node: MockNode) => `/${node.name}`),
-    },
-};
-
-(global as any).cc = {
-    instantiate: mockInstantiate,
-    UITransform: MockUITransform,
-};
-
-jest.mock('cc', () => ({
-    Canvas: MockCanvas,
-    CCClass: { getInheritanceChain: jest.fn(() => []) },
-    CCObject: { Flags: { HideInHierarchy: 1, LockedInEditor: 2 } },
-    Component: class Component {},
-    director: { getScene: jest.fn(() => mockScene) },
-    Node: MockNode,
-    Prefab: class Prefab {},
-    Quat: class Quat {},
-    UITransform: MockUITransform,
-    Vec3: class Vec3 {},
-}));
-
-jest.mock('../../scene-process/service/core', () => ({
-    BaseService: class BaseService {
-        emit = jest.fn();
-    },
-    register: () => () => undefined,
-    Service: {
-        Editor: {
-            lock: mockLock,
-            unlock: mockUnlock,
-            getCurrentEditorType: mockGetCurrentEditorType,
-            getRootNode: mockGetRootNode,
-        },
-        Prefab: {
-            removePrefabInfoFromNode: mockRemovePrefabInfoFromNode,
-        },
-        Undo: {
-            push: jest.fn(),
-        },
-    },
-}));
-
-jest.mock('../../scene-process/rpc', () => ({
-    Rpc: { getInstance: () => ({ request: mockRpcRequest }) },
-}));
-
-jest.mock('../../scene-process/service/node/node-create', () => ({
-    createNodeByAsset: mockCreateNodeByAsset,
-    createShouldHideInHierarchyCanvasNode: mockCreateShouldHideInHierarchyCanvasNode,
-    loadAny: mockLoadAny,
-    queryCanvasRequiredByAsset: mockQueryCanvasRequiredByAsset,
-}));
-
-jest.mock('../../scene-process/service/node/node-utils', () => ({
-    getUICanvasNode: mockGetUICanvasNode,
-    getUITransformParentNode: mockGetUITransformParentNode,
-    hasOneKindOfComponent: (node: MockNode, kind: any) => node.components.some((component) => component instanceof kind),
-    setLayer: jest.fn(),
-}));
-
-jest.mock('../../scene-process/service/node/node-undo', () => ({
-    NodeUndoHelper: jest.fn().mockImplementation(() => ({
-        shouldRecordStructureCommand: jest.fn(() => false),
-        collectSceneNodeUuids: jest.fn(() => new Set()),
-        getCreateRootPath: jest.fn(() => null),
-        recordCreateNodeCommand: jest.fn(),
-    })),
-}));
-
-jest.mock('../../scene-process/service/node/index', () => ({
-    __esModule: true,
-    default: {
-        ensureUITransformComponent: jest.fn((node: MockNode) => node.addComponent('cc.UITransform')),
-    },
-}));
-
-jest.mock('../../scene-process/service/prefab/utils', () => ({
-    prefabUtils: { getPrefabStateInfo: jest.fn(() => ({})) },
-}));
-
-jest.mock('../../scene-process/service/scene/utils', () => ({
-    sceneUtils: {
-        generateNodeDump: jest.fn((node: MockNode) => ({ path: `/${node.name}` })),
-    },
-}));
-
-jest.mock('../../scene-process/service/undo/commands/remove-node-command', () => ({
-    RemoveNodeCommand: {},
-}));
-
-jest.mock('../../scene-process/service/undo/commands/remove-component-command', () => ({
-    RemoveComponentCommand: {},
-}));
-
-jest.mock('../../scene-process/service/animation/property-commit-event', () => ({
-    broadcastAnimationPropertyCommitted: jest.fn(),
-}));
-
 import { NodeType } from '../../common';
+import {
+    createAnchoredTree,
+    MockCanvas,
+    MockNode,
+    MockUITransform,
+    mockBaseRemoveNode,
+    mockCreateShouldHideInHierarchyCanvasNode,
+    mockCreateNodeByAsset,
+    mockGetCurrentEditorType,
+    mockGetRootNode,
+    mockGetUICanvasNode,
+    mockGetUITransformParentNode,
+    mockInstantiate,
+    mockLoadAny,
+    mockNodeAtPath,
+    mockPrefabAsset,
+    mockQueryCanvasRequiredByAsset,
+    mockCollectSceneNodeUuids,
+    mockRemoveComponent,
+    mockRemovePrefabInfoFromNode,
+    mockRpcRequest,
+    mockScene,
+    mockShouldRecordStructureCommand,
+    resetNodeCreateMocks,
+} from './node-create-test-harness';
 
 describe('NodeService Canvas requirement handling', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
-        mockGetCurrentEditorType.mockReturnValue('scene');
-        mockGetRootNode.mockReturnValue(new MockNode('Root'));
-        mockGetUICanvasNode.mockReturnValue(null);
-        mockGetUITransformParentNode.mockReturnValue(null);
-        mockLoadAny.mockResolvedValue({});
-        mockInstantiate.mockImplementation(() => new MockNode('Canvas'));
-        mockQueryCanvasRequiredByAsset.mockResolvedValue(false);
-        mockRpcRequest.mockReset();
-        (global as any).EditorExtends.Node.getNodeByPath.mockReturnValue(null);
+        resetNodeCreateMocks();
     });
 
     it('keeps empty nodes plain unless Canvas is explicitly requested', async () => {
@@ -385,8 +245,14 @@ describe('NodeService Canvas requirement handling', () => {
         mockGetCurrentEditorType.mockReturnValue('prefab');
         mockGetRootNode.mockReturnValue(new MockNode('PrefabRoot'));
         mockRpcRequest.mockImplementation((_service: string, method: string) => {
-            if (method === 'queryUUID') return 'asset-uuid';
-            if (method === 'queryAssetInfo') return { type: 'cc.BitmapFont' };
+            if (method === 'queryAssetInfo') {
+                return {
+                    uuid: 'asset-uuid',
+                    type: 'cc.BitmapFont',
+                    imported: true,
+                    invalid: false,
+                };
+            }
             return null;
         });
         mockQueryCanvasRequiredByAsset.mockResolvedValue(true);
@@ -434,6 +300,355 @@ describe('NodeService Canvas requirement handling', () => {
         })).rejects.toThrow('Canvas context changed after preflight');
         consoleError.mockRestore();
         expect(service._createNode).not.toHaveBeenCalled();
+    });
+
+    it('preflights Canvas handling from the anchored sibling parent', async () => {
+        const root = new MockNode('Root');
+        const canvas = new MockNode('Canvas');
+        const anchor = new MockNode('Anchor');
+        root.addChild(canvas);
+        canvas.addChild(anchor);
+        mockGetRootNode.mockReturnValue(root);
+        mockGetUICanvasNode.mockImplementation((node: MockNode) => node === canvas ? canvas : null);
+        (global as any).EditorExtends.Node.getNodeByPath.mockImplementation((path: string) => (
+            path === '/Canvas/Anchor' ? anchor : null
+        ));
+
+        const { NodeService } = require('../../scene-process/service/node');
+        await expect(new NodeService().preflightCreate({
+            path: '/Canvas/Anchor',
+            insertSide: 'before',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        } as any)).resolves.toMatchObject({
+            action: 'create',
+            canvasRequired: true,
+            canvasPath: '/Canvas',
+        });
+    });
+
+    it.each(['before', 'after'] as const)(
+        'creates a Canvas wrapper at the anchored %s entry position when none exists',
+        async insertSide => {
+            const { root, anchor } = createAnchoredTree();
+            mockGetRootNode.mockReturnValue(root);
+            mockPrefabAsset('Button');
+            mockNodeAtPath('/Anchor', anchor);
+
+            const { NodeService } = require('../../scene-process/service/node');
+            const service = new NodeService();
+            const params = {
+                path: '/Anchor',
+                insertSide,
+                nodeType: NodeType.BUTTON,
+                workMode: '2d',
+                canvasRequired: true,
+            } as const;
+            const preflight = await service.preflightCreate(params);
+
+            expect(preflight).toMatchObject({
+                action: 'create',
+                canvasRequired: true,
+                canvasPath: null,
+            });
+
+            await expect(service.createByType({
+                ...params,
+                preflightToken: preflight.preflightToken,
+            } as any)).resolves.toMatchObject({ path: expect.any(String) });
+
+            expect(root.children.map(child => child.name)).toEqual(
+                insertSide === 'before'
+                    ? ['Before', 'Canvas', 'Anchor', 'After']
+                    : ['Before', 'Anchor', 'Canvas', 'After'],
+            );
+            const canvas = root.children.find(child => child.name === 'Canvas');
+            expect(canvas?.children.map(child => child.name)).toEqual(['Button']);
+            expect(anchor.children).toEqual([]);
+        },
+    );
+
+    it.each(['before', 'after'] as const)(
+        'creates an asset-required Canvas wrapper at the anchored %s entry position when none exists',
+        async insertSide => {
+            const { root, anchor } = createAnchoredTree();
+            mockGetRootNode.mockReturnValue(root);
+            mockPrefabAsset('AssetInstance', true);
+            mockQueryCanvasRequiredByAsset.mockResolvedValue(true);
+            mockNodeAtPath('/Anchor', anchor);
+
+            const { NodeService } = require('../../scene-process/service/node');
+            const service = new NodeService();
+            const params = {
+                path: '/Anchor',
+                insertSide,
+                dbURL: 'db://assets/Asset.prefab',
+                workMode: '2d',
+            } as const;
+            const preflight = await service.preflightCreate(params);
+
+            await expect(service.createByAsset({
+                ...params,
+                preflightToken: preflight.preflightToken,
+            } as any)).resolves.toMatchObject({ path: expect.any(String) });
+
+            expect(root.children.map(child => child.name)).toEqual(
+                insertSide === 'before'
+                    ? ['Before', 'Canvas', 'Anchor', 'After']
+                    : ['Before', 'Anchor', 'Canvas', 'After'],
+            );
+            const canvas = root.children.find(child => child.name === 'Canvas');
+            expect(canvas?.children.map(child => child.name)).toEqual(['AssetInstance']);
+        },
+    );
+
+    it('does not attach a new Canvas when the anchor becomes stale during Canvas loading', async () => {
+        const { root, anchor } = createAnchoredTree();
+        const replacementParent = new MockNode('ReplacementParent');
+        mockGetRootNode.mockReturnValue(root);
+        mockPrefabAsset('Button');
+        let resolveCanvasAsset: (asset: object) => void;
+        mockLoadAny.mockImplementation(() => new Promise<object>(resolve => {
+            resolveCanvasAsset = resolve;
+        }));
+        mockNodeAtPath('/Anchor', anchor);
+
+        const { NodeService } = require('../../scene-process/service/node');
+        const creation = new NodeService().createByType({
+            path: '/Anchor',
+            insertSide: 'before',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+            canvasRequired: true,
+        } as any);
+        await new Promise<void>(resolve => setImmediate(resolve));
+        anchor.setParent(replacementParent);
+        resolveCanvasAsset!({});
+
+        const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        await expect(creation).rejects.toThrow('stale');
+        consoleError.mockRestore();
+        expect(root.children.map(child => child.name)).toEqual(['Before', 'After']);
+        expect(root.children.some(child => child.name === 'Canvas')).toBe(false);
+    });
+
+    it.each(['before', 'after'] as const)(
+        'places a Prefab Canvas wrapper at the anchored %s entry position after the host chooses create-canvas',
+        async insertSide => {
+            const { root, anchor } = createAnchoredTree(undefined, 'PrefabRoot');
+            mockGetCurrentEditorType.mockReturnValue('prefab');
+            mockGetRootNode.mockReturnValue(root);
+            mockPrefabAsset('Button');
+            mockNodeAtPath('/Anchor', anchor);
+
+            const { NodeService } = require('../../scene-process/service/node');
+            const service = new NodeService();
+            const params = {
+                path: '/Anchor',
+                insertSide,
+                nodeType: NodeType.BUTTON,
+                workMode: '2d',
+                canvasRequired: true,
+            } as const;
+            const preflight = await service.preflightCreate(params);
+
+            expect(preflight).toMatchObject({
+                action: 'choose-prefab-canvas-handling',
+                canvasRequired: true,
+            });
+
+            await expect(service.createByType({
+                ...params,
+                preflightToken: preflight.preflightToken,
+                prefabCanvasHandling: 'create-canvas',
+            } as any)).resolves.toMatchObject({ path: expect.any(String) });
+
+            expect(root.children.map(child => child.name)).toEqual(
+                insertSide === 'before'
+                    ? ['Before', 'Canvas', 'Anchor', 'After']
+                    : ['Before', 'Anchor', 'Canvas', 'After'],
+            );
+            const canvas = root.children.find(child => child.name === 'Canvas');
+            expect(canvas?.children.map(child => child.name)).toEqual(['Button']);
+        },
+    );
+
+    it('keeps the captured anchor when add-root-ui-transform reparents the Prefab root', async () => {
+        const { root, anchor } = createAnchoredTree(undefined, 'PrefabRoot');
+        const host = new MockNode('SceneHost');
+        const previewCanvas = new MockNode('PreviewCanvas');
+        root.parent = host;
+        mockGetCurrentEditorType.mockReturnValue('prefab');
+        mockGetRootNode.mockReturnValue(root);
+        mockPrefabAsset('Button');
+        let anchorPathIsResolvable = true;
+        mockCreateShouldHideInHierarchyCanvasNode.mockImplementation(async () => {
+            anchorPathIsResolvable = false;
+            return previewCanvas;
+        });
+        (global as any).EditorExtends.Node.getNodeByPath.mockImplementation((path: string) => (
+            path === '/Anchor' && anchorPathIsResolvable ? anchor : null
+        ));
+
+        const { NodeService } = require('../../scene-process/service/node');
+        const service = new NodeService();
+        const pushUndoRecord = jest.spyOn(service, '_pushPrefabCanvasUndoRecord');
+        const params = {
+            path: '/Anchor',
+            insertSide: 'before',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+            canvasRequired: true,
+        } as const;
+        const preflight = await service.preflightCreate(params);
+
+        await expect(service.createByType({
+            ...params,
+            preflightToken: preflight.preflightToken,
+            prefabCanvasHandling: 'add-root-ui-transform',
+        } as any)).resolves.toMatchObject({ path: expect.any(String) });
+
+        expect(root.children.map(child => child.name)).toEqual(['Before', 'Button', 'Anchor', 'After']);
+        expect(root.components.some(component => component instanceof MockUITransform)).toBe(true);
+        expect(pushUndoRecord).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        { previewExistedBefore: false },
+        { previewExistedBefore: true },
+    ])(
+        'rolls back add-root-ui-transform with previewExistedBefore=$previewExistedBefore when the anchor becomes stale',
+        async ({ previewExistedBefore }) => {
+            const { root, anchor } = createAnchoredTree(undefined, 'PrefabRoot');
+            const host = new MockNode('SceneHost');
+            const hostBefore = new MockNode('HostBefore');
+            const hostAfter = new MockNode('HostAfter');
+            const replacementParent = new MockNode('ReplacementParent');
+            const previewCanvas = new MockNode('PreviewCanvas');
+            const resultNode = new MockNode('Button');
+            host.addChild(hostBefore);
+            host.addChild(root);
+            host.addChild(hostAfter);
+            mockGetCurrentEditorType.mockReturnValue('prefab');
+            mockGetRootNode.mockReturnValue(root);
+            mockCreateNodeByAsset.mockResolvedValue({ node: resultNode, canvasRequired: false });
+            mockNodeAtPath('/Anchor', anchor);
+            mockShouldRecordStructureCommand.mockReturnValue(true);
+            mockCollectSceneNodeUuids.mockReturnValue(new Set(
+                previewExistedBefore ? [previewCanvas.uuid] : [],
+            ));
+            let resolvePreviewCanvas: (canvas: MockNode) => void;
+            mockCreateShouldHideInHierarchyCanvasNode.mockImplementation(() => new Promise<MockNode>(resolve => {
+                resolvePreviewCanvas = resolve;
+            }));
+
+            const { NodeService } = require('../../scene-process/service/node');
+            const service = new NodeService();
+            const pushUndoRecord = jest.spyOn(service, '_pushPrefabCanvasUndoRecord');
+            const params = {
+                path: '/Anchor',
+                insertSide: 'before' as const,
+                nodeType: NodeType.BUTTON,
+                workMode: '2d' as const,
+                canvasRequired: true,
+            };
+            const preflight = await service.preflightCreate(params);
+            const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const creation = service.createByType({
+                ...params,
+                preflightToken: preflight.preflightToken,
+                prefabCanvasHandling: 'add-root-ui-transform',
+            });
+            await new Promise<void>(resolve => setImmediate(resolve));
+            anchor.setParent(replacementParent);
+            resolvePreviewCanvas!(previewCanvas);
+
+            await expect(creation).rejects.toThrow('stale');
+
+            consoleError.mockRestore();
+            expect(root.parent).toBe(host);
+            expect(host.children).toEqual([hostBefore, root, hostAfter]);
+            expect(anchor.parent).toBe(replacementParent);
+            expect(root.components.some(component => component instanceof MockUITransform)).toBe(false);
+            expect(mockRemoveComponent).toHaveBeenCalledTimes(1);
+            if (previewExistedBefore) {
+                expect(mockBaseRemoveNode).not.toHaveBeenCalled();
+                expect(previewCanvas.isValid).toBe(true);
+            } else {
+                expect(mockBaseRemoveNode).toHaveBeenCalledWith(previewCanvas);
+                expect(previewCanvas.isValid).toBe(false);
+            }
+            expect(resultNode.destroy).toHaveBeenCalledTimes(1);
+            expect(pushUndoRecord).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['before', 'after'] as const)(
+        'keeps an anchored %s create beside its anchor inside an existing Canvas ancestor',
+        async insertSide => {
+            const { root, parent: container, anchor } = createAnchoredTree('Container');
+            const canvas = new MockNode('Canvas');
+            container.setParent(canvas);
+            root.addChild(canvas);
+            mockGetRootNode.mockReturnValue(root);
+            // getUICanvasNode returns the requested node when one of its ancestors is a Canvas.
+            mockGetUICanvasNode.mockImplementation((node: MockNode) =>
+                node === container ? container : null,
+            );
+            mockPrefabAsset('Button');
+            mockNodeAtPath('/Canvas/Container/Anchor', anchor);
+
+            const { NodeService } = require('../../scene-process/service/node');
+            const service = new NodeService();
+            const params = {
+                path: '/Canvas/Container/Anchor',
+                insertSide,
+                nodeType: NodeType.BUTTON,
+                workMode: '2d',
+            } as const;
+            const preflight = await service.preflightCreate(params);
+
+            await expect(service.createByType({
+                ...params,
+                preflightToken: preflight.preflightToken,
+            } as any)).resolves.toMatchObject({ path: expect.any(String) });
+
+            expect(container.children.map(child => child.name)).toEqual(
+                insertSide === 'before'
+                    ? ['Before', 'Button', 'Anchor', 'After']
+                    : ['Before', 'Anchor', 'Button', 'After'],
+            );
+            expect(anchor.children).toEqual([]);
+        },
+    );
+
+    it('reuses an existing Canvas child instead of creating a second wrapper', async () => {
+        const { root, parent, anchor } = createAnchoredTree('Parent');
+        const canvas = new MockNode('Canvas');
+        parent.addChild(canvas);
+        mockGetRootNode.mockReturnValue(root);
+        mockGetUICanvasNode.mockImplementation((node: MockNode) => node === parent ? canvas : null);
+        mockPrefabAsset('Button');
+        mockNodeAtPath('/Parent/Anchor', anchor);
+
+        const { NodeService } = require('../../scene-process/service/node');
+        const service = new NodeService();
+        const params = {
+            path: '/Parent/Anchor',
+            insertSide: 'before',
+            nodeType: NodeType.BUTTON,
+            workMode: '2d',
+        } as const;
+        const preflight = await service.preflightCreate(params);
+
+        await expect(service.createByType({
+            ...params,
+            preflightToken: preflight.preflightToken,
+        } as any)).resolves.toMatchObject({ path: expect.any(String) });
+
+        expect(parent.children.map(child => child.name)).toEqual(['Before', 'Anchor', 'After', 'Canvas']);
+        expect(canvas.children.map(child => child.name)).toEqual(['Button']);
+        expect(mockInstantiate).not.toHaveBeenCalled();
     });
 
 });

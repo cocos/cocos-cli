@@ -6,6 +6,15 @@ import {
     SchemaQueryAllComponentResult,
     SchemaQueryComponent,
     SchemaRemoveComponent,
+    SchemaRegeneratePolygon2DPointsOptions,
+    SchemaRegeneratePolygon2DPointsResult,
+    SchemaRecalculateLODGroupBoundsOptions,
+    SchemaLODGroupBoundsResult,
+    SchemaInsertLODOptions,
+    SchemaEraseLODOptions,
+    SchemaQueryLODGroupRelativeHeightOptions,
+    SchemaLODGroupLevelsResult,
+    SchemaLODGroupRelativeHeightResult,
 
     TAddComponentInfo,
     TSetPropertyOptions,
@@ -13,6 +22,15 @@ import {
     TQueryAllComponentResult,
     TRemoveComponentOptions,
     TQueryComponentOptions,
+    TRegeneratePolygon2DPointsOptions,
+    TRegeneratePolygon2DPointsResult,
+    TRecalculateLODGroupBoundsOptions,
+    TLODGroupBoundsResult,
+    TInsertLODOptions,
+    TEraseLODOptions,
+    TQueryLODGroupRelativeHeightOptions,
+    TLODGroupLevelsResult,
+    TLODGroupRelativeHeightResult,
 } from './component-schema';
 
 import { description, param, result, title, tool } from '../decorator/decorator.js';
@@ -131,6 +149,126 @@ export class ComponentApi {
             return {
                 code: getCommonErrorStatus(e),
                 reason: e instanceof Error ? e.message : String(e)
+            };
+        }
+    }
+
+    /**
+     * Regenerate PolygonCollider2D points // 重新生成 PolygonCollider2D 顶点
+     */
+    @tool('scene-regenerate-polygon-2d-points')
+    @title('Regenerate PolygonCollider2D points')
+    @description('Regenerate cc.PolygonCollider2D points from the alpha contour of a Sprite on the same node. Falls back to the UITransform rectangle when no usable Sprite source exists. This overwrites the current points and records undo by default.')
+    @result(SchemaRegeneratePolygon2DPointsResult)
+    async regeneratePolygon2DPoints(
+        @param(SchemaRegeneratePolygon2DPointsOptions) options: TRegeneratePolygon2DPointsOptions,
+    ): Promise<CommonResultType<TRegeneratePolygon2DPointsResult>> {
+        try {
+            const result = await Scene.Component.regeneratePolygon2DPoints(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: result,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Recalculate LODGroup bounds // 重新计算 LODGroup 包围盒
+     */
+    @tool('scene-recalculate-lod-group-bounds')
+    @title('Recalculate LODGroup bounds') // 重新计算 LODGroup 包围盒
+    @description('Recalculate localBoundaryCenter and objectSize from all Renderers referenced by a cc.LODGroup. The path must identify a cc.LODGroup component, e.g. "Root/LOD/cc.LODGroup". Returns zero values when no valid Renderer exists.') // 根据 LODGroup 引用的 Renderer 重算边界；路径必须指向 cc.LODGroup 组件
+    @result(SchemaLODGroupBoundsResult)
+    async recalculateLODGroupBounds(
+        @param(SchemaRecalculateLODGroupBoundsOptions) options: TRecalculateLODGroupBoundsOptions,
+    ): Promise<CommonResultType<TLODGroupBoundsResult>> {
+        try {
+            const bounds = await Scene.Component.recalculateLODGroupBounds(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: bounds,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Insert an LOD level // 插入 LOD 层级
+     */
+    @tool('scene-insert-lod')
+    @title('Insert LOD level') // 插入 LOD 层级
+    @description('Insert an LOD level into a cc.LODGroup. Index must be from 0 through lodCount, at most 8 levels are allowed, and screenUsagePercentage must be in (0, 1]. Omit screenUsagePercentage to let the engine calculate it.')
+    @result(SchemaLODGroupLevelsResult)
+    async insertLOD(
+        @param(SchemaInsertLODOptions) options: TInsertLODOptions,
+    ): Promise<CommonResultType<TLODGroupLevelsResult>> {
+        try {
+            const lodState = await Scene.Component.insertLOD(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: lodState,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Erase an LOD level // 删除 LOD 层级
+     */
+    @tool('scene-erase-lod')
+    @title('Erase LOD level') // 删除 LOD 层级
+    @description('Erase an LOD level from a cc.LODGroup. Index must identify an existing level, and at least one LOD level must remain.')
+    @result(SchemaLODGroupLevelsResult)
+    async eraseLOD(
+        @param(SchemaEraseLODOptions) options: TEraseLODOptions,
+    ): Promise<CommonResultType<TLODGroupLevelsResult>> {
+        try {
+            const lodState = await Scene.Component.eraseLOD(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: lodState,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    /**
+     * Query LODGroup relative height // 查询 LODGroup 屏幕相对高度
+     */
+    @tool('scene-query-lod-group-relative-height')
+    @title('Query LODGroup relative height') // 查询 LODGroup 屏幕相对高度
+    @description('Query the raw screen-relative height of a cc.LODGroup under the current editor camera. Supports perspective and orthographic cameras; the result is not clamped to [0, 1].')
+    @result(SchemaLODGroupRelativeHeightResult)
+    async queryLODGroupRelativeHeight(
+        @param(SchemaQueryLODGroupRelativeHeightOptions) options: TQueryLODGroupRelativeHeightOptions,
+    ): Promise<CommonResultType<TLODGroupRelativeHeightResult>> {
+        try {
+            const relativeHeight = await Scene.Component.queryLODGroupRelativeHeight(options);
+            return {
+                code: COMMON_STATUS.SUCCESS,
+                data: relativeHeight,
+            };
+        } catch (e) {
+            return {
+                code: getCommonErrorStatus(e),
+                reason: e instanceof Error ? e.message : String(e),
             };
         }
     }

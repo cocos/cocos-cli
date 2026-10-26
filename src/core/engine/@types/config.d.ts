@@ -165,6 +165,12 @@ export interface IEngineProjectConfig extends Exclude<IEngineConfig, 'includeMod
 }
 
 export interface IInitEngineInfo {
+    /** Use engine editor semantics in a standalone scene backend (no IDE required). */
+    editorMode?: boolean;
+    /** Engine execution flag only; does not start a preview server or UI. */
+    previewMode?: boolean;
+    /** Scene workers can create a local WebGL context for baking. */
+    enableOffscreenRendering?: boolean;
     importBase: string;
     nativeBase: string;
     writablePath: string;

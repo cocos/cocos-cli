@@ -45,17 +45,30 @@ export default class AndroidPackTool extends NativePackTool {
         return content + `\n${newLine}`;
     }
 
+    /**
+     * Android 模板是 build/ + template/ 双层布局，基类默认复制 templates/<platform> 整个目录，
+     * 会把 CMakeLists.txt 落到 platformTemplateDirInPrj/template 下。这里覆写为复制
+     * templates/android/template 到根部，保证 native/engine/android/CMakeLists.txt 存在。
+     */
+    protected async copyPlatformTemplate() {
+        if (!fs.existsSync(this.paths.platformTemplateDirInPrj)) {
+            await fs.copy(ps.join(this.paths.nativeTemplateDirInCocos, 'android', 'template'), this.paths.platformTemplateDirInPrj, { overwrite: false });
+            this.writeEngineVersion();
+        } else {
+            this.validateNativeDir();
+        }
+    }
+
+    protected validatePlatformDirectory(missing: string[]): void {
+        this.validateDirectory(
+            ps.join(this.paths.nativeTemplateDirInCocos, 'android', 'template'),
+            this.paths.platformTemplateDirInPrj,
+            missing,
+        );
+    }
+
     async create() {
         await this.copyCommonTemplate();
-        
-        // 检查 CMakeLists.txt 是否存在，如果不存在，强制复制模板
-        // 这通常发生在 native 目录存在但文件不完整的情况下
-        const cmakePath = ps.join(this.paths.platformTemplateDirInPrj, 'CMakeLists.txt');
-        if (!fs.existsSync(cmakePath)) {
-            console.log(`CMakeLists.txt not found in ${cmakePath}, copying template...`);
-            // Android 模板在 templates/android/template 目录下
-            await fs.copy(ps.join(this.paths.platformTemplateDirInCocos, 'template'), this.paths.platformTemplateDirInPrj, { overwrite: true });
-        }
 
         await this.copyPlatformTemplate();
         await this.generateCMakeConfig();

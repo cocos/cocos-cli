@@ -221,11 +221,11 @@ class AssetDBManager extends EventEmitter {
         return !!this.assetDBMap[name];
     }
 
-    private async startDB(info: IAssetDBInfo) {
+    private async startDB(info: IAssetDBInfo, onScriptingRegistered?: () => void) {
         if (this.hasDB(info.name)) {
             return;
         }
-        await this._createDB(info);
+        await this._createDB(info, onScriptingRegistered);
         await this._startDB(info.name);
         this.emit('assets:db-ready', info);
     }
@@ -258,7 +258,7 @@ class AssetDBManager extends EventEmitter {
         return `db://${database.options.name}/${_path}`;
     }
 
-    private async _createDB(info: IAssetDBInfo) {
+    private async _createDB(info: IAssetDBInfo, onScriptingRegistered?: () => void) {
         ensureDirSync(info.library);
         ensureDirSync(info.temp);
         // TODO 目标数据库地址为空的时候，其实无需走后续完整的启动流程，可以考虑优化
@@ -281,6 +281,7 @@ class AssetDBManager extends EventEmitter {
 
          // 初始化一些脚本需要的数据库信息
          await scripting.updateDatabases({dbID: info.name, target: info.target}, DBChangeType.add);
+        onScriptingRegistered?.();
         return db;
     }
 
@@ -381,8 +382,44 @@ class AssetDBManager extends EventEmitter {
      * 添加某个 asset db
      */
     async addDB(info: AssetDBRegisterInfo) {
-        this.assetDBInfo[info.name] = patchAssetDBInfo(info);
-        await this.startDB(this.assetDBInfo[info.name]);
+        const previousDB = this.assetDBMap[info.name];
+        const previousInfo = this.assetDBInfo[info.name];
+        const registerInfo = patchAssetDBInfo(info);
+        this.assetDBInfo[info.name] = registerInfo;
+        let scriptingRegistered = false;
+        try {
+            await this.startDB(registerInfo, () => {
+                scriptingRegistered = true;
+            });
+        } catch (error) {
+            if (!previousDB && this.assetDBMap[info.name]) {
+                const failedDB = this.assetDBMap[info.name];
+                try {
+                    await failedDB.stop();
+                } catch (cleanupError) {
+                    console.error(`Stop failed AssetDB '${info.name}' during add rollback.`, cleanupError);
+                }
+                if (this.assetDBMap[info.name] === failedDB) {
+                    delete this.assetDBMap[info.name];
+                }
+                if (scriptingRegistered) {
+                    try {
+                        await scripting.updateDatabases(
+                            { dbID: info.name, target: registerInfo.target },
+                            DBChangeType.remove,
+                        );
+                    } catch (cleanupError) {
+                        console.error(`Remove failed scripting registration '${info.name}' during add rollback.`, cleanupError);
+                    }
+                }
+            }
+            if (previousInfo) {
+                this.assetDBInfo[info.name] = previousInfo;
+            } else {
+                delete this.assetDBInfo[info.name];
+            }
+            throw error;
+        }
     }
 
     /**

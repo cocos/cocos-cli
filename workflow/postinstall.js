@@ -51,8 +51,13 @@ async function mockNpmModules() {
     await utils.runCommand('node', ['./workflow/build-cc-module.js', forceFlag].filter(Boolean));
     // generate i18n types
     await utils.runCommand('node', ['./workflow/generate-i18n-types.js', forceFlag].filter(Boolean));
-    // tsc cli
-    await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
+    // CI setup runs an explicit build after installation and tool downloads.
+    // Keep local installation behavior unless that caller explicitly defers it.
+    if (process.env.COCOS_SKIP_POSTINSTALL_BUILD === 'true') {
+        console.log('跳过 postinstall 中的 CLI 构建，交由后续显式构建步骤执行');
+    } else {
+        await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
+    }
     //download tools
     const minimalFlag = process.env.MINIMAL_DOWNLOAD_TOOLS ? '--minimal' : '';
     await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag, minimalFlag].filter(Boolean));

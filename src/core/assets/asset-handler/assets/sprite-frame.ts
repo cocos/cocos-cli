@@ -8,6 +8,7 @@ import { SpriteFrameBaseAssetUserData, SpriteFrameAssetUserData } from '../../@t
 import { getTrimRect, getDependUUIDList } from '../utils';
 import i18n from '../../../base/i18n';
 import { makeDefaultSpriteFrameBaseAssetUserData } from './texture-base';
+import { resolveImageSourceFile } from '../../image-processing';
 
 try {
     require('sharp');
@@ -172,13 +173,9 @@ export const SpriteFrameHandler: AssetHandler = {
 
             if (asset.parent.meta.importer === 'image') {
                 const userData = asset.userData as SpriteFrameBaseAssetUserData;
-                let file;
-                // TODO 此处需要更换通用写法，这样容易漏掉一些新格式支持的更新
-                // @ts-ignore
-                if (['.tga', '.hdr', '.bmp', '.exr', '.znt', '.psd'].includes(asset.parent.extname.toLowerCase())) {
-                    file = asset.parent.library + '.png';
-                } else {
-                    file = asset.parent.source;
+                const file = resolveImageSourceFile(asset.parent);
+                if (!file) {
+                    return false;
                 }
                 const MIN_SIZE = 1;
                 const imageData = await Sharp(file).raw().toBuffer({ resolveWithObject: true });

@@ -90,9 +90,9 @@ describe('createBuildStageTask', () => {
         jest.restoreAllMocks();
     });
 
-    it('reads persisted build options for registered web stage tasks', async () => {
+    it('synthesizes build options for registered web stage tasks without reading the compile config', async () => {
         const { createBuildStageTask } = await import('../index');
-        const buildOptions = {
+        const persistedBuildOptions = {
             platform: 'web-desktop',
             packages: {
                 'web-desktop': {
@@ -101,20 +101,25 @@ describe('createBuildStageTask', () => {
                 },
             },
         };
-        mockReadJSONSync.mockReturnValue(buildOptions);
+        mockReadJSONSync.mockReturnValue(persistedBuildOptions);
 
         const task = await createBuildStageTask('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         });
 
-        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/web-desktop', 'cocos.compile.config.json'));
+        // web 平台不再读取 cocos.compile.config.json，而是合成一份最小构建选项
+        expect(mockReadJSONSync).not.toHaveBeenCalled();
         expect(mockGetBuildStageWithHookTasks).toHaveBeenCalledWith('web-desktop', 'run');
         expect(mockGetHooksInfo).toHaveBeenCalledWith('web-desktop');
         expect(task.id).toBe('task-id');
         expect(task.name).toBe('run');
         expect(task.hooksInfo).toBe(hooksInfo);
-        expect(task.options).toBe(buildOptions);
+        expect(task.options).toEqual({
+            platform: 'web-desktop',
+            packages: {},
+            dest: 'raw:build/web-desktop',
+        });
         expect(task.hookMap).toEqual({
             onBeforeRun: 'onBeforeRun',
             run: 'run',
@@ -258,7 +263,7 @@ describe('createBuildStageTask', () => {
 
     it('skips unsupported stage when the task runs', async () => {
         const { createBuildStageTask } = await import('../index');
-        const buildOptions = {
+        const persistedBuildOptions = {
             platform: 'web-desktop',
             packages: {
                 'web-desktop': {
@@ -267,7 +272,7 @@ describe('createBuildStageTask', () => {
             },
         };
         mockGetBuildStageWithHookTasks.mockReturnValue(undefined);
-        mockReadJSONSync.mockReturnValue(buildOptions);
+        mockReadJSONSync.mockReturnValue(persistedBuildOptions);
 
         const task = await createBuildStageTask('task-id', 'deploy', {
             dest: 'build/web-desktop',
@@ -275,10 +280,15 @@ describe('createBuildStageTask', () => {
         });
         const result = await task.run();
 
+        // web 平台不读取 cocos.compile.config.json，而是合成最小构建选项
         expect(result).toBe(true);
-        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/web-desktop', 'cocos.compile.config.json'));
+        expect(mockReadJSONSync).not.toHaveBeenCalled();
         expect(task.name).toBe('deploy');
-        expect(task.options).toBe(buildOptions);
+        expect(task.options).toEqual({
+            platform: 'web-desktop',
+            packages: {},
+            dest: 'raw:build/web-desktop',
+        });
         expect(task.buildExitRes).toEqual({
             code: 0,
             dest: 'raw:build/web-desktop',
@@ -290,7 +300,7 @@ describe('createBuildStageTask', () => {
 
     it('skips missing make stage when the task runs', async () => {
         const { createBuildStageTask } = await import('../index');
-        const buildOptions = {
+        const persistedBuildOptions = {
             platform: 'web-desktop',
             packages: {
                 'web-desktop': {
@@ -299,7 +309,7 @@ describe('createBuildStageTask', () => {
             },
         };
         mockGetBuildStageWithHookTasks.mockReturnValue(undefined);
-        mockReadJSONSync.mockReturnValue(buildOptions);
+        mockReadJSONSync.mockReturnValue(persistedBuildOptions);
 
         const task = await createBuildStageTask('task-id', 'make', {
             dest: 'build/openpaas/web-desktop',
@@ -307,13 +317,18 @@ describe('createBuildStageTask', () => {
         });
         const result = await task.run();
 
+        // web 平台不读取 cocos.compile.config.json，而是合成最小构建选项
         expect(result).toBe(true);
-        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/openpaas/web-desktop', 'cocos.compile.config.json'));
+        expect(mockReadJSONSync).not.toHaveBeenCalled();
         expect(mockGetHooksInfo).toHaveBeenCalledWith('web-desktop');
         expect(task.id).toBe('task-id');
         expect(task.name).toBe('make');
         expect(task.hooksInfo).toBe(hooksInfo);
-        expect(task.options).toBe(buildOptions);
+        expect(task.options).toEqual({
+            platform: 'web-desktop',
+            packages: {},
+            dest: 'raw:build/openpaas/web-desktop',
+        });
         expect(task.hookMap).toEqual({
             onBeforeMake: 'onBeforeMake',
             make: 'make',

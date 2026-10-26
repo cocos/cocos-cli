@@ -15,7 +15,7 @@ function run(cmd) {
 }
 
 try {
-    run('npx --yes patch-package');
+    run('npx --yes patch-package --error-on-fail');
     run(`npx @electron/rebuild --force --version ${electronVersion}`);
 } catch (err) {
     console.error('\n[rebuild] failed');

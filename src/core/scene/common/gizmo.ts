@@ -29,6 +29,7 @@ export interface IGizmoService {
     removeAllGizmoOfNode(node: any, recursive?: boolean): void;
     clearAllGizmos(): void;
     callAllGizmoFuncOfNode(node: any, funcName: string, ...params: any[]): boolean;
+    getComponentGizmo(component: any): any;
     onUpdate(deltaTime: number): void;
 
     // 与 cocos-editor GizmoManager 一致：GizmoConfig 方法
@@ -62,6 +63,22 @@ export interface IGizmoService {
     showSelectionRegion(left: number, right: number, top: number, bottom: number): void;
     hideSelectionRegion(): void;
     execGizmoMethods(name: string, funcName: string, params?: any[]): any;
+
+    // Light Probe 编辑模式 facade（对齐 cocos-editor general-scene-facade toggle/query）
+    toggleLightProbeEditMode(mode: boolean | undefined): boolean;
+    queryLightProbeEditMode(): boolean;
+    toggleLightProbeBoundingBoxEditMode(mode: boolean | undefined): boolean;
+    queryLightProbeBoundingBoxEditMode(): boolean;
+
+    // Light Probe VERTEX 逐探针编辑：选择 / 删除 / 复制（供面板按钮经 RPC 调用）
+    selectAllLightProbes(): void;
+    unselectAllLightProbes(): void;
+    queryLightProbeSelectedCount(): number;
+    deleteSelectedLightProbes(): Promise<number>;
+    duplicateSelectedLightProbes(): Promise<number>;
+    generateLightProbes(): number;
+    // 框选探针（方案 A）：上层框选时主动调用，屏幕矩形（left<right、bottom<top），additive 并入现有选中。返回选中总数。
+    regionSelectLightProbes(left: number, right: number, top: number, bottom: number, additive: boolean): number;
 }
 
 export type IPublicGizmoService = Pick<IGizmoService,
@@ -74,10 +91,17 @@ export type IPublicGizmoService = Pick<IGizmoService,
     'queryOriginAxes2D' | 'setOriginAxes2D' |
     'queryOriginAxes3D' | 'setOriginAxes3D' |
     'queryTransformSnapConfigs' | 'setTransformSnapConfigs' |
-    'queryRectSnapConfig' | 'setRectSnapConfig'
+    'queryRectSnapConfig' | 'setRectSnapConfig' |
+    'toggleLightProbeEditMode' | 'queryLightProbeEditMode' |
+    'toggleLightProbeBoundingBoxEditMode' | 'queryLightProbeBoundingBoxEditMode' |
+    'selectAllLightProbes' | 'unselectAllLightProbes' | 'queryLightProbeSelectedCount' |
+    'deleteSelectedLightProbes' | 'duplicateSelectedLightProbes' |
+    'regionSelectLightProbes' | 'generateLightProbes'
 >;
 
 export interface IGizmoEvents {
+    /** 粒子包围盒的编辑器临时显隐变化，不表示场景属性修改。 */
+    'gizmo:particle-bounds-visibility-changed': [event: { componentUuid: string; visible: boolean }];
     'gizmo:tool-changed': [name: string];
     'gizmo:coordinate-changed': [];
     'gizmo:pivot-changed': [];

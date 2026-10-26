@@ -457,6 +457,10 @@ class EngineManager implements IEngine {
         // 注意：目前 utils 用的是 UUID，EditorExtends 用的是 Uuid 
         // @ts-ignore
         globalThis.EditorExtends.UuidUtils.compressUuid = globalThis.EditorExtends.UuidUtils.compressUUID;
+        const uuidUtils = (globalThis as any).EditorExtends.UuidUtils;
+        uuidUtils.uuid = uuidUtils.generate;
+        uuidUtils.decompressUuid = uuidUtils.decompressUUID;
+        uuidUtils.isUuid = uuidUtils.isUUID;
     }
 
     async initEditorExtensions() {
@@ -474,6 +478,8 @@ class EngineManager implements IEngine {
         const { default: preload } = await import('cc/preload');
         await this.importEditorExtensions();
         await preload({
+            editorMode: info.editorMode ?? false,
+            previewMode: info.previewMode ?? false,
             engineRoot: this._info.typescript.path,
             engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
             writablePath: info.writablePath,
@@ -495,6 +501,10 @@ class EngineManager implements IEngine {
             ]
         });
         await this.initEditorExtensions();
+
+        const offscreenRendering = info.enableOffscreenRendering
+            ? (await import('./offscreen-context')).installOffscreenContext()
+            : false;
 
         const modules = this.getConfig().includeModules || [];
         const { physicsConfig, macroConfig, customLayers, sortingLayers, highQuality, renderPipeline, customPipeline, customJointTextureLayouts } = this.getConfig();
@@ -525,7 +535,7 @@ class EngineManager implements IEngine {
                     exactFitScreen: true,
                 },
                 rendering: {
-                    renderMode: 3,
+                    renderMode: offscreenRendering ? 2 : 3,
                     renderPipeline,
                     customPipeline: enableCustomPipeline,
                     highQualityMode: highQuality,

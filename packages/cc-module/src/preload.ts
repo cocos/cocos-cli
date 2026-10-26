@@ -24,6 +24,10 @@ async function preload(options: {
      * 需要预加载的模块。
      */
     requiredModules: string[];
+    /** Enable engine editor semantics for the standalone scene worker. */
+    editorMode?: boolean;
+    /** Preserve runtime component semantics when editor-only engine capabilities are enabled. */
+    previewMode?: boolean;
 }) {
     try {
         if (hasPreload) {
@@ -32,9 +36,11 @@ async function preload(options: {
         hasPreload = true;
 
         // @ts-ignore
-        globalThis.CC_EDITOR = false;
+        globalThis.CC_EDITOR = options.editorMode ?? false;
         // @ts-ignore
-        globalThis.CC_PREVIEW = false;
+        globalThis.CC_PREVIEW = options.previewMode ?? false;
+        // The engine derives EDITOR_NOT_IN_PREVIEW from this separate host flag.
+        (globalThis as any).isPreviewProcess = options.previewMode ?? false;
         // @ts-ignore
         globalThis.window = globalThis.global;
         const LocalStorage = require('node-localstorage').LocalStorage;

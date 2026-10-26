@@ -2,11 +2,13 @@ import { BaseService } from './core';
 import { register } from './core/decorator';
 import { SceneUndoManager } from './undo/scene-undo-manager';
 import { EventSourceType, NodeEventType, type IUndoService, type IUndoEvents, type IUndoBeginOptions, type IUndoCheckpoint, type IUndoCommand, type IUndoGroupOptions, type IUndoOperationOptions, type IUndoPushWithPreviousOptions, type IUndoRedoResult, type IUndoScope } from '../../common';
-import type { Component, Node } from 'cc';
+import type { Component, Node, Scene } from 'cc';
 import { ServiceEvents } from './core/global-events';
 import type { ISnapshotAdapter } from './undo/commands/snapshot-command';
 import { restoreComponentSnapshotDump, restoreNodeSnapshotDump, snapshotMapsEqual } from './undo/commands/command-utils-shared';
 import dumpUtil from './dump';
+import { beginLightProbeRestore, captureLightProbeData, captureLightProbeGroup, getLightProbeSnapshotScenes, restoreLightProbeData, restoreLightProbeGroup, type LightProbeDataSnapshot, type LightProbeGroupSnapshot } from './scene/light-probe-snapshot';
+import { deletedLightmapAssets } from './baking/lightfx/deleted-lightmap-assets';
 
 interface IRecordingComponentSnapshot {
     uuid: string;
@@ -16,6 +18,7 @@ interface IRecordingComponentSnapshot {
     index: number;
     type: string;
     dump: any;
+    lightProbeGroup?: LightProbeGroupSnapshot;
 }
 
 interface IRecordingNodeSnapshot {
@@ -30,7 +33,17 @@ interface IRecordingStandaloneComponentSnapshot extends IRecordingComponentSnaps
     kind: 'component';
 }
 
-type IRecordingSnapshot = IRecordingNodeSnapshot | IRecordingStandaloneComponentSnapshot;
+interface IRecordingProbeSnapshot {
+    kind: 'light-probe-data';
+    uuid: string;
+    data: LightProbeDataSnapshot;
+}
+
+type IRecordingSnapshot = IRecordingNodeSnapshot | IRecordingStandaloneComponentSnapshot | IRecordingProbeSnapshot;
+
+// Internal recording target, not a public scene UUID. Explicit scene recordings
+// (settings/baking) must still use the full scene snapshot adapter.
+const PROBE_SCENE_TARGET = 'light-probe-data:';
 
 @register('Undo')
 export class UndoService extends BaseService<IUndoEvents> implements IUndoService {
@@ -44,7 +57,22 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     }
 
     beginRecording(uuids: string[], options?: IUndoBeginOptions): string {
-        return this._undoMgr.beginRecording(uuids, options);
+        const nodes = uuids.map(uuid => {
+            const node = this._getEditorNodeManager()?.getNode?.(uuid) as Node | undefined;
+            return node ?? (this._getEditorComponentManager()?.getComponent?.(uuid) as Component | undefined)?.node;
+        }).filter((node): node is Node => this._isNodeInCurrentScene(node));
+        // Fix the target set before the mutation. Even if a component is disabled
+        // while recording, before/after must capture the same scene globals.
+        const targets = new Set(uuids);
+        for (const scene of getLightProbeSnapshotScenes(nodes)) {
+            if (targets.has(scene.uuid)) {
+                targets.delete(scene.uuid);
+                targets.add(scene.uuid);
+            } else {
+                targets.add(PROBE_SCENE_TARGET + scene.uuid);
+            }
+        }
+        return this._undoMgr.beginRecording([...targets], options);
     }
 
     async endRecording(commandId: string): Promise<void> {
@@ -219,6 +247,14 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
     private _captureSceneSnapshots(uuids: string[]): Map<string, IRecordingSnapshot> {
         const snapshots = new Map<string, IRecordingSnapshot>();
         for (const uuid of new Set(uuids)) {
+            if (uuid.startsWith(PROBE_SCENE_TARGET)) {
+                const sceneUuid = uuid.slice(PROBE_SCENE_TARGET.length);
+                const scene = this._getEditorNodeManager()?.getNode?.(sceneUuid) as Scene | null;
+                if (this._isNodeInCurrentScene(scene) && scene === scene.scene) {
+                    snapshots.set(uuid, { kind: 'light-probe-data', uuid: sceneUuid, data: captureLightProbeData(scene) });
+                }
+                continue;
+            }
             const node = this._getEditorNodeManager()?.getNode?.(uuid) as Node | null;
             if (this._isNodeInCurrentScene(node)) {
                 snapshots.set(`node:${uuid}`, this._captureNodeSnapshot(node));
@@ -241,7 +277,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             kind: 'node',
             uuid: node.uuid,
             path: this._getNodePath(node),
-            dump: this._cloneDump(dumpUtil.dumpNode(node, { includeComponents: false })),
+            dump: deletedLightmapAssets.capture(node.scene, this._cloneDump(dumpUtil.dumpNode(node, { includeComponents: false }))),
             components: node.components
                 .map(component => this._captureComponentSnapshot(component as Component))
                 .filter((snapshot): snapshot is IRecordingComponentSnapshot => !!snapshot),
@@ -253,6 +289,7 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             return null;
         }
 
+        const lightProbeGroup = captureLightProbeGroup(component);
         return {
             uuid: component.uuid,
             path: this._getComponentPath(component),
@@ -260,23 +297,48 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             nodePath: this._getNodePath(component.node),
             index: component.node.components.indexOf(component),
             type: this._getComponentType(component),
-            dump: this._cloneDump(dumpUtil.dumpComponent(component)),
+            dump: lightProbeGroup ? null : deletedLightmapAssets.capture(component.node.scene, this._cloneDump(dumpUtil.dumpComponent(component))),
+            ...(lightProbeGroup ? { lightProbeGroup } : {}),
         };
     }
 
     private async _applySceneSnapshots(data: Map<string, IRecordingSnapshot>): Promise<IUndoRedoResult> {
-        for (const snapshot of data.values()) {
-            const result = snapshot.kind === 'node'
-                ? await this._applyNodeSnapshot(snapshot)
-                : await this._applyComponentSnapshot(snapshot);
-            if (!result.success) {
-                return result;
-            }
+        const snapshots = [...data.values()];
+        const probes = snapshots.filter((snapshot): snapshot is IRecordingProbeSnapshot => snapshot.kind === 'light-probe-data');
+        const changedNodes = probes.length ? new Set<Node>() : undefined;
+        const scenes = new Map<string, Scene>();
+        for (const snapshot of probes) {
+            const scene = this._findNode(snapshot.uuid, '') as Scene | null;
+            if (!scene || scene !== scene.scene) return { success: false, reason: `Probe scene not found: ${snapshot.uuid}` };
+            scenes.set(snapshot.uuid, scene);
         }
-        return { success: true };
+        const releases = [...scenes.values()].map(beginLightProbeRestore);
+        try {
+            for (const snapshot of snapshots) {
+                if (snapshot.kind === 'light-probe-data') continue;
+                const result = snapshot.kind === 'node'
+                    ? await this._applyNodeSnapshot(snapshot, changedNodes)
+                    : await this._applyComponentSnapshot(snapshot, changedNodes);
+                if (!result.success) return result;
+            }
+            for (const snapshot of probes) {
+                const scene = scenes.get(snapshot.uuid)!;
+                if (!this._isNodeInCurrentScene(scene)) return { success: false, reason: `Probe scene changed: ${snapshot.uuid}` };
+                restoreLightProbeData(scene, snapshot.data);
+                changedNodes!.add(scene);
+            }
+            return { success: true };
+        } catch (error) {
+            return { success: false, reason: error instanceof Error ? error.message : String(error) };
+        } finally {
+            releases.forEach(release => release());
+            // Publish after all groups and the global table agree. If restoration
+            // fails midway, still expose the node changes already applied.
+            for (const node of changedNodes ?? []) this._notifyRestoredNode(node);
+        }
     }
 
-    private async _applyNodeSnapshot(snapshot: IRecordingNodeSnapshot): Promise<IUndoRedoResult> {
+    private async _applyNodeSnapshot(snapshot: IRecordingNodeSnapshot, changedNodes?: Set<Node>): Promise<IUndoRedoResult> {
         const node = this._findNode(snapshot.uuid, snapshot.path);
         if (!node) {
             return { success: false, reason: `Node not found: ${snapshot.path || snapshot.uuid}` };
@@ -288,35 +350,39 @@ export class UndoService extends BaseService<IUndoEvents> implements IUndoServic
             for (const componentSnapshot of snapshot.components) {
                 const component = this._findComponent(componentSnapshot);
                 if (component) {
-                    await this._restoreComponentDump(component, componentSnapshot.dump);
+                    await this._restoreComponentSnapshot(component, componentSnapshot);
                 }
             }
-            ServiceEvents.emit('node:change', node, {
-                source: EventSourceType.UNDO,
-                type: NodeEventType.SET_PROPERTY,
-            });
+            this._notifyRestoredNode(node, changedNodes);
             return { success: true };
         } catch (error) {
             return { success: false, reason: error instanceof Error ? error.message : String(error) };
         }
     }
 
-    private async _applyComponentSnapshot(snapshot: IRecordingStandaloneComponentSnapshot): Promise<IUndoRedoResult> {
+    private async _applyComponentSnapshot(snapshot: IRecordingStandaloneComponentSnapshot, changedNodes?: Set<Node>): Promise<IUndoRedoResult> {
         const component = this._findComponent(snapshot);
         if (!component) {
             return { success: false, reason: `Component not found: ${snapshot.path || snapshot.uuid}` };
         }
 
         try {
-            await this._restoreComponentDump(component, snapshot.dump);
-            ServiceEvents.emit('node:change', component.node, {
-                source: EventSourceType.UNDO,
-                type: NodeEventType.SET_PROPERTY,
-            });
+            await this._restoreComponentSnapshot(component, snapshot);
+            this._notifyRestoredNode(component.node, changedNodes);
             return { success: true };
         } catch (error) {
             return { success: false, reason: error instanceof Error ? error.message : String(error) };
         }
+    }
+
+    private _notifyRestoredNode(node: Node, changedNodes?: Set<Node>): void {
+        if (changedNodes) { changedNodes.add(node); return; }
+        ServiceEvents.emit('node:change', node, { source: EventSourceType.UNDO, type: NodeEventType.SET_PROPERTY });
+    }
+
+    private async _restoreComponentSnapshot(component: Component, snapshot: IRecordingComponentSnapshot): Promise<void> {
+        if (snapshot.lightProbeGroup) restoreLightProbeGroup(component, snapshot.lightProbeGroup);
+        else await this._restoreComponentDump(component, snapshot.dump);
     }
 
     private async _restoreNodeDump(node: Node, dump: any): Promise<void> {

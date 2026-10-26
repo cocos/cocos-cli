@@ -7,6 +7,7 @@ import { ITaskOption } from '../../native-common/type';
 import { IOptions } from './type'
 import { BuildCheckResult } from '../../../@types/protected';
 import i18n from '../../../../base/i18n';
+import { compareVersion } from '../../../../base/utils/parse';
 
 /**
  * 修改 ios 的包名
@@ -218,11 +219,11 @@ export function verificationFunc(key: keyof IOptions, value: any, options: ITask
             }
             if (options.packages.native.JobSystem === 'taskFlow') {
                 minVersion = '12.0';
-                if (!compareVersion(value, minVersion)) {
+                if (compareVersion(value, minVersion) < 0) {
                     setError('i18n:ios.tips.targetVersionErrorWithTaskFlow', minVersion);
                 }
             }
-            if (res.valid && !compareVersion(value, minVersion)) {
+            if (res.valid && compareVersion(value, minVersion) < 0) {
                 setError('i18n:ios.tips.targetVersionError', minVersion);
             }
         }
@@ -261,20 +262,4 @@ export function verificationFunc(key: keyof IOptions, value: any, options: ITask
             break;
     }
     return res;
-}
-
-/**
- * return result of versionMax > versionMin
- * @param versionOne
- * @param versionTwo
- * @param split
- */
-export function compareVersion(versionMax: string, versionMin: string, split = '.') {
-    if (typeof versionMax !== 'string' || typeof versionMin !== 'string') {
-        return true;
-    }
-    const padNum = Math.max(versionMax.length, versionMin.length);
-    versionMax = versionMax.replace(split, '').padStart(padNum, '0');
-    versionMin = versionMin.replace(split, '').padStart(padNum, '0');
-    return Number(versionMax) > Number(versionMin) || Number(versionMax) === Number(versionMin);
 }

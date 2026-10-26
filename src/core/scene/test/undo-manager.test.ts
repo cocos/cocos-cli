@@ -291,6 +291,68 @@ describe('SceneUndoManager', () => {
         ]);
     });
 
+    it('matches only the primary scope while restoring every property in the snapshot', async () => {
+        const snapshots = new Map<string, any>([[
+            'box-node',
+            { size: { width: 10, height: 20 }, offset: { x: 0, y: 0 } },
+        ]]);
+        const manager = new SceneUndoManager({
+            snapshotAdapter: {
+                capture: async (uuids: string[]) => new Map(uuids.map(uuid => [uuid, JSON.parse(JSON.stringify(snapshots.get(uuid)))])),
+                apply: async (data: Map<string, any>) => {
+                    for (const [uuid, snapshot] of data) {
+                        snapshots.set(uuid, JSON.parse(JSON.stringify(snapshot)));
+                    }
+                    return { success: true };
+                },
+                equals: (before: Map<string, any>, after: Map<string, any>) => JSON.stringify([...before]) === JSON.stringify([...after]),
+            },
+        });
+        const checkpoint = manager.createCheckpoint();
+        const sizePath = '__comps__.0.size';
+        const offsetPath = '__comps__.0.offset';
+        const recordingId = manager.beginRecording(['box-node'], {
+            label: 'Resize BoxCollider2D',
+            scope: {
+                editorType: 'scene',
+                nodePath: 'Canvas/Box',
+                propPath: sizePath,
+            },
+        });
+        snapshots.set('box-node', {
+            size: { width: 14, height: 20 },
+            offset: { x: 2, y: 0 },
+        });
+
+        expect(await manager.endRecording(recordingId)).toBe(true);
+        expect(manager.getHistoryForTesting()).toHaveLength(1);
+        expect(manager.hasScopedDifference(checkpoint, { propPath: sizePath })).toBe(true);
+        expect(manager.hasScopedDifference(checkpoint, { propPath: offsetPath })).toBe(false);
+        expect(manager.canUndo({ scope: { propPath: sizePath } })).toBe(true);
+        expect(manager.canUndo({ scope: { propPath: offsetPath } })).toBe(false);
+
+        await expect(manager.undo({ scope: { propPath: offsetPath } })).resolves.toMatchObject({ success: false });
+        await expect(manager.undo({ scope: { propPath: sizePath } })).resolves.toMatchObject({ success: true });
+        expect(snapshots.get('box-node')).toEqual({
+            size: { width: 10, height: 20 },
+            offset: { x: 0, y: 0 },
+        });
+        expect(manager.canRedo({ scope: { propPath: offsetPath } })).toBe(false);
+        await expect(manager.redo({ scope: { propPath: sizePath } })).resolves.toMatchObject({ success: true });
+        expect(snapshots.get('box-node')).toEqual({
+            size: { width: 14, height: 20 },
+            offset: { x: 2, y: 0 },
+        });
+
+        await expect(manager.discardScopedChangesAfterCheckpoint(checkpoint, { propPath: sizePath }))
+            .resolves.toMatchObject({ success: true });
+        expect(snapshots.get('box-node')).toEqual({
+            size: { width: 10, height: 20 },
+            offset: { x: 0, y: 0 },
+        });
+        expect(manager.getHistoryForTesting()).toHaveLength(0);
+    });
+
     it('does not push unchanged or cancelled recordings', async () => {
         const snapshots = new Map<string, any>([['node-1', { x: 0 }]]);
         const manager = new SceneUndoManager({

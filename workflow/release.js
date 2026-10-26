@@ -174,6 +174,18 @@ async function scanProjectFiles() {
 }
 
 /**
+ * Build simulator artifacts under packages/engine before file scanning.
+ */
+async function buildSimulatorArtifacts() {
+    if (process.env.SKIP_SIMULATOR_BUILD === '1') {
+        console.log('Skipping simulator build in release because SKIP_SIMULATOR_BUILD=1');
+        return;
+    }
+
+    await runCommand('npm', ['run', 'build:simulator'], { cwd: context.rootDir });
+}
+
+/**
  * Update Repos
  */
 async function updateRepos() {
@@ -229,12 +241,16 @@ async function findNativeBinaries(extensionDir) {
             const toolBinaries = await globby([
                 'astc-encoder/astcenc',
                 'cmft/cmftRelease64',
+                'libwebp_darwin/bin/cwebp',
                 'lightmap-tools/LightFX',
+                'LightFX/uvunwrap',
                 'mali_darwin/astcenc',
                 'mali_darwin/composite',
                 'mali_darwin/convert',
                 'mali_darwin/etcpack',
                 'PVRTexTool_darwin/PVRTexToolCLI',
+                'process-info/mac_arm.node',
+                'process-info/mac_x64.node',
             ], {
                 cwd: staticToolsPath,
                 absolute: true,
@@ -474,6 +490,8 @@ function createReleasePipeline(config) {
     const rebuild = async () => {
         if (config.type === 'electron') {
             await runCommand('npm', ['run', 'rebuild'], { cwd: extensionDir() });
+        } else {
+            await runCommand('npm', ['run', 'rebuild:node-gyp'], { cwd: extensionDir() });
         }
     };
 
@@ -549,14 +567,18 @@ function createReleasePipeline(config) {
 // Define base tasks
 const initTask = gulp.series(
     async () => await getProjectVersion(),
-    async () => await readIgnorePatterns(),
-    async () => await scanProjectFiles()
+    async () => await readIgnorePatterns()
 );
 
 const prepareTask = gulp.series(
     clean,
     updateRepos,
-    installDeps
+    installDeps,
+    buildSimulatorArtifacts
+);
+
+const collectFilesTask = gulp.series(
+    async () => await scanProjectFiles()
 );
 
 // Main release task
@@ -564,6 +586,7 @@ gulp.task('release', gulp.series(
     (cb) => parseArgs(cb),
     initTask,
     prepareTask,
+    collectFilesTask,
     async (cb) => {
         // Dynamically create and execute pipelines based on configs
         const pipelines = context.configs.map(config => createReleasePipeline(config));

@@ -6,6 +6,7 @@ import { BaseEditor } from './base-editor';
 
 import type { IAssetInfo } from '../../../../assets/@types/public';
 import { editorPrefabUtils } from '../prefab/prefab-editor-utils';
+import { deletedLightmapAssets } from '../baking/lightfx/deleted-lightmap-assets';
 
 /**
  * SceneEditor - 场景编辑器
@@ -61,6 +62,19 @@ export class SceneEditor extends BaseEditor {
         return this.saveSerializedDataToAsset(this.entity.identifier.assetUuid);
     }
 
+    /**
+     * 序列化「当前正在编辑」的实时场景（含未保存改动），返回 JSON 字符串。
+     * 复用 save/reload 完全一致的 sceneUtils.serialize 路径，因此其输出可被
+     * cc.assetManager.loadWithJson 加载（等价于 querySceneSerializedData）。
+     * 默认 stringify:true，返回的是 JSON 字符串（非对象）。
+     */
+    serializeCurrent(): string {
+        if (!this.entity) {
+            throw new Error('[serializeCurrent] 没有打开场景');
+        }
+        return sceneUtils.serialize(this.entity.instance as Scene) as string;
+    }
+
     async saveAs(asset: IAssetInfo): Promise<IAssetInfo> {
         return this.saveSerializedDataToAsset(asset.uuid);
     }
@@ -85,6 +99,7 @@ export class SceneEditor extends BaseEditor {
         const prefabUUIDMap = editorPrefabUtils.storePrefabUUID(scene);
         const serializeJSON = sceneUtils.serialize(scene);
         const sceneAfterLoad = await sceneUtils.runSceneImmediateByJson(serializeJSON);
+        deletedLightmapAssets.transfer(scene, sceneAfterLoad);
         editorPrefabUtils.restorePrefabUUID(sceneAfterLoad, prefabUUIDMap);
         this.entity.instance = sceneAfterLoad;
         return this.encode(undefined, this._lastOpenOptions);

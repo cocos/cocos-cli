@@ -74,7 +74,7 @@ export const baseNativeCommonOptions: IDisplayOptions = {
 };
 
 export const commonOptions: IInternalBuildPluginConfig & Pick<IPlatformBuildPluginConfig, 'assetBundleConfig' | 'buildTemplateConfig'> = {
-        doc: 'editor/publish/native-options.html',
+    doc: 'editor/publish/native-options.html',
     hooks: './hooks',
     priority: 2,
     assetBundleConfig: {

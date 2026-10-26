@@ -4,13 +4,16 @@ import { existsSync } from 'fs';
 import { remove } from 'fs-extra';
 import { basename, dirname, extname, join } from 'path';
 
+export type FileOccupancyCheck = (path: string) => boolean;
+
 /**
  * 检查文件在指定文件夹中是否存在，如果存在则通过追加数字后缀的方式生成一个唯一的文件名。
  * @param targetFolder 目标文件夹的路径。
  * @param fileName 需要检查存在的文件名。
+ * @param isOccupied 返回路径是否已被文件系统或调用方占用。
  * @returns 返回一个唯一的文件名字符串。
  */
-export const resolveFileNameConflict = (targetFolder: string, fileName: string): string => {
+export const resolveFileNameConflict = (targetFolder: string, fileName: string, isOccupied: FileOccupancyCheck = existsSync): string => {
     // 如果fileName为空，抛出错误
     if (!fileName) throw new Error(`fileName is empty`);
     // 获取文件扩展名
@@ -19,7 +22,7 @@ export const resolveFileNameConflict = (targetFolder: string, fileName: string):
     let fileBase = basename(fileName, fileExt);
 
     // 循环检查直到找到一个不存在的文件名
-    while (existsSync(join(targetFolder, `${fileBase}${fileExt}`))) {
+    while (isOccupied(join(targetFolder, `${fileBase}${fileExt}`))) {
         if ((/(\d+)$/.test(fileBase))) {
             fileBase = fileBase.replace(/^(.+?)(\d+)?$/, ($: string, $1: string, $2: string | undefined) => {
                 let num;
@@ -51,15 +54,16 @@ export const resolveFileNameConflict = (targetFolder: string, fileName: string):
  * Returns the file path with the available name
  * 
  * @param file 初始文件路径 Initial file path
+ * @param isOccupied 返回路径是否已被文件系统或调用方占用。
  */
-export function getName(file: string): string {
-    if (!existsSync(file)) {
+export function getName(file: string, isOccupied: FileOccupancyCheck = existsSync): string {
+    if (!isOccupied(file)) {
         return file;
     }
 
     const dir = dirname(file);
     const fileName = basename(file);
-    const newFileName = resolveFileNameConflict(dir, fileName);
+    const newFileName = resolveFileNameConflict(dir, fileName, isOccupied);
 
     return join(dir, newFileName);
 }
@@ -71,7 +75,7 @@ export async function trashItem(file: string) {
     await remove(file);
 }
 
-export function requireFile(file: string, options?: { root: string }) {
+export function requireFile(file: string, _options?: { root: string }) {
     // TODO
     return require(file);
 }

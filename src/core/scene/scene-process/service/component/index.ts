@@ -8,6 +8,7 @@ import { Component, MissingScript } from 'cc';
 import { IProperty } from '../../../@types/public';
 import { type IComponentEvents } from '../../../common';
 import { ServiceEvents } from '../core/global-events';
+import { queryRegisteredService } from '../core/decorator';
 
 export class CompManager {
     protected _recycleComponent: Record<string, Component> = {};
@@ -164,23 +165,38 @@ export class CompManager {
             '__eventTargets',
         ];
 
+        const before = dumpUtil.dumpComponent(component);
+        const node = new cc.Node();
         try {
-            const node = new cc.Node();
             const newComp = node.addComponent(component.constructor);
-            const dump = dumpUtil.dumpComponent(newComp);
-
-            for (const key in dump.value) {
-                if (skipCompProps.includes(key)) {
-                    continue;
+            if (before?.type === 'cc.ParticleSystem') {
+                // Headless particles leave optional modules null. Reset initialized
+                // modules to fresh defaults without discarding their live bindings.
+                for (const [key, property] of Object.entries(before.value)) {
+                    if (!key.startsWith('_') && key.endsWith('Module') && property.value && !newComp[key]) {
+                        const Module = cc.js.getClassByName(property.type);
+                        if (Module) { newComp[key] = new Module(); }
+                    }
                 }
-
-                await dumpUtil.restoreProperty(component, key, dump.value[key]);
             }
+            const dump = dumpUtil.dumpComponent(newComp);
+            // Keep Reset's identity/enabled policy while sharing the mode-aware
+            // particle material restoration used by Undo/Redo.
+            const value = Object.fromEntries(Object.entries(dump.value).filter(([key]) => !skipCompProps.includes(key)));
+            await dumpUtil.restoreComponentSnapshotProperties(component, { ...dump, value });
             component?.resetInEditor?.();
             component?.onRestore?.();
         } catch (error) {
             console.error(error);
+            try {
+                await dumpUtil.restoreComponentSnapshotProperties(component, before);
+                component?.onRestore?.();
+            } catch (restoreError) {
+                console.error('Failed to restore component after Reset failed:', restoreError);
+            }
             return false;
+        } finally {
+            node.destroy();
         }
 
         return true;
@@ -213,6 +229,14 @@ export class CompManager {
 
         const pathKeys = (name || '').split('.');
         const methodName = pathKeys.pop() || '';
+        // 3.x terrain UI calls component methods through `gizmo.xxx`. Gizmos are
+        // held by GizmoService's WeakMap in CLI, so they cannot be resolved by lodash/get.
+        if (pathKeys.length === 1 && pathKeys[0] === 'gizmo') {
+            const gizmo = queryRegisteredService<any>('Gizmo')?.getComponentGizmo?.(comp);
+            if (gizmo && methodName && typeof gizmo[methodName] === 'function') {
+                return await gizmo[methodName](...(args || []));
+            }
+        }
         if (pathKeys.length > 0) {
             const methodObjPath = pathKeys.join('.');
             const methodObj = get(comp, methodObjPath);

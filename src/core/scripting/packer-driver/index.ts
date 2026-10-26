@@ -20,6 +20,7 @@ import {
 import { AssetChange, AssetChangeInfo, AssetDatabaseDomain, AssetDbInterop, DBChangeType, ModifiedAssetChange } from './asset-db-interop';
 import { AssetActionEnum } from '@cocos/asset-db';
 import { PackerDriverLogger } from './logger';
+import { attachModuleResolutionDiagnostics } from './module-resolution-diagnostics';
 import { LanguageServiceAdapter } from '../language-service';
 import { AsyncDelegate } from '../utils/delegate';
 import JSON5 from 'json5';
@@ -181,6 +182,8 @@ export class PackerDriver {
                 importRestrictions: PackerDriver._importRestrictions,
                 preserveSymlinks: incrementalRecord.config.preserveSymlinks,
             });
+
+            attachModuleResolutionDiagnostics(modLo, targetId, message => logger.error(message));
 
             modLo.setExtraExportsConditions(incrementalRecord.config.exportsConditions);
             modLo.setExternals(modLoExternals);

@@ -4,7 +4,7 @@ import { ServiceEvents } from './core/global-events';
 import type { ISelectionService, ISelectionEvents, IChangeNodeOptions } from '../../common';
 import { NodeEventType } from '../../common';
 import type { Node } from 'cc';
-import { getEditorNodeByUuid, getEditorNodePath, getEditorNodeUuidByPath } from './gizmo/utils/editor-node';
+import { getEditorNodeByUuid, getEditorNodePath, getEditorNodeUuidByPath } from './utils/editor-node';
 import { normalizeNodePath } from '../../../engine/editor-extends/manager/path-utils';
 
 function pathToUuid(path: string): string {

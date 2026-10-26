@@ -122,7 +122,7 @@ describe('SelectionService prefab path resolution', () => {
         mockService.Editor.getRootNode.mockReturnValue(root);
 
         const { SelectionService } = require('../scene-process/service/selection');
-        const { getEditorNodeByPath } = require('../scene-process/service/gizmo/utils/editor-node');
+        const { getEditorNodeByPath } = require('../scene-process/service/utils/editor-node');
         const selection = new SelectionService();
         jest.spyOn(selection, 'broadcast').mockImplementation(() => undefined);
 
@@ -153,7 +153,7 @@ describe('SelectionService prefab path resolution', () => {
         mockService.Editor.getCurrentEditorType.mockReturnValue('prefab');
         mockService.Editor.getRootNode.mockReturnValue(root);
 
-        const { getEditorNodeUuidByPath } = require('../scene-process/service/gizmo/utils/editor-node');
+        const { getEditorNodeUuidByPath } = require('../scene-process/service/utils/editor-node');
 
         expect(getEditorNodeUuidByPath('Player/Child')).toBe('');
         expect(getEditorNodeUuidByPath('Player_001/Child')).toBe('child-uuid');

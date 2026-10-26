@@ -8,6 +8,15 @@
  * and registering MCP routes on the running server.
  */
 
+export type {
+	McpToolCallContext,
+	McpToolCallLifecycleState,
+} from '../../mcp/tool-call-context';
+export {
+	getCurrentToolCallContext,
+	registerToolCallFinalizer,
+} from '../../mcp/tool-call-context';
+
 let mcpUrl: string | undefined;
 let registeringPromise: Promise<string> | undefined;
 
@@ -48,6 +57,8 @@ async function doRegisterMcp(): Promise<string> {
 
 	const serverUrl = getUrl();
 	mcpUrl = `${serverUrl}/mcp`;
+	const { publishMcpEndpoint } = await import('../../core/project-backend/runtime');
+	await publishMcpEndpoint(mcpUrl);
 
 	console.log(`[MCP] Middleware registered at: ${mcpUrl}`);
 	return mcpUrl;

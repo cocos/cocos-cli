@@ -4,6 +4,8 @@ import nodeMgr from '../../node/index';
 import { editorPrefabUtils } from '../../prefab/prefab-editor-utils';
 import { nodeOperation } from '../../prefab/node';
 import { sceneUtils } from '../../scene/utils';
+import { deletedLightmapAssets } from '../../baking/lightfx/deleted-lightmap-assets';
+import { refreshPrefabInstances } from './refresh-prefab-instances';
 import {
     createUndoId,
     success,
@@ -75,7 +77,7 @@ export function captureNodeStructureSnapshot(
         return null;
     }
 
-    return {
+    return deletedLightmapAssets.capture(node.scene, {
         uuid: node.uuid,
         path: getNodePath(node) || fallbackPath,
         parentUuid: parent?.uuid ?? null,
@@ -84,7 +86,7 @@ export function captureNodeStructureSnapshot(
         serializedJson,
         prefabAssetUuid: getPrefabAssetUuid(node),
         uuidTree: captureUuidTree(node),
-    };
+    });
 }
 
 function serializeNodeStructure(node: Node, serialization: NodeStructureSerialization): string {
@@ -112,12 +114,16 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
         return failure(meta, `Parent node not found: ${snapshot.parentPath || snapshot.parentUuid || '/'}`);
     }
 
-    const restoredNode = await deserializeNode(snapshot);
+    const restoredNode = await deserializeNode(snapshot, parent.scene);
     if (!restoredNode) {
         return failure(meta, `Failed to deserialize node: ${snapshot.path || snapshot.uuid}`);
     }
 
     try {
+        // Restore the captured IDs while the old tree still has its original
+        // order. Prefab expansion then carries them forward by fileId.
+        restoreSubtreeUuids(restoredNode, snapshot.uuidTree);
+        refreshPrefabInstances(restoredNode);
         nodeMgr.emit('node:before-add', restoredNode);
         nodeMgr.emit('node:before-change', parent);
 
@@ -125,7 +131,6 @@ export async function restoreNodeStructureSnapshot(snapshot: INodeStructureSnaps
         if (snapshot.siblingIndex >= 0) {
             restoredNode.setSiblingIndex(snapshot.siblingIndex);
         }
-        restoreSubtreeUuids(restoredNode, snapshot.uuidTree);
 
         // Relink after addChild — setParent triggers engine-side prefab
         // processing that can clear _prefab.asset set before the add.
@@ -205,9 +210,9 @@ export function removeNodeStructureSnapshot(
 
 function findNode(snapshot: INodeStructureSnapshot): Node | null {
     const editorNode = getEditorNodeManager();
-    const byUuid = editorNode?.getNode?.(snapshot.uuid) as Node | null;
-    if (isNodeInCurrentScene(byUuid)) {
-        return byUuid;
+    const nodeByUuid = editorNode?.getNode?.(snapshot.uuid) as Node | null;
+    if (isNodeInCurrentScene(nodeByUuid)) {
+        return nodeByUuid;
     }
 
     if (!snapshot.path) {
@@ -215,8 +220,13 @@ function findNode(snapshot: INodeStructureSnapshot): Node | null {
     }
 
     try {
-        const byPath = editorNode?.getNodeByPath?.(snapshot.path) as Node | null;
-        return isNodeInCurrentScene(byPath) ? byPath : null;
+        const nodeByPath = editorNode?.getNodeByPath?.(snapshot.path) as Node | null;
+        // 例如快照记录 { uuid: 'B', path: '/Cube' }，按 UUID 未找到当前场景中的有效节点 B
+        // 旧路径 '/Cube' 却可能指向另一个节点 A；直接返回会导致漏恢复 B 或误删 A
+        // path 已用于查找候选节点，这里用 UUID 确认身份，无需再比较 path
+        return isNodeInCurrentScene(nodeByPath) && nodeByPath.uuid === snapshot.uuid
+            ? nodeByPath
+            : null;
     } catch (_error) {
         return null;
     }
@@ -255,7 +265,12 @@ function restoreSubtreeUuids(node: Node, snapshot: INodeUuidSnapshot): void {
     // 修复当前节点 uuid
     if (snapshot.uuid && node.uuid !== snapshot.uuid &&
         !isNodeInCurrentScene(editorNode.getNode?.(snapshot.uuid) as Node | null)) {
-        editorNode.changeNodeUUID?.(node.uuid, snapshot.uuid);
+        if (editorNode.getNode?.(node.uuid) === node) {
+            editorNode.changeNodeUUID(node.uuid, snapshot.uuid);
+        } else {
+            // Detached objects are not available through the manager yet.
+            node['_id'] = snapshot.uuid;
+        }
     }
 
     // 修复组件 uuid（按顺序对应）
@@ -265,7 +280,11 @@ function restoreSubtreeUuids(node: Node, snapshot: INodeUuidSnapshot): void {
         const comp = components[i];
         if (targetUuid && comp?.uuid && comp.uuid !== targetUuid &&
             !editorComponent?.getComponent?.(targetUuid)) {
-            editorComponent?.changeUUID?.(comp.uuid, targetUuid);
+            if (editorComponent?.getComponent?.(comp.uuid) === comp) {
+                editorComponent.changeUUID(comp.uuid, targetUuid);
+            } else {
+                comp['_id'] = targetUuid;
+            }
         }
     }
 
@@ -295,7 +314,7 @@ function unregisterNodeTree(node: Node): void {
     }
 }
 
-function deserializeNode(snapshot: INodeStructureSnapshot): Promise<Node | null> {
+function deserializeNode(snapshot: INodeStructureSnapshot, scene: Node | null): Promise<Node | null> {
     return new Promise((resolve) => {
         try {
             const loadWithJson = (cc as any).assetManager?.loadWithJson;
@@ -304,7 +323,7 @@ function deserializeNode(snapshot: INodeStructureSnapshot): Promise<Node | null>
                 return;
             }
 
-            const json = JSON.parse(snapshot.serializedJson);
+            const json = deletedLightmapAssets.filter(scene, JSON.parse(snapshot.serializedJson), 'serialized', snapshot);
             loadWithJson.call((cc as any).assetManager, json, null, (error: Error | null, asset: any) => {
                 if (error) {
                     resolve(null);

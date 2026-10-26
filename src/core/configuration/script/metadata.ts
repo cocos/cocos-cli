@@ -252,6 +252,20 @@ function getDefaultFromSchema(schema: ICocosConfigurationPropertySchema): unknow
     return undefined;
 }
 
+// 按顶层 childKey 递归剔除命中 hiddenKeys 的条目,使 default 与 properties 的过滤结果保持一致。
+// hiddenKeys 为空或 value 非 plain object 时原样返回(不克隆),避免无谓的引用变更。
+function omitHiddenKeysDeep<T>(value: T, hiddenKeys?: string[]): T {
+    if (!hiddenKeys?.length || !isPlainObject(value)) {
+        return value;
+    }
+    const result: Record<string, unknown> = {};
+    for (const [childKey, childValue] of Object.entries(value)) {
+        if (hiddenKeys.includes(childKey)) continue;
+        result[childKey] = omitHiddenKeysDeep(childValue, hiddenKeys);
+    }
+    return result as T;
+}
+
 export function objectSchema(
     properties?: Record<string, ICocosConfigurationPropertySchema>,
     overrides: Partial<ICocosConfigurationPropertySchema> = {}
@@ -293,22 +307,28 @@ export function arraySchema(
     return schema;
 }
 
-export function inferSchemaFromValue(value: unknown, key: string): ICocosConfigurationPropertySchema {
+export function inferSchemaFromValue(
+    value: unknown,
+    key: string,
+    hiddenKeys?: string[]
+): ICocosConfigurationPropertySchema {
     const title = createTitleFromKey(key);
 
     if (Array.isArray(value)) {
         const firstItem = value.find((item) => item !== undefined);
         return arraySchema(
-            firstItem === undefined ? undefined : inferSchemaFromValue(firstItem, `${key}.item`),
+            firstItem === undefined ? undefined : inferSchemaFromValue(firstItem, `${key}.item`, hiddenKeys),
             { title, default: value }
         );
     }
 
     if (isPlainObject(value)) {
         const properties = Object.fromEntries(
-            Object.entries(value).map(([childKey, childValue]) => [childKey, inferSchemaFromValue(childValue, childKey)])
+            Object.entries(value)
+                .filter(([childKey]) => !(hiddenKeys?.length && hiddenKeys.includes(childKey)))
+                .map(([childKey, childValue]) => [childKey, inferSchemaFromValue(childValue, childKey, hiddenKeys)])
         );
-        return objectSchema(properties, { title, default: value });
+        return objectSchema(properties, { title, default: omitHiddenKeysDeep(value, hiddenKeys) });
     }
 
     if (typeof value === 'number') {
@@ -324,7 +344,28 @@ export function inferSchemaFromValue(value: unknown, key: string): ICocosConfigu
 
 export function convertConfigItem(
     item: IConfigurationItem,
-    key: string
+    key: string,
+    hiddenKeys?: string[]
+): ICocosConfigurationPropertySchema | undefined {
+    // Drop (delete) any option whose key is listed for the current platform.
+    // Returning undefined lets the caller skip this key entirely; the check
+    // applies at every depth because the recursive calls below thread
+    // `hiddenKeys` through `convertConfigItem` itself.
+    if (hiddenKeys?.length && hiddenKeys.includes(key)) {
+        return undefined;
+    }
+    // `hidden: true` 在源头删除整个节点(配置系统 schema 不保留 hidden 字段),
+    // 其作用与 hiddenKeys 相同:返回 undefined 让所有调用方整体跳过该 key。
+    if (item.hidden) {
+        return undefined;
+    }
+    return convertConfigItemSchema(item, key, hiddenKeys);
+}
+
+function convertConfigItemSchema(
+    item: IConfigurationItem,
+    key: string,
+    hiddenKeys?: string[]
 ): ICocosConfigurationPropertySchema {
     const title = normalizeDisplayText(item.label, createTitleFromKey(key));
     const description = translateMetadataText(item.description);
@@ -375,13 +416,16 @@ export function convertConfigItem(
     }
 
     case 'array': {
-        const inferredItem = Array.isArray(item.items)
-            ? item.items.filter(hasConfigItemShape).map((subItem, index) => convertConfigItem(subItem, `${key}[${index}]`))
-            : hasConfigItemShape(item.items)
-                ? convertConfigItem(item.items, `${key}.item`)
-                : Array.isArray(item.default) && item.default.length
-                    ? inferSchemaFromValue(item.default[0], `${key}.item`)
-                    : undefined;
+        const inferredItem: ICocosConfigurationPropertySchema | ICocosConfigurationPropertySchema[] | undefined =
+            Array.isArray(item.items)
+                ? item.items.filter(hasConfigItemShape)
+                    .map((subItem, index) => convertConfigItem(subItem, `${key}[${index}]`, hiddenKeys))
+                    .filter((subSchema): subSchema is ICocosConfigurationPropertySchema => !!subSchema)
+                : hasConfigItemShape(item.items)
+                    ? convertConfigItem(item.items, `${key}.item`, hiddenKeys)
+                    : Array.isArray(item.default) && item.default.length
+                        ? inferSchemaFromValue(item.default[0], `${key}.item`, hiddenKeys)
+                        : undefined;
 
         return arraySchema(inferredItem, {
             default: Array.isArray(item.default) ? item.default : [],
@@ -395,15 +439,20 @@ export function convertConfigItem(
         const declaredProperties: Record<string, ICocosConfigurationPropertySchema> = {};
 
         for (const [childKey, childItem] of Object.entries(item.properties ?? {})) {
+            if (hiddenKeys?.length && hiddenKeys.includes(childKey)) continue;
             if (hasConfigItemShape(childItem)) {
-                declaredProperties[childKey] = convertConfigItem(childItem, childKey);
+                const childSchema = convertConfigItem(childItem, childKey, hiddenKeys);
+                if (childSchema) {
+                    declaredProperties[childKey] = childSchema;
+                }
             }
         }
 
         if (isPlainObject(item.default)) {
             for (const [childKey, childValue] of Object.entries(item.default)) {
+                if (hiddenKeys?.length && hiddenKeys.includes(childKey)) continue;
                 if (!declaredProperties[childKey]) {
-                    declaredProperties[childKey] = inferSchemaFromValue(childValue, childKey);
+                    declaredProperties[childKey] = inferSchemaFromValue(childValue, childKey, hiddenKeys);
                 }
             }
         }
@@ -411,7 +460,7 @@ export function convertConfigItem(
         return objectSchema(
             Object.keys(declaredProperties).length ? declaredProperties : undefined,
             {
-                default: item.default,
+                default: omitHiddenKeysDeep(item.default, hiddenKeys),
                 title,
                 description,
                 hidden: item.hidden,

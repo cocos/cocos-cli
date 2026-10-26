@@ -68,6 +68,7 @@ jest.mock('../scene-process/service/undo/commands/command-utils-shared', () => (
 
 import { editorExtrasTag } from 'cc';
 import { captureNodeStructureSnapshot } from '../scene-process/service/undo/commands/node-structure-command-utils';
+import { deletedLightmapAssets } from '../scene-process/service/baking/lightfx/deleted-lightmap-assets';
 
 describe('captureNodeStructureSnapshot serialization', () => {
     let mockEditorSerialize: jest.Mock;
@@ -236,6 +237,104 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
         delete (global as any).cc;
     });
 
+    it('restores a deleted node when another UUID has reused its saved path', async () => {
+        const parent = Object.assign(new MockNode('parent', 'Parent'), {
+            addChild(this: MockNode, child: MockNode) {
+                child.parent = this;
+                this.children.push(child);
+            },
+        });
+        const existing = new MockNode('other-node', 'Cube');
+        parent.addChild(existing);
+        const restored = new MockNode('deleted-node', 'Cube');
+        mockLoadWithJson.mockImplementation((_json, _options, callback) => callback(null, restored));
+
+        const shared = require('../scene-process/service/undo/commands/command-utils-shared');
+        shared.getEditorNodeManager.mockReturnValue({
+            getNode: (uuid: string) => uuid === parent.uuid ? parent : null,
+            getNodeByPath: () => existing,
+        });
+        shared.isNodeInCurrentScene.mockImplementation((node: MockNode) =>
+            node === parent || parent.children.includes(node),
+        );
+        const nodeMgr = require('../scene-process/service/node/index').default;
+        nodeMgr.emit = jest.fn();
+        const { restoreNodeStructureSnapshot } = require(
+            '../scene-process/service/undo/commands/node-structure-command-utils'
+        );
+        const result = await restoreNodeStructureSnapshot({
+            uuid: restored.uuid,
+            path: 'Cube',
+            parentUuid: parent.uuid,
+            parentPath: '/',
+            siblingIndex: 0,
+            serializedJson: '{}',
+            uuidTree: { uuid: restored.uuid, componentUuids: [], children: [] },
+        }, { id: 'remove-node', label: 'Remove Node', type: 'node:remove', scope: {}, timestamp: 1 });
+
+        expect(result.success).toBe(true);
+        expect(parent.children.map(node => node.uuid)).toEqual([existing.uuid, restored.uuid]);
+        expect(mockLoadWithJson).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([false, true])('keeps UUID and path indexes consistent when restored objects are already registered: %s', async registered => {
+        const { default: NodeManager } = await import('../../engine/editor-extends/manager/node');
+        const { default: ComponentManager } = await import('../../engine/editor-extends/manager/component');
+        const nodes = new NodeManager();
+        const components = new ComponentManager();
+        nodes.allow = components.allow = true;
+        mockCcRuntime.js = { getClassName: () => 'TestComponent' };
+        const parent = new MockNode('parent', 'Parent') as any;
+        const restored = new MockNode('temporary-node', 'Child') as any;
+        restored._id = restored.uuid;
+        Object.defineProperty(restored, 'uuid', { get: () => restored._id });
+        const component = { _id: 'temporary-component', get uuid() { return this._id; }, node: restored };
+        restored.components = [component];
+        restored.parent = parent;
+        nodes.add(parent.uuid, parent);
+        parent.addChild = (child: any) => {
+            parent.children.push(child);
+            child.parent = parent;
+            if (!registered) {
+                nodes.add(child.uuid, child);
+                components.add(component.uuid, component);
+            }
+        };
+        mockLoadWithJson.mockImplementation((_json: any, _opts: any, cb: any) => {
+            if (registered) {
+                nodes.add(restored.uuid, restored);
+                components.add(component.uuid, component);
+            }
+            cb(null, restored);
+        });
+        const shared = require('../scene-process/service/undo/commands/command-utils-shared');
+        shared.getEditorNodeManager.mockReturnValue(nodes);
+        shared.getEditorExtends.mockReturnValue({ Component: components });
+        shared.isNodeInCurrentScene.mockImplementation((node: any) => node === parent);
+        require('../scene-process/service/node/index').default.emit = jest.fn();
+        const { restoreNodeStructureSnapshot } = require('../scene-process/service/undo/commands/node-structure-command-utils');
+        try {
+            const result = await restoreNodeStructureSnapshot({
+                uuid: 'saved-node', path: 'Parent/Child', parentUuid: parent.uuid, siblingIndex: 0,
+                serializedJson: '{}',
+                uuidTree: { uuid: 'saved-node', componentUuids: ['saved-component'], children: [] },
+            }, { id: 'test', label: 'test' });
+            expect(result.success).toBe(true);
+            expect(nodes.getNode('saved-node')).toBe(restored);
+            expect(nodes.getNode('temporary-node')).toBeFalsy();
+            expect(nodes.getNodeByPath('Child')).toBe(restored);
+            expect(components.getComponent('saved-component')).toBe(component);
+            expect(components.getComponent('temporary-component')).toBeFalsy();
+            expect(components.getPathFromUuid('saved-component')).toBe('Child/TestComponent');
+            expect(components.getPathFromUuid('temporary-component')).toBe('');
+        } finally {
+            nodes.clear();
+            components.clear();
+            shared.getEditorExtends.mockReturnValue(null);
+            delete mockCcRuntime.js;
+        }
+    });
+
     it('registers prefab instance root in assetToNodesMap after relinkPrefabAsset', async () => {
         const parentNode = new MockNode('parent', 'Parent') as any;
         parentNode.addChild = jest.fn((child: any) => {
@@ -277,8 +376,10 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
         expect(registered[0]._prefab.asset._uuid).toBe('prefab-asset-uuid');
     });
 
-    it('does not register in assetToNodesMap when prefabAssetUuid is absent', async () => {
+    it('filters deleted texture references before loading a historical node without a prefab asset', async () => {
         const parentNode = new MockNode('parent', 'Parent') as any;
+        parentNode.scene = {};
+        deletedLightmapAssets.begin(parentNode.scene, ['deleted'])(['deleted']);
         parentNode.addChild = jest.fn((child: any) => {
             child.parent = parentNode;
             parentNode.children.push(child);
@@ -310,7 +411,7 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
             parentUuid: 'parent',
             parentPath: '/Parent',
             siblingIndex: 0,
-            serializedJson: JSON.stringify({ __type__: 'cc.Node' }),
+            serializedJson: JSON.stringify({ __type__: 'cc.Node', customTexture: { __uuid__: 'deleted@6c48a' }, position: { x: 10 } }),
             uuidTree: { uuid: 'child-node', componentUuids: [], children: [] },
         };
         const meta = { id: 'test:id', label: 'test', type: 'test', scope: {}, timestamp: 1 };
@@ -318,6 +419,7 @@ describe('restoreNodeStructureSnapshot asset map registration', () => {
         await restoreNodeStructureSnapshot(snapshot, meta);
 
         expect(mockAssetToNodesMap.size).toBe(0);
+        expect(mockLoadWithJson.mock.calls[0][0]).toEqual({ __type__: 'cc.Node', customTexture: null, position: { x: 10 } });
     });
 
     it('still restores node successfully when prefab asset loading fails', async () => {

@@ -6,6 +6,8 @@ import type { ProgrammingFacet } from '../../core/scripting/programming/Facet';
 export type * from '../../core/scripting/interface';
 
 export async function init(projectPath: string): Promise<void> {
+    const { ensureProjectOwnership } = await import('../../core/project-backend/ownership');
+    await ensureProjectOwnership(projectPath);
     const { Engine } = await import('../../core/engine');
     return await scripting.initialize(
         projectPath,
@@ -72,4 +74,3 @@ export function onPackBuildEnd(listener: (e: { targetName: string }) => void): (
     scripting.on('pack-build-end', wrapped);
     return () => { scripting.off('pack-build-end', wrapped); };
 }
-

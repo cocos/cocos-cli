@@ -24,5 +24,12 @@
     "start": "Start",
     "stop": "Stop",
     "pause": "Pause",
-    "resume": "Resume"
+    "resume": "Resume",
+    "preview": {
+        "device": {
+            "design_resolution": "Design Resolution",
+            "full_screen": "Full Screen",
+            "webpage_full_screen": "Webpage Full Screen"
+        }
+    }
 }

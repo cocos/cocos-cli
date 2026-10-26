@@ -1,6 +1,6 @@
 import { getServiceAll, IServiceEvents, ServiceEvents } from './core';
 import { InternalServiceEvents } from './core/internal-events';
-import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents } from '../../common';
+import { IEditorEvents, INodeEvents, IComponentEvents, IScriptEvents, IAssetEvents, ISelectionEvents, NodeEventType } from '../../common';
 import { messageManager } from './message';
 
 type AllEvents = IEditorEvents & INodeEvents & IComponentEvents & IScriptEvents & IAssetEvents & ISelectionEvents;
@@ -14,6 +14,8 @@ type EventMap = {
 
 // 仅需 messageManager 转发、无服务方法扇出的事件
 const MESSAGE_ONLY_EVENTS = [
+    'scene:light-probe-edit-mode-changed',
+    'scene:light-probe-bounding-box-edit-mode-changed',
     'dirty:changed',
     'animation:state-changed',
     'animation:time-changed',
@@ -23,12 +25,19 @@ const MESSAGE_ONLY_EVENTS = [
     'gizmo:pivot-changed',
     'gizmo:view-mode-changed',
     'gizmo:tool-changed',
+    'gizmo:particle-bounds-visibility-changed',
     'scene:dimension-changed',
     'camera:mode-change',
     'camera:projection-changed',
     'camera:fov-changed',
     'scene-view:visibility-changed',
     'scene-view:light-changed',
+    'terrain:changed',
+    'terrain:sculpt',
+    'terrain:block-update',
+    'terrain:session-changed',
+    'scene:light-probe-edit-mode-changed',
+    'scene:light-probe-bounding-box-edit-mode-changed',
 ] as const;
 
 // 定义事件分组映射
@@ -106,7 +115,7 @@ export class ServiceManager {
     /**
      * 遍历所有已注册的 Service，依次调用 init()（跳过 Engine，它需要单独初始化）
      */
-    async initAllServices() {
+    async initAllServices(options: { strict?: boolean } = {}) {
         for (const service of getServiceAll()) {
             const name = service.constructor.name;
             if (name === 'EngineService') continue;
@@ -114,10 +123,18 @@ export class ServiceManager {
                 try {
                     await service.init();
                 } catch (e) {
+                    if (options.strict) throw new Error(`Scene service initialization failed: ${name}`, { cause: e });
                     console.warn(`[ServiceManager] init failed on ${name}:`, e);
                 }
             }
         }
+    }
+
+    /** Detach this runtime's event forwarding before its Webview is destroyed. */
+    dispose() {
+        this.unregisterAutoForwardEvents();
+        this.initialized = false;
+        this.serverUrl = '';
     }
 
     private registerAutoForwardEvents() {
@@ -137,7 +154,17 @@ export class ServiceManager {
     private registerAutoForwardEvent(eventType: string, methodName: ServiceMethodName, broadcastToMessage = true) {
         const isNodeChange = eventType === 'node:change';
         const handler = (...args: any[]) => {
+            // Preview (game view) parity with Creator's PreviewSceneFacade.onNodeChanged: changes that
+            // are NOT SET_PROPERTY (per-frame transform / size / anchor / child / parent …) are
+            // dispatched **only to the gizmo**. Fanning them out to asset / engine / prefab /
+            // mini-preview every frame serializes editor work onto the game thread and drops FPS.
+            const gameView = (globalThis as unknown as { cc?: { GAME_VIEW?: boolean } }).cc?.GAME_VIEW === true;
+            const opts = args[1] as { type?: string } | undefined;
+            const gizmoOnly = isNodeChange && gameView && opts?.type !== NodeEventType.SET_PROPERTY;
             for (const service of getServiceAll() as AutoForwardService[]) {
+                if (gizmoOnly && service.constructor.name !== 'GizmoService') {
+                    continue;
+                }
                 const serviceHandler = service[methodName];
                 if (typeof serviceHandler === 'function') {
                     try {

@@ -40,9 +40,9 @@ export type ISupportCreateCCType =
     | 'cc.PhysicsMaterial'      // 物理材质
     | 'cc.LabelAtlas'           // 标签图集
     | 'cc.RenderTexture'        // 渲染纹理
-    | 'cc.AnimationGraph'       // 动画图
+    | 'cc.animation.AnimationGraph'       // 动画图
     | 'cc.AnimationMask'        // 动画遮罩
-    | 'cc.AnimationGraphVariant'; // 动画图变体
+    | 'cc.animation.AnimationGraphVariant'; // 动画图变体
 
 
 export type IAssetType =
@@ -75,8 +75,10 @@ export type IAssetType =
 export type ISupportCreateType = typeof SUPPORT_CREATE_TYPES[number];
 
 
-/** 资源处理器类型（从常量数组派生） */
-export type AssetHandlerType = typeof ASSET_HANDLER_TYPES[number] | 'database';
+/** Asset handler types include built-in values and extension-registered importer names. */
+export type AssetHandlerType =
+    | typeof ASSET_HANDLER_TYPES[number]
+    | (string & {});
 
 export interface AssetUserDataMap {
     'animation-clip': AnimationClipAssetUserData;

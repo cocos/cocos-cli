@@ -36,6 +36,8 @@ export interface IEditorTarget {
 export interface IPublicEditorService extends Omit<IEditorService,
     'getRootNode' |
     'getCurrentEditorType' |
+    'adoptRuntimeScene' |
+    'releaseRuntimeScene' |
     'lock' |
     'unlock' |
     keyof IServiceEvents
@@ -89,10 +91,26 @@ export interface IEditorService extends IServiceEvents {
     queryCurrent(): Promise<TEditorEntity | null>;
 
     /**
+     * 序列化当前正在编辑的场景（含未保存改动），返回可被 loadWithJson 加载的 JSON 字符串。
+     * 用于「Preview in Editor」把编辑器实时场景交给游戏运行时预览。
+     */
+    querySceneSerializedData(): Promise<string>;
+
+    /**
      *
      */
     getRootNode(): TEditorInstance | null;
 
+    /**
+     * 「Preview in Editor」游戏视图：把一个正在运行的运行时场景登记为当前编辑实体
+     * （不走 open() 的资产查询/事件发射），使 NodeService.queryNodeTree、选择、组件等
+     * 依赖 getRootNode()/isOpen 的服务层状态对运行场景生效。由 PreviewPlay 在
+     * 'editor:open' 扇出之前调用。
+     */
+    adoptRuntimeScene(scene: Scene, identity?: { url?: string }): void;
+
+    /** 释放 adoptRuntimeScene 登记的运行时场景实体（PreviewPlay.stop 时调用；幂等）。 */
+    releaseRuntimeScene(): void;
 
     lock(): Promise<void>;
 

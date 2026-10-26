@@ -1,8 +1,16 @@
 import {
     IAddComponentOptions,
+    IRegeneratePolygon2DPointsOptions,
+    IRegeneratePolygon2DPointsResult,
     IRemoveComponentOptions,
     IQueryComponentOptions,
     IPublicComponentService,
+    IRecalculateLODGroupBoundsOptions,
+    ILODGroupBoundsResult,
+    IInsertLODOptions,
+    IEraseLODOptions,
+    IQueryLODGroupRelativeHeightOptions,
+    ILODGroupLevelsResult,
 } from '../../common';
 import { IComponentInfo } from '../../common/cli/component';
 import { ISetPropertyOptionsInfo } from '../../common/cli/component';
@@ -105,7 +113,29 @@ export const ComponentProxy: IComponentProxy = {
         return true;
     },
 
+    regeneratePolygon2DPoints(
+        options: IRegeneratePolygon2DPointsOptions,
+    ): Promise<IRegeneratePolygon2DPointsResult> {
+        return Rpc.getInstance().request('Component', 'regeneratePolygon2DPoints', [options]);
+    },
+
     queryAll(): Promise<string[]> {
         return Rpc.getInstance().request('Component', 'queryAll');
+    },
+
+    recalculateLODGroupBounds(options: IRecalculateLODGroupBoundsOptions): Promise<ILODGroupBoundsResult> {
+        return Rpc.getInstance().request('Component', 'recalculateLODGroupBounds', [options]);
+    },
+
+    insertLOD(options: IInsertLODOptions): Promise<ILODGroupLevelsResult> {
+        return Rpc.getInstance().request('Component', 'insertLOD', [options]);
+    },
+
+    eraseLOD(options: IEraseLODOptions): Promise<ILODGroupLevelsResult> {
+        return Rpc.getInstance().request('Component', 'eraseLOD', [options]);
+    },
+
+    queryLODGroupRelativeHeight(options: IQueryLODGroupRelativeHeightOptions): Promise<number> {
+        return Rpc.getInstance().request('Component', 'queryLODGroupRelativeHeight', [options]);
     },
 };

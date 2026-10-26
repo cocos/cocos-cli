@@ -1,6 +1,7 @@
 import { Asset, VirtualAsset } from '@cocos/asset-db';
 import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
+import { resolveSimulatedGlobals } from './utils/plugin-script-globals';
 import { openCode } from '../utils';
 import { AssetHandlerBase } from '../../@types/protected';
 import { JavaScriptAssetUserData, PluginScriptUserData } from '../../@types/userDatas';
@@ -102,7 +103,7 @@ async function _importPluginScript(asset: Asset) {
         return true;
     }
 
-    const simulateGlobalNames: string[] = simulateGlobals === undefined ? ['self', 'window', 'global', 'globalThis'] : simulateGlobals;
+    const simulateGlobalNames = resolveSimulatedGlobals(simulateGlobals);
 
     const transformed = await transformPluginScript(code, {
         simulateGlobals: simulateGlobalNames,

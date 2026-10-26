@@ -104,6 +104,43 @@ const { normalizeAnimationOperation } = require('../scene-process/service/animat
 const { saveAnimationServiceClip: saveAnimationServiceClipMock } = require('../scene-process/service/animation/service-save');
 
 describe('AnimationService enter', () => {
+    it.each(['clean', 'dirty', 'editing-during-load'])('refreshes imported clip settings safely: %s', async (mode) => {
+        const dirty = mode === 'dirty';
+        const { Animation, AnimationClip, assetManager } = require('cc');
+        const service = new AnimationService() as any;
+        const oldClip = Object.assign(new AnimationClip(), { _uuid: 'clip-uuid', name: 'Imported', speed: 1, wrapMode: 2 });
+        const importedClip = Object.assign(new AnimationClip(), { _uuid: 'clip-uuid', name: 'Imported', speed: 2.5, wrapMode: 22 });
+        const animComp = new Animation();
+        animComp.clips = [oldClip];
+        animComp.defaultClip = oldClip;
+        const rootNode = { uuid: 'root-uuid', getComponent: (ctor: unknown) => ctor === Animation ? animComp : null };
+        service._session = { clipUuid: 'clip-uuid', rootUuid: rootNode.uuid, undoBaseline: { commandId: null, generation: 0 } };
+        service._getSessionRootNode = jest.fn(() => rootNode);
+        service._isAnimationSessionDirty = jest.fn(() => dirty);
+        service._animationStates.get = jest.fn(() => ({ clip: oldClip }));
+        service._animationStates.reset = jest.fn();
+        service._getAnimationState = jest.fn(async () => ({ clip: importedClip }));
+        service.setTime = jest.fn(async () => true);
+        service._broadcastClipChanged = jest.fn();
+        assetManager.assets.get.mockReturnValue(importedClip);
+
+        expect(service.preserveCurrentClipAssetForChange('clip-uuid')).toBe(dirty);
+        const refresh = service._refreshCurrentClipAsset('clip-uuid');
+        if (mode === 'editing-during-load') {
+            service._isAnimationSessionDirty.mockReturnValue(true);
+        }
+        await refresh;
+        const preserved = mode !== 'clean';
+        expect(animComp.defaultClip.speed).toBe(preserved ? 1 : 2.5);
+        expect(animComp.defaultClip.wrapMode).toBe(preserved ? 2 : 22);
+        if (preserved) {
+            expect(service._animationStates.reset).not.toHaveBeenCalled();
+        } else {
+            expect(service._animationStates.reset).toHaveBeenCalledWith('clip-uuid');
+            expect(service._broadcastClipChanged).toHaveBeenCalledWith('asset-refresh');
+        }
+    });
+
     it('queryState exposes sceneDirty independently from animation dirty', async () => {
         const service = new AnimationService() as any;
         service._session = {
@@ -644,9 +681,10 @@ describe('AnimationService enter', () => {
         expect(assetManager.loadAny).not.toHaveBeenCalled();
     });
 
-    it('keeps the active animation state authoritative during current clip asset refresh', async () => {
+    it('keeps dirty animation state authoritative during current clip asset refresh', async () => {
         const { Animation, AnimationClip, assetManager } = require('cc');
         const service = new AnimationService() as any;
+        service._isAnimationSessionDirty = jest.fn(() => true);
         const currentClip = new AnimationClip();
         currentClip._uuid = 'clip-uuid';
         currentClip.name = 'Current';
@@ -914,10 +952,11 @@ describe('AnimationService enter', () => {
         service.setTime = jest.fn(async () => true);
         service._broadcastClipChanged = jest.fn();
 
-        await service._refreshCurrentClipAsset('clip-uuid');
+        const refresh = service._refreshCurrentClipAsset('clip-uuid');
         await expect(service.save()).resolves.toBe(true);
-
-        expect(assetManager.loadAny).not.toHaveBeenCalled();
+        expect(assetManager.loadAny).toHaveBeenCalledTimes(1);
+        assetManager.loadAny.mock.calls[0][1](null, reloadedClip);
+        await refresh;
         expect(service._animationStates.reset).not.toHaveBeenCalled();
         expect(service._animationStates.create).not.toHaveBeenCalled();
         expect(service._broadcastClipChanged).not.toHaveBeenCalledWith('asset-refresh');

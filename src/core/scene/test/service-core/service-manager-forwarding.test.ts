@@ -42,11 +42,13 @@ const SERVICE_MAP_EVENTS = [
 
 const MESSAGE_ONLY_EVENTS = [
     'dirty:changed',
+    'gizmo:particle-bounds-visibility-changed',
     'animation:state-changed', 'animation:time-changed', 'animation:clip-changed', 'animation:property-committed',
     'gizmo:coordinate-changed', 'gizmo:pivot-changed', 'gizmo:view-mode-changed', 'gizmo:tool-changed',
     'scene:dimension-changed',
     'camera:mode-change', 'camera:projection-changed', 'camera:fov-changed',
     'scene-view:visibility-changed', 'scene-view:light-changed',
+    'terrain:changed', 'terrain:sculpt', 'terrain:block-update', 'terrain:session-changed',
 ];
 
 const ALL_FORWARDED_EVENTS = [...SERVICE_MAP_EVENTS, ...MESSAGE_ONLY_EVENTS];

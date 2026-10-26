@@ -30,6 +30,29 @@ jest.mock('../scene-process/service/core/internal-events', () => ({
 }));
 
 describe('ServiceManager reload lifecycle', () => {
+    it('rejects required initialization failures in strict browser startup', async () => {
+        const { ServiceManager } = require('../scene-process/service/service-manager');
+        const failure = new Error('Gizmo failed');
+        getServiceAll.mockReturnValue([{ constructor: { name: 'GizmoService' }, init: async () => { throw failure; } }]);
+        await expect(new ServiceManager().initAllServices({ strict: true })).rejects.toMatchObject({
+            message: 'Scene service initialization failed: GizmoService', cause: failure,
+        });
+    });
+
+    it('detaches event forwarding on dispose and can initialize without duplicate listeners', () => {
+        const { ServiceManager } = require('../scene-process/service/service-manager');
+        const opened = jest.fn();
+        getServiceAll.mockReturnValue([{ constructor: { name: 'Editor' }, onEditorOpened: opened }]);
+        const manager = new ServiceManager();
+        manager.initialize('http://first');
+        manager.dispose();
+        serviceEvents.emit('editor:open');
+        expect(opened).not.toHaveBeenCalled();
+        manager.initialize('http://second');
+        serviceEvents.emit('editor:open');
+        expect(opened).toHaveBeenCalledTimes(1);
+        manager.dispose();
+    });
     afterEach(() => {
         eventBus.removeAllListeners();
         jest.clearAllMocks();

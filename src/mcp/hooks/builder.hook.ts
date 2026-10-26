@@ -3,7 +3,7 @@ import { join, resolve } from 'path';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { SchemaBuildBaseOption, SchemaKnownBuildOptions, SchemaOtherPlatformBuildOption } from '../../api/builder/schema';
 
-const KNOWN_BUILD_PLATFORMS = ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac', 'ohos', 'harmonyos-next', 'google-play'];
+const KNOWN_BUILD_PLATFORMS = ['web-desktop', 'web-mobile', 'android', 'ios', 'windows', 'mac', 'ohos', 'harmonyos-next', 'google-play', 'huawei-agc'];
 
 export class BuilderHook {
     private dynamicPlatforms: string[] = [];
@@ -127,7 +127,7 @@ export class BuilderHook {
             dynamicPlatforms.add(options.platform);
         }
 
-        const dynamicSchemas = Array.from(dynamicPlatforms).map(platform => {
+        const dynamicSchemas = Array.from(dynamicPlatforms).filter(platform => !KNOWN_BUILD_PLATFORMS.includes(platform)).map(platform => {
             return SchemaBuildBaseOption.extend({
                 platform: z.literal(platform).describe('Build platform'),
                 packages: z.object({

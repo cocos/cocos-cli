@@ -1,4 +1,14 @@
 import type {
+    Mesh,
+    VideoClip,
+    BitmapFont,
+    TTFFont,
+    LabelAtlas,
+    ParticleAsset,
+    AnimationClip,
+    AudioClip,
+    TerrainAsset,
+    TiledMapAsset,
     Asset,
     Prefab,
     SpriteFrame,
@@ -9,8 +19,21 @@ import {
     assetManager,
     Node,
     Layers,
+    Camera,
     Canvas,
     UITransform,
+    Animation,
+    AudioSource,
+    Label,
+    MeshRenderer,
+    Sprite,
+    VideoPlayer,
+    ParticleSystem2D,
+    SpriteRenderer,
+    Terrain,
+    TiledMap,
+    dragonBones,
+    sp,
     Scene,
     director,
     instantiate,
@@ -73,9 +96,9 @@ export async function createNodeByAsset(info: {
     switch (type) {
         case 'cc.AnimationClip':
             {
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<AnimationClip>(uuid);
                 node = new Node(asset.name);
-                const animation: any = node.addComponent(cc.Animation);
+                const animation = node.addComponent(Animation);
                 if (animation) {
                     animation.defaultClip = asset;
                 }
@@ -83,9 +106,9 @@ export async function createNodeByAsset(info: {
             break;
         case 'cc.AudioClip':
             {
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<AudioClip>(uuid);
                 node = new Node(asset.name);
-                const audio: any = node.addComponent(cc.AudioSource);
+                const audio = node.addComponent(AudioSource);
                 if (audio) {
                     audio.clip = asset;
                 }
@@ -94,10 +117,10 @@ export async function createNodeByAsset(info: {
         case 'cc.BitmapFont':
             {
                 newCanvasRequired = true;
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<BitmapFont>(uuid);
                 node = new Node(asset.name);
                 node.layer = Layers.Enum.UI_2D;
-                const label: any = node.addComponent(cc.Label);
+                const label = node.addComponent(Label);
                 if (label) {
                     label.font = asset;
                 }
@@ -106,10 +129,10 @@ export async function createNodeByAsset(info: {
         case 'cc.LabelAtlas':
             {
                 newCanvasRequired = true;
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<LabelAtlas>(uuid);
                 node = new Node(asset.name);
                 node.layer = Layers.Enum.UI_2D;
-                const label: any = node.addComponent(cc.Label);
+                const label = node.addComponent(Label);
                 if (label) {
                     label.font = asset;
                     label.fontSize = asset.fontSize;
@@ -122,9 +145,9 @@ export async function createNodeByAsset(info: {
             break;
         case 'cc.Mesh':
             {
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<Mesh>(uuid);
                 node = new Node(asset.name);
-                const model: any = node.addComponent(cc.MeshRenderer);
+                const model = node.addComponent(MeshRenderer);
                 if (model) {
                     model.mesh = asset;
                 }
@@ -133,9 +156,9 @@ export async function createNodeByAsset(info: {
         case 'cc.ParticleAsset':
             {
                 newCanvasRequired = true;
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<ParticleAsset>(uuid);
                 node = new Node(asset.name);
-                const particle: any = node.addComponent(cc.ParticleSystem2D);
+                const particle = node.addComponent(ParticleSystem2D);
                 if (particle) {
                     particle.file = asset;
                 }
@@ -144,7 +167,7 @@ export async function createNodeByAsset(info: {
         case 'cc.Prefab':
             {
                 asset = await loadAny<Prefab>(uuid);
-                node = cc.instantiate(asset);
+                node = instantiate(asset);
                 newCanvasRequired = newCanvasRequired || Boolean(node && getPrefabCanvasRequired(node));
             }
             break;
@@ -176,18 +199,18 @@ export async function createNodeByAsset(info: {
 
                 const spritePrefabAsset = await loadAny<Prefab>(prefabUuid);
                 spritePrefabAsset.name = asset.name;
-                node = cc.instantiate(spritePrefabAsset) as Node;
+                node = instantiate(spritePrefabAsset) as Node;
                 node.name = asset.name;
 
                 if (useSpriteRenderer) {
-                    const sprite: any = node.getComponent(cc.SpriteRenderer);
+                    const sprite = node.getComponent(SpriteRenderer);
                     if (sprite) {
                         sprite.spriteFrame = asset;
                     }
                 } else {
                     newCanvasRequired = true;
                     node.layer = Layers.Enum.UI_2D;
-                    const sprite: any = node.getComponent(cc.Sprite);
+                    const sprite = node.getComponent(Sprite);
                     if (sprite) {
                         sprite.spriteFrame = asset;
                     }
@@ -197,10 +220,10 @@ export async function createNodeByAsset(info: {
         case 'cc.TTFFont':
             {
                 newCanvasRequired = true;
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<TTFFont>(uuid);
                 node = new Node(asset.name);
                 node.layer = Layers.Enum.UI_2D;
-                const label: any = node.addComponent(cc.Label);
+                const label = node.addComponent(Label);
                 if (label) {
                     label.font = asset;
                 }
@@ -208,9 +231,9 @@ export async function createNodeByAsset(info: {
             break;
         case 'cc.TerrainAsset':
             {
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<TerrainAsset>(uuid);
                 node = new Node(asset.name);
-                const terrain: any = node.addComponent(cc.Terrain);
+                const terrain = node.addComponent(Terrain);
                 if (terrain) {
                     terrain._asset = asset;
                 }
@@ -219,10 +242,10 @@ export async function createNodeByAsset(info: {
         case 'cc.TiledMapAsset':
             {
                 newCanvasRequired = true;
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<TiledMapAsset>(uuid);
                 node = new Node(asset.name);
                 node.layer = Layers.Enum.UI_2D;
-                const tiledmap: any = node.addComponent(cc.TiledMap);
+                const tiledmap = node.addComponent(TiledMap);
                 if (tiledmap) {
                     tiledmap.tmxAsset = asset;
                 }
@@ -231,10 +254,10 @@ export async function createNodeByAsset(info: {
         case 'cc.VideoClip':
             {
                 newCanvasRequired = true;
-                asset = await loadAny(uuid) as any;
+                asset = await loadAny<VideoClip>(uuid);
                 node = new Node(asset.name);
                 node.layer = Layers.Enum.UI_2D;
-                const video: any = node.addComponent(cc.VideoPlayer);
+                const video = node.addComponent(VideoPlayer);
                 if (video) {
                     video.clip = asset;
                 }
@@ -242,58 +265,58 @@ export async function createNodeByAsset(info: {
             break;
         case 'dragonBones.DragonBonesAsset':
             {
-                if (cc.dragonBones) {
+                if (dragonBones) {
                     newCanvasRequired = true;
-                    asset = await loadAny(uuid) as any;
+                    asset = await loadAny<dragonBones.DragonBonesAsset>(uuid);
                     node = new Node(asset.name);
                     node.layer = Layers.Enum.UI_2D;
-                    const dragbone: any = node.addComponent(cc.dragonBones.ArmatureDisplay);
+                    const dragbone = node.addComponent(dragonBones.ArmatureDisplay);
                     if (dragbone) {
                         dragbone.dragonAsset = asset;
                     }
                 } else {
                     asset = await loadAny(uuid);
-                    node = cc.instantiate(asset);
+                    node = instantiate(asset) as unknown as Node;
                 }
             }
             break;
         case 'dragonBones.DragonBonesAtlasAsset':
             {
-                if (cc.dragonBones) {
+                if (dragonBones) {
                     newCanvasRequired = true;
-                    asset = await loadAny(uuid) as any;
+                    asset = await loadAny<dragonBones.DragonBonesAtlasAsset>(uuid);
                     node = new Node(asset.name);
                     node.layer = Layers.Enum.UI_2D;
-                    const dragbone: any = node.addComponent(cc.dragonBones.ArmatureDisplay);
+                    const dragbone = node.addComponent(dragonBones.ArmatureDisplay);
                     if (dragbone) {
                         dragbone.dragonAtlasAsset = asset;
                     }
                 } else {
                     asset = await loadAny(uuid);
-                    node = cc.instantiate(asset);
+                    node = instantiate(asset) as unknown as Node;
                 }
             }
             break;
         case 'sp.SkeletonData':
             {
-                if (cc.sp) {
+                if (sp) {
                     newCanvasRequired = true;
-                    asset = await loadAny(uuid) as any;
+                    asset = await loadAny<sp.SkeletonData>(uuid);
                     node = new Node(asset.name);
                     node.layer = Layers.Enum.UI_2D;
-                    const spSkeleton: any = node.addComponent(cc.sp.Skeleton);
+                    const spSkeleton = node.addComponent(sp.Skeleton);
                     if (spSkeleton) {
                         spSkeleton.skeletonData = asset;
                     }
                 } else {
                     asset = await loadAny(uuid);
-                    node = cc.instantiate(asset);
+                    node = instantiate(asset) as unknown as Node;
                 }
             }
             break;
         default:
             asset = await loadAny(uuid);
-            node = cc.instantiate(asset);
+            node = instantiate(asset) as unknown as Node;
             break;
     }
 
@@ -313,7 +336,7 @@ export async function queryCanvasRequiredByAsset(info: {
 }): Promise<boolean> {
     if (info.type === 'cc.Prefab') {
         const prefab = await loadCachedOrAny<Prefab>(info.uuid);
-        const node = cc.instantiate(prefab) as Node;
+        const node = instantiate(prefab) as Node;
         try {
             return getPrefabCanvasRequired(node);
         } finally {
@@ -342,9 +365,9 @@ function getCanvasRequiredByAssetType(type: string | undefined, workMode: string
             return !shouldUseSpriteRenderer(workMode);
         case 'dragonBones.DragonBonesAsset':
         case 'dragonBones.DragonBonesAtlasAsset':
-            return Boolean(cc.dragonBones);
+            return Boolean(dragonBones);
         case 'sp.SkeletonData':
-            return Boolean(cc.sp);
+            return Boolean(sp);
         default:
             return false;
     }
@@ -405,6 +428,12 @@ export async function createShouldHideInHierarchyCanvasNode(scene: Scene, workMo
             cameraNode.setParent = () => {
                 console.error('It is forbidden to modify the parent node of the internal camera node.');
             };
+            // 预览 Canvas 只是编辑期的 UI 管线脚手架, 其自带相机不能参与主窗口渲染:
+            // 一旦留在渲染场景里, 场景会被第二台相机重复绘制(UI/粒子出现两份且位置随投影不同而偏移)。
+            // 正常路径由 CameraService.onComponentAdded -> detachNewSceneCamera 摘除,
+            // 但 instantiate() 走 new ctor() 而非 Node.addComponent(), 不会触发 component:added,
+            // 因此这里显式摘除, 与 CameraService._detachSceneCameras 保持一致。
+            cameraNode.getComponent(Camera)?.camera?.detachCamera();
         }
 
         return canvasNode;

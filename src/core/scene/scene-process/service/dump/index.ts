@@ -1,11 +1,12 @@
 'use strict';
-import { Node, Component, js, CCClass, Scene } from 'cc';
+import { Node, Component, js, CCClass, Scene, type ParticleSystem } from 'cc';
 import { parsingPath } from './utils';
 import get from 'lodash/get';
 import AssetUtil from './asset';
 import { decodePatch, decodeNode, decodeScene, resetProperty, updatePropertyFromNull } from './decode';
 import { encodeObject, encodeComponent, encodeScene, encodeNode } from './encode';
-import { IComponent, INode, IScene } from '../../../common';
+import { IComponent, INode, IScene, type INodeDumpOptions } from '../../../common';
+import { restoreParticleSystemSnapshot } from './particle-snapshot';
 import {
     NODE_SNAPSHOT_RESTORE_PROPERTY_PATHS,
     SCENE_SNAPSHOT_SPECIAL_PROPERTY_KEYS,
@@ -36,12 +37,12 @@ class DumpUtil {
      * 生成一个 node 的 dump 数据
      * @param {*} node
      */
-    dumpNode(node: Node, options: { includeComponents?: boolean } = {}): INode | IScene | null {
+    dumpNode(node: Node, options: INodeDumpOptions = {}): INode | IScene | null {
         if (!node) {
             return null;
         }
         if (node instanceof Scene) {
-            return encodeScene(node);
+            return encodeScene(node, options);
         }
         return encodeNode(node, options);
 
@@ -173,6 +174,10 @@ class DumpUtil {
                     for (const [globalKey, globalPropertyDump] of Object.entries(propertyDump)) {
                         if (globalPropertyDump) {
                             await this.restoreProperty(node, `_globals.${globalKey}`, globalPropertyDump);
+                            if (globalKey === 'lightProbeInfo' && node instanceof Scene) {
+                                // Restoring SH must also invalidate the models' cached lighting.
+                                node.globals.lightProbeInfo.onProbeBakeFinished();
+                            }
                         }
                     }
                 }
@@ -200,6 +205,10 @@ class DumpUtil {
      */
     async restoreComponentSnapshotProperties(component: Component, dump: any) {
         if (!dump?.value) {
+            return;
+        }
+        if (js.getClassName(component) === 'cc.ParticleSystem' && dump.value.renderer?.value) {
+            await restoreParticleSystemSnapshot(component as ParticleSystem, dump, (target, path, property) => decodePatch(path, property, target));
             return;
         }
         for (const key in dump.value) {

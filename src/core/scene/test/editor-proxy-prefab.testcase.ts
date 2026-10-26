@@ -218,6 +218,28 @@ describe('EditorProxy Prefab 测试', () => {
             expect(content).toContain('abc-prefab');
         });
 
+        it('delete keeps the opened prefab root when a bulk selection includes it', async () => {
+            const root = await EditorProxy.queryCurrent() as INodeInfo;
+            expect(root).not.toBeNull();
+            const rootPath = root.path || root.name;
+            const rootName = root.name;
+
+            const child = await NodeProxy.createByType({
+                path: rootPath,
+                nodeType: NodeType.EMPTY,
+                name: 'prefab-root-delete-child',
+            });
+            expect(child).not.toBeNull();
+
+            await expect(NodeProxy.delete({ path: child!.path, keepWorldTransform: false })).resolves.not.toBeNull();
+            await expect(NodeProxy.delete({ path: rootPath, keepWorldTransform: false })).resolves.toBeNull();
+
+            const after = await NodeProxy.query({ path: rootPath, includeChildren: true });
+            expect(after).not.toBeNull();
+            expect(after?.name).toBe(rootName);
+            expect(after?.path).toBe(rootPath);
+        });
+
         it('reload - 重载当前预制体', async () => {
             const result = await EditorProxy.reload({});
 

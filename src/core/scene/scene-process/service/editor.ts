@@ -1,5 +1,5 @@
 import cc from 'cc';
-import { BaseService, register, Service } from './core';
+import { BaseService, register, Service, queryRegisteredService } from './core';
 import { InternalServiceEvents } from './core/internal-events';
 import {
     IBaseIdentifier,
@@ -18,6 +18,13 @@ import { IAssetInfo } from '../../../assets/@types/public';
 import { Rpc } from '../rpc';
 import { enrichMissingDependencyError } from './error-utils';
 import type { IEditorSessionService, IEditorSessionSnapshot } from './core/editor-session';
+import type { ITerrainService } from '../../common/terrain';
+import type { SceneRenderSnapshot, SceneRecordedChange } from '../../session/protocol';
+import { sceneUtils } from './scene/utils';
+import { editorPrefabUtils } from './prefab/prefab-editor-utils';
+import dumpUtil from './dump';
+import { restoreNodeSnapshotDump, restoreComponentSnapshotDump } from './undo/commands/command-utils-shared';
+import { ServiceEvents } from './core/global-events';
 
 /**
  * EditorAsset - 统一的编辑器管理入口
@@ -95,6 +102,22 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             && this.isOpen;
     }
 
+    public runForSession<T>(session: IEditorSessionSnapshot, operation: (save: () => Promise<unknown>) => Promise<T>): Promise<T> {
+        return this.runLifecycle(async () => {
+            const assertCurrent = () => {
+                if (!session.uuid || !this.isCurrentEditorSession(session)) {
+                    throw new Error('The source scene session changed before its result could be applied.');
+                }
+            };
+            assertCurrent();
+            return operation(async () => {
+                assertCurrent();
+                // Already inside the lifecycle queue. Re-entering save() would deadlock.
+                return this.saveUnlocked({ urlOrUUID: session.uuid! });
+            });
+        });
+    }
+
     private invalidateEditorSession(): void {
         this.editorSessionGeneration++;
     }
@@ -128,9 +151,115 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         return editor ? await editor.encode() : null;
     }
 
+    /**
+     * 序列化当前正在编辑的场景（含未保存改动），返回可被 loadWithJson 加载的 JSON 字符串。
+     * 用于「Preview in Editor」：把编辑器里的实时场景交给游戏运行时预览。
+     * 该方法经 Service proxy 自动暴露到浏览器侧 window.cli.Scene.Editor.querySceneSerializedData。
+     */
+    async querySceneSerializedData(): Promise<string> {
+        const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
+        if (editor instanceof SceneEditor) {
+            return editor.serializeCurrent();
+        }
+        throw new Error('[querySceneSerializedData] 当前没有打开场景');
+    }
+
+    /** Internal transport snapshot; deliberately not exposed as an MCP tool. */
+    queryRenderSnapshot(): SceneRenderSnapshot | null {
+        const root = this.getRootNode();
+        const scene = cc.director.getScene();
+        if (!root || !scene || !this.currentEditorUuid) return null;
+        const kind = this.getCurrentEditorType();
+        if (kind === 'unknown') return null;
+        const encodeMap = (map: Map<string, any>): any[] => [...map].map(([key, value]) => [key, value instanceof Map ? encodeMap(value) : value]);
+        const prefabUUIDs = encodeMap(editorPrefabUtils.storePrefabUUID(scene));
+        const serializedScene = kind === 'prefab'
+            ? EditorExtends.serialize(editorPrefabUtils.generateSceneAsset(scene, root))
+            : sceneUtils.serialize(scene);
+        return { serializedScene, rootUuid: root.uuid, assetUuid: this.currentEditorUuid, kind, prefabUUIDs };
+    }
+
+    /** Apply one remote gesture under the owner's undo recorder. Transport checks the base revision. */
+    async applyRecordedChanges(changes: SceneRecordedChange[], label = 'Editor gesture'): Promise<void> {
+        if (!Array.isArray(changes) || !changes.length || changes.length > 1000) throw new Error('Invalid recorded change set');
+        const scene = cc.director.getScene();
+        const targets = changes.map(change => {
+            if (!change || typeof change.uuid !== 'string' || !['node', 'component'].includes(change.kind) || !change.dump) {
+                throw new Error('Invalid recorded change');
+            }
+            const target = change.kind === 'node' ? EditorExtends.Node.getNode(change.uuid) : EditorExtends.Component.getComponent(change.uuid);
+            const node = change.kind === 'node' ? target as cc.Node : (target as cc.Component)?.node;
+            if (!target || !node || (node !== scene && !node.isChildOf(scene!))) throw new Error(`Recorded target no longer exists: ${change.uuid}`);
+            const before = change.kind === 'node' ? dumpUtil.dumpNode(target as cc.Node) : dumpUtil.dumpComponent(target as cc.Component);
+            return { change, target, node, before: JSON.parse(JSON.stringify(before)) };
+        });
+        const restore = async (item: typeof targets[number], dump: any) => {
+            if (item.change.kind === 'node') {
+                await restoreNodeSnapshotDump(item.target as cc.Node, dump, {
+                    updateNodeName: (uuid, name) => EditorExtends.Node.updateNodeName(uuid, name),
+                });
+            } else await restoreComponentSnapshotDump(item.target as cc.Component, dump);
+        };
+        const recording = Service.Undo.beginRecording(changes.map(change => change.uuid), { label });
+        try {
+            for (const item of targets) await restore(item, item.change.dump);
+            await Service.Undo.endRecording(recording);
+        } catch (error) {
+            try { for (const item of targets) await restore(item, item.before); }
+            finally { Service.Undo.cancelRecording(recording); }
+            throw error;
+        }
+        for (const item of targets) ServiceEvents.emit('node:change', item.node, { source: 'editor-session', type: 'set-property' });
+        Service.Engine.repaintInEditMode();
+    }
+
     getRootNode(): cc.Scene | cc.Node | null {
         const editor = this.currentEditorUuid && this.editorMap.get(this.currentEditorUuid);
         return editor ? editor.getRootNode() : null;
+    }
+
+    /**
+     * 「Preview in Editor」游戏视图：把运行时场景登记为当前 SceneEditor 实体。
+     * PreviewPlay 在 runSceneImmediateByJson 之后、'editor:open' 扇出之前调用，使
+     * queryNodeTree/选择/组件等服务层守卫（getRootNode()/isOpen）对运行场景生效。
+     * 有意不走 open()：无资产 RPC 查询、不清 undo 历史、不发事件（事件由 PreviewPlay
+     * 统一发射，保证 adopt 先于服务扇出）；save 语义由宿主侧 PreviewSession no-op 承担。
+     */
+    public adoptRuntimeScene(scene: cc.Scene, identity?: { url?: string }): void {
+        if (!scene) {
+            return;
+        }
+        const uuid = scene.uuid;
+        let editor = this.editorMap.get(uuid);
+        if (!(editor instanceof SceneEditor)) {
+            editor = this.createEditor('cc.SceneAsset');
+            this.editorMap.set(uuid, editor);
+        }
+        editor.setCurrentOpen({
+            instance: scene,
+            identifier: {
+                assetType: 'cc.SceneAsset',
+                assetName: scene.name || 'RuntimeScene',
+                assetUuid: uuid,
+                assetUrl: identity?.url ?? '',
+            },
+        });
+        this.currentEditorUuid = uuid;
+        this.invalidateEditorSession();
+        this.isOpen = true;
+    }
+
+    /** 释放 adoptRuntimeScene 登记的运行时实体（幂等；不动磁盘、不发事件）。 */
+    public releaseRuntimeScene(): void {
+        const uuid = this.currentEditorUuid;
+        if (uuid) {
+            const editor = this.editorMap.get(uuid);
+            editor?.setCurrentOpen(null);
+            this.editorMap.delete(uuid);
+            this.currentEditorUuid = null;
+        }
+        this.isOpen = false;
+        this.invalidateEditorSession();
     }
 
     async open(params: IOpenOptions): Promise<TEditorEntity> {
@@ -237,6 +366,9 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
             }
 
             this.invalidateEditorSession();
+            if (params.save !== false) {
+                await this.saveTerrainAssets();
+            }
             const result = await editor.close({ save: params.save ?? true });
 
             if (editor === this.editorMap.get(currentEditorUuid)) {
@@ -273,6 +405,7 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         const urlOrUUID = params.urlOrUUID ?? this.currentEditorUuid;
         try {
             const { assetInfo, currentEditorUuid, editor } = await this.resolveSaveTarget(urlOrUUID);
+            await this.saveTerrainAssets();
             const result = assetInfo.uuid === currentEditorUuid
                 ? await editor.save()
                 : await this.recoverDeletedSourceTo(assetInfo, currentEditorUuid, editor);
@@ -286,6 +419,17 @@ export class EditorService extends BaseService<IEditorEvents> implements IEditor
         } catch (error) {
             console.error(`保存失败: [${urlOrUUID}]`, error);
             throw error;
+        }
+    }
+
+    /** Terrain data lives in .terrain assets, not in the scene JSON. */
+    private async saveTerrainAssets(): Promise<void> {
+        // Missing registration during bootstrap is distinct from a registered service failing.
+        const terrain = queryRegisteredService<ITerrainService>('Terrain');
+        if (!terrain) return;
+        const result = await terrain.saveAsset(false);
+        if (result === 2) {
+            throw new Error('Terrain asset save failed or requires a Save As target.');
         }
     }
 

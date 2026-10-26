@@ -44,7 +44,7 @@ jest.mock('../asset-config', () => ({
 describe('asset filesystem manager', () => {
     beforeEach(() => {
         jest.resetModules();
-        jest.clearAllMocks();
+        jest.resetAllMocks();
     });
 
     it('should expose a provider-shaped local fallback and keep fallback methods after partial override', () => {
@@ -118,9 +118,10 @@ describe('asset filesystem manager', () => {
         expect(mockRemove).not.toHaveBeenCalled();
     });
 
-    it('moveAssetSource should delegate rename to custom provider for source and meta files', async () => {
+    it.each([undefined, false, true])('moveAssetSource forwards overwrite=%s to custom provider for both files', async overwrite => {
         const filesystem = require('../manager/filesystem') as typeof import('../manager/filesystem');
         const provider = {
+            readFile: jest.fn(async () => Buffer.from('{"uuid":"source"}')),
             rename: jest.fn(async () => {}),
         };
         const source = 'D:/project/assets/source.txt';
@@ -128,10 +129,36 @@ describe('asset filesystem manager', () => {
 
         filesystem.setFileSystemProvider(provider);
 
-        await filesystem.moveAssetSource(source, target, { overwrite: false });
+        await filesystem.moveAssetSource(source, target, overwrite === undefined ? undefined : { overwrite });
 
-        expect(provider.rename).toHaveBeenNthCalledWith(1, `${source}.meta`, `${target}.meta`, { overwrite: true });
-        expect(provider.rename).toHaveBeenNthCalledWith(2, source, target, { overwrite: false });
+        // A non-overwriting move must not replace another asset's UUID either.
+        expect(provider.rename).toHaveBeenNthCalledWith(1, `${source}.meta`, `${target}.meta`, { overwrite: !!overwrite });
+        expect(provider.rename).toHaveBeenNthCalledWith(2, source, target, { overwrite: !!overwrite });
+        expect(provider.rename).toHaveBeenCalledTimes(2);
+        if (!overwrite) {
+            expect(provider.readFile).toHaveBeenCalledWith(`${source}.meta`, undefined);
+        }
+        expect(mockReadFile).not.toHaveBeenCalled();
         expect(mockMove).not.toHaveBeenCalled();
+    });
+
+    it('does not move either file if the custom provider cannot read metadata for safe recovery', async () => {
+        const filesystem = require('../manager/filesystem') as typeof import('../manager/filesystem');
+        const error = new Error('metadata read denied');
+        const provider = {
+            readFile: jest.fn(async () => { throw error; }),
+            rename: jest.fn(async () => {}),
+        };
+        filesystem.setFileSystemProvider(provider);
+        const log = jest.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+            await expect(filesystem.moveAssetSource('source.txt', 'target.txt')).rejects.toBe(error);
+
+            expect(provider.rename).not.toHaveBeenCalled();
+            expect(mockReadFile).not.toHaveBeenCalled();
+            expect(mockMove).not.toHaveBeenCalled();
+        } finally {
+            log.mockRestore();
+        }
     });
 });

@@ -1,5 +1,12 @@
 const mockRpcRequest = jest.fn();
 
+jest.mock('../scene-process/service/scene/utils', () => ({
+    sceneUtils: { serialize: jest.fn() },
+}));
+jest.mock('../scene-process/service/prefab/prefab-editor-utils', () => ({ editorPrefabUtils: {} }));
+jest.mock('../scene-process/service/dump', () => ({ __esModule: true, default: {} }));
+jest.mock('../scene-process/service/undo/commands/command-utils-shared', () => ({}));
+
 jest.mock('cc', () => ({
     __esModule: true,
     default: { director: { getScene: jest.fn(() => null) } },
@@ -18,6 +25,7 @@ jest.mock('../scene-process/service/core', () => ({
         protected broadcast() { }
     },
     register: () => (target: unknown) => target,
+    queryRegisteredService: () => undefined,
     Service: {
         Undo: {
             clearHistory: jest.fn(),
@@ -48,6 +56,56 @@ describe('EditorService Save As', () => {
 
     afterEach(() => {
         globalEventEmitter.removeAllListeners();
+    });
+
+    it.each([false, true])('rejects an obsolete result session inside the lifecycle queue (same UUID=%s)', async sameUuid => {
+        editorService.currentEditorUuid = 'source';
+        editorService.isOpen = true;
+        const session = editorService.getEditorSession();
+        const change = editorService.runLifecycle(async () => {
+            editorService.invalidateEditorSession();
+            editorService.currentEditorUuid = sameUuid ? 'source' : 'replacement';
+        });
+        const apply = jest.fn();
+        const result = editorService.runForSession(session, apply);
+        await change;
+        await expect(result).rejects.toThrow('source scene session changed');
+        expect(apply).not.toHaveBeenCalled();
+    });
+
+    it('holds the original session through result save and cleanup without re-entering the lifecycle queue', async () => {
+        editorService.currentEditorUuid = 'source';
+        editorService.isOpen = true;
+        const session = editorService.getEditorSession();
+        const events: string[] = [];
+        let release!: () => void;
+        let entered!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const started = new Promise<void>(resolve => { entered = resolve; });
+        const saveUnlocked = jest.spyOn(editorService, 'saveUnlocked').mockImplementation(async (...args: unknown[]) => {
+            expect(args[0]).toEqual({ urlOrUUID: 'source' });
+            expect(editorService.currentEditorUuid).toBe('source');
+            events.push('save');
+        });
+        const apply = editorService.runForSession(session, async (save: () => Promise<unknown>) => {
+            events.push('apply');
+            entered();
+            await gate;
+            await save();
+            events.push('cleanup');
+        });
+        await started;
+        const change = editorService.runLifecycle(async () => {
+            editorService.invalidateEditorSession();
+            editorService.currentEditorUuid = 'replacement';
+            events.push('switch');
+        });
+        await Promise.resolve();
+        expect(events).toEqual(['apply']);
+        release();
+        await Promise.all([apply, change]);
+        expect(events).toEqual(['apply', 'save', 'cleanup', 'switch']);
+        expect(saveUnlocked).toHaveBeenCalledTimes(1);
     });
 
     it('requires Save As for a target other than the existing source asset', async () => {

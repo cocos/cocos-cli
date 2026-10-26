@@ -196,6 +196,7 @@ const config: IPlatformBuildPluginConfig = {
             rgba: ['etc2_rgba', 'etc1_rgb_a', 'astc_4x4', 'astc_5x5', 'astc_6x6', 'astc_8x8', 'astc_10x5', 'astc_10x10', 'astc_12x12'],
         },
     },
+    customBuildStages: [],
 };
 
 export default config;

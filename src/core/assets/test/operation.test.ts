@@ -529,6 +529,11 @@ describe('测试 db 的操作接口', function () {
     });
 
     describe('create-asset-by-type', () => {
+        it.each(['2d', '3d'])('records the %s scene template for initial camera orientation', async (templateName) => {
+            const asset = await assetManager.createAssetByType('scene', databasePath, `${name}-view-${templateName}`, { templateName });
+            const { sceneConfigInstance } = await import('../../scene/scene-configs');
+            expect(await sceneConfigInstance.get(`sceneView.initialModes.${asset.uuid}`, 'local')).toBe(templateName);
+        });
         // 导入共享的测试数据
         const { CREATE_ASSET_TYPE_TEST_CASES } = require('../../../../tests/shared/asset-test-data');
         const { validateAssetCreated, validateAssetFileExists, validateAssetMetaExists } = require('../../../../tests/shared/asset-test-helpers');
@@ -708,7 +713,7 @@ describe('测试 db 的操作接口', function () {
             await outputFile(tempFilePath, 'new content');
 
             // 导入并覆盖
-            const assets = await assetManager.importAsset(tempFilePath, join(databasePath, targetName));
+            const assets = await assetManager.importAsset(tempFilePath, join(databasePath, targetName), { overwrite: true });
 
             // 验证返回的是数组
             expect(Array.isArray(assets)).toBeTruthy();

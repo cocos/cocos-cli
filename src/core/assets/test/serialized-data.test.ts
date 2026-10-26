@@ -31,6 +31,11 @@ import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
 import { assetManager } from '..';
 import type { IProperty } from '../../scene/@types/public';
+import {
+    applyPropertyObjectOperation,
+    encodePropertyObject,
+    queryPropertyObjectOperationCapabilities,
+} from '../serialized-data';
 
 type DumpMap = Record<string, IProperty>;
 
@@ -139,6 +144,79 @@ describe('serialized asset data', function () {
                 value: typeof protectedProp.value === 'number' ? protectedProp.value + 1 : '__changed__',
             },
         })).rejects.toThrow(/readonly|hidden/i);
+    });
+
+    it('applies Creator-compatible property reset/create semantics from current attributes', () => {
+        const engine = (globalThis as any).cc;
+        let cloneCalls = 0;
+
+        class CloneableValue {
+            constructor(public value = 0) {}
+
+            clone(): CloneableValue {
+                cloneCalls += 1;
+                return new CloneableValue(this.value);
+            }
+        }
+
+        class OptionalValue {
+            enabled = true;
+        }
+
+        class PropertyTarget {
+            count = 9;
+            cloneable = new CloneableValue(99);
+            items = [9, 8];
+            optional: OptionalValue | null = null;
+            unsupported = 4;
+            hidden = 2;
+        }
+        (PropertyTarget as any).__props__ = ['count', 'cloneable', 'items', 'optional', 'unsupported', 'hidden'];
+
+        const sharedCloneableDefault = new CloneableValue(7);
+        const attributes: Record<string, any> = {
+            count: { type: 'Number', ctor: Number, default: () => 3 },
+            cloneable: { ctor: CloneableValue, default: () => sharedCloneableDefault },
+            items: { ctor: Number, default: () => [1, 2, 3] },
+            optional: { type: 'Object', ctor: OptionalValue, default: null },
+            unsupported: {},
+            hidden: { type: 'Number', ctor: Number, default: 1, visible: false },
+        };
+        const attrSpy = jest.spyOn(engine.Class, 'attr').mockImplementation((...args: unknown[]) => attributes[String(args[1])]);
+
+        try {
+            const target = new PropertyTarget();
+            const dump = encodePropertyObject(target);
+            const capabilities = queryPropertyObjectOperationCapabilities(target, dump);
+            expect(capabilities).toMatchObject({
+                count: { set: true, reset: true, create: true },
+                cloneable: { set: true, reset: true, create: true },
+                items: { set: true, reset: true, create: true },
+                optional: { set: true, reset: true, create: true },
+                unsupported: { set: true, reset: false, create: false },
+                hidden: { set: false, reset: false, create: false },
+            });
+
+            applyPropertyObjectOperation(target, 'count', 'reset');
+            expect(target.count).toBe(3);
+
+            applyPropertyObjectOperation(target, 'cloneable', 'reset');
+            expect(target.cloneable).toEqual(new CloneableValue(7));
+            expect(target.cloneable).not.toBe(sharedCloneableDefault);
+            expect(cloneCalls).toBe(1);
+
+            applyPropertyObjectOperation(target, 'items', 'reset');
+            expect(target.items).toEqual([]);
+
+            applyPropertyObjectOperation(target, 'optional', 'create');
+            expect(target.optional).toBeInstanceOf(OptionalValue);
+            expect(target.optional?.enabled).toBe(true);
+
+            expect(() => applyPropertyObjectOperation(target, 'unsupported', 'reset')).toThrow(/does not support reset/i);
+            expect(() => applyPropertyObjectOperation(target, 'hidden', 'reset')).toThrow(/readonly|hidden/i);
+        } finally {
+            attrSpy.mockRestore();
+        }
     });
 
     it('queries RenderPipeline as a top-level IProperty with optionalTypes', async () => {

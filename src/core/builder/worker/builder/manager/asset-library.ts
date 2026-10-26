@@ -66,6 +66,8 @@ class BuildAssetLibrary {
      * 资源管理器初始化
      */
     async init() {
+        // Reuse caches only within one build to avoid stale dependencies and metadata after scene changes.
+        this.reset();
         this.queryAllAssets();
         // TODO 允许外部修改
         this.defaultSerializedOptions.keepNodeUuid = false;

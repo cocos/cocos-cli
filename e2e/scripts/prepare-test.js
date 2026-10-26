@@ -136,14 +136,14 @@ function runJest() {
     // 构建 Jest 命令参数（移除 --cli 和 --skip-mcp-types 参数）
     const jestArgs = args.filter((arg, index) => {
         // 移除 --cli 及其值
-        if (index === cliIndex || index === cliIndex + 1) {
+        if (cliIndex !== -1 && (index === cliIndex || index === cliIndex + 1)) {
             return false;
         }
         // 移除 --skip-mcp-types
-        if (index === skipMcpTypesIndex) {
+        if (index === skipMcpTypesIndex || index === preserveIndex) {
             return false;
         }
-        // 保留其他参数（如 --preserve, --verbose, --no-cache, --testPathPattern 等）
+        // 保留其他 Jest 参数（如 --verbose, --no-cache, --testPathPattern 等）
         return true;
     });
     

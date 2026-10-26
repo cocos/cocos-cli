@@ -51,6 +51,9 @@ class TimerUtil {
                         const args = waitingData.args ?? [];
                         this.callFunctionLimit(key, waitingData.callFunc, ...args);
                     }
+                } else {
+                    // Idle: drop the entry so the throttle map stays bounded (long preview sessions).
+                    this._callWaitingMap.delete(key);
                 }
             }, this._timeInterval);
 

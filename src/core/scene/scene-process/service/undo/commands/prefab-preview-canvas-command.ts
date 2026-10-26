@@ -1,11 +1,10 @@
 import { director, Node, Scene } from 'cc';
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../../common';
-import nodeMgr from '../../node/index';
 import { createShouldHideInHierarchyCanvasNode } from '../../node/node-create';
+import { removePrefabPreviewCanvasNode, restorePrefabRoot } from '../../node/prefab-canvas-mutation';
 import {
     createUndoId,
     failure,
-    getEditorExtends,
     getEditorNodeManager,
     getNodePath,
     isNodeInCurrentScene,
@@ -53,17 +52,11 @@ export class PrefabPreviewCanvasCommand implements IUndoCommand {
         }
 
         try {
-            if (root.parent !== parent) {
-                parent.addChild(root);
-            }
-            if (this._options.rootSiblingIndex >= 0) {
-                root.setSiblingIndex(this._options.rootSiblingIndex);
-            }
+            restorePrefabRoot(root, parent, this._options.rootSiblingIndex);
 
             const previewCanvas = this._findPreviewCanvas();
             if (this._options.removePreviewCanvasOnUndo && previewCanvas?.isValid && root.parent !== previewCanvas) {
-                nodeMgr.baseRemoveNode(previewCanvas);
-                this._unregisterNodeTree(previewCanvas);
+                removePrefabPreviewCanvasNode(previewCanvas);
             }
 
             return success(this.meta);
@@ -134,27 +127,9 @@ export class PrefabPreviewCanvasCommand implements IUndoCommand {
         try {
             const byPath = editorNode?.getNodeByPath?.(path) as Node | null;
             return isNodeInCurrentScene(byPath) ? byPath : null;
-        } catch (_error) {
+        } catch {
             return null;
         }
     }
 
-    private _unregisterNodeTree(node: Node): void {
-        const editorNode = getEditorNodeManager();
-        const editorComponent = getEditorExtends()?.Component;
-
-        for (const component of node.components ?? []) {
-            if (component?.uuid) {
-                editorComponent?.remove?.(component.uuid);
-            }
-        }
-
-        for (const child of node.children ?? []) {
-            this._unregisterNodeTree(child);
-        }
-
-        if (node.uuid) {
-            editorNode?.remove?.(node.uuid);
-        }
-    }
 }

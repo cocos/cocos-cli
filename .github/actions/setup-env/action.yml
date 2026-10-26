@@ -4,6 +4,29 @@ description: '初始化环境：安装依赖和构建项目'
 runs:
   using: 'composite'
   steps:
+    - name: Locate npm cache
+      id: npm-config
+      shell: bash
+      run: |
+        echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+        echo "node=$(node --version)" >> "$GITHUB_OUTPUT"
+
+    - name: Restore npm downloads
+      id: npm-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ steps.npm-config.outputs.path }}
+        key: npm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.npm-config.outputs.node }}-${{ hashFiles('package-lock.json', 'repo.json') }}
+        restore-keys: |
+          npm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.npm-config.outputs.node }}-
+
+    - name: Restore platform tools
+      id: tools-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: static/tools
+        key: tools-v1-${{ runner.os }}-${{ runner.arch }}-${{ env.MINIMAL_DOWNLOAD_TOOLS || 'false' }}-${{ hashFiles('workflow/download-tools.js') }}
+
     - name: Install node-gyp
       shell: bash
       run: npm i -g node-gyp
@@ -14,7 +37,26 @@ runs:
     
     - name: Install dependencies
       shell: bash
+      env:
+        # postinstall still prepares the engine, cc modules, i18n types and tools.
+        # Build the CLI once, in the explicit step below, after tools are ready.
+        COCOS_SKIP_POSTINSTALL_BUILD: 'true'
+        COCOS_STRICT_TOOL_DOWNLOADS: 'true'
       run: npm ci
+
+    - name: Save npm downloads
+      if: steps.npm-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.npm-config.outputs.path }}
+        key: ${{ steps.npm-cache.outputs.cache-primary-key }}
+
+    - name: Save platform tools
+      if: steps.tools-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: static/tools
+        key: ${{ steps.tools-cache.outputs.cache-primary-key }}
     
     - name: Build project
       shell: bash

@@ -358,6 +358,11 @@ export async function teardownMCPTestEnvironment(_context: MCPTestContext): Prom
  * @param context Assets 测试上下文
  */
 export async function teardownAssetsTestEnvironment(context: AssetsTestContext): Promise<void> {
+    if (!context) return; // beforeAll may have failed before assigning the context.
+    // Close the scene/prefab before deleting its assets; otherwise the next file
+    // cannot close an editor whose backing asset has already been removed.
+    const closed = await context.mcpClient.callTool('scene-close', {});
+    if (closed.code !== 200) throw new Error(`Cannot close scene before cleanup: ${closed.reason}`);
     // 清理测试资源（但不关闭服务器）
     try {
         await context.mcpClient.callTool('assets-delete-asset', {

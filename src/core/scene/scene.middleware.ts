@@ -2,6 +2,7 @@ import type { IMiddlewareContribution } from '../../server/interfaces';
 import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fse from 'fs-extra';
+import { createAssetBinaryRoutes } from './asset-binary-routes';
 
 /**
  * 各资源数据库的 library（已导入数据）目录缓存。
@@ -9,6 +10,8 @@ import fse from 'fs-extra';
  * library 目录中唯一定位文件（与预览 game-preview.middleware.getLibraryDirs 对齐）。
  */
 let libraryDirsCache: string[] | null = null;
+
+
 async function getLibraryDirs(): Promise<string[]> {
     if (libraryDirsCache) {
         return libraryDirsCache;
@@ -164,6 +167,7 @@ export default {
                 }
             },
         },
+
         {
             // Serve library assets by UUID - try asset database first,
             // then fall back to library directories on disk
@@ -256,6 +260,8 @@ export default {
         }
     ],
     post: [
+        ...createAssetBinaryRoutes(),
+
         {
             url: '/rpc/:module/:method',
             async handler(req: Request, res: Response) {

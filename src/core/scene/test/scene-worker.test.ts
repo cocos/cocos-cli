@@ -6,6 +6,7 @@ import { SceneWorker } from '../main-process/scene-worker';
 
 const mockFork = jest.fn();
 const mockRpcStartup = jest.fn();
+const mockProviderRegistrationDispose = jest.fn();
 const mockListenModuleMessages = jest.fn();
 const mockDisposeModuleMessages = jest.fn();
 const mockGetAvailablePort = jest.fn(async (_port: number) => 9230);
@@ -50,6 +51,10 @@ describe('SceneWorker', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockGetAvailablePort.mockResolvedValue(9230);
+        mockRpcStartup.mockReturnValue({
+            dispose: mockProviderRegistrationDispose,
+        });
+        mockListenModuleMessages.mockResolvedValue(undefined);
     });
 
     it('returns true when stop gets EPIPE before exit during manual shutdown', async () => {
@@ -65,6 +70,33 @@ describe('SceneWorker', () => {
         await expect(stopPromise).resolves.toBe(true);
         expect(process.send).toHaveBeenCalledWith(SceneWorker.ExitWorkerEvent);
         expect(mockDisposeModuleMessages).toHaveBeenCalledTimes(2);
+    });
+
+    it('retains the worker when forced shutdown cannot confirm exit', async () => {
+        jest.useFakeTimers();
+        try {
+            const worker = new SceneWorker();
+            const process = new MockChildProcess();
+            (worker as any)._process = process;
+            const stopped = worker.stop();
+            jest.advanceTimersByTime(10000);
+            expect(process.kill).toHaveBeenCalledWith('SIGTERM');
+            jest.advanceTimersByTime(5000);
+            await expect(stopped).resolves.toBe(false);
+            expect((worker as any)._process).toBe(process);
+        } finally { jest.useRealTimers(); }
+    });
+
+    it('waits for confirmed exit after a synchronous send failure', async () => {
+        const worker = new SceneWorker();
+        const process = new MockChildProcess();
+        process.send.mockImplementation(() => { throw createEpipeError(); });
+        (worker as any)._process = process;
+        const stopped = worker.stop();
+        expect(process.kill).toHaveBeenCalledWith('SIGTERM');
+        expect((worker as any)._process).toBe(process);
+        process.emit('exit', 0, null);
+        await expect(stopped).resolves.toBe(true);
     });
 
     it('waits for module message listeners before resolving startup', async () => {
@@ -95,5 +127,20 @@ describe('SceneWorker', () => {
         await expect(startPromise).resolves.toBe(true);
         expect(mockRpcStartup).toHaveBeenCalledWith(process);
         expect(mockListenModuleMessages).toHaveBeenCalledTimes(1);
+    });
+
+    it('releases its Provider registration when the Worker exits', async () => {
+        const worker = new SceneWorker();
+        const process = new MockChildProcess();
+        mockFork.mockReturnValue(process);
+
+        const startPromise = worker.start('/engine', '/project');
+        await Promise.resolve();
+        process.emit('message', SceneReadyChannel);
+        await expect(startPromise).resolves.toBe(true);
+
+        process.emit('exit', 0, null);
+
+        expect(mockProviderRegistrationDispose).toHaveBeenCalledTimes(1);
     });
 });
