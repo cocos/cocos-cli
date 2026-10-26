@@ -113,6 +113,14 @@ npm unlink -g cocos-cli
 npm link
 ```
 
+### ❌ Permission Denied (macOS / Linux)
+
+`npm link` 后运行 `cocos` 提示权限不足：
+
+```bash
+npm run chmod
+```
+
 ### ⚠️ 构建错误
 
 ```bash

@@ -53,6 +53,7 @@
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
         "start:mcp-inspector": "npx @modelcontextprotocol/inspector",
         "cli": "node ./dist/cli.js",
+        "chmod": "chmod +x dist/cli.js",
         "rebuild": "node workflow/electron-rebuild.js",
         "rebuild:node-gyp": "node workflow/node-gyp-rebuild.js"
     },
