@@ -5,21 +5,25 @@ const virtual = require('@rollup/plugin-virtual');
 const json = require('@rollup/plugin-json');
 const path = require('path');
 const { createDeferredModuleSource } = require('./deferred-module-proxy');
+const { browserFacadePath, generateBrowserFacades } = require('./scene-browser-api');
+// Runtime bundles and declarations share the same browser module IDs and targets.
+const browserEntries = require('./scene-api-entries.json').browser;
 
 async function buildSceneRuntime(options = {}) {
+    generateBrowserFacades();
     const workspaceDir = path.resolve(__dirname, '..');
     const editorDir = workspaceDir;
-    const entries = require('./scene-browser-entries.json');
-    const publicEntries = Object.fromEntries(Object.keys(entries).map(id => [id, 'browser:' + id]));
+    const entries = Object.entries(browserEntries);
+    const publicEntries = Object.fromEntries(entries.map(([id]) => [id, 'browser:' + id]));
     // CommonJS re-export helpers cannot be statically discovered by Rollup.
     // Use published declarations to emit explicit ESM exports, retaining the raw
     // CommonJS namespace as default for compiled TypeScript consumers.
     const ts = require('typescript');
-    const declarations = Object.keys(entries).map(id => path.join(workspaceDir, 'dist/core/scene/runtime/browser', id + '.d.ts'));
+    const declarations = entries.map(([id]) => path.join(workspaceDir, 'dist', browserFacadePath(id) + '.d.ts'));
     const program = ts.createProgram(declarations, { skipLibCheck: true, types: [] });
     const checker = program.getTypeChecker();
-    const facades = Object.fromEntries(Object.keys(entries).map((id, index) => {
-        const file = path.join(workspaceDir, 'dist/core/scene/runtime/browser', id + '.js').replace(/\\/g, '/');
+    const facades = Object.fromEntries(entries.map(([id], index) => {
+        const file = path.join(workspaceDir, 'dist', browserFacadePath(id) + '.js').replace(/\\/g, '/');
         const source = program.getSourceFile(declarations[index]);
         const symbol = source && checker.getSymbolAtLocation(source);
         if (!symbol) throw new Error('Missing browser API declarations: ' + declarations[index]);
@@ -612,8 +616,7 @@ async function main() {
     const hash = createHash('sha256');
     for (const file of files) hash.update(path.relative(out, file)).update(fs.readFileSync(file));
     const buildId = hash.digest('hex').slice(0, 16);
-    const entries = require('./scene-browser-entries.json');
-    fs.writeFileSync(path.join(out, 'import-map.json'), JSON.stringify({ imports: Object.fromEntries(Object.keys(entries).map(id => ['cocos-cli/browser/' + id, './' + id + '.js'])) }, null, 2));
+    fs.writeFileSync(path.join(out, 'import-map.json'), JSON.stringify({ imports: Object.fromEntries(Object.keys(browserEntries).map(id => ['cocos-cli/browser/' + id, './' + id + '.js'])) }, null, 2));
     // loadEngine remains API 1. Capability injection is an additive, independently
     // versioned feature so existing protocol 2 extensions can keep using this manifest.
     fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ apiVersion: 1, capabilitiesApiVersion: 1, cliVersion: require('../package.json').version, buildId, loader: './' + buildId + '/loader.js', importMap: './' + buildId + '/import-map.json' }, null, 2));

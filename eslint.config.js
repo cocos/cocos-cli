@@ -107,6 +107,7 @@ export default [
             '*.min.js',
             '*.bundle.js',
             'packages/cocos-cli-types/cc.d.ts',
+            'packages/cocos-cli-types/cc.editor.d.ts',
         ],
     },
 ];

@@ -1,4 +1,4 @@
-/** Versioned capability contract. Declarations are independently packaged by build:scene-editor-types. */
+/** Versioned capability contract, published through @cocos/cocos-cli-types/scene. */
 export interface HostModules {
     'commands/base': typeof import('../../../commands/base');
     'core/assets/index': typeof import('../../assets/index');
@@ -32,49 +32,51 @@ export interface HostModules {
     'server/socket': typeof import('../../../server/socket');
 }
 export interface BrowserModules {
-    'scene': typeof import('./browser/scene');
-    'scene/context': typeof import('./browser/scene/context');
-    'scene/common': typeof import('./browser/scene/common');
-    'scene/config': typeof import('./browser/scene/config');
-    'scene/i18n': typeof import('./browser/scene/i18n');
-    'scene/rpc': typeof import('./browser/scene/rpc');
-    'scene/light-probe-normal-reset': typeof import('./browser/scene/light-probe-normal-reset');
-    'scene/animation/property-commit-event': typeof import('./browser/scene/animation/property-commit-event');
-    'scene/editor-session': typeof import('./browser/scene/editor-session');
-    'scene/dump': typeof import('./browser/scene/dump');
-    'scene/engine': typeof import('./browser/scene/engine');
-    'scene/message': typeof import('./browser/scene/message');
-    'scene/node': typeof import('./browser/scene/node');
-    'scene/node/node-create': typeof import('./browser/scene/node/node-create');
-    'scene/node/node-type-config': typeof import('./browser/scene/node/node-type-config');
-    'scene/node/node-utils': typeof import('./browser/scene/node/node-utils');
-    'scene/node/prefab-canvas-mutation': typeof import('./browser/scene/node/prefab-canvas-mutation');
-    'scene/operation/types': typeof import('./browser/scene/operation/types');
-    'scene/prefab/prefab-editor-utils': typeof import('./browser/scene/prefab/prefab-editor-utils');
-    'scene/reference-image': typeof import('./browser/scene/reference-image');
-    'scene/scene/light-probe-snapshot': typeof import('./browser/scene/scene/light-probe-snapshot');
-    'scene/scene/light-probe-transform': typeof import('./browser/scene/scene/light-probe-transform');
-    'scene/scene/utils': typeof import('./browser/scene/scene/utils');
-    'scene/service-manager': typeof import('./browser/scene/service-manager');
-    'scene/utils/asset-reload': typeof import('./browser/scene/utils/asset-reload');
-    'scene/utils/editor-node': typeof import('./browser/scene/utils/editor-node');
-    'scene/utils/state-machine/finite-state-machine': typeof import('./browser/scene/utils/state-machine/finite-state-machine');
-    'scene/utils/state-machine/state-interface': typeof import('./browser/scene/utils/state-machine/state-interface');
-    'scene/session/client': typeof import('./browser/scene/session/client');
-    'scene/session/methods': typeof import('./browser/scene/session/methods');
-    'scene/session/protocol': typeof import('./browser/scene/session/protocol');
-    'engine/editor-extends': typeof import('./browser/engine/editor-extends');
-    'engine/node-path': typeof import('./browser/engine/node-path');
-    'engine/serialize': typeof import('./browser/engine/serialize');
-    'engine/deserialize': typeof import('./browser/engine/deserialize');
-    'engine/geometry': typeof import('./browser/engine/geometry');
-    'engine/prefab': typeof import('./browser/engine/prefab');
-    'engine/graphics-config': typeof import('./browser/engine/graphics-config');
-    'engine/polyfill': typeof import('./browser/engine/polyfill');
-    'engine/overwrite': typeof import('./browser/engine/overwrite');
-    'engine/editor/2d-misc': typeof import('./browser/engine/editor/2d-misc');
-    'engine/editor/new-gen-anim': typeof import('./browser/engine/editor/new-gen-anim');
-    'engine/editor/lod-group-utils': typeof import('./browser/engine/editor/lod-group-utils');
+    'scene': Omit<typeof import('./core'), 'default'>;
+    'scene/context': Omit<typeof import('./context'), 'default'>;
+    'scene/common': Omit<typeof import('../common/index'), 'default'>;
+    // Configuration interfaces are type exports, with no browser runtime members.
+    'scene/config': Record<never, never>;
+    'scene/i18n': typeof import('../scene-process/i18n');
+    'scene/rpc': Omit<typeof import('../scene-process/rpc'), 'default'>;
+    'scene/light-probe-normal-reset': Omit<typeof import('../scene-process/light-probe-normal-reset'), 'default'>;
+    'scene/animation/property-commit-event': Omit<typeof import('../scene-process/service/animation/property-commit-event'), 'default'>;
+    'scene/editor-session': Omit<typeof import('../scene-process/service/core/editor-session'), 'default'>;
+    'scene/dump': typeof import('../scene-process/service/dump/index');
+    'scene/engine': Omit<typeof import('../scene-process/service/engine'), 'default'>;
+    'scene/message': Omit<typeof import('../scene-process/service/message'), 'default'>;
+    'scene/node': typeof import('../scene-process/service/node/index');
+    'scene/node/node-create': Omit<typeof import('../scene-process/service/node/node-create'), 'default'>;
+    'scene/node/node-type-config': typeof import('../scene-process/service/node/node-type-config');
+    'scene/node/node-utils': Omit<typeof import('../scene-process/service/node/node-utils'), 'default'>;
+    'scene/node/prefab-canvas-mutation': Omit<typeof import('../scene-process/service/node/prefab-canvas-mutation'), 'default'>;
+    'scene/operation/types': Omit<typeof import('../scene-process/service/operation/types'), 'default'>;
+    'scene/prefab/prefab-editor-utils': Omit<typeof import('../scene-process/service/prefab/prefab-editor-utils'), 'default'>;
+    'scene/reference-image': Omit<typeof import('../scene-process/service/reference-image'), 'default'>;
+    'scene/scene/light-probe-snapshot': Omit<typeof import('../scene-process/service/scene/light-probe-snapshot'), 'default'>;
+    'scene/scene/light-probe-transform': Omit<typeof import('../scene-process/service/scene/light-probe-transform'), 'default'>;
+    'scene/scene/utils': Omit<typeof import('../scene-process/service/scene/utils'), 'default'>;
+    'scene/service-manager': Omit<typeof import('../scene-process/service/service-manager'), 'default'>;
+    'scene/utils/asset-reload': Omit<typeof import('../scene-process/service/utils/asset-reload'), 'default'>;
+    'scene/utils/editor-node': Omit<typeof import('../scene-process/service/utils/editor-node'), 'default'>;
+    'scene/utils/state-machine/finite-state-machine': typeof import('../scene-process/service/utils/state-machine/finite-state-machine');
+    'scene/utils/state-machine/state-interface': typeof import('../scene-process/service/utils/state-machine/state-interface');
+    'scene/session/client': Omit<typeof import('../session/client'), 'default'>;
+    'scene/session/methods': Omit<typeof import('../session/methods'), 'default'>;
+    'scene/session/protocol': Omit<typeof import('../session/protocol'), 'default'>;
+    'engine/editor-extends': Omit<typeof import('../../engine/editor-extends/index'), 'default'>;
+    'engine/node-path': Omit<typeof import('../../engine/editor-extends/manager/path-utils'), 'default'>;
+    'engine/serialize': Omit<typeof import('../../engine/editor-extends/utils/serialize/index'), 'default'>;
+    'engine/deserialize': Omit<typeof import('../../engine/editor-extends/utils/deserialize'), 'default'>;
+    'engine/geometry': Omit<typeof import('../../engine/editor-extends/utils/geometry'), 'default'>;
+    'engine/prefab': Omit<typeof import('../../engine/editor-extends/utils/prefab'), 'default'>;
+    'engine/graphics-config': Omit<typeof import('../../engine/graphics-config'), 'default'>;
+    'engine/polyfill': Record<never, never>;
+    // TypeScript exposes the CommonJS export-assignment member on this namespace.
+    'engine/overwrite': { default: typeof import('cc/overwrite'); 'export=': typeof import('cc/overwrite') };
+    'engine/editor/2d-misc': Omit<typeof import('cc/editor/2d-misc'), 'default'>;
+    'engine/editor/new-gen-anim': Omit<typeof import('cc/editor/new-gen-anim'), 'default'>;
+    'engine/editor/lod-group-utils': Omit<typeof import('cc/editor/lod-group-utils'), 'default'>;
 }
 export interface HostCapabilities {
     readonly apiVersion: 1;
