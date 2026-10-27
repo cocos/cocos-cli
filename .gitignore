@@ -55,5 +55,3 @@ profiles/cocos.config.json
 perf/
 
 static/scene-runtime/
-
-packages/scene-editor-types/
