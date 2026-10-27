@@ -45,6 +45,50 @@ function getEditorPatterns(dbInfos: DBInfo[]) {
     return editorPatterns;
 }
 
+/**
+ * 校验 QuickPack 增量缓存索引与 chunk 文件是否一致。
+ *
+ * QuickPack 以 target 工作区的 `main-record.json` 作为增量缓存：命中时不会重新生成 chunk。
+ * 若 chunk 文件被外部清理或上一次构建中途失败，缓存仍会命中，浏览器端请求
+ * `/scripting/x/chunks/**` 会全部失败，项目脚本（含自定义渲染管线扩展）不会执行。
+ * 启动时发现索引与文件不一致就清空该 target 工作区，强制完整重建一次。
+ * @param workspace target 工作区（`targets/<target>`）。
+ * @param logger packer 日志。
+ */
+async function repairInconsistentPackWorkspace(workspace: string, logger: Logger): Promise<void> {
+    const recordFile = ps.join(workspace, 'main-record.json');
+    if (!(await fs.pathExists(recordFile))) {
+        return;
+    }
+    let modules: Record<string, { chunkId?: string }>;
+    try {
+        const record = JSON.parse(await fs.readFile(recordFile, 'utf8')) as {
+            modules?: Record<string, { chunkId?: string }>;
+        };
+        modules = record.modules ?? {};
+    } catch {
+        logger.warn(`Failed to parse packer record ${recordFile}; rebuilding target workspace.`);
+        await fs.remove(workspace);
+        return;
+    }
+    const missing: string[] = [];
+    for (const [url, moduleRecord] of Object.entries(modules)) {
+        const chunkId = moduleRecord?.chunkId;
+        if (!chunkId) {
+            continue;
+        }
+        const chunkFile = ps.join(workspace, 'chunks', chunkId.slice(0, 2), `${chunkId}.js`);
+        if (!(await fs.pathExists(chunkFile))) {
+            missing.push(url);
+        }
+    }
+    if (missing.length === 0) {
+        return;
+    }
+    logger.warn(`Packer incremental cache is inconsistent: ${missing.length} chunk(s) missing (e.g. ${missing[0]}); rebuilding ${workspace}.`);
+    await fs.remove(workspace);
+}
+
 function getCCEModuleIDs(cceModuleMap: CCEModuleMap) {
     return Object.keys(cceModuleMap).filter(id => id !== 'mapLocation');
 }
@@ -190,6 +234,8 @@ export class PackerDriver {
             modLo.setLoadMappings(loadMappings);
 
             const targetWorkspace = ps.join(targetWorkspaceBase, targetId);
+            // 缓存索引存在但 chunk 文件缺失时，QuickPack 不会重建；先修复工作区避免浏览器端脚本整体加载失败。
+            await repairInconsistentPackWorkspace(targetWorkspace, logger);
             const quickPack = new QuickPack({
                 modLo,
                 origin: projectPath,
