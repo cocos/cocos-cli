@@ -92,6 +92,22 @@ const stripComments = (() => {
 
 const globalChunks = {};
 const globalDeprecations = { chunks: {}, identifiers: {} };
+
+/**
+ * 同一份 chunk 内容可能挂在多个名字下（内置 chunk 以 basename 注册，`#include <common/data/unpack>`
+ * 又会按完整相对路径解析一次）。只按名字去重会让同一份 GLSL 被内联两次，产生
+ * “function already has a body” 之类的编译错误；这里再按内容指纹去重，语义等价于 include once。
+ * @param {string} content chunk 源码。
+ * @returns {string} 内容指纹（长度 + FNV-1a 32 位哈希）。
+ */
+const contentFingerprint = (content) => {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < content.length; i++) {
+        hash ^= content.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return `${content.length}:${(hash >>> 0).toString(16)}`;
+};
 const addChunk = (() => {
     const depRE = /#pragma\s+deprecate-(chunk|identifier)\s+([\w-]+)(?:\s+(.*))?/g;
     return (name, content, chunks = globalChunks, deprecations = globalDeprecations) => {
@@ -167,6 +183,12 @@ const unwindIncludes = (() => {
             return '';
         } while (0); // eslint-disable-line
         record.add(name);
+        const fingerprint = `#${contentFingerprint(content)}`;
+        if (record.has(fingerprint)) {
+            // 同一份内容已通过另一个别名内联过：跳过，避免重复定义函数/结构体。
+            return '';
+        }
+        record.add(fingerprint);
 
         if (prefix) {
             content = content.replace(/^/gm, prefix);
