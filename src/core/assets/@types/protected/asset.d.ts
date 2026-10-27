@@ -1,5 +1,7 @@
-import { Asset, VirtualAsset } from '@cocos/asset-db';
+import { Asset as DatabaseAsset, VirtualAsset as DatabaseVirtualAsset } from '@cocos/asset-db';
 import { CCON } from 'cc/editor/serialization';
+import type { IAssetInfo } from '../public';
+import type { IAssetDBInfo } from './plugin';
 export type IAssetEvent = 'asset-add' | 'asset-change' | 'asset-delete';
 export type IAssetEventCallback = (asset: IAsset) => void;
 export interface IExportData {
@@ -33,15 +35,22 @@ export interface AssetManagerEvents {
 export * from '../public';
 export * from './plugin';
 
-export class VirtualAsset extends VirtualAsset {
+export class VirtualAsset extends DatabaseVirtualAsset {
     /**
      * 获取资源的导出数据
      */
-    getData: (name: 'output') => IExportData;
-    setData: (name: 'output', data: IExportData) => void;
+    getData(name: 'output'): IExportData;
+    getData(name: string): any;
+    setData(name: 'output', data: IExportData): void;
+    setData(name: string, data: any): void;
 }
 
-export class Asset extends Asset, IVirtualAsset { };
+export class Asset extends DatabaseAsset {
+    getData(name: 'output'): IExportData;
+    getData(name: string): any;
+    setData(name: 'output', data: IExportData): void;
+    setData(name: string, data: any): void;
+}
 
 export type IAsset = VirtualAsset | Asset;
 

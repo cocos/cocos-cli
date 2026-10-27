@@ -2,7 +2,7 @@ import { BundleCompressionType } from '../public';
 
 export type BundlePlatformType = 'native' | 'miniGame' | 'web';
 export type BundleConfigProperty = 'compressionType' | 'isRemote';
-export const enum BundleCompressionTypes {
+export enum BundleCompressionTypes {
     NONE = 'none',
     MERGE_DEP = 'merge_dep',
     MERGE_ALL_JSON = 'merge_all_json',
@@ -10,7 +10,7 @@ export const enum BundleCompressionTypes {
     ZIP = 'zip',
 }
 
-export const enum BuiltinBundleName {
+export enum BuiltinBundleName {
     RESOURCES = 'resources',
     MAIN = 'main',
     START_SCENE = 'start-scene',

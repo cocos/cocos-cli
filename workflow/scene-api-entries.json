@@ -1,0 +1,108 @@
+{
+  "host": {
+    "commands/base": "commands/base",
+    "core/assets/index": "core/assets/index",
+    "core/base/editor-shim": "core/base/editor-shim",
+    "core/base/i18n": "core/base/i18n",
+    "core/base/utils/uuid": "core/base/utils/uuid",
+    "core/builder/@types/protected": "core/builder/@types/protected",
+    "core/builder/index": "core/builder/index",
+    "core/builder/platforms/web-common/utils": "core/builder/platforms/web-common/utils",
+    "core/builder/share/common-options-validator": "core/builder/share/common-options-validator",
+    "core/configuration/index": "core/configuration/index",
+    "core/configuration/script/interface": "core/configuration/script/interface",
+    "core/extension-roots": "core/extension-roots",
+    "core/launcher": "core/launcher",
+    "core/project/index": "core/project/index",
+    "core/scene/common/index": "core/scene/common/index",
+    "core/scene/common/preview": "core/scene/common/preview",
+    "core/scene/common/reflection-probe": "core/scene/common/reflection-probe",
+    "core/scene/index": "core/scene/index",
+    "core/scene/main-process/index": "core/scene/main-process/index",
+    "core/scene/main-process/rpc": "core/scene/main-process/rpc",
+    "core/scene/runtime/resources/scene-routes": "core/scene/runtime/resources/scene-routes",
+    "core/scene/runtime/resources/scripting-routes": "core/scene/runtime/resources/scripting-routes",
+    "core/scene/runtime/resources/settings": "core/scene/runtime/resources/settings",
+    "core/scripting/index": "core/scripting/index",
+    "global": "global",
+    "lib/simulator/simulator": "lib/simulator/simulator",
+    "server/index": "server/index",
+    "server/interfaces": "server/interfaces",
+    "server/middleware/index": "server/middleware/index",
+    "server/socket": "server/socket"
+  },
+  "browser": {
+    "scene": "core/scene/runtime/core",
+    "scene/context": "core/scene/runtime/context",
+    "scene/common": "core/scene/common/index",
+    "scene/config": "core/scene/scene-configs",
+    "scene/i18n": "core/scene/scene-process/i18n",
+    "scene/rpc": "core/scene/scene-process/rpc",
+    "scene/light-probe-normal-reset": "core/scene/scene-process/light-probe-normal-reset",
+    "scene/animation/property-commit-event": "core/scene/scene-process/service/animation/property-commit-event",
+    "scene/editor-session": "core/scene/scene-process/service/core/editor-session",
+    "scene/dump": "core/scene/scene-process/service/dump/index",
+    "scene/engine": "core/scene/scene-process/service/engine",
+    "scene/message": "core/scene/scene-process/service/message",
+    "scene/node": "core/scene/scene-process/service/node/index",
+    "scene/node/node-create": "core/scene/scene-process/service/node/node-create",
+    "scene/node/node-type-config": "core/scene/scene-process/service/node/node-type-config",
+    "scene/node/node-utils": "core/scene/scene-process/service/node/node-utils",
+    "scene/node/prefab-canvas-mutation": "core/scene/scene-process/service/node/prefab-canvas-mutation",
+    "scene/operation/types": "core/scene/scene-process/service/operation/types",
+    "scene/prefab/prefab-editor-utils": "core/scene/scene-process/service/prefab/prefab-editor-utils",
+    "scene/reference-image": "core/scene/scene-process/service/reference-image",
+    "scene/scene/light-probe-snapshot": "core/scene/scene-process/service/scene/light-probe-snapshot",
+    "scene/scene/light-probe-transform": "core/scene/scene-process/service/scene/light-probe-transform",
+    "scene/scene/utils": "core/scene/scene-process/service/scene/utils",
+    "scene/service-manager": "core/scene/scene-process/service/service-manager",
+    "scene/utils/asset-reload": "core/scene/scene-process/service/utils/asset-reload",
+    "scene/utils/editor-node": "core/scene/scene-process/service/utils/editor-node",
+    "scene/utils/state-machine/finite-state-machine": "core/scene/scene-process/service/utils/state-machine/finite-state-machine",
+    "scene/utils/state-machine/state-interface": "core/scene/scene-process/service/utils/state-machine/state-interface",
+    "scene/session/client": "core/scene/session/client",
+    "scene/session/methods": "core/scene/session/methods",
+    "scene/session/protocol": "core/scene/session/protocol",
+    "engine/editor-extends": "core/engine/editor-extends/index",
+    "engine/node-path": "core/engine/editor-extends/manager/path-utils",
+    "engine/serialize": "core/engine/editor-extends/utils/serialize/index",
+    "engine/deserialize": "core/engine/editor-extends/utils/deserialize",
+    "engine/geometry": "core/engine/editor-extends/utils/geometry",
+    "engine/prefab": "core/engine/editor-extends/utils/prefab",
+    "engine/graphics-config": "core/engine/graphics-config",
+    "engine/polyfill": "cc/polyfill/engine",
+    "engine/overwrite": "cc/overwrite",
+    "engine/editor/2d-misc": "cc/editor/2d-misc",
+    "engine/editor/new-gen-anim": "cc/editor/new-gen-anim",
+    "engine/editor/lod-group-utils": "cc/editor/lod-group-utils"
+  },
+  "browserOptions": {
+    "scene/config": {
+      "typeOnly": true
+    },
+    "scene/i18n": {
+      "default": true
+    },
+    "scene/dump": {
+      "default": true
+    },
+    "scene/node": {
+      "default": true
+    },
+    "scene/node/node-type-config": {
+      "default": true
+    },
+    "scene/utils/state-machine/finite-state-machine": {
+      "default": true
+    },
+    "scene/utils/state-machine/state-interface": {
+      "default": true
+    },
+    "engine/polyfill": {
+      "sideEffect": true
+    },
+    "engine/overwrite": {
+      "default": true
+    }
+  }
+}

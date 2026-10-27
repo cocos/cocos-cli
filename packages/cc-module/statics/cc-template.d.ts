@@ -18,6 +18,11 @@ declare const CC_PHYSICS_AMMO: boolean;
 declare const CC_PHYSICS_BUILTIN: boolean;
 declare const cc: any;
 
+declare module 'cc/overwrite' {
+    function overwrite(engine: typeof import('cc')): void;
+    export = overwrite;
+}
+
 // polyfills for editor
 declare module 'cc' {
     interface CCObject {

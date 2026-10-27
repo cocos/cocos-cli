@@ -1,9 +1,10 @@
 /**
  * 准备 DTS 文件
  * 
- * 包括两个步骤：
+ * 包括三个步骤：
  * 1. 生成 i18n 类型定义（自动生成的类型文件）
  * 2. 复制源码中的 .d.ts 文件到 dist 目录
+ * 3. 根据入口清单生成浏览器兼容入口
  * 
  * TypeScript 编译器只生成新的 .d.ts，不会复制源码中已存在的 .d.ts 文件
  * 这个脚本确保所有类型定义文件都能正确复制到输出目录
@@ -13,6 +14,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const glob = require('glob');
 const { generateI18nTypes } = require('./generate-i18n-types');
+const { generateBrowserFacades } = require('./scene-browser-api');
 
 const SRC_DIR = path.resolve(__dirname, '../src');
 const DIST_DIR = path.resolve(__dirname, '../dist');
@@ -112,6 +114,7 @@ async function prepareDts() {
         
         // 步骤 2: 复制 .d.ts 文件
         await copyDtsFiles();
+        generateBrowserFacades();
         
         console.log('='.repeat(60));
         console.log('🎉 所有 DTS 文件准备完成！\n');
