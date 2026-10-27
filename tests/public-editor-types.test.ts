@@ -27,8 +27,10 @@ type IsAny<T> = 0 extends (1 & T) ? true : false;
 type AssertTyped<T extends false> = T;
 type AssetIsTyped = AssertTyped<IsAny<typeof queried>>;
 type Session = Editor.Browser.SceneSessionProtocol.SceneSessionDescriptor;
-type Manager = InstanceType<typeof Editor.Browser.SceneNode.default>;
+type Manager = typeof Editor.Browser.SceneNode.default;
 type ManagerIsTyped = AssertTyped<IsAny<Manager>>;
+const manager: Manager = capabilities.modules['scene/node'].default;
+const queriedNode: Node | null = manager.query('test-node');
 const mountedRoot: Node | undefined = node[editorExtrasTag].mountedRoot;
 const portable = host.portable['scene/session/client'];
 const prepared = browser.prepareScene({});
@@ -39,15 +41,26 @@ const overwrite: typeof import('cc/overwrite') = capabilities.modules['engine/ov
         moduleResolution: ts.ModuleResolutionKind.Node10, esModuleInterop: true,
         skipLibCheck: true, strict: true, types: ['node'], noEmit: true,
     };
-    const compilerHost = ts.createCompilerHost(options);
-    const getSourceFile = compilerHost.getSourceFile.bind(compilerHost);
-    compilerHost.getSourceFile = (file, languageVersion, onError, shouldCreateNewSourceFile) => path.resolve(file) === fixture
-        ? ts.createSourceFile(file, code, languageVersion, true)
-        : getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
     const oldFile = (entry: DomainEntry) => path.join(root, 'dist',
         (entry.kind === 'browser' ? browserFacadePath(entry.id) : entries.host[entry.id]) + '.d.ts');
-    const program = ts.createProgram([fixture, ...mappings.map(oldFile),
-        ...new Set(mappings.map(entry => path.join(packageRoot, entry.domain + '.d.ts')))], options, compilerHost);
+    function createFixtureProgram(source = code) {
+        const compilerHost = ts.createCompilerHost(options);
+        const getSourceFile = compilerHost.getSourceFile.bind(compilerHost);
+        compilerHost.getSourceFile = (file, languageVersion, onError, shouldCreateNewSourceFile) => path.resolve(file) === fixture
+            ? ts.createSourceFile(file, source, languageVersion, true)
+            : getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
+        return ts.createProgram([fixture, ...mappings.map(oldFile),
+            ...new Set(mappings.map(entry => path.join(packageRoot, entry.domain + '.d.ts')))], options, compilerHost);
+    }
+    function fixtureDiagnostics(program: ts.Program) {
+        const source = program.getSourceFile(fixture);
+        expect(source).toBeDefined();
+        // SourceFile identity is independent of Windows/POSIX path separators.
+        return [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()]
+            .filter(diagnostic => diagnostic.file === source)
+            .map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'));
+    }
+    const program = createFixtureProgram();
     const checker = program.getTypeChecker();
     const resolve = (symbol: ts.Symbol): ts.Symbol => symbol.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(symbol) : symbol;
     const exportsOf = (symbol: ts.Symbol) => checker.getExportsOfModule(resolve(symbol));
@@ -61,9 +74,12 @@ const overwrite: typeof import('cc/overwrite') = capabilities.modules['engine/ov
     });
 
     it('type-checks public capabilities, default exports, shared assets and engine augmentation', () => {
-        const diagnostics = [...program.getSyntacticDiagnostics(), ...program.getSemanticDiagnostics()]
-            .filter(diagnostic => diagnostic.file?.fileName === fixture);
-        expect(diagnostics.map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))).toEqual([]);
+        expect(fixtureDiagnostics(program)).toEqual([]);
+    });
+
+    it('detects fixture type errors on every platform', () => {
+        const invalid = createFixtureProgram(code + '\nconst invalid: number = "not a number";');
+        expect(fixtureDiagnostics(invalid)).toEqual(["Type 'string' is not assignable to type 'number'."]);
     });
 
     it.each(mappings)('preserves $kind/$id exports in $domain.Editor', entry => {
