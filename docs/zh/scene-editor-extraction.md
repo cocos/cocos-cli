@@ -73,7 +73,7 @@ type SceneSessionDescriptor = Editor.Browser.SceneSessionProtocol.SceneSessionDe
 
 生成器按原始编译符号和完整声明识别可复用的公共类型，剩余声明及必要依赖由 API Extractor 按领域合并到原有 `.d.ts`。编辑器全局扩展并入共用的 `cc.editor.d.ts`，`scene.d.ts` 引用这份引擎声明。类型包不再包含 `scene-editor/` 目录、`scene-editor.d.ts` 或内部模块路径兼容层。生成时的临时依赖图在完成后清理，不参与发布。
 
-浏览器实际执行的 JavaScript 仍由 `npm run build:scene-runtime` 生成到 `static/scene-runtime/`。
+浏览器实际执行的 JavaScript 仍由 `npm run build:scene-runtime` 生成到 `dist/scene-runtime/`。
 
 运行时打包和编辑器声明共用 `workflow/scene-api-entries.json`：`host` 定义宿主类型入口，`browser` 定义浏览器模块到实际实现的映射，`browserOptions` 描述默认导出、仅类型导出及副作用入口。普通实现路径相对 `src`，`cc/...` 保留引擎模块标识。
 

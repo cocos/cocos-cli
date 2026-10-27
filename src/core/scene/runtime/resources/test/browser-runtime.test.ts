@@ -5,20 +5,20 @@ import { GlobalPaths } from '../../../../../global';
 import { browserRuntimeRoutes } from '../browser-runtime';
 
 describe('CLI browser runtime resources', () => {
-    const original = GlobalPaths.staticDir;
+    const original = GlobalPaths.workspace;
     let directory: string;
     const buildId = '0123456789abcdef';
     beforeEach(() => {
         directory = mkdtempSync(join(tmpdir(), 'cli-browser-resources-'));
-        GlobalPaths.staticDir = directory;
-        mkdirSync(join(directory, 'scene-runtime'));
+        GlobalPaths.workspace = directory;
+        mkdirSync(join(directory, 'dist/scene-runtime'), { recursive: true });
     });
     afterEach(() => {
-        GlobalPaths.staticDir = original;
+        GlobalPaths.workspace = original;
         rmSync(directory, { recursive: true, force: true });
     });
     function manifest() {
-        writeFileSync(join(directory, 'scene-runtime/manifest.json'), JSON.stringify({ apiVersion: 1, buildId }));
+        writeFileSync(join(directory, 'dist/scene-runtime/manifest.json'), JSON.stringify({ apiVersion: 1, buildId }));
     }
     async function request(path: string) {
         const res: any = { setHeader: jest.fn(), json: jest.fn(), sendFile: jest.fn(), sendStatus: jest.fn() };
@@ -37,9 +37,9 @@ describe('CLI browser runtime resources', () => {
         const descriptor = await request('/scripting/scene-runtime/manifest.json');
         expect(descriptor.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
         expect(descriptor.json).toHaveBeenCalledWith({ apiVersion: 1, buildId });
-        writeFileSync(join(directory, 'scene-runtime/loader.js'), 'export {};');
+        writeFileSync(join(directory, 'dist/scene-runtime/loader.js'), 'export {};');
         const resource = await request(`/scripting/scene-runtime/${buildId}/loader.js`);
-        expect(resource.sendFile).toHaveBeenCalledWith(join(directory, 'scene-runtime/loader.js'), { dotfiles: 'allow' });
+        expect(resource.sendFile).toHaveBeenCalledWith(join(directory, 'dist/scene-runtime/loader.js'), { dotfiles: 'allow' });
         expect(resource.setHeader).toHaveBeenCalledWith('Cache-Control', 'public, max-age=31536000, immutable');
     });
     it('rejects stale builds, missing files and paths outside the artifact directory', async () => {
