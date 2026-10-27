@@ -16,6 +16,7 @@ describe('editor types integrated into public declarations', () => {
     const code = `
 import type { HostCapabilities, BrowserCapabilities, BrowserHost, Editor } from '../packages/cocos-cli-types/scene';
 import type { IAssetInfo } from '../packages/cocos-cli-types/assets';
+import type { ConfigInterface, rollup as Rollup } from '../packages/cocos-cli-types/builder';
 import { editorExtrasTag, Node } from 'cc';
 declare const host: HostCapabilities;
 declare const browser: BrowserHost;
@@ -27,6 +28,8 @@ type IsAny<T> = 0 extends (1 & T) ? true : false;
 type AssertTyped<T extends false> = T;
 type AssetIsTyped = AssertTyped<IsAny<typeof queried>>;
 type Session = Editor.Browser.SceneSessionProtocol.SceneSessionDescriptor;
+type BuilderConfigIsTyped = AssertTyped<IsAny<ConfigInterface.Config>>;
+type RollupOptionsIsTyped = AssertTyped<IsAny<Rollup.RollupOptions>>;
 type Manager = typeof Editor.Browser.SceneNode.default;
 type ManagerIsTyped = AssertTyped<IsAny<Manager>>;
 const manager: Manager = capabilities.modules['scene/node'].default;
