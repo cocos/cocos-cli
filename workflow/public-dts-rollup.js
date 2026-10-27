@@ -18,6 +18,12 @@ function namespaceOf(id) {
     return id.split(/[^a-zA-Z0-9]+/).filter(Boolean).map(part => part[0].toUpperCase() + part.slice(1)).join('');
 }
 
+function restoreNamespaceExports(code) {
+    // API Extractor strips the export keyword when rolling up an already emitted
+    // namespace export list. Its remaining bare block is invalid in a .d.ts file.
+    return code.replace(/^((?:export )?declare namespace [\w$]+ \{\r?\n)([ \t]+)\{(?=\r?\n)/gm, '$1$2export {');
+}
+
 function domainEntries() {
     return ['host', 'browser'].flatMap(kind => Object.keys(entries[kind]).map(id => ({
         kind, id, domain: domainOf(kind, id), namespace: namespaceOf(id), file: kind + '/' + id + '.d.ts',
@@ -151,7 +157,7 @@ async function rollupDomains({ workspace, packageRoot, generated, reachable, pub
             if (message.logLevel !== 'error') message.handled = true;
         } });
         if (!result.succeeded) throw new Error('Failed to extend ' + domain + '.d.ts: ' + result.errorCount + ' errors');
-        let code = fs.readFileSync(output, 'utf8');
+        let code = restoreNamespaceExports(fs.readFileSync(output, 'utf8'));
         code = code.replace(/^[ \t]+/gm, indent => indent.replace(/\t/g, '    '));
         code = code.replace(/(['"])@cocos\/cocos-cli-types(?:\/([^'"\r\n]+))?\1/g, (_, quote, id) => quote + './' + (id || 'index') + quote);
         if (domain === 'scene') code = '/// <reference path="./cc.d.ts" />\n/// <reference path="./cc.editor.d.ts" />\n' + code;

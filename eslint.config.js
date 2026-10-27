@@ -99,6 +99,15 @@ export default [
         },
     },
     {
+        files: ['packages/cocos-cli-types/*.d.ts'],
+        rules: {
+            // Generated ambient declarations preserve mutable namespace members
+            // and path references that load the engine's global augmentations.
+            'no-var': 'off',
+            '@typescript-eslint/triple-slash-reference': 'off',
+        },
+    },
+    {
         ignores: [
             'dist/**',
             'node_modules/**',
