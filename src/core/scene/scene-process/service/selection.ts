@@ -1,9 +1,6 @@
 import { BaseService } from './core';
 import { register } from './core/decorator';
-import { ServiceEvents } from './core/global-events';
-import type { ISelectionService, ISelectionEvents, IChangeNodeOptions } from '../../common';
-import { NodeEventType } from '../../common';
-import type { Node } from 'cc';
+import type { ISelectionService, ISelectionEvents } from '../../common';
 import { getEditorNodeByUuid, getEditorNodePath, getEditorNodeUuidByPath } from './utils/editor-node';
 import { normalizeNodePath } from '../../../engine/editor-extends/manager/path-utils';
 
@@ -25,61 +22,27 @@ interface SelectionEntry {
 @register('Selection')
 export class SelectionService extends BaseService<ISelectionEvents> implements ISelectionService {
     private _selections: SelectionEntry[] = [];
-    private _onNodeChangedHandler?: (node: Node, opts?: IChangeNodeOptions) => void;
-
-    init() {
-        this._onNodeChangedHandler = (node: Node, opts: IChangeNodeOptions = {}) => {
-            if (opts.type === NodeEventType.SET_PROPERTY && opts.propPath === 'name') {
-                this._onNodePathChanged(node);
-            } else if (opts.type === NodeEventType.PARENT_CHANGED) {
-                this._onNodePathChanged(node);
-            }
-        };
-        ServiceEvents.on('node:change', this._onNodeChangedHandler);
-    }
-
-    destroy() {
-        if (this._onNodeChangedHandler) {
-            ServiceEvents.off('node:change', this._onNodeChangedHandler);
-            this._onNodeChangedHandler = undefined;
-        }
-    }
-
-    private _onNodePathChanged(node: Node) {
-        const uuid = node.uuid;
-        const newPath = uuidToPath(uuid);
-        if (!newPath) return;
-
-        for (const entry of this._selections) {
-            if (entry.uuid === uuid) {
-                entry.path = newPath;
-            }
-        }
-    }
 
     select(path: string): void {
-        // 选中项以归一化路径为键，'/Canvas' 与 'Canvas' 是同一个节点，不能存成两条
-        const normalized = normalizeNodePath(path);
-        const index = this._selections.findIndex(e => e.path === normalized);
+        const entry = this._resolveEntry(path);
+        const index = this._findSelection(entry);
         if (index !== -1) return;
-        const uuid = pathToUuid(normalized);
-        this._selections.unshift({ path: normalized, uuid });
-        if (uuid) {
-            this._callFocusInEditor(uuid);
+        this._selections.unshift(entry);
+        if (entry.uuid) {
+            this._callFocusInEditor(entry.uuid);
         }
-        this.broadcast('selection:select', normalized, this._getPaths());
+        this.broadcast('selection:select', this._getPath(entry), this._getPaths());
     }
 
     unselect(path: string): void {
-        const normalized = normalizeNodePath(path);
-        const index = this._selections.findIndex(e => e.path === normalized);
+        const index = this._findSelection(this._resolveEntry(path));
         if (index === -1) return;
         const entry = this._selections[index];
         this._selections.splice(index, 1);
         if (entry.uuid) {
             this._callLostFocusInEditor(entry.uuid);
         }
-        this.broadcast('selection:unselect', normalized, this._getPaths());
+        this.broadcast('selection:unselect', this._getPath(entry), this._getPaths());
     }
 
     clear(): void {
@@ -89,27 +52,53 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
                 if (entry.uuid) {
                     this._callLostFocusInEditor(entry.uuid);
                 }
-                this.emit('selection:unselect', entry.path, this._getPaths());
+                this.emit('selection:unselect', this._getPath(entry), this._getPaths());
             }
         }
         this.broadcast('selection:clear');
     }
 
     query(): string[] {
-        return this._selections.map(e => e.path);
+        return this._getPaths();
     }
 
     isSelect(path: string): boolean {
-        const normalized = normalizeNodePath(path);
-        return this._selections.some(e => e.path === normalized);
+        return this._findSelection(this._resolveEntry(path)) !== -1;
     }
 
     reset(): void {
         this._selections.length = 0;
     }
 
+    private _resolveEntry(path: string): SelectionEntry {
+        const normalized = normalizeNodePath(path);
+        return { path: normalized, uuid: pathToUuid(normalized) };
+    }
+
+    private _findSelection(target: SelectionEntry): number {
+        return this._selections.findIndex(entry => {
+            // Prefab-relative aliases can resolve to the same node as an absolute path.
+            if (target.uuid && entry.uuid) {
+                return entry.uuid === target.uuid;
+            }
+            return this._getPath(entry) === target.path;
+        });
+    }
+
     private _getPaths(): string[] {
-        return this._selections.map(e => e.path);
+        return this._selections.map(entry => this._getPath(entry));
+    }
+
+    private _getPath(entry: SelectionEntry): string {
+        // Resolve at the point of use: ancestor edits and Undo can change the address
+        // without a matching name/parent event for this selected node.
+        const path = uuidToPath(entry.uuid);
+        if (path) {
+            entry.path = normalizeNodePath(path);
+        }
+        // Preserve unresolved selections and the last address of temporarily missing nodes.
+        // Never bind a known UUID to another node that now occupies its old path.
+        return entry.path;
     }
 
     private _callFocusInEditor(uuid: string): void {
