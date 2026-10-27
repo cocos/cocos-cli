@@ -9,6 +9,21 @@ const { browserFacadePath, generateBrowserFacades } = require('./scene-browser-a
 // Runtime bundles and declarations share the same browser module IDs and targets.
 const browserEntries = require('./scene-api-entries.json').browser;
 
+function createBrowserRuntimeFacade(checker, source, file) {
+    const ts = require('typescript');
+    const symbol = source && checker.getSymbolAtLocation(source);
+    if (!symbol) throw new Error('Missing browser API declarations: ' + source?.fileName);
+    const names = checker.getExportsOfModule(symbol).filter(item => {
+        // export= is TypeScript's CommonJS assignment symbol, not a named JS export.
+        // The raw CommonJS value is already preserved by the facade's default export.
+        if (item.name === 'default' || item.name === 'export=') return false;
+        const value = item.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(item) : item;
+        return value.flags & ts.SymbolFlags.Value;
+    }).map(item => item.name);
+    return `import api from '${file.replace(/\\/g, '/')}'; export default api;\n`
+        + names.map(name => `export const ${name} = api.${name};`).join('\n');
+}
+
 async function buildSceneRuntime(options = {}) {
     generateBrowserFacades();
     const workspaceDir = path.resolve(__dirname, '..');
@@ -23,15 +38,9 @@ async function buildSceneRuntime(options = {}) {
     const program = ts.createProgram(declarations, { skipLibCheck: true, types: [] });
     const checker = program.getTypeChecker();
     const facades = Object.fromEntries(entries.map(([id], index) => {
-        const file = path.join(workspaceDir, 'dist', browserFacadePath(id) + '.js').replace(/\\/g, '/');
+        const file = path.join(workspaceDir, 'dist', browserFacadePath(id) + '.js');
         const source = program.getSourceFile(declarations[index]);
-        const symbol = source && checker.getSymbolAtLocation(source);
-        if (!symbol) throw new Error('Missing browser API declarations: ' + declarations[index]);
-        const names = checker.getExportsOfModule(symbol).filter(item => {
-            const value = item.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(item) : item;
-            return item.name !== 'default' && (value.flags & ts.SymbolFlags.Value);
-        }).map(item => item.name);
-        return ['browser:' + id, `import api from '${file}'; export default api;\n` + names.map(name => `export const ${name} = api.${name};`).join('\n')];
+        return ['browser:' + id, createBrowserRuntimeFacade(checker, source, file)];
     }));
 
     console.log('[Build] Bundling scene services for preview...');
@@ -621,5 +630,5 @@ async function main() {
     // versioned feature so existing protocol 2 extensions can keep using this manifest.
     fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ apiVersion: 1, capabilitiesApiVersion: 1, cliVersion: require('../package.json').version, buildId, loader: './' + buildId + '/loader.js', importMap: './' + buildId + '/import-map.json' }, null, 2));
 }
-module.exports = { buildSceneRuntime, buildEditorExtends, main };
+module.exports = { createBrowserRuntimeFacade, buildSceneRuntime, buildEditorExtends, main };
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
