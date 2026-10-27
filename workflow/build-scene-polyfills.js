@@ -5,12 +5,12 @@
  * - core-js-bundle (ES 标准 API 垫片)
  * - regenerator-runtime (async/await 支持)
  *
- * 输出到 static/scene-runtime/polyfills.bundle.js
+ * 输出到 dist/scene-runtime/polyfills.bundle.js
  */
 const path = require('path');
 const fs = require('fs-extra');
 
-function buildScenePolyfills(outDir = path.join(__dirname, '..', 'static', 'scene-runtime')) {
+function buildScenePolyfills(outDir = path.join(__dirname, '..', 'dist', 'scene-runtime')) {
     fs.ensureDirSync(outDir);
 
     const outFile = path.join(outDir, 'polyfills.bundle.js');

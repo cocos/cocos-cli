@@ -8,7 +8,7 @@ export const browserRuntimeRoutes = [{
     url: /^\/scripting\/scene-runtime(?:\/|$)/,
     async handler(req: Request, res: Response, next: NextFunction): Promise<Response | void> {
         try {
-            const root = join(GlobalPaths.staticDir, 'scene-runtime');
+            const root = join(GlobalPaths.workspace, 'dist', 'scene-runtime');
             const manifestFile = join(root, 'manifest.json');
             if (!(await pathExists(manifestFile))) {
                 return res.status(503).json({ error: 'CLI browser runtime is unavailable; run npm run build:scene-runtime in cocos-cli' });

@@ -19,7 +19,7 @@ describe('scene editor browser host manifest compatibility', () => {
     const manifest = { apiVersion: 1, capabilitiesApiVersion: 1, buildId: '0123456789abcdef', loader: './0123456789abcdef/loader.js' };
     it('keeps the API 1 manifest usable by old extensions and injects capabilities for new ones', async () => {
         // The former extension requires exactly API 1 and this versioned loader URL.
-        const built = JSON.parse(readFileSync(join(__dirname, '../static/scene-runtime/manifest.json'), 'utf8'));
+        const built = JSON.parse(readFileSync(join(__dirname, '../dist/scene-runtime/manifest.json'), 'utf8'));
         expect(built.apiVersion).toBe(1);
         expect(built.capabilitiesApiVersion).toBe(1);
         expect(new URL(built.loader, 'http://localhost:7456/scripting/scene-runtime/manifest.json').href)

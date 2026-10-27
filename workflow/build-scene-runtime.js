@@ -431,7 +431,7 @@ async function buildSceneRuntime(options = {}) {
         ],
     });
 
-    const bundleOutputFile = options.output || path.join(editorDir, 'static', 'scene-runtime');
+    const bundleOutputFile = options.output || path.join(editorDir, 'dist', 'scene-runtime');
     const sceneBundleOutput = await bundle.write({
         dir: bundleOutputFile,
         entryFileNames: '[name].js',
@@ -583,7 +583,7 @@ async function buildEditorExtends() {
         ],
     });
 
-    const outputFile = path.join(editorDir, 'static', 'scene-runtime', 'editor-extends.bundle.js');
+    const outputFile = path.join(editorDir, 'dist', 'scene-runtime', 'editor-extends.bundle.js');
     await bundle.write({
         file: outputFile,
         format: 'es',
@@ -598,10 +598,10 @@ async function buildEditorExtends() {
 
 async function main() {
     const root = path.resolve(__dirname, '..');
-    const out = path.join(root, 'static/scene-runtime');
+    const out = path.join(root, 'dist/scene-runtime');
     const fs = require('fs');
     const { createHash } = require('crypto');
-    if (path.relative(root, out).replace(/\\/g, '/') !== 'static/scene-runtime') throw new Error('Invalid runtime output directory');
+    if (path.relative(root, out).replace(/\\/g, '/') !== 'dist/scene-runtime') throw new Error('Invalid runtime output directory');
     fs.rmSync(out, { recursive: true, force: true });
     fs.mkdirSync(out, { recursive: true });
     await buildEditorExtends();
