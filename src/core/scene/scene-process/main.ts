@@ -57,7 +57,22 @@ async function startup() {
 
         const { Service } = await import('./service/core/decorator');
         (globalThis.cce as any) = {
-            Script: Service.Script
+            Script: Service.Script,
+            // 引擎在 EDITOR 下会直接调用 globalThis.cce.Engine.repaintInEditMode()（例如 cc.PostProcess /
+            // cc.BlitScreen 的 setter）。Node 场景 Worker 没有编辑器进程注入，缺这个入口会在 50ms 后抛出
+            // 未捕获 TypeError 并退出；这里委托给 Engine 服务，服务尚未就绪时忽略本次重绘请求。
+            Engine: {
+                repaintInEditMode: () => {
+                    try {
+                        const pending = Service.Engine?.repaintInEditMode?.();
+                        if (pending && typeof (pending as Promise<void>).catch === 'function') {
+                            void (pending as Promise<void>).catch(() => undefined);
+                        }
+                    } catch {
+                        // Engine 服务在引擎启动早期可能还未注册，忽略。
+                    }
+                },
+            },
         };
     }, async () => {
         await cc.game.run();
