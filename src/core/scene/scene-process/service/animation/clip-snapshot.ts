@@ -22,6 +22,7 @@ import {
 } from './embedded-player';
 import { dumpPropertyCurves, replacePropertyCurves } from './property-curve';
 import type { IPropertyCurveMetadataContext } from './property-curve';
+import { captureAnimationTracks, restoreAnimationTracks } from './track-snapshot';
 import {
     cloneValue,
     getClipSample,
@@ -30,6 +31,8 @@ import {
 } from './utils';
 
 export interface IAnimationClipSnapshot {
+    /** 原始轨道快照；仅含曲线 dump 的快照仍可通过 curves 恢复 */
+    serializedTracks?: string;
     duration: number;
     sample: number;
     speed: number;
@@ -48,6 +51,7 @@ export function captureAnimationClipSnapshot(clip: AnimationClip, options: IProp
     const sample = getClipSample(clip);
     const events = queryClipEvents(clip) || [];
     return {
+        serializedTracks: captureAnimationTracks(clip),
         duration: Number((clip as any).duration) || 0,
         sample,
         speed: Number((clip as any).speed) || 0,
@@ -88,9 +92,13 @@ async function applyAnimationClipSnapshot(
     (clip as any).sample = snapshot.sample;
     (clip as any).speed = snapshot.speed;
     (clip as any).wrapMode = snapshot.wrapMode;
-    const curves = await hydrateAnimationAssetCurveValues(snapshot.curves, pendingAssetLoads);
-    if (!replacePropertyCurves(clip, curves)) {
-        throw new Error('Failed to restore animation property curves.');
+    if (snapshot.serializedTracks !== undefined) {
+        await restoreAnimationTracks(clip, snapshot.serializedTracks);
+    } else {
+        const curves = await hydrateAnimationAssetCurveValues(snapshot.curves, pendingAssetLoads);
+        if (!replacePropertyCurves(clip, curves)) {
+            throw new Error('Failed to restore animation property curves.');
+        }
     }
     restoreEvents(clip, snapshot);
     replaceEmbeddedPlayerGroups(clip, snapshot.embeddedPlayerGroups);

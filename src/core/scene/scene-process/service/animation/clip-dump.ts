@@ -6,6 +6,7 @@ import { dumpEmbeddedPlayers, queryEmbeddedPlayerGroups } from './embedded-playe
 import { dumpPropertyCurves, type IPropertyCurveMetadataContext } from './property-curve';
 import { dumpUntypedAnimationCurves } from './untyped-animation-track';
 import { cloneValue, getClipSample } from './utils';
+import { queryAnimationNodePaths } from './property-curve-track';
 
 export function createClipDump(clip: AnimationClip, state: AnimationState | undefined, options: {
     isSkeleton: boolean;
@@ -20,6 +21,7 @@ export function createClipDump(clip: AnimationClip, state: AnimationState | unde
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
         curves: dumpAnimationCurves(clip, options),
+        nodePaths: queryAnimationNodePaths(clip),
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',
