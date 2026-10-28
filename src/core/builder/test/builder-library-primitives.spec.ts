@@ -4,13 +4,13 @@ const mockStageUnit = jest.fn();
 const mockStageFactory = jest.fn();
 
 jest.mock('../index', () => ({
-    init: jest.fn(),
     build: mockBuildUnit,
     createBuildTask: mockCreateBuildUnit,
     executeBuildStageTask: mockStageUnit,
     createBuildStageTask: mockStageFactory,
 }));
-jest.mock('../../../global', () => ({ GlobalConfig: {} }));
+const mockLegacyStages = { make: jest.fn(), run: jest.fn(), upload: jest.fn(), publish: jest.fn() };
+jest.mock('../../launcher', () => ({ __esModule: true, default: mockLegacyStages }));
 jest.mock('../manager/plugin', () => ({ pluginManager: {} }));
 
 describe('Builder library primitives', () => {
@@ -36,13 +36,27 @@ describe('Builder library primitives', () => {
         expect(library).not.toHaveProperty('createBuildUnitTask');
         expect(library).not.toHaveProperty('buildWorkflow');
     });
-    it.each(['make', 'run', 'upload', 'publish'] as const)('%s remains an atomic library operation', async stage => {
+    it.each(['make', 'run', 'upload', 'publish'] as const)('%s preserves the original Launcher behavior', async stage => {
         const library = await import('../../../lib/builder/builder');
-        mockStageUnit.mockResolvedValue({ code: 0, dest: '/build', custom: {} });
-        await library[stage]('openpaas', '/build');
-        expect(mockStageUnit).toHaveBeenCalledWith('library ' + stage, stage, {
-            platform: 'openpaas', dest: '/build', packages: undefined,
-        });
+        const result = { code: 34, reason: 'legacy stage result', custom: { stageResults: {} } };
+        mockLegacyStages[stage].mockResolvedValue(result);
+        expect(await library[stage]('openpaas', '/build')).toBe(result);
+        expect(mockLegacyStages[stage]).toHaveBeenCalledWith('openpaas', '/build', ...(stage === 'upload' ? [undefined] : []));
+        expect(mockStageUnit).not.toHaveBeenCalled();
+    });
+
+    it('preserves the legacy upload access token argument', async () => {
+        const library = await import('../../../lib/builder/builder');
+        await library.upload('openpaas', '/build', 'access-token');
+        expect(mockLegacyStages.upload).toHaveBeenCalledWith('openpaas', '/build', 'access-token');
+    });
+
+    it('preserves Launcher rejection without retrying or converting it to a result', async () => {
+        const library = await import('../../../lib/builder/builder');
+        const error = new Error('legacy failure');
+        mockLegacyStages.make.mockRejectedValueOnce(error);
+        await expect(library.make('openpaas', '/build')).rejects.toBe(error);
+        expect(mockLegacyStages.make).toHaveBeenCalledTimes(1);
     });
 });
 

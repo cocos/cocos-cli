@@ -64,11 +64,13 @@ export async function createBuildStageTask(taskId: string, stageName: string, op
 }
 
 export async function make(platform: Platform, dest: string) {
-    return executeLibraryStage('make', platform, dest);
+    const { default: Launcher } = await import('../../core/launcher');
+    return Launcher.make(platform, dest);
 }
 
 export async function run(platform: Platform, dest: string) {
-    return executeLibraryStage('run', platform, dest);
+    const { default: Launcher } = await import('../../core/launcher');
+    return Launcher.run(platform, dest);
 }
 
 export async function getPreviewUrl(dest: string, platform?: string): Promise<string> {
@@ -77,27 +79,13 @@ export async function getPreviewUrl(dest: string, platform?: string): Promise<st
 }
 
 export async function upload(platform: Platform, dest: string, accessToken?: string) {
-    return executeLibraryStage('upload', platform, dest, accessToken);
+    const { default: Launcher } = await import('../../core/launcher');
+    return Launcher.upload(platform, dest, accessToken);
 }
 
 export async function publish(platform: Platform, dest: string) {
-    return executeLibraryStage('publish', platform, dest);
-}
-
-/** Library stage operations retain initialization but never enter command/MCP workflows. */
-async function executeLibraryStage(stageName: string, platform: Platform, dest: string, accessToken?: string) {
-    const { GlobalConfig } = await import('../../global');
-    GlobalConfig.mode = 'simple';
-    const builder = await import('../../core/builder');
-    if (stageName === 'run' && platform.startsWith('web')) {
-        const { startServer } = await import('../../server');
-        await startServer();
-    }
-    await builder.init([platform]);
-    return builder.executeBuildStageTask('library ' + stageName, stageName, {
-        platform, dest,
-        packages: accessToken ? { [platform]: { accessToken } } : undefined,
-    });
+    const { default: Launcher } = await import('../../core/launcher');
+    return Launcher.publish(platform, dest);
 }
 
 export async function queryBuildConfig(): Promise<BuildConfiguration> {
