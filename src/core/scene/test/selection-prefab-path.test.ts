@@ -394,6 +394,69 @@ describe('SelectionService current addresses', () => {
         expect(component.onLostFocusInEditor).not.toHaveBeenCalled();
     });
 
+    it.each([
+        { description: 'selected-node rename', ancestor: false, opts: { type: 'set-property', propPath: 'name' } },
+        { description: 'ancestor reparent', ancestor: true, opts: { type: 'parent-changed' } },
+        { description: 'ancestor Undo without property metadata', ancestor: true, opts: { source: 'undo' } },
+    ] as const)('retains the latest address after $description followed by index removal', ({ ancestor, opts }) => {
+        const { selection, ServiceEvents, parent, child, paths, nodes, broadcast, component } = createSelection();
+        selection.select('Parent/Child');
+        broadcast.mockClear();
+        const currentPath = ancestor ? 'Moved/Parent/Child' : 'Parent/Renamed';
+        if (ancestor) paths.set(parent.uuid, 'Moved/Parent');
+        paths.set(child.uuid, currentPath);
+        ServiceEvents.emit('node:change', ancestor ? parent : child, opts);
+        // Remove the node before any selection read can refresh its cached address.
+        nodes.delete(child.uuid);
+        paths.delete(child.uuid);
+
+        expect(selection.query()).toEqual([currentPath]);
+        expect(selection.isSelect(currentPath)).toBe(true);
+        expect(broadcast).not.toHaveBeenCalled();
+        selection.unselect(currentPath);
+
+        expect(selection.query()).toEqual([]);
+        expect(broadcast.mock.calls).toEqual([['selection:unselect', currentPath, []]]);
+        expect(component.onFocusInEditor).toHaveBeenCalledTimes(1);
+        expect(component.onLostFocusInEditor).not.toHaveBeenCalled();
+    });
+
+    it('clears missing renamed nodes in selection order with their latest event addresses', () => {
+        const { selection, ServiceEvents, child, paths, nodes, broadcast } = createSelection();
+        selection.select('Other');
+        selection.select('Parent/Child');
+        broadcast.mockClear();
+        const unselected = jest.fn();
+        ServiceEvents.on('selection:unselect', unselected);
+        paths.set(child.uuid, 'Parent/Renamed');
+        ServiceEvents.emit('node:change', child, { type: 'set-property', propPath: 'name' });
+        nodes.delete(child.uuid);
+        paths.delete(child.uuid);
+
+        selection.clear();
+
+        expect(unselected.mock.calls).toEqual([
+            ['Parent/Renamed', ['Other']],
+            ['Other', []],
+        ]);
+        expect(broadcast.mock.calls).toEqual([['selection:clear']]);
+        expect(selection.query()).toEqual([]);
+    });
+
+    it('stops observing node changes when the selection service is destroyed', () => {
+        const { selection, ServiceEvents, child, paths, nodes, broadcast } = createSelection();
+        selection.select('Parent/Child');
+        (selection as { destroy?: () => void }).destroy?.();
+        broadcast.mockClear();
+        paths.set(child.uuid, 'Parent/Renamed');
+        ServiceEvents.emit('node:change', child, { type: 'set-property', propPath: 'name' });
+        nodes.delete(child.uuid);
+        paths.delete(child.uuid);
+
+        expect(selection.query()).toEqual(['Parent/Child']);
+        expect(broadcast).not.toHaveBeenCalled();
+    });
+
     it('reports current selected paths in select and unselect event payloads without node events', () => {
         const { selection, child, paths, broadcast } = createSelection();
         selection.select('Parent/Child');

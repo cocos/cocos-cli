@@ -1,6 +1,9 @@
 import { BaseService } from './core';
 import { register } from './core/decorator';
-import type { ISelectionService, ISelectionEvents } from '../../common';
+import { ServiceEvents } from './core/global-events';
+import type { ISelectionService, ISelectionEvents, IChangeNodeOptions } from '../../common';
+import { NodeEventType } from '../../common';
+import type { Node } from 'cc';
 import { getEditorNodeByUuid, getEditorNodePath, getEditorNodeUuidByPath } from './utils/editor-node';
 import { normalizeNodePath } from '../../../engine/editor-extends/manager/path-utils';
 
@@ -22,6 +25,29 @@ interface SelectionEntry {
 @register('Selection')
 export class SelectionService extends BaseService<ISelectionEvents> implements ISelectionService {
     private _selections: SelectionEntry[] = [];
+    private _onNodeChangedHandler?: (node: Node, opts?: IChangeNodeOptions) => void;
+
+    init() {
+        if (this._onNodeChangedHandler) return;
+        this._onNodeChangedHandler = (_node, opts = {}) => {
+            if (opts.type === NodeEventType.PARENT_CHANGED
+                || (opts.type === NodeEventType.SET_PROPERTY && opts.propPath === 'name')
+                || opts.source === 'undo') {
+                // Retain addresses before nodes leave the index; the changed node may be an ancestor.
+                for (const entry of this._selections) {
+                    this._getPath(entry);
+                }
+            }
+        };
+        ServiceEvents.on('node:change', this._onNodeChangedHandler);
+    }
+
+    destroy() {
+        if (this._onNodeChangedHandler) {
+            ServiceEvents.off('node:change', this._onNodeChangedHandler);
+            this._onNodeChangedHandler = undefined;
+        }
+    }
 
     select(path: string): void {
         const entry = this._resolveEntry(path);
