@@ -71,6 +71,30 @@ export function findPropertyTrack(clip: AnimationClip, nodePath: string, propKey
     return null;
 }
 
+/**
+ * 读取原始轨道的节点路径及后续寻址段的起点
+ *
+ * 后续路径包括组件、数组索引和属性；读取过程不依赖曲线类型或节点是否存在
+ */
+export function readTrackNodePath(path: Readonly<animation.TrackPath>): {
+    nodePath: string;
+    propertyOffset: number;
+} {
+    const segments: string[] = [];
+    let propertyOffset = 0;
+    while (propertyOffset < path.length && path.isHierarchyAt(propertyOffset)) {
+        segments.push(...path.parseHierarchyAt(propertyOffset).split('/').filter(Boolean));
+        propertyOffset++;
+    }
+
+    return { nodePath: segments.join('/'), propertyOffset };
+}
+
+/** 列出 Clip 中有普通轨道的节点，保留空轨道和无法解析为属性 dump 的轨道 */
+export function queryAnimationNodePaths(clip: AnimationClip): string[] {
+    return [...new Set(getClipTracks(clip).map(track => readTrackNodePath(track.path).nodePath))];
+}
+
 export function createPropertyTrack(clip: AnimationClip, nodePath: string, descriptor: IPropertyTrackDescriptor): AnyTrack {
     const track = createTrackByKind(descriptor);
     const path = new animation.TrackPath();

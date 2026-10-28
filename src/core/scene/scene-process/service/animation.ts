@@ -51,6 +51,8 @@ import { serializeAnimationPropertyValue } from './animation/property-value';
 import { AnimationServicePlayback } from './animation/service-playback';
 import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncAnimationClipDuration } from './animation/operation-policy';
 import { normalizeAnimationOperation } from './animation/operation-normalizer';
+import { resolveNodeDataTarget } from './animation/node-data';
+import { queryAnimationNodePaths } from './animation/property-curve-track';
 import {
     loadAnimationClip,
     queryAnimationClipsInfo,
@@ -446,12 +448,18 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         return true;
     }
 
+    /**
+     * 按顺序执行动画操作，并更新场景采样和撤销历史
+     *
+     * 成功时最多记录一条撤销历史；按失败结果退出时停止后续执行，并回滚本批已有写入
+     */
     async applyOperations(options: IAnimationOperationOptions): Promise<IAnimationOperationResult> {
         const session = requireAnimationSession(this._session);
         if (!Array.isArray(options.operations)) {
             throw new Error('Animation operations must be an array.');
         }
 
+        // 保留本批操作开始前的数据，后续写入和采样失败时使用同一份快照回滚
         const rootNode = this._getSessionRootNode();
         const state = await this._getAnimationState(session.clipUuid);
         const clip = state.clip;
@@ -462,6 +470,8 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const isSkeleton = isSkeletonClip(session.clipUuid, rootNode);
         let shouldSyncDuration = false;
         let shouldRestoreOnFailure = false;
+
+        // 逐项检查操作、目标和编辑权限，只有校验通过的数据才能继续写入
         for (const inputOperation of options.operations) {
             const inputFailure = validateAnimationOperation(inputOperation, session.clipUuid);
             if (inputFailure) {
@@ -470,7 +480,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 }
                 return inputFailure;
             }
-            const targetFailure = validateAnimationPropertyTarget(inputOperation, rootNode, session.rootPath);
+            const targetFailure = validateAnimationOperationTarget(inputOperation, rootNode, session.rootPath);
             if (targetFailure) {
                 if (shouldRestoreOnFailure) {
                     await this._restoreFailedOperationSnapshot(clip, before, rootNode);
@@ -489,6 +499,17 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 return skeletonFailure;
             }
 
+            if (
+                inputOperation.type === 'changeNodeDataPath'
+                && (
+                    inputOperation.srcPath === inputOperation.dstPath
+                    || !queryAnimationNodePaths(clip).includes(inputOperation.srcPath)
+                )
+            ) {
+                continue;
+            }
+
+            // 规范化参数，并按需取得指定帧的属性值
             const normalized = await normalizeAnimationOperation(inputOperation, {
                 currentClipUuid: session.clipUuid,
                 rootNode,
@@ -538,16 +559,30 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 await this._restoreFailedOperationSnapshot(clip, before, rootNode);
                 return failureResult;
             }
+
             appliedOperations.push(operation);
             shouldSyncDuration = shouldSyncDuration || shouldSyncAnimationClipDuration(operation, isSkeleton);
         }
 
-        if (shouldSyncDuration) {
-            syncAnimationClipDuration(clip);
+        if (appliedOperations.length === 0) {
+            return { state: 'success', result: true, undoRecorded: false };
         }
-        await this._resetAnimationStatePreservingClip(session.clipUuid, clip, propertyMetadataContext);
-        this._animationStates.create(session.clipUuid, clip);
-        await this.setTime({ time: this._curEditTime });
+
+        // 整批写入成功后，按需重算时长并重新采样场景
+        try {
+            if (shouldSyncDuration) {
+                syncAnimationClipDuration(clip);
+            }
+            await this._resetAnimationStatePreservingClip(session.clipUuid, clip, propertyMetadataContext);
+            this._animationStates.create(session.clipUuid, clip);
+            await this.setTime({ time: this._curEditTime });
+        } catch (error) {
+            // 路径迁移后重新绑定或采样失败，也必须恢复覆盖前的轨道
+            await this._restoreFailedOperationSnapshot(clip, before, rootNode);
+            return { state: 'failure', result: false, reason: String(error) };
+        }
+
+        // 比较整批修改前后的数据，生成一条撤销记录；属性联动可合并相邻的场景记录
         const after = shouldRecordUndo ? captureAnimationClipSnapshot(clip, propertyMetadataContext) : null;
         const undoRecorded = Boolean(before && after && !animationClipSnapshotsEqual(before, after));
         if (undoRecorded && before && after) {
@@ -576,6 +611,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 Service.Undo.push(undoCommand);
             }
         }
+
         this._broadcastClipChanged('operation');
         return {
             state: 'success',
@@ -1016,11 +1052,22 @@ function normalizeSceneNodePath(path: string): string {
     return String(path || '').replace(/^\/+|\/+$/g, '');
 }
 
-function validateAnimationPropertyTarget(
+/** 校验节点迁移或属性操作使用的目标路径 */
+function validateAnimationOperationTarget(
     operation: IAnimationOperation,
     rootNode: Node,
     rootPath: string,
 ): IAnimationOperationResult | null {
+    if (
+        operation.type === 'changeNodeDataPath'
+        && !resolveNodeDataTarget(rootNode, operation.dstPath)
+    ) {
+        return {
+            state: 'failure',
+            result: false,
+            reason: `Animation node data target does not exist or is ambiguous: "${operation.dstPath}".`,
+        };
+    }
     if (!('propKey' in operation)) {
         return null;
     }

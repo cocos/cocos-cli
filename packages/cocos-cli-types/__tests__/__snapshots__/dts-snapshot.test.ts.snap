@@ -6035,6 +6035,7 @@ export declare interface IAnimationClipDump {
     speed: number;
     wrapMode: number;
     curves: IAnimationCurveDump[];
+    nodePaths: string[];
     events: IAnimationEventDump[];
     embeddedPlayers: IAnimationEmbeddedPlayerDump[];
     embeddedPlayerGroups: IAnimationEmbeddedPlayerGroup[];
@@ -6140,6 +6141,11 @@ export declare interface IAnimationKeyValueDump {
     visible?: boolean;
 }
 export declare type IAnimationOperation = {
+    type: 'changeNodeDataPath';
+    clipUuid: string;
+    srcPath: string;
+    dstPath: string;
+} | {
     type: 'changeSample';
     clipUuid: string;
     sample: number;
