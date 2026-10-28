@@ -61,7 +61,7 @@ jest.mock('../../assets/manager/asset', () => ({
 }));
 
 jest.mock('../worker/builder', () => ({
-    BuildUnitTask: class {
+    BuildTask: class {
         constructor(public id: string, public options: unknown) {}
     },
 }));
@@ -97,9 +97,9 @@ describe('createBuildStageTask', () => {
     });
 
     it('creates a resolved build unit without re-normalizing hook results or mutating input', async () => {
-        const { createResolvedBuildUnitTask } = await import('../index');
+        const { createResolvedBuildTask } = await import('../index');
         const options = { taskId: 'unit', platform: 'web-desktop', packages: { 'web-desktop': { token: 'hook' } } };
-        const task = await createResolvedBuildUnitTask(options as any);
+        const task = await createResolvedBuildTask(options as any);
         expect(task.options.packages).toEqual(options.packages);
         task.options.packages['web-desktop'].token = 'changed';
         expect(options.packages['web-desktop'].token).toBe('hook');
@@ -107,10 +107,10 @@ describe('createBuildStageTask', () => {
     });
 
     it('passes resolved options to a unit without reloading or resurrecting hook deletions', async () => {
-        const { createBuildStageUnitTask } = await import('../index');
+        const { createBuildStageTask } = await import('../index');
         mockReadJSONSync.mockReturnValue({ packages: { 'web-desktop': { removed: true } } });
         const resolved = { platform: 'web-desktop', packages: { 'web-desktop': { token: 'hook-token' } } };
-        const task = await createBuildStageUnitTask('unit', 'run', {
+        const task = await createBuildStageTask('unit', 'run', {
             dest: 'build/web-desktop', platform: 'web-desktop',
         }, resolved as any);
         expect(mockReadJSONSync).not.toHaveBeenCalled();
@@ -128,7 +128,7 @@ describe('createBuildStageTask', () => {
         expect(() => readBuildStageOptions('build/web-desktop', 'web-desktop', 'run')).toThrow();
     });
 
-    it('synthesizes build options for registered web stage tasks without reading the compile config', async () => {
+    it('reads fresh artifact options for web stages as well as native stages', async () => {
         const { createBuildStageTask } = await import('../index');
         const persistedBuildOptions = {
             platform: 'web-desktop',
@@ -146,8 +146,7 @@ describe('createBuildStageTask', () => {
             platform: 'web-desktop',
         });
 
-        // web 平台不再读取 cocos.compile.config.json，而是合成一份最小构建选项
-        expect(mockReadJSONSync).not.toHaveBeenCalled();
+        expect(mockReadJSONSync).toHaveBeenCalledWith(join('raw:build/web-desktop', 'cocos.compile.config.json'));
         expect(mockGetBuildStageWithHookTasks).toHaveBeenCalledWith('web-desktop', 'run');
         expect(mockGetHooksInfo).toHaveBeenCalledWith('web-desktop');
         expect(task.id).toBe('task-id');
@@ -155,7 +154,7 @@ describe('createBuildStageTask', () => {
         expect(task.hooksInfo).toBe(hooksInfo);
         expect(task.options).toEqual({
             platform: 'web-desktop',
-            packages: {},
+            packages: persistedBuildOptions.packages,
             dest: 'raw:build/web-desktop',
         });
         expect(task.hookMap).toEqual({
@@ -279,7 +278,7 @@ describe('createBuildStageTask', () => {
                 expect(this.name).toBe('run');
                 expect(this.buildExitRes.dest).toBe('raw:build/bytedance-mini-game');
                 expect(root).toBe('raw:build/bytedance-mini-game');
-                expect(options).toBe(buildOptions);
+                expect(options).toEqual({ ...buildOptions, dest: 'raw:build/bytedance-mini-game' });
             }),
         };
         mockGetHooksInfo.mockReturnValue(bytedanceHooksInfo);
@@ -318,13 +317,13 @@ describe('createBuildStageTask', () => {
         });
         const result = await task.run();
 
-        // web 平台不读取 cocos.compile.config.json，而是合成最小构建选项
+        // 单阶段工厂使用最新产物配置；是否跳过仍由阶段本身决定。
         expect(result).toBe(true);
-        expect(mockReadJSONSync).not.toHaveBeenCalled();
+        expect(mockReadJSONSync).toHaveBeenCalledTimes(1);
         expect(task.name).toBe('deploy');
         expect(task.options).toEqual({
             platform: 'web-desktop',
-            packages: {},
+            packages: persistedBuildOptions.packages,
             dest: 'raw:build/web-desktop',
         });
         expect(task.buildExitRes).toEqual({
@@ -355,16 +354,16 @@ describe('createBuildStageTask', () => {
         });
         const result = await task.run();
 
-        // web 平台不读取 cocos.compile.config.json，而是合成最小构建选项
+        // 单阶段工厂使用最新产物配置；是否跳过仍由阶段本身决定。
         expect(result).toBe(true);
-        expect(mockReadJSONSync).not.toHaveBeenCalled();
+        expect(mockReadJSONSync).toHaveBeenCalledTimes(1);
         expect(mockGetHooksInfo).toHaveBeenCalledWith('web-desktop');
         expect(task.id).toBe('task-id');
         expect(task.name).toBe('make');
         expect(task.hooksInfo).toBe(hooksInfo);
         expect(task.options).toEqual({
             platform: 'web-desktop',
-            packages: {},
+            packages: persistedBuildOptions.packages,
             dest: 'raw:build/openpaas/web-desktop',
         });
         expect(task.hookMap).toEqual({

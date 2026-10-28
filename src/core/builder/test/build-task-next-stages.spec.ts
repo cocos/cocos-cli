@@ -205,7 +205,7 @@ jest.mock('../worker/builder/stage-task-manager', () => {
     };
 });
 
-describe('BuildTask nextStages', () => {
+describe('BuildWorkflowTask nextStages', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockStageTaskConfigs.length = 0;
@@ -229,7 +229,7 @@ describe('BuildTask nextStages', () => {
     });
 
     it('runs configured nextStages after the main build and merges their custom results', async () => {
-        const { BuildTask } = await import('../worker/builder');
+        const { BuildWorkflowTask } = await import('../worker/builder');
         const options = {
             platform: 'test-platform',
             taskName: 'test-task',
@@ -239,7 +239,7 @@ describe('BuildTask nextStages', () => {
             useCache: true,
             md5Cache: false,
         };
-        const task = new BuildTask('task-id', options as any);
+        const task = new BuildWorkflowTask('task-id', options as any);
         const updates: Array<{ message: string; progress: number }> = [];
         const bundleRunPluginTask = jest.fn();
         const taskAny = task as any;
@@ -310,8 +310,8 @@ describe('BuildTask nextStages', () => {
     });
 
     it('runs a managed build unit without following submitted or hook-injected workflows', async () => {
-        const { BuildUnitTask } = await import('../worker/builder');
-        const task = new BuildUnitTask('unit', {
+        const { BuildTask } = await import('../worker/builder');
+        const task = new BuildTask('unit', {
             platform: 'test-platform', taskName: 'unit', outputName: 'unit',
             nextStages: ['make'], subTaskPlatforms: ['web-desktop'], packages: {},
         } as any);
@@ -338,12 +338,12 @@ describe('BuildTask nextStages', () => {
     });
 
     it('derives child requests from current compiled parameters without running them', async () => {
-        const { BuildTask } = await import('../worker/builder');
+        const { BuildWorkflowTask } = await import('../worker/builder');
         const options = {
             platform: 'parent', taskId: 'parent', taskName: 'parent', outputName: 'parent',
             subTaskPlatforms: ['child'], packages: { child: { token: 'stale' } },
         };
-        const task = new BuildTask('parent', options as any);
+        const task = new BuildWorkflowTask('parent', options as any);
         task.result.compileOptions = { ...options, packages: { child: { token: 'generated' } } } as any;
         const children = await task.getSubBuildOptions();
         expect(children.map(child => ({ platform: child.platform, taskId: child.taskId, packages: child.packages }))).toEqual([
@@ -354,7 +354,7 @@ describe('BuildTask nextStages', () => {
     });
 
     it('restores log sink when main build fails', async () => {
-        const { BuildTask } = await import('../worker/builder');
+        const { BuildWorkflowTask } = await import('../worker/builder');
         const options = {
             platform: 'test-platform',
             taskName: 'test-task',
@@ -363,7 +363,7 @@ describe('BuildTask nextStages', () => {
             useCache: true,
             md5Cache: false,
         };
-        const task = new BuildTask('task-id', options as any);
+        const task = new BuildWorkflowTask('task-id', options as any);
         const taskAny = task as any;
 
         taskAny.runPluginTask = jest.fn();
@@ -390,7 +390,7 @@ describe('BuildTask nextStages', () => {
     });
 
     it('builds sub platforms after parent postBuild and persists parent-child metadata', async () => {
-        const { BuildTask } = await import('../worker/builder');
+        const { BuildWorkflowTask, BuildTask } = await import('../worker/builder');
         const options = {
             platform: 'openpaas',
             taskId: 'parent-task',
@@ -410,7 +410,7 @@ describe('BuildTask nextStages', () => {
             useCache: true,
             md5Cache: false,
         };
-        const task = new BuildTask('parent-task', options as any);
+        const task = new BuildWorkflowTask('parent-task', options as any);
         const childRun = jest.spyOn(BuildTask.prototype, 'run').mockImplementation(async function(this: any) {
             this.result.compileOptions = {
                 ...this.options,
@@ -484,7 +484,7 @@ describe('BuildTask nextStages', () => {
     });
 
     it('does not inherit parent stage chain options when creating child stage options', async () => {
-        const { BuildTask } = await import('../worker/builder');
+        const { BuildWorkflowTask } = await import('../worker/builder');
         const options = {
             platform: 'openpaas',
             taskId: 'parent-task',
@@ -504,7 +504,7 @@ describe('BuildTask nextStages', () => {
             useCache: true,
             md5Cache: false,
         };
-        const task = new BuildTask('parent-task', options as any);
+        const task = new BuildWorkflowTask('parent-task', options as any);
 
         const childStageOptions = (task as any).createChildStageOptions('web-desktop', {
             platform: 'web-desktop',

@@ -69,7 +69,7 @@ jest.mock('../../assets/manager/asset', () => ({
     },
 }));
 
-describe('executeBuildStageTask', () => {
+describe('executeBuildStageWorkflow', () => {
     const stageConfig = {
         name: 'run',
         hook: 'run',
@@ -117,11 +117,27 @@ describe('executeBuildStageTask', () => {
         consoleError.mockRestore();
     });
 
-    it('forwards build stage progress updates through callback', async () => {
+    it('executes only the requested stage even when the artifact declares children and follow-ups', async () => {
         const { executeBuildStageTask } = await import('../index');
+        const artifact = { platform: 'web-desktop', packages: { 'web-desktop': {} },
+            nextStages: ['upload'], subTaskPlatforms: ['web-mobile'],
+            subTaskBuildOutputs: { 'web-mobile': { dest: 'build/web-mobile' } },
+        };
+        mockReadJSONSync.mockReturnValue(artifact);
+        const input = { platform: 'web-desktop', dest: 'build/web-desktop' };
+        const result = await executeBuildStageTask('single', 'run', input);
+        expect(result.code).toBe(0);
+        expect(hookModule.run).toHaveBeenCalledTimes(1);
+        expect(mockReadJSONSync).toHaveBeenCalledTimes(1);
+        expect(input).toEqual({ platform: 'web-desktop', dest: 'build/web-desktop' });
+        expect(artifact).not.toHaveProperty('dest');
+    });
+
+    it('forwards build stage progress updates through callback', async () => {
+        const { executeBuildStageWorkflow } = await import('../index');
         const onProgress = jest.fn();
 
-        const result = await executeBuildStageTask('task-id', 'run', {
+        const result = await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         }, onProgress);
@@ -143,10 +159,10 @@ describe('executeBuildStageTask', () => {
     });
 
     it('returns the thrown hook error message as failed result reason', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         hookModule.run.mockRejectedValueOnce(new Error('custom stage failed'));
 
-        const result = await executeBuildStageTask('task-id', 'run', {
+        const result = await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         }, jest.fn());
@@ -158,10 +174,10 @@ describe('executeBuildStageTask', () => {
     });
 
     it('restores log sinks when a stage hook fails', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         hookModule.run.mockRejectedValueOnce(new Error('custom stage failed'));
 
-        await executeBuildStageTask('task-id', 'run', {
+        await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         }, jest.fn());
@@ -171,7 +187,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('executes arbitrary upload stage hooks in order and returns custom upload result', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const calls: string[] = [];
         const uploadHookModule = {
             throwError: true,
@@ -190,7 +206,7 @@ describe('executeBuildStageTask', () => {
         });
         mockRequireFile.mockReturnValue(uploadHookModule);
 
-        const result = await executeBuildStageTask('task-id', 'upload', {
+        const result = await executeBuildStageWorkflow('task-id', 'upload', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         });
@@ -209,7 +225,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('merges runtime package options into compile options for non-web stages', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         let receivedOptions: any;
         const uploadHookModule = {
             throwError: true,
@@ -244,7 +260,7 @@ describe('executeBuildStageTask', () => {
         });
         mockRequireFile.mockReturnValue(uploadHookModule);
 
-        await executeBuildStageTask('task-id', 'upload', {
+        await executeBuildStageWorkflow('task-id', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
             logDest: 'runtime-log',
@@ -265,7 +281,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('overrides compile options with injected package objects for non-web stages', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         let receivedOptions: any;
         const runHookModule = {
             throwError: true,
@@ -303,7 +319,7 @@ describe('executeBuildStageTask', () => {
         });
         mockRequireFile.mockReturnValue(runHookModule);
 
-        await executeBuildStageTask('task-id', 'run', {
+        await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/wechatgame',
             platform: 'wechatgame',
             packages: {
@@ -326,7 +342,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('uses current stage log destination for non-web stages by default', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const { newConsole } = await import('../../base/console');
         let receivedOptions: any;
         const uploadHookModule = {
@@ -359,7 +375,7 @@ describe('executeBuildStageTask', () => {
         });
         mockRequireFile.mockReturnValue(uploadHookModule);
 
-        await executeBuildStageTask('task-id', 'upload', {
+        await executeBuildStageWorkflow('task-id', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
         });
@@ -372,10 +388,10 @@ describe('executeBuildStageTask', () => {
     });
 
     it('uses current stage log destination for web stages', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const { newConsole } = await import('../../base/console');
 
-        await executeBuildStageTask('task-id', 'run', {
+        await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
         });
@@ -391,7 +407,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('cascades parent stage execution to built sub platforms with their own compile options', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const calls: Array<{ root: string; platform: string; token?: string }> = [];
         const uploadHookModule = {
             throwError: true,
@@ -472,7 +488,7 @@ describe('executeBuildStageTask', () => {
         }));
         mockRequireFile.mockReturnValue(uploadHookModule);
 
-        const result = await executeBuildStageTask('parent', 'upload', {
+        const result = await executeBuildStageWorkflow('parent', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
         });
@@ -498,7 +514,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('cascades stage execution and skips sub platforms that do not support the stage at run time', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const calls: Array<{ root: string; platform: string }> = [];
         const makeHookModule = {
             throwError: true,
@@ -565,7 +581,7 @@ describe('executeBuildStageTask', () => {
         }));
         mockRequireFile.mockReturnValue(makeHookModule);
 
-        const result = await executeBuildStageTask('parent', 'make', {
+        const result = await executeBuildStageWorkflow('parent', 'make', {
             dest: 'build/openpaas',
             platform: 'openpaas',
         });
@@ -590,7 +606,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('logs cascade stage failures before returning failed results', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         mockReadJSONSync.mockReturnValue({
             platform: 'openpaas',
             packages: {
@@ -606,7 +622,7 @@ describe('executeBuildStageTask', () => {
             parallelism: 'all',
         });
 
-        const result = await executeBuildStageTask('parent', 'make', {
+        const result = await executeBuildStageWorkflow('parent', 'make', {
             dest: 'build/openpaas',
             platform: 'openpaas',
         });
@@ -619,7 +635,7 @@ describe('executeBuildStageTask', () => {
     });
 
     it('lets explicit stage log destination override persisted build log destination', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const { newConsole } = await import('../../base/console');
         const uploadHookModule = {
             throwError: true,
@@ -649,7 +665,7 @@ describe('executeBuildStageTask', () => {
         });
         mockRequireFile.mockReturnValue(uploadHookModule);
 
-        await executeBuildStageTask('task-id', 'upload', {
+        await executeBuildStageWorkflow('task-id', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
             logDest: 'custom-log',
@@ -659,13 +675,13 @@ describe('executeBuildStageTask', () => {
     });
 
     it('opens a stage log sink before reading persisted build options', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const { newConsole } = await import('../../base/console');
         mockReadJSONSync.mockImplementationOnce(() => {
             throw new Error('missing build options');
         });
 
-        const result = await executeBuildStageTask('task-id', 'upload', {
+        const result = await executeBuildStageWorkflow('task-id', 'upload', {
             dest: 'build/openpaas',
             platform: 'openpaas',
         });
@@ -680,10 +696,10 @@ describe('executeBuildStageTask', () => {
     });
 
     it('uses build as action label when taskName equals platform', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const { newConsole } = await import('../../base/console');
 
-        await executeBuildStageTask('task-id', 'run', {
+        await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/web-desktop',
             platform: 'web-desktop',
             taskName: 'web-desktop',
@@ -695,14 +711,14 @@ describe('executeBuildStageTask', () => {
     });
 
     it('includes platform prefix in log filename for mini-game platforms', async () => {
-        const { executeBuildStageTask } = await import('../index');
+        const { executeBuildStageWorkflow } = await import('../index');
         const { newConsole } = await import('../../base/console');
         mockGetHooksInfo.mockReturnValue({
             pkgNameOrder: ['wechatgame'],
             infos: { wechatgame: { path: 'wechatgame/hooks', internal: true } },
         });
 
-        await executeBuildStageTask('task-id', 'run', {
+        await executeBuildStageWorkflow('task-id', 'run', {
             dest: 'build/wechatgame',
             platform: 'wechatgame',
         });

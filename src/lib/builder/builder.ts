@@ -13,40 +13,28 @@ export async function init(platform?: string[]): Promise<void> {
 
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
-    return builder.buildUnit(platform, options);
+    return builder.build(platform, options);
 }
 
 export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
     const builder = await import('../../core/builder');
-    return builder.createBuildUnitTask(platform, options);
+    return builder.createBuildTask(platform, options);
 }
 
-/** Create one platform build; the caller schedules children and subsequent stages. */
-export async function createBuildUnitTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+export async function resolveBuildOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption> {
     const builder = await import('../../core/builder');
-    return builder.createBuildUnitTask(platform, options);
+    return builder.resolveBuildOptions(platform, options);
 }
 
-export async function resolveBuildUnitOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption> {
+export async function createResolvedBuildTask(options: IBuildTaskOption) {
     const builder = await import('../../core/builder');
-    return builder.resolveBuildUnitOptions(platform, options);
-}
-
-export async function createResolvedBuildUnitTask(options: IBuildTaskOption) {
-    const builder = await import('../../core/builder');
-    return builder.createResolvedBuildUnitTask(options);
+    return builder.createResolvedBuildTask(options);
 }
 
 /** Read the current artifact configuration for a single stage. */
 export async function readBuildStageOptions(dest: string, platform: string, stageName: string): Promise<IBuildTaskOption> {
     const builder = await import('../../core/builder');
     return builder.readBuildStageOptions(dest, platform, stageName);
-}
-
-/** Execute exactly one stage using the supplied resolved configuration. */
-export async function createBuildStageUnitTask(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions: IBuildTaskOption) {
-    const builder = await import('../../core/builder');
-    return builder.createBuildStageUnitTask(taskId, stageName, options, buildOptions);
 }
 
 /** Resolve the parent and child artifact targets without executing a workflow. */
@@ -67,22 +55,20 @@ export async function createBundleBuildTask(bundleOptions: IBundleBuildOptions) 
 
 export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     const builder = await import('../../core/builder');
-    return builder.executeBuildStageUnit(taskId, stageName, options, onProgress);
+    return builder.executeBuildStageTask(taskId, stageName, options, onProgress);
 }
 
-export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions) {
+export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions?: IBuildTaskOption) {
     const builder = await import('../../core/builder');
-    return builder.createBuildStageFromArtifact(taskId, stageName, options);
+    return builder.createBuildStageTask(taskId, stageName, options, buildOptions);
 }
 
 export async function make(platform: Platform, dest: string) {
-    const { default: Launcher } = await import('../../core/launcher');
-    return Launcher.make(platform, dest);
+    return executeLibraryStage('make', platform, dest);
 }
 
 export async function run(platform: Platform, dest: string) {
-    const { default: Launcher } = await import('../../core/launcher');
-    return Launcher.run(platform, dest);
+    return executeLibraryStage('run', platform, dest);
 }
 
 export async function getPreviewUrl(dest: string, platform?: string): Promise<string> {
@@ -91,13 +77,27 @@ export async function getPreviewUrl(dest: string, platform?: string): Promise<st
 }
 
 export async function upload(platform: Platform, dest: string, accessToken?: string) {
-    const { default: Launcher } = await import('../../core/launcher');
-    return Launcher.upload(platform, dest, accessToken);
+    return executeLibraryStage('upload', platform, dest, accessToken);
 }
 
 export async function publish(platform: Platform, dest: string) {
-    const { default: Launcher } = await import('../../core/launcher');
-    return Launcher.publish(platform, dest);
+    return executeLibraryStage('publish', platform, dest);
+}
+
+/** Library stage operations retain initialization but never enter command/MCP workflows. */
+async function executeLibraryStage(stageName: string, platform: Platform, dest: string, accessToken?: string) {
+    const { GlobalConfig } = await import('../../global');
+    GlobalConfig.mode = 'simple';
+    const builder = await import('../../core/builder');
+    if (stageName === 'run' && platform.startsWith('web')) {
+        const { startServer } = await import('../../server');
+        await startServer();
+    }
+    await builder.init([platform]);
+    return builder.executeBuildStageTask('library ' + stageName, stageName, {
+        platform, dest,
+        packages: accessToken ? { [platform]: { accessToken } } : undefined,
+    });
 }
 
 export async function queryBuildConfig(): Promise<BuildConfiguration> {

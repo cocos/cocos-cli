@@ -173,11 +173,6 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 执行具体的构建任务
      */
     public async run() {
-        return this.runPipeline(true);
-    }
-
-    /** Execute this platform only. Follow-up options written by platform hooks do not schedule work. */
-    public async runUnit() {
         this.options.generateCompileConfig = true;
         this.options.childTaskIds = undefined;
         this.options.subTaskBuildOutputs = undefined;
@@ -186,7 +181,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         return this.runPipeline(false);
     }
 
-    private async runPipeline(includeFollowUps: boolean) {
+    protected async runPipeline(includeFollowUps: boolean) {
         const restoreLogSink = newConsole.createLogSinkRestorer();
         let failed = false;
         const { dir } = this.result.paths;
@@ -880,17 +875,17 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
     }
 }
 
+/** Composite task used only by command/MCP workflow entry points. */
+export class BuildWorkflowTask extends BuildTask {
+    public override async run() {
+        return this.runPipeline(true);
+    }
+}
+
 /**
  * 翻译 title
  * @param title 原始 title 或者带有 i18n 开头的 title
  */
-/** A build operation whose run method never dispatches children or follow-up stages. */
-export class BuildUnitTask extends BuildTask {
-    public override async run() {
-        return this.runUnit();
-    }
-}
-
 function transTitle(title: string): string {
     if (typeof title !== 'string') {
         return '';

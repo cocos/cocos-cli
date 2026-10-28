@@ -1,4 +1,4 @@
-import { build, createBuildTemplate as createCoreBuildTemplate, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from '../../core/builder';
+import { buildWorkflow, createBuildTemplate as createCoreBuildTemplate, executeBuildStageWorkflow, queryDefaultBuildConfigByPlatform } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
@@ -17,7 +17,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await build(platform, {
+            const res = await buildWorkflow(platform, {
                 ...options,
                 isApiBuild: true,
             });
@@ -108,7 +108,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await executeBuildStageTask(platform, 'make', {
+            const res = await executeBuildStageWorkflow(platform, 'make', {
                 dest,
                 platform,
             });
@@ -136,7 +136,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await executeBuildStageTask(platform, 'run', {
+            const res = await executeBuildStageWorkflow(platform, 'run', {
                 dest,
                 platform,
             });
@@ -164,7 +164,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await executeBuildStageTask(platform, 'upload', {
+            const res = await executeBuildStageWorkflow(platform, 'upload', {
                 dest,
                 platform,
                 packages: accessToken ? {
@@ -197,7 +197,7 @@ export class BuilderApi {
             data: null,
         };
         try {
-            const res = await executeBuildStageTask(platform, 'publish', {
+            const res = await executeBuildStageWorkflow(platform, 'publish', {
                 dest,
                 platform,
             });

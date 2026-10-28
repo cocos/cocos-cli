@@ -1,9 +1,9 @@
 const mockExecuteBuildStageTask = jest.fn();
 
 jest.mock('../index', () => ({
-    build: jest.fn(),
+    buildWorkflow: jest.fn(),
     queryDefaultBuildConfigByPlatform: jest.fn(),
-    executeBuildStageTask: mockExecuteBuildStageTask,
+    executeBuildStageWorkflow: mockExecuteBuildStageTask,
 }));
 
 describe('BuilderApi upload', () => {

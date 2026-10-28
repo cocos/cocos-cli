@@ -1,10 +1,10 @@
 const mockBuild = jest.fn();
 
 jest.mock('../index', () => ({
-    build: mockBuild,
+    buildWorkflow: mockBuild,
     createBuildTemplate: jest.fn(),
     queryDefaultBuildConfigByPlatform: jest.fn(),
-    executeBuildStageTask: jest.fn(),
+    executeBuildStageWorkflow: jest.fn(),
 }));
 
 describe('BuilderApi build', () => {

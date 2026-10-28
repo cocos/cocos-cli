@@ -59,7 +59,7 @@ function ensureBuildLogSink(options: { logDest?: string; taskName?: string; plat
 }
 
 async function prepareBuildOptions<P extends Platform>(platform: P, input?: IBuildCommandOption) {
-    const options: IBuildCommandOption = input ?? await pluginManager.getOptionsByPlatform(platform);
+    const options: IBuildCommandOption = cloneConfigValue(input ?? await pluginManager.getOptionsByPlatform(platform));
     options.platform = platform;
     options.taskId = options.taskId || String(new Date().getTime());
     options.taskName = options.taskName || platform;
@@ -86,38 +86,38 @@ async function prepareBuildOptions<P extends Platform>(platform: P, input?: IBui
     return realOptions;
 }
 
-export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+export async function createBuildWorkflowTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
     const prepared = await prepareBuildOptions(platform, options);
+    const { BuildWorkflowTask } = await import('./worker/builder');
+    return new BuildWorkflowTask(prepared.taskId!, prepared);
+}
+
+/** Create a single-platform operation. The caller owns child builds and follow-up stages. */
+export async function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
+    const prepared = await resolveBuildOptions(platform, options);
+    return createResolvedBuildTask(prepared);
+}
+
+/** Normalize before the host's pre-hook; never merge defaults after that hook. */
+export async function resolveBuildOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption> {
+    return prepareBuildOptions(platform, options);
+}
+
+/** The supplied snapshot is authoritative, including deleted package fields. */
+export async function createResolvedBuildTask(options: IBuildTaskOption) {
+    const prepared = cloneConfigValue(options);
     const { BuildTask } = await import('./worker/builder');
     return new BuildTask(prepared.taskId!, prepared);
 }
 
-/** Create a single-platform operation. The caller owns child builds and follow-up stages. */
-export async function createBuildUnitTask<P extends Platform>(platform: P, options?: IBuildCommandOption) {
-    const prepared = await resolveBuildUnitOptions(platform, options);
-    return createResolvedBuildUnitTask(prepared);
+
+/** Composite command/MCP workflow; library operations never enter this path. */
+export async function buildWorkflow<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
+    return runBuild(platform, options, createBuildWorkflowTask);
 }
 
-/** Normalize before the host's pre-hook; never merge defaults after that hook. */
-export async function resolveBuildUnitOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption> {
-    return prepareBuildOptions(platform, options === undefined ? undefined : cloneConfigValue(options));
-}
-
-/** The supplied snapshot is authoritative, including deleted package fields. */
-export async function createResolvedBuildUnitTask(options: IBuildTaskOption) {
-    const prepared = cloneConfigValue(options);
-    const { BuildUnitTask } = await import('./worker/builder');
-    return new BuildUnitTask(prepared.taskId!, prepared);
-}
-
-
-/** Legacy command/MCP workflow. Library callers use buildUnit and own orchestration. */
 export async function build<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
     return runBuild(platform, options, createBuildTask);
-}
-
-export async function buildUnit<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildResultData> {
-    return runBuild(platform, options, createBuildUnitTask);
 }
 
 async function runBuild<P extends Platform>(platform: P, options: IBuildCommandOption | undefined, createTask: typeof createBuildTask): Promise<IBuildResultData> {
@@ -210,15 +210,12 @@ export async function buildBundleOnly(bundleOptions: IBundleBuildOptions): Promi
     }
 }
 
-export async function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions) {
-    return createBuildStageTaskWithBuildOptions(taskId, stageName, options, readBuildOptionsForBuildStage(options));
-}
-
-/** Public library factory: read the current artifact and execute only this stage. */
-export async function createBuildStageFromArtifact(taskId: string, stageName: string, input: IBuildStageOptions) {
+/** Execute one stage. A supplied final configuration is authoritative after host hooks. */
+export async function createBuildStageTask(taskId: string, stageName: string, input: IBuildStageOptions, buildOptions?: IBuildTaskOption) {
     const options = cloneConfigValue(input);
-    const resolved = readBuildStageOptions(options.dest, options.platform, stageName);
-    mergeBuildStageRuntimeOptions(resolved, options);
+    options.dest = utils.Path.resolveToRaw(options.dest);
+    const resolved = buildOptions ? cloneConfigValue(buildOptions) : readBuildStageOptions(options.dest, options.platform, stageName);
+    if (!buildOptions) mergeBuildStageRuntimeOptions(resolved, options);
     return createBuildStageTaskWithBuildOptions(taskId, stageName, options, resolved);
 }
 
@@ -235,11 +232,6 @@ export function readBuildStageOptions(dest: string, platform: string, stageName:
     }
     if (!options || typeof options !== 'object' || Array.isArray(options)) throw new Error('Build output configuration must be an object');
     return cloneConfigValue({ ...options, platform, dest: root });
-}
-
-/** Create exactly one stage from already resolved options; no additional merge or platform cascade. */
-export async function createBuildStageUnitTask(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions: IBuildTaskOption) {
-    return createBuildStageTaskWithBuildOptions(taskId, stageName, cloneConfigValue(options), cloneConfigValue(buildOptions));
 }
 
 /** Enumerate actual artifact targets for one stage without executing the stage on any platform. */
@@ -268,19 +260,6 @@ async function createBuildStageTaskWithBuildOptions(taskId: string, stageName: s
     });
 }
 
-function readBuildOptionsForBuildStage(options: IBuildStageOptions) {
-    options.dest = utils.Path.resolveToRaw(options.dest);   // 顺便补回这行
-    let buildOptions;
-    if (options.platform.startsWith('web')) {
-        buildOptions = { platform: options.platform, packages: {} } as any;
-    } else {
-        buildOptions = readBuildTaskOptions(options.dest);
-        if (!buildOptions) { throw new Error('Build options is not exist!'); }
-    }
-    mergeBuildStageRuntimeOptions(buildOptions, options);
-    return buildOptions;
-}
-
 function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, options: IBuildStageOptions) {
     buildOptions.platform = options.platform;
     (buildOptions as IBuildTaskOption<any> & { dest?: string }).dest = options.dest;
@@ -300,7 +279,7 @@ function mergeBuildStageRuntimeOptions(buildOptions: IBuildTaskOption<any>, opti
     }
 }
 
-export async function executeBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
+export async function executeBuildStageWorkflow(taskId: string, stageName: string, options: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     if (!options.taskName) {
         options.taskName = stageName;
     }
@@ -334,12 +313,13 @@ export async function executeBuildStageTask(taskId: string, stageName: string, o
 }
 
 /** Single-stage library operation; no child or next-stage scheduling. */
-export async function executeBuildStageUnit(taskId: string, stageName: string, input: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
+export async function executeBuildStageTask(taskId: string, stageName: string, input: IBuildStageOptions, onProgress?: BuildStageProgressCallback): Promise<IBuildResultData> {
     const options = cloneConfigValue(input);
     const restoreLogSink = newConsole.createLogSinkRestorer();
     try {
         options.taskName ||= stageName;
         ensureBuildLogSink(options, options.taskName, options.logDest);
+        options.dest = utils.Path.resolveToRaw(options.dest);
         const resolved = readBuildStageOptions(options.dest, options.platform, stageName);
         mergeBuildStageRuntimeOptions(resolved, options);
         return await executeSingleBuildStageTask(taskId, stageName, options, resolved, onProgress);

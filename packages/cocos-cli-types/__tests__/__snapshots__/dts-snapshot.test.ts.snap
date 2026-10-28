@@ -1708,12 +1708,15 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     } | IBuildPacResult_2 | undefined;
     init(): Promise<void>;
     run(): Promise<boolean>;
+    protected runPipeline(includeFollowUps: boolean): Promise<boolean>;
     buildBundleOnly(): Promise<void>;
     private postBuild;
     private runSubTaskBuilds;
+    getSubBuildOptions(): Promise<IInternalBuildOptions[]>;
+    recordSubBuild(childTask: BuildTask): void;
     private syncSubTaskPackageOptions;
     private createSubTaskOptions;
-    private getCompileConfigOptions;
+    getCompileConfigOptions(): IInternalBuildOptions;
     private handleBuildStageTask;
     private getStagePlatforms;
     private createChildStageOptions;
@@ -2016,10 +2019,11 @@ export declare interface Context {
     platform?: string;
     buildTimeConstants?: object;
 }
-export declare function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions): Promise<BuildStageTask>;
+export declare function createBuildStageTask(taskId: string, stageName: string, options: IBuildStageOptions, buildOptions?: IBuildTaskOption): Promise<BuildStageTask>;
 export declare function createBuildTask<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<BuildTask>;
 export declare function createBuildTemplate(nameOrPlatform: string): Promise<void>;
 export declare function createBundleBuildTask(bundleOptions: IBundleBuildOptions): Promise<BundleManager>;
+export declare function createResolvedBuildTask(options: IBuildTaskOption): Promise<BuildTask>;
 export declare interface CustomBundleConfig {
     displayName: string;
     configs: Record<BundlePlatformType, CustomBundleConfigItem>;
@@ -2278,6 +2282,11 @@ export declare interface GeneratedCodeOptions extends Partial<NormalizedGenerate
     	preset?: GeneratedCodePreset;
 }
 export declare type GeneratedCodePreset = 'es5' | 'es2015';
+export declare function getBuildStageTargets(platform: string, dest: string, options: IBuildTaskOption): Promise<Array<{
+    platform: string;
+    dest: string;
+    required: boolean;
+}>>;
 export declare type GetInterop = (id: string | null) => InteropType;
 export declare type GetManualChunk = (id: string, api: GetManualChunkApi) => string | null | void;
 export declare interface GetManualChunkApi {
@@ -4830,6 +4839,7 @@ export declare function queryBundleConfig(): Promise<Record<string, BundleQueryC
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;
 export declare function queryPlatformConfig(): Promise<PlatformConfigItem[]>;
 export declare function queryTextureCompressConfig(): Promise<TextureCompressFullRenderConfig>;
+export declare function readBuildStageOptions(dest: string, platform: string, stageName: string): Promise<IBuildTaskOption>;
 export declare function refreshDisplayI18nFields(): Promise<void>;
 export declare type RenderChunkHook = (
 	this: PluginContext,
@@ -4870,6 +4880,7 @@ export declare type ResolveAssetUrlHook = (
     		relativeAssetPath: string;
     	}
 ) => string | null | void;
+export declare function resolveBuildOptions<P extends Platform>(platform: P, options?: IBuildCommandOption): Promise<IBuildTaskOption>;
 export declare interface ResolvedId extends ModuleOptions {
     	external: boolean | 'absolute';
     	id: string;

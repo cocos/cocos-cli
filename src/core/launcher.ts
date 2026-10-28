@@ -137,16 +137,16 @@ export default class Launcher {
         // 先导入项目
         await this.import();
         // 执行构建流程
-        const { init, build } = await import('./builder');
+        const { init, buildWorkflow } = await import('./builder');
         await init([platform]);
-        return await build(platform, options);
+        return await buildWorkflow(platform, options);
     }
 
     static async make(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
-        const { init, executeBuildStageTask } = await import('./builder');
+        const { init, executeBuildStageWorkflow } = await import('./builder');
         await init([platform]);
-        return await executeBuildStageTask('command make', 'make', {
+        return await executeBuildStageWorkflow('command make', 'make', {
             platform,
             dest,
         });
@@ -154,12 +154,12 @@ export default class Launcher {
 
     static async run(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
-        const { init, executeBuildStageTask } = await import('./builder');
+        const { init, executeBuildStageWorkflow } = await import('./builder');
         if (platform.startsWith('web')) {
             await startServer();
         }
         await init([platform]);
-        return await executeBuildStageTask('command run', 'run', {
+        return await executeBuildStageWorkflow('command run', 'run', {
             platform,
             dest,
         });
@@ -167,9 +167,9 @@ export default class Launcher {
 
     static async upload(platform: Platform, dest: string, accessToken?: string) {
         GlobalConfig.mode = 'simple';
-        const { init, executeBuildStageTask } = await import('./builder');
+        const { init, executeBuildStageWorkflow } = await import('./builder');
         await init([platform]);
-        return await executeBuildStageTask('command upload', 'upload', {
+        return await executeBuildStageWorkflow('command upload', 'upload', {
             platform,
             dest,
             packages: accessToken ? {
@@ -182,9 +182,9 @@ export default class Launcher {
 
     static async publish(platform: Platform, dest: string) {
         GlobalConfig.mode = 'simple';
-        const { init, executeBuildStageTask } = await import('./builder');
+        const { init, executeBuildStageWorkflow } = await import('./builder');
         await init([platform]);
-        return await executeBuildStageTask('command publish', 'publish', {
+        return await executeBuildStageWorkflow('command publish', 'publish', {
             platform,
             dest,
         });

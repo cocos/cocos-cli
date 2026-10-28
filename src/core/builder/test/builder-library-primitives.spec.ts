@@ -4,11 +4,13 @@ const mockStageUnit = jest.fn();
 const mockStageFactory = jest.fn();
 
 jest.mock('../index', () => ({
-    buildUnit: mockBuildUnit,
-    createBuildUnitTask: mockCreateBuildUnit,
-    executeBuildStageUnit: mockStageUnit,
-    createBuildStageFromArtifact: mockStageFactory,
+    init: jest.fn(),
+    build: mockBuildUnit,
+    createBuildTask: mockCreateBuildUnit,
+    executeBuildStageTask: mockStageUnit,
+    createBuildStageTask: mockStageFactory,
 }));
+jest.mock('../../../global', () => ({ GlobalConfig: {} }));
 jest.mock('../manager/plugin', () => ({ pluginManager: {} }));
 
 describe('Builder library primitives', () => {
@@ -30,7 +32,17 @@ describe('Builder library primitives', () => {
         expect(mockBuildUnit).toHaveBeenCalledWith('web-desktop', options);
         expect(mockCreateBuildUnit).toHaveBeenCalledWith('web-desktop', options);
         expect(mockStageUnit).toHaveBeenCalledWith('unit', 'make', { platform: 'web-desktop', dest: '/build' }, undefined);
-        expect(mockStageFactory).toHaveBeenCalledWith('stage', 'make', { platform: 'web-desktop', dest: '/build' });
+        expect(mockStageFactory).toHaveBeenCalledWith('stage', 'make', { platform: 'web-desktop', dest: '/build' }, undefined);
+        expect(library).not.toHaveProperty('createBuildUnitTask');
+        expect(library).not.toHaveProperty('buildWorkflow');
+    });
+    it.each(['make', 'run', 'upload', 'publish'] as const)('%s remains an atomic library operation', async stage => {
+        const library = await import('../../../lib/builder/builder');
+        mockStageUnit.mockResolvedValue({ code: 0, dest: '/build', custom: {} });
+        await library[stage]('openpaas', '/build');
+        expect(mockStageUnit).toHaveBeenCalledWith('library ' + stage, stage, {
+            platform: 'openpaas', dest: '/build', packages: undefined,
+        });
     });
 });
 
