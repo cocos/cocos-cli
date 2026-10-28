@@ -1,7 +1,7 @@
 
 'use strict';
 
-import { Stats, stat, statSync, existsSync, readdir, remove, writeJSON, readJSON } from 'fs-extra';
+import { Stats, stat, statSync, realpathSync, existsSync, readdir, remove, writeJSON, readJSON } from 'fs-extra';
 import { join, normalize, dirname, sep, basename, extname, relative } from 'path';
 import { EventEmitter } from 'events';
 import { v4 } from 'node-uuid';
@@ -723,13 +723,16 @@ export class AssetDB extends EventEmitter {
         const deleteSet: Set<string> = new PathSet();
         const addSet: Set<string> = new PathSet();
         const caseChangedSet: Set<string> = new PathSet();
-        const caseChangedAssets: Asset[] = [];
+        const changedPathAssets: Asset[] = [];
         const afterError = (error: unknown) => {
             this.taskManager.clear();
             this.unlock();
             throw error;
         }
         try {
+            const aliases = this._reconcileEntryAliases(files);
+            files = aliases.files;
+            changedPathAssets.push(...aliases.moved);
             const preAddFiles: string[] = [];
             const addFiles: string[] = [];
             const deleteFiles: string[] = [];
@@ -739,8 +742,8 @@ export class AssetDB extends EventEmitter {
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
-                            this._updateAssetPathCase(asset, file);
-                            caseChangedAssets.push(asset);
+                            this._updateAssetSource(asset, file);
+                            changedPathAssets.push(asset);
                             caseChangedSet.add(file);
                         }
                     }
@@ -760,8 +763,8 @@ export class AssetDB extends EventEmitter {
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
-                            this._updateAssetPathCase(asset, file);
-                            caseChangedAssets.push(asset);
+                            this._updateAssetSource(asset, file);
+                            changedPathAssets.push(asset);
                             caseChangedSet.add(file);
                         }
                     }
@@ -784,7 +787,7 @@ export class AssetDB extends EventEmitter {
 
             this.taskManager.stop();
 
-            for (const asset of caseChangedAssets) {
+            for (const asset of changedPathAssets) {
                 asset.action = AssetActionEnum.change;
                 asset.task = this.taskManager.addTask(asset);
             }
@@ -881,13 +884,67 @@ export class AssetDB extends EventEmitter {
         }
     }
 
-    private _updateAssetPathCase(asset: Asset, source: string) {
+    /** Reuses indexed entries reached through another parent path, including their removed descendants. */
+    private _reconcileEntryAliases(files: string[]): { files: string[]; moved: Asset[] } {
+        const parents = new Map<string, string>();
+        const entryPath = (file: string) => {
+            const parent = dirname(file);
+            try {
+                let resolved = parents.get(parent);
+                if (!resolved) {
+                    resolved = realpathSync(parent);
+                    parents.set(parent, resolved);
+                }
+                return join(resolved, basename(file));
+            } catch (error) {
+                const code = (error as NodeJS.ErrnoException).code;
+                if (code === 'ENOENT' || code === 'ENOTDIR') {
+                    return undefined;
+                }
+                throw error;
+            }
+        };
+        const indexed = new PathMap<Asset>();
+        this.path2asset.forEach((asset, file) => {
+            const entry = entryPath(file);
+            if (entry) {
+                indexed.set(entry, asset);
+            }
+        });
+        const selected = new PathMap<string>();
+        for (const file of files) {
+            const entry = entryPath(file) || file;
+            if (!selected.has(entry) || indexed.get(entry)?.source === file) {
+                selected.set(entry, file);
+            }
+        }
+        const changes: { from: string; to: string }[] = [];
+        selected.forEach((file, entry) => {
+            const asset = indexed.get(entry);
+            if (asset && !isSamePath(asset.source, file)) {
+                changes.push({ from: asset.source, to: file });
+            }
+        });
+        changes.sort((left, right) => right.from.length - left.from.length);
+        const moved: Asset[] = [];
+        for (const [file, asset] of Array.from(this.path2asset)) {
+            const change = changes.find(({ from }) => isSamePath(from, file) || isSubPath(file, from));
+            if (change) {
+                this._updateAssetSource(asset, join(change.to, relative(change.from, file)));
+                moved.push(asset);
+            }
+        }
+        return { files: Array.from(selected.values()), moved };
+    }
+
+    private _updateAssetSource(asset: Asset, source: string) {
         const previousSource = asset.source;
         const previousUrl = asset.url;
         if (previousSource === source) {
             return;
         }
 
+        this.path2asset.delete(previousSource);
         this.path2asset.set(source, asset);
         asset._source = source;
         const sourceExtname = extname(source);

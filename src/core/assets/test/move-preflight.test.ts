@@ -54,7 +54,7 @@ jest.mock('@cocos/asset-db', () => ({
     refresh: (path: string) => mockRefresh(path),
     reimport: jest.fn(),
     queryUrl: (path: string) => mockUrl(path),
-    Asset: class {},
+    Asset: class { },
 }));
 jest.mock('../asset-config', () => ({ __esModule: true, default: { data: {} } }));
 jest.mock('../manager/asset-db', () => ({ __esModule: true, default: mockDatabaseManager }));
@@ -133,8 +133,8 @@ describe('asset move preflight and submission', () => {
         assetConfig.data.root = mockRoot;
         assetConfig.data.tempRoot = join(mockRoot, 'temp');
         await ensureDir(join(mockRoot, 'assets', 'destination'));
-        jest.spyOn(console, 'debug').mockImplementation(() => {});
-        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(console, 'debug').mockImplementation(() => { });
+        jest.spyOn(console, 'error').mockImplementation(() => { });
     });
 
     afterEach(async () => {
@@ -144,6 +144,10 @@ describe('asset move preflight and submission', () => {
     });
 
     it('observes without moving, then returns the final resource with its original UUID', async () => {
+        mockDatabaseManager.assetDBMap.unavailable = {
+            options: { name: 'unavailable', target: join(mockRoot, 'unavailable'), readonly: true },
+            flag: { started: false },
+        };
         const source = await createAsset('source.txt', 'source-uuid');
         const target = 'db://assets/destination/source.txt';
         const preflight = await assetOperation.preflightMoveAsset(source.url, target);
@@ -398,10 +402,12 @@ describe('asset move preflight and submission', () => {
         });
         setFileSystemProvider({ rename });
 
-        await expect(assetOperation.moveAsset(source.uuid, target.url, {
-            preflightToken: preflight.preflightToken,
-            overwrite: true,
-        })).rejects.toThrow('could not be restored safely');
+        await expect(
+            assetOperation.moveAsset(source.uuid, target.url, {
+                preflightToken: preflight.preflightToken,
+                overwrite: true,
+            }),
+        ).rejects.toThrow('could not be restored safely');
 
         expect(rename.mock.calls.some(([from]) => from === source.source || from === target.source)).toBe(false);
         expect(mockRefresh).not.toHaveBeenCalled();
@@ -437,33 +443,30 @@ describe('asset move preflight and submission', () => {
         },
     );
 
-    it.each(['body', 'metadata'])(
-        'replaces a dangling %s link when overwrite is explicitly selected',
-        async kind => {
-            const source = await createAsset('source.txt', 'source-uuid');
-            const sourcePath = source.source;
-            const target = 'db://assets/destination/source.txt';
-            const targetPath = mockPath(target);
-            const linkTarget = join(mockRoot, 'missing');
-            const linkPath = kind === 'metadata' ? `${targetPath}.meta` : targetPath;
-            await symlink(linkTarget, linkPath);
-            const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
-            expect(preflight.action).toBe('choose-conflict-handling');
+    it.each(['body', 'metadata'])('replaces a dangling %s link when overwrite is explicitly selected', async kind => {
+        const source = await createAsset('source.txt', 'source-uuid');
+        const sourcePath = source.source;
+        const target = 'db://assets/destination/source.txt';
+        const targetPath = mockPath(target);
+        const linkTarget = join(mockRoot, 'missing');
+        const linkPath = kind === 'metadata' ? `${targetPath}.meta` : targetPath;
+        await symlink(linkTarget, linkPath);
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+        expect(preflight.action).toBe('choose-conflict-handling');
 
-            const moved = await assetOperation.moveAsset(source.uuid, target, {
-                preflightToken: preflight.preflightToken,
-                overwrite: true,
-            });
+        const moved = await assetOperation.moveAsset(source.uuid, target, {
+            preflightToken: preflight.preflightToken,
+            overwrite: true,
+        });
 
-            expect(moved).toMatchObject({ uuid: 'source-uuid', url: target });
-            expect(lstatSync(linkPath).isFile()).toBe(true);
-            expect(await readFile(targetPath, 'utf8')).toBe('contents of source-uuid');
-            expect(await readFile(`${targetPath}.meta`, 'utf8')).toBe('{"uuid":"source-uuid"}');
-            expect(existsSync(linkTarget)).toBe(false);
-            expect(existsSync(sourcePath)).toBe(false);
-            expect(existsSync(`${sourcePath}.meta`)).toBe(false);
-        },
-    );
+        expect(moved).toMatchObject({ uuid: 'source-uuid', url: target });
+        expect(lstatSync(linkPath).isFile()).toBe(true);
+        expect(await readFile(targetPath, 'utf8')).toBe('contents of source-uuid');
+        expect(await readFile(`${targetPath}.meta`, 'utf8')).toBe('{"uuid":"source-uuid"}');
+        expect(existsSync(linkTarget)).toBe(false);
+        expect(existsSync(sourcePath)).toBe(false);
+        expect(existsSync(`${sourcePath}.meta`)).toBe(false);
+    });
 
     it.each(['body', 'metadata'])(
         'refuses a generated name whose %s becomes a dangling link while waiting for graph writes',
@@ -515,7 +518,100 @@ describe('asset move preflight and submission', () => {
         expect(await readFile(previous.source, 'utf8')).toBe('contents of source-uuid');
         expect(await readFile(`${previous.source}.meta`, 'utf8')).toBe('{"uuid":"source-uuid"}');
         expect(lstatSync(join(mockDatabase.options.target, 'alias')).isSymbolicLink()).toBe(true);
+        expect(mockRefresh.mock.calls.map(([path]) => path)).toEqual(['db://assets/source.txt', target]);
     });
+
+    it.each(['mount root', 'missing mount root', 'readonly descendant', 'readonly source'])(
+        'rejects a parent alias bypassing protection of a %s',
+        async kind => {
+            const source = await createAsset('source.txt', 'source-uuid');
+            const root = await createAsset('protected', 'mount-root', true);
+            const child = await createAsset('protected/child.txt', 'protected-child');
+            mockDatabaseManager.assetDBMap.protected = {
+                options: { name: 'protected', target: root.source, readonly: !kind.endsWith('mount root') },
+                flag: { started: true },
+            };
+            await symlink(mockDatabase.options.target, join(mockDatabase.options.target, 'alias'), 'dir');
+            const alias = 'db://assets/alias/protected';
+            const requestSource = kind === 'readonly source' ? child : source;
+            if (kind === 'readonly source') {
+                child.source = mockPath(`${alias}/child.txt`);
+                child.url = `${alias}/child.txt`;
+            }
+            if (kind === 'missing mount root') {
+                await remove(root.source);
+            }
+            const target = kind.endsWith('mount root')
+                ? alias
+                : kind === 'readonly source'
+                    ? 'db://assets/destination/child.txt'
+                    : `${alias}/child.txt`;
+
+            await expect(assetOperation.preflightMoveAsset(requestSource.uuid, target)).rejects.toThrow();
+
+            expect(await readFile(source.source, 'utf8')).toBe('contents of source-uuid');
+            if (kind !== 'missing mount root') {
+                expect(await readFile(child.source, 'utf8')).toBe('contents of protected-child');
+            }
+            expect(mockRefresh).not.toHaveBeenCalled();
+        },
+    );
+
+    it('binds a parent alias to the indexed destination UUID', async () => {
+        const source = await createAsset('source.txt', 'source-uuid');
+        const previous = await createAsset('destination/source.txt', 'target-uuid');
+        await symlink(
+            join(mockDatabase.options.target, 'destination'),
+            join(mockDatabase.options.target, 'alias'),
+            'dir',
+        );
+        const target = 'db://assets/alias/source.txt';
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+        previous.uuid = 'replaced-index-uuid';
+
+        await expect(
+            assetOperation.moveAsset(source.uuid, target, {
+                preflightToken: preflight.preflightToken,
+                overwrite: true,
+            }),
+        ).rejects.toThrow('changed after preflight');
+
+        expect(await readFile(previous.source, 'utf8')).toBe('contents of target-uuid');
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it.each(['file', 'directory'])(
+        'coordinates the indexed destination graph before overwriting an aliased %s',
+        async kind => {
+            const source = await createAsset('incoming', 'source-uuid', kind === 'directory');
+            const folder = await createAsset('destination/folder', 'folder-uuid', true);
+            const graph = await createAsset('destination/folder/graph.animgraph', 'dirty-target');
+            graph.meta.importer = 'animation-graph';
+            await symlink(
+                join(mockDatabase.options.target, 'destination'),
+                join(mockDatabase.options.target, 'alias'),
+                'dir',
+            );
+            const target =
+                kind === 'directory' ? 'db://assets/alias/folder' : 'db://assets/alias/folder/graph.animgraph';
+            mockExternalWrites.mockImplementationOnce(async () => {
+                throw new Error('dirty graph');
+            });
+            const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+
+            await expect(
+                assetOperation.moveAsset(source.uuid, target, {
+                    preflightToken: preflight.preflightToken,
+                    overwrite: true,
+                }),
+            ).rejects.toThrow('dirty graph');
+
+            expect(mockExternalWrites).toHaveBeenCalledWith(['dirty-target'], expect.any(Function));
+            expect(await readFile(graph.source, 'utf8')).toBe('contents of dirty-target');
+            expect(existsSync(folder.source)).toBe(true);
+            expect(mockRefresh).not.toHaveBeenCalled();
+        },
+    );
 
     it.each(['dangling', 'file', 'outside'])('rejects a parent symlink pointing to %s during preflight', async kind => {
         const source = await createAsset('source.txt');
@@ -538,7 +634,13 @@ describe('asset move preflight and submission', () => {
             const write = jest.fn(async () => {
                 throw new Error('Unexpected filesystem mutation');
             });
-            setFileSystemProvider({ rename: write, createDirectory: write, delete: write, writeFile: write, copy: write });
+            setFileSystemProvider({
+                rename: write,
+                createDirectory: write,
+                delete: write,
+                writeFile: write,
+                copy: write,
+            });
 
             await expect(action()).rejects.toThrow('Cannot move an asset into or over itself');
 
@@ -576,7 +678,8 @@ describe('asset move preflight and submission', () => {
             const source = await createAsset('container/source', 'source-uuid', true);
             const child = await createAsset('container/source/child.txt', 'child-uuid');
             await symlink(mockDatabase.options.target, join(mockDatabase.options.target, 'alias'), 'dir');
-            const target = relation === 'same entry' ? 'db://assets/alias/container/source' : 'db://assets/alias/container';
+            const target =
+                relation === 'same entry' ? 'db://assets/alias/container/source' : 'db://assets/alias/container';
 
             await expectRejectedWithoutWrites(
                 () => assetOperation.preflightMoveAsset(source.uuid, target),
@@ -627,21 +730,31 @@ describe('asset move preflight and submission', () => {
                 }
 
                 await expectRejectedWithoutWrites(
-                    () => assetOperation.moveAsset(source.uuid, target, {
-                        preflightToken: preflight.preflightToken, overwrite: true,
-                    }),
+                    () =>
+                        assetOperation.moveAsset(source.uuid, target, {
+                            preflightToken: preflight.preflightToken,
+                            overwrite: true,
+                        }),
                     [
-                        `${source.source}.meta`, child.source, `${child.source}.meta`,
-                        graph.source, `${graph.source}.meta`, destination.source, `${destination.source}.meta`,
+                        `${source.source}.meta`,
+                        child.source,
+                        `${child.source}.meta`,
+                        graph.source,
+                        `${graph.source}.meta`,
+                        destination.source,
+                        `${destination.source}.meta`,
                     ],
                 );
 
                 if (timing !== 'before submission') {
                     expect(mockExternalWrites).toHaveBeenCalledWith(['graph-uuid'], expect.any(Function));
                 }
-                await expect(assetOperation.moveAsset(source.uuid, target, {
-                    preflightToken: preflight.preflightToken, overwrite: true,
-                })).rejects.toThrow('invalid or already used');
+                await expect(
+                    assetOperation.moveAsset(source.uuid, target, {
+                        preflightToken: preflight.preflightToken,
+                        overwrite: true,
+                    }),
+                ).rejects.toThrow('invalid or already used');
             },
         );
 
@@ -665,7 +778,9 @@ describe('asset move preflight and submission', () => {
             await remove(source.source);
             await symlink(referenced.source, source.source, 'dir');
 
-            await expect(assetOperation.preflightMoveAsset(source.uuid, 'db://assets/referenced/new')).resolves.toMatchObject({
+            await expect(
+                assetOperation.preflightMoveAsset(source.uuid, 'db://assets/referenced/new'),
+            ).resolves.toMatchObject({
                 action: 'move',
             });
 

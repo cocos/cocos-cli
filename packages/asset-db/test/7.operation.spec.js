@@ -35,6 +35,44 @@ describe('文件操作', () => {
         }
     }
 
+    it('refreshes an overwritten parent alias without retaining old UUIDs or rewriting moved metadata', async () => {
+        const root = path.join(PATH.ROOT, 'alias-refresh');
+        const targetRoot = path.join(root, 'assets');
+        const source = path.join(targetRoot, 'source');
+        const target = path.join(targetRoot, 'destination', 'folder');
+        const alias = path.join(targetRoot, 'alias');
+        const aliasTarget = path.join(alias, 'folder');
+        fse.outputFileSync(path.join(source, 'new.test'), 'new');
+        fse.outputFileSync(path.join(target, 'old.test'), 'old');
+        const db = new AssetDB({ name: 'alias-refresh', target: targetRoot,
+            library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
+        try {
+            await db.start();
+            const sourceUuid = db.path2asset.get(source).uuid;
+            const childUuid = db.path2asset.get(path.join(source, 'new.test')).uuid;
+            const oldUuids = [target, path.join(target, 'old.test')].map(file => db.path2asset.get(file).uuid);
+            await fse.symlink(path.dirname(target), alias, 'junction');
+            await fse.move(source + '.meta', target + '.meta', { overwrite: true });
+            await fse.move(source, target, { overwrite: true });
+
+            await db.refresh(source);
+            await db.refresh(aliasTarget);
+
+            expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
+            expect(db.getAsset(sourceUuid).source).to.equal(aliasTarget);
+            expect(db.getAsset(childUuid).source).to.equal(path.join(aliasTarget, 'new.test'));
+            for (const refreshPath of [target, targetRoot]) {
+                await db.refresh(refreshPath);
+                expect(fse.readJSONSync(target + '.meta').uuid).to.equal(sourceUuid);
+                expect(fse.readJSONSync(path.join(target, 'new.test.meta')).uuid).to.equal(childUuid);
+                expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
+            }
+        } finally {
+            await db.stop();
+            fse.removeSync(root);
+        }
+    });
+
     describe('在数据库内新增 / 删除文件', async () => {
         let DB;
 

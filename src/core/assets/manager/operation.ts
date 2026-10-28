@@ -881,6 +881,32 @@ class AssetOperation extends EventEmitter {
             .sort((left, right) => right.options.target.length - left.options.target.length)[0];
     }
 
+    /** Finds an indexed main asset at the same entry without following a final symlink. */
+    private _queryMoveEntryAsset(path: string): IAsset | null {
+        const direct = assetQuery.queryAsset(path);
+        if (direct) {
+            return direct;
+        }
+        const entry = resolveMoveEntryPath(path);
+        const indexed = assetQuery.queryAsset(entry);
+        if (indexed) {
+            return indexed;
+        }
+        return assetQuery.queryAssets().find(asset => {
+            if (asset._parent || !isAbsolute(asset.source)) {
+                return false;
+            }
+            try {
+                return this._isSameFilesystemPath(resolveMoveEntryPath(asset.source), entry);
+            } catch (error) {
+                if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                    return false;
+                }
+                throw error;
+            }
+        }) ?? null;
+    }
+
     /** Resolves filesystem and mount facts once for both preflight and guarded submission. */
     private _resolveMoveRequest(source: string, target: string): ResolvedAssetMove {
         const asset = assetQuery.queryAsset(source);
@@ -911,16 +937,43 @@ class AssetOperation extends EventEmitter {
         if (targetDB.options.readonly) {
             throw new Error(`Move destination Asset DB is readonly: ${target}`);
         }
-        if (Object.values(assetDBManager.assetDBMap).some(db => db && (
-            resolve(db.options.target) === sourcePath || resolve(db.options.target) === targetPath
-        ))) {
+        const sourceEntryPath = resolveMoveEntryPath(sourcePath);
+        const targetEntryPath = resolveMoveEntryPath(targetPath);
+        const databases = Object.values(assetDBManager.assetDBMap).filter(db => db);
+        if (databases.some(db => [sourcePath, targetPath].some(path =>
+            this._isSameFilesystemPath(resolve(db.options.target), path)))) {
             throw new Error('Asset DB roots cannot be moved or replaced.');
+        }
+        const mounts = databases.flatMap(db => {
+            try {
+                const entry = resolveMoveEntryPath(db.options.target);
+                let root: string | undefined;
+                try {
+                    root = realpathSync(db.options.target);
+                } catch (error) {
+                    if (!['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                        throw error;
+                    }
+                }
+                return [{ db, root, entry }];
+            } catch (error) {
+                if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                    return [];
+                }
+                throw error;
+            }
+        }).sort((left, right) => (right.root?.length ?? 0) - (left.root?.length ?? 0));
+        if (mounts.some(({ root, entry }) => [sourceEntryPath, targetEntryPath].some(path =>
+            (root && this._isSameFilesystemPath(path, root)) || this._isSameFilesystemPath(path, entry)))) {
+            throw new Error('Asset DB roots cannot be moved or replaced.');
+        }
+        if (mounts.find(({ root }) => root && utils.Path.contains(root, sourceEntryPath))?.db !== sourceDB
+            || mounts.find(({ root }) => root && utils.Path.contains(root, targetEntryPath))?.db !== targetDB) {
+            throw new Error('The move entry is outside its owning Asset DB.');
         }
         if (utils.Path.contains(sourcePath, targetPath) || utils.Path.contains(targetPath, sourcePath)) {
             throw new Error('Cannot move an asset into or over itself.');
         }
-        const sourceEntryPath = resolveMoveEntryPath(sourcePath);
-        const targetEntryPath = resolveMoveEntryPath(targetPath);
         if (utils.Path.contains(sourceEntryPath, targetEntryPath) || utils.Path.contains(targetEntryPath, sourceEntryPath)) {
             throw new Error('Cannot move an asset into or over itself.');
         }
@@ -941,7 +994,7 @@ class AssetOperation extends EventEmitter {
             sourceIsDirectory: asset.isDirectory(),
             sourceDB,
             targetDB,
-            targetUuid: assetQuery.queryAsset(targetPath)?.uuid ?? null,
+            targetUuid: this._queryMoveEntryAsset(targetPath)?.uuid ?? null,
         };
     }
 
@@ -967,7 +1020,8 @@ class AssetOperation extends EventEmitter {
         const sourceUuid = asset.uuid;
         const requestedTarget = target;
         target = this._checkOverwrite(target, option, this._isMoveTargetOccupied);
-        const affectedGraphs = this._queryAnimationGraphAssetsAt(source, target);
+        const indexedTarget = guard ? this._queryMoveEntryAsset(target) : assetQuery.queryAsset(target);
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(source, indexedTarget?.uuid ?? target);
         return this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
             if (guard && affectedGraphs.length > 0) {
                 guard(this._resolveMoveRequest(sourceRequest, targetRequest));
@@ -982,7 +1036,7 @@ class AssetOperation extends EventEmitter {
             if (fileOptions) {
                 delete fileOptions.preflightToken;
             }
-            const targetIndexed = assetQuery.queryAsset(target) !== null;
+            const targetIndexed = (guard ? this._queryMoveEntryAsset(target) : assetQuery.queryAsset(target)) !== null;
             const targetDB = this._getMoveTargetDB(target);
             await moveAssetSource(source, target, fileOptions);
 
