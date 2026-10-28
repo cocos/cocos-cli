@@ -103,11 +103,13 @@ export class SelectionService extends BaseService<ISelectionEvents> implements I
 
     private _findSelection(target: SelectionEntry): number {
         return this._selections.findIndex(entry => {
+            // UUID-only lookups must also retain the last address before a node leaves the index.
+            const currentPath = this._getPath(entry);
             // Prefab-relative aliases can resolve to the same node as an absolute path.
             if (target.uuid && entry.uuid) {
                 return entry.uuid === target.uuid;
             }
-            return this._getPath(entry) === target.path;
+            return currentPath === target.path;
         });
     }
 

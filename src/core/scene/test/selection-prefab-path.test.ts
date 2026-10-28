@@ -457,6 +457,43 @@ describe('SelectionService current addresses', () => {
         expect(broadcast).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['isSelect', 'unselect'],
+        ['isSelect', 'clear'],
+        ['select', 'unselect'],
+        ['select', 'clear'],
+    ] as const)('retains the latest address after %s followed by index removal and %s', (operation, removal) => {
+        const { selection, ServiceEvents, child, paths, nodes, broadcast, component } = createSelection();
+        selection.select('Other');
+        selection.select('Parent/Child');
+        broadcast.mockClear();
+        const unselected = jest.fn();
+        ServiceEvents.on('selection:unselect', unselected);
+        paths.set(child.uuid, 'Renamed/Child');
+        // No node event or query refreshes the cache before this UUID-based lookup.
+        if (operation === 'isSelect') {
+            expect(selection.isSelect('Renamed/Child')).toBe(true);
+        } else {
+            selection.select('Renamed/Child');
+        }
+        nodes.delete(child.uuid);
+        paths.delete(child.uuid);
+
+        expect(selection.query()).toEqual(['Renamed/Child', 'Other']);
+        expect(broadcast).not.toHaveBeenCalled();
+        expect(component.onFocusInEditor).toHaveBeenCalledTimes(1);
+        if (removal === 'unselect') {
+            selection.unselect('Renamed/Child');
+            expect(selection.query()).toEqual(['Other']);
+            expect(broadcast.mock.calls).toEqual([['selection:unselect', 'Renamed/Child', ['Other']]]);
+        } else {
+            selection.clear();
+            expect(selection.query()).toEqual([]);
+            expect(unselected.mock.calls).toEqual([['Renamed/Child', ['Other']], ['Other', []]]);
+            expect(broadcast.mock.calls).toEqual([['selection:clear']]);
+        }
+    });
+
     it('reports current selected paths in select and unselect event payloads without node events', () => {
         const { selection, child, paths, broadcast } = createSelection();
         selection.select('Parent/Child');
