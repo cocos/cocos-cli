@@ -557,6 +557,45 @@ describe('asset move preflight and submission', () => {
         },
     );
 
+    it.each(['source', 'destination'])('rejects a %s directory containing a registered mount', async side => {
+        const container = await createAsset('container', 'container-uuid', true);
+        const nested = await createAsset('container/protected', 'protected-root', true);
+        const child = await createAsset('container/protected/keep.txt', 'protected-child');
+        const incoming = await createAsset('incoming', 'incoming-uuid', true);
+        mockDatabaseManager.assetDBMap.protected = {
+            options: { name: 'protected', target: nested.source, readonly: true },
+            flag: { started: true },
+        };
+        const source = side === 'source' ? container.uuid : incoming.uuid;
+        const target = side === 'source' ? 'db://assets/destination/container' : container.url;
+
+        await expect(assetOperation.preflightMoveAsset(source, target)).rejects.toThrow();
+
+        expect(await readFile(child.source, 'utf8')).toBe('contents of protected-child');
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    (process.platform === 'win32' ? it : it.skip).each(['assets', 'another-db'])(
+        'validates Windows refreshed destination casing and database: %s', async database => {
+            const source = await createAsset('source.txt', 'source-uuid');
+            const target = 'db://assets/destination/moved.txt';
+            const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+            const canonicalUrl = `db://${database}/Destination/moved.txt`;
+            mockRefresh.mockImplementationOnce(async () => {
+                source.url = canonicalUrl;
+                source.source = mockPath(target);
+                return 1;
+            });
+
+            const move = assetOperation.moveAsset(source.uuid, target, { preflightToken: preflight.preflightToken });
+            if (database === 'assets') {
+                await expect(move).resolves.toMatchObject({ uuid: 'source-uuid', url: canonicalUrl });
+            } else {
+                await expect(move).rejects.toThrow('refreshed information is unavailable');
+            }
+        },
+    );
+
     it('binds a parent alias to the indexed destination UUID', async () => {
         const source = await createAsset('source.txt', 'source-uuid');
         const previous = await createAsset('destination/source.txt', 'target-uuid');

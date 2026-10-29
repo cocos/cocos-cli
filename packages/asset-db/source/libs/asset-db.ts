@@ -1,8 +1,8 @@
 
 'use strict';
 
-import { Stats, stat, statSync, realpathSync, existsSync, readdir, remove, writeJSON, readJSON } from 'fs-extra';
-import { join, normalize, dirname, sep, basename, extname, relative } from 'path';
+import { Stats, stat, statSync, realpathSync, readlinkSync, existsSync, readdir, remove, writeJSON, readJSON } from 'fs-extra';
+import { join, normalize, dirname, sep, basename, extname, relative, isAbsolute, parse } from 'path';
 import { EventEmitter } from 'events';
 import { v4 } from 'node-uuid';
 
@@ -33,7 +33,7 @@ import {
 export { map } from './manager';
 
 function getAsset(uuid) {
-    for (let name in map) {
+    for (const name in map) {
         const db = map[name];
         const asset = db.uuid2asset.get(uuid);
         if (asset) {
@@ -122,7 +122,7 @@ export interface AssetDBOptions {
     importConcurrency?: number;
 }
 
-let deprecatedFlag = false;
+const deprecatedFlag = false;
 
 export const version = '2.0.0';
 
@@ -132,7 +132,7 @@ const migrations: Migrate<any>[] = [{
         return {
             version: '1.0.0',
             data: json,
-        }
+        };
     },
 }, {
     version: '1.0.1',
@@ -142,7 +142,7 @@ const migrations: Migrate<any>[] = [{
             data: {
                 paths: json.data.paths.map(path => relative(db.options.target, path)),
             }
-        }
+        };
     },
 }];
 
@@ -186,7 +186,7 @@ export class AssetDB extends EventEmitter {
             total: this.taskManager.total(),
             // @ts-ignore TODO taskManager 是否可以提供此字段
             wait: this.taskManager._waitQueue.size,
-        }
+        };
     }
 
     /**
@@ -373,12 +373,12 @@ export class AssetDB extends EventEmitter {
         await this.prepareStart();
 
         // 刷新资源数据库内的资源列表
-        let num = await this.refresh(this.options.target, {
+        const num = await this.refresh(this.options.target, {
             ignoreSelf: true,
             hooks: options.hooks,
         });
 
-        this.console.debug(`start asset-db(${this.options.name}) with asset: ${num}`)
+        this.console.debug(`start asset-db(${this.options.name}) with asset: ${num}`);
 
         return new Promise((resolve) => {
             const step = () => {
@@ -448,7 +448,7 @@ export class AssetDB extends EventEmitter {
                     const dir = `${this.options.library}${sep}${uuid.substr(0, 2)}`;
                     if (existsSync(dir)) {
                         const list = await readdir(dir);
-                        for (let name of list) {
+                        for (const name of list) {
                             if (name.startsWith(uuid)) {
                                 await remove(join(dir, name));
                             }
@@ -460,7 +460,7 @@ export class AssetDB extends EventEmitter {
                     this.console.warn(error);
                 }
             }
-        })
+        });
 
         infoDirty && this.infoManager.save();
     }
@@ -471,16 +471,16 @@ export class AssetDB extends EventEmitter {
             data: {
                 paths: Array.from(this.path2asset.keys()).map((path) => relative(this.options.target, path)),
             },
-        }
+        };
     }
 
     async save() {
         try {
             // 保存记录的缓存信息
-            await writeJSON(join(this.cachePath), this._generateRecordInfo(), { spaces: 4 })
+            await writeJSON(join(this.cachePath), this._generateRecordInfo(), { spaces: 4 });
         } catch (error) {
             this.console.error(error);
-            this.console.error(`Save cache for asset db ${this.options.name} failed.`)
+            this.console.error(`Save cache for asset db ${this.options.name} failed.`);
         }
     }
 
@@ -540,7 +540,7 @@ export class AssetDB extends EventEmitter {
      * @param path
      */
     pathToUuid(path: string) {
-        let asset = this.path2asset.get(path);
+        const asset = this.path2asset.get(path);
         if (!asset) {
             return null;
         }
@@ -552,7 +552,7 @@ export class AssetDB extends EventEmitter {
      * @param uuid
      */
     uuidToPath(uuid: string) {
-        let asset = this.uuid2asset.get(uuid);
+        const asset = this.uuid2asset.get(uuid);
         if (!asset) {
             return null;
         }
@@ -568,15 +568,15 @@ export class AssetDB extends EventEmitter {
         if (!uuid || typeof uuid !== 'string') {
             return null;
         }
-        let search = uuid.split('@');
-        let id = search.shift() || '';
+        const search = uuid.split('@');
+        const id = search.shift() || '';
 
         let asset: VirtualAsset | Asset | undefined = this.uuid2asset.get(id);
         if (!asset) {
             return null;
         }
         for (let i = 0; i < search.length; i++) {
-            let idOrName = search[i];
+            const idOrName = search[i];
             asset = asset.subAssets[idOrName];
             if (!asset) {
                 return null;
@@ -722,29 +722,27 @@ export class AssetDB extends EventEmitter {
         const fileSet: Set<string> = new PathSet();
         const deleteSet: Set<string> = new PathSet();
         const addSet: Set<string> = new PathSet();
-        const caseChangedSet: Set<string> = new PathSet();
         const changedPathAssets: Asset[] = [];
         const afterError = (error: unknown) => {
             this.taskManager.clear();
             this.unlock();
             throw error;
-        }
+        };
         try {
-            const aliases = this._reconcileEntryAliases(files);
+            const aliases = this._reconcileEntryAliases(files, path);
             files = aliases.files;
             changedPathAssets.push(...aliases.moved);
             const preAddFiles: string[] = [];
             const addFiles: string[] = [];
             const deleteFiles: string[] = [];
             if (this.preImporterHandler) {
-                for (let file of files) {
+                for (const file of files) {
                     const storedPath = getMapStoredPathKey(this.path2asset, file);
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
                             this._updateAssetSource(asset, file);
                             changedPathAssets.push(asset);
-                            caseChangedSet.add(file);
                         }
                     }
                     if (!this.path2asset.has(file)) {
@@ -758,14 +756,13 @@ export class AssetDB extends EventEmitter {
                     fileSet.add(file);
                 }
             } else {
-                for (let file of files) {
+                for (const file of files) {
                     const storedPath = getMapStoredPathKey(this.path2asset, file);
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
                             this._updateAssetSource(asset, file);
                             changedPathAssets.push(asset);
-                            caseChangedSet.add(file);
                         }
                     }
                     if (!this.path2asset.has(file)) {
@@ -778,7 +775,7 @@ export class AssetDB extends EventEmitter {
 
             this.path2asset.forEach((asset, file) => {
                 if (files.length === 0 || !fileSet.has(file)) {
-                    if (isSamePath(file, path) || isSubPath(file, path)) {
+                    if (isSamePath(file, path) || isSubPath(file, path) || aliases.missing.has(asset)) {
                         deleteFiles.push(file);
                         deleteSet.add(file);
                     }
@@ -810,8 +807,8 @@ export class AssetDB extends EventEmitter {
 
             // 没有改动的数据
             const tasks: Promise<any>[] = [];
-            for (let file of files) {
-                if (!addSet.has(file) && !deleteSet.has(file) && !caseChangedSet.has(file)) {
+            for (const file of files) {
+                if (!addSet.has(file) && !deleteSet.has(file)) {
                     const asset = this.path2asset.get(file);
                     if (asset) {
                         tasks.push(this._checkAssetStat(asset));
@@ -825,7 +822,13 @@ export class AssetDB extends EventEmitter {
                 if (res.status === 'rejected') {
                     console.error(res.reason);
                 }
-            })
+            });
+            for (const asset of changedPathAssets) {
+                if (asset.action === AssetActionEnum.none && this.uuid2asset.get(asset.uuid) === asset) {
+                    asset.action = AssetActionEnum.change;
+                    asset.task = this.taskManager.addTask(asset);
+                }
+            }
         } catch (error: any) {
             afterError(error);
         }
@@ -874,7 +877,7 @@ export class AssetDB extends EventEmitter {
             const newUUID = v4();
             // 提示两个文件 uuid 冲突
             if (this.options.level >= 2) {
-                let info = JSON.stringify([
+                const info = JSON.stringify([
                     asset.source,
                     oAsset.source,
                 ], null, 2);
@@ -885,32 +888,82 @@ export class AssetDB extends EventEmitter {
     }
 
     /** Reuses indexed entries reached through another parent path, including their removed descendants. */
-    private _reconcileEntryAliases(files: string[]): { files: string[]; moved: Asset[] } {
-        const parents = new Map<string, string>();
-        const entryPath = (file: string) => {
-            const parent = dirname(file);
+    private _reconcileEntryAliases(files: string[], refreshRoot: string): { files: string[]; moved: Asset[]; missing: ReadonlySet<Asset> } {
+        const parents = new Map<string, string | undefined>();
+        const resolveParent = (parent: string): string | undefined => {
+            if (parents.has(parent)) {
+                return parents.get(parent);
+            }
+            // An unresolved entry also bounds recursion through cyclic links.
+            parents.set(parent, undefined);
+            let resolved: string | undefined;
             try {
-                let resolved = parents.get(parent);
-                if (!resolved) {
-                    resolved = realpathSync(parent);
-                    parents.set(parent, resolved);
-                }
-                return join(resolved, basename(file));
+                resolved = realpathSync(parent);
             } catch (error) {
                 const code = (error as NodeJS.ErrnoException).code;
-                if (code === 'ENOENT' || code === 'ENOTDIR') {
+                if (code === 'ELOOP') {
                     return undefined;
                 }
-                throw error;
+                if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+                    throw error;
+                }
+                const ancestor = dirname(parent);
+                const resolvedAncestor = ancestor !== parent ? resolveParent(ancestor) : undefined;
+                if (!resolvedAncestor) {
+                    return undefined;
+                }
+                resolved = join(resolvedAncestor, basename(parent));
+                let link: string | undefined;
+                try {
+                    link = readlinkSync(resolved);
+                } catch (linkError) {
+                    if (!['EINVAL', 'ENOENT', 'ENOTDIR'].includes((linkError as NodeJS.ErrnoException).code || '')) {
+                        throw linkError;
+                    }
+                }
+                if (link !== undefined) {
+                    let target = isAbsolute(link) ? parse(link).root : dirname(resolved);
+                    const suffix = isAbsolute(link) ? link.slice(target.length) : link;
+                    for (const segment of suffix.split(process.platform === 'win32' ? /[\\/]/ : /\//)) {
+                        if (segment === '..') {
+                            // Do not collapse a missing directory before '..' onto an unrelated live entry.
+                            try {
+                                if (!statSync(target).isDirectory()) {
+                                    return undefined;
+                                }
+                                target = dirname(realpathSync(target));
+                            } catch (targetError) {
+                                if (['ENOENT', 'ENOTDIR', 'ELOOP'].includes((targetError as NodeJS.ErrnoException).code || '')) {
+                                    return undefined;
+                                }
+                                throw targetError;
+                            }
+                        } else {
+                            target = join(target, segment);
+                        }
+                    }
+                    resolved = resolveParent(target);
+                }
             }
+            parents.set(parent, resolved);
+            return resolved;
         };
+        const entryPath = (file: string) => {
+            const parent = resolveParent(dirname(file));
+            return parent === undefined ? undefined : join(parent, basename(file));
+        };
+        const rootEntry = entryPath(refreshRoot);
         const indexed = new PathMap<Asset>();
-        this.path2asset.forEach((asset, file) => {
+        const scopedEntries = new Map<Asset, string>();
+        for (const [file, asset] of this.path2asset) {
             const entry = entryPath(file);
-            if (entry) {
+            if (entry !== undefined) {
                 indexed.set(entry, asset);
+                if (rootEntry !== undefined && (isSamePath(entry, rootEntry) || isSubPath(entry, rootEntry))) {
+                    scopedEntries.set(asset, entry);
+                }
             }
-        });
+        }
         const selected = new PathMap<string>();
         for (const file of files) {
             const entry = entryPath(file) || file;
@@ -918,23 +971,42 @@ export class AssetDB extends EventEmitter {
                 selected.set(entry, file);
             }
         }
-        const changes: { from: string; to: string }[] = [];
-        selected.forEach((file, entry) => {
+        const missing = new Set<Asset>();
+        for (const [asset, entry] of scopedEntries) {
+            if (!selected.has(entry)) {
+                missing.add(asset);
+            }
+        }
+        const changes = new PathMap<string>();
+        const recordChange = (file: string, entry: string) => {
             const asset = indexed.get(entry);
             if (asset && !isSamePath(asset.source, file)) {
-                changes.push({ from: asset.source, to: file });
+                changes.set(asset.source, file);
             }
-        });
-        changes.sort((left, right) => right.from.length - left.from.length);
+        };
+        // A missing refresh root still identifies aliases and descendants that must be removed.
+        if (rootEntry !== undefined) {
+            recordChange(refreshRoot, rootEntry);
+        }
+        for (const [entry, file] of selected) {
+            recordChange(file, entry);
+        }
+        if (changes.size === 0) {
+            return { files: Array.from(selected.values()), moved: [], missing };
+        }
         const moved: Asset[] = [];
         for (const [file, asset] of Array.from(this.path2asset)) {
-            const change = changes.find(({ from }) => isSamePath(from, file) || isSubPath(file, from));
-            if (change) {
-                this._updateAssetSource(asset, join(change.to, relative(change.from, file)));
+            let ancestor = file;
+            while (!changes.has(ancestor) && dirname(ancestor) !== ancestor) {
+                ancestor = dirname(ancestor);
+            }
+            const target = changes.get(ancestor);
+            if (target !== undefined) {
+                this._updateAssetSource(asset, join(target, relative(ancestor, file)));
                 moved.push(asset);
             }
         }
-        return { files: Array.from(selected.values()), moved };
+        return { files: Array.from(selected.values()), moved, missing };
     }
 
     private _updateAssetSource(asset: Asset, source: string) {
@@ -966,7 +1038,7 @@ export class AssetDB extends EventEmitter {
      * @param deleteFiles
      */
     private async _checkAssetsStatSync(addFiles: string[], deleteFiles: string[], deleteSet: Set<string>) {
-        for (let file of deleteFiles) {
+        for (const file of deleteFiles) {
             // 毋庸置疑的删除文件
             const asset = this.path2asset.get(file);
             if (asset) {
@@ -981,7 +1053,7 @@ export class AssetDB extends EventEmitter {
                 this.infoManager.remove(metaFile);
             }
         }
-        for (let file of addFiles) {
+        for (const file of addFiles) {
             // 获取 meta，没有的话直接生成
             const metaFile = file + '.meta';
             const metaInfo = await this.metaManager.get(metaFile);
@@ -1045,7 +1117,7 @@ export class AssetDB extends EventEmitter {
                         if (asset.uuid !== uuid) {
                             this.uuid2asset.delete(uuid);
                             if (this.uuid2asset.has(asset.uuid)) {
-                                this._replaceUUID(asset, getAsset(asset.uuid)!)
+                                this._replaceUUID(asset, getAsset(asset.uuid)!);
                             }
                             this.uuid2asset.set(asset.uuid, asset);
                         }
@@ -1104,6 +1176,8 @@ export class AssetDB extends EventEmitter {
     private async _checkAssetStat(asset: Asset) {
 
         const file = asset.source;
+        const fileStat = await stat(file);
+        const kindChanged = asset._isDirectory !== undefined && asset._isDirectory !== fileStat.isDirectory();
         const metaFile = file + '.meta';
         if (!existsSync(metaFile)) {
             console.error(`${metaFile} is not exist! will use cache meta.`);
@@ -1114,21 +1188,22 @@ export class AssetDB extends EventEmitter {
         if (!await this.infoManager.compare(metaFile, metaStat.mtimeMs)) {
             this.emit('delete', asset);
             this.emit('deleted', asset);
+            asset._isDirectory = fileStat.isDirectory();
             asset.action = AssetActionEnum.add;
             const uuid = asset.uuid;
             this.metaManager.read(metaFile);
             if (asset.uuid !== uuid) {
                 this.uuid2asset.delete(uuid);
                 if (this.uuid2asset.has(asset.uuid)) {
-                    this._replaceUUID(asset, getAsset(asset.uuid)!)
+                    this._replaceUUID(asset, getAsset(asset.uuid)!);
                 }
                 this.uuid2asset.set(asset.uuid, asset);
             }
             this.infoManager.add(metaFile, metaStat.mtimeMs);
             asset.task = this.taskManager.addTask(asset);
         } else {
-            const fileStat = await stat(file);
-            if (this.infoManager.compare(file, fileStat.mtimeMs)) {
+            asset._isDirectory = fileStat.isDirectory();
+            if (!kindChanged && this.infoManager.compare(file, fileStat.mtimeMs)) {
                 if (this.dataManager.has(asset)) {
                     asset.action = AssetActionEnum.none;
                     asset.task = this.taskManager.addTask(asset);
