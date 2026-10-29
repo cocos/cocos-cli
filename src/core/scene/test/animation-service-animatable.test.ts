@@ -1141,7 +1141,7 @@ describe('AnimationService animatable property metadata', () => {
         expect(clip._tracks[0].path.parseHierarchyAt(0)).toBe('B');
     });
 
-    it('节点删除后仍可通过完整系统路径清理孤立轨道', () => {
+    it.each(['Enemy', 'Root/Enemy'])('节点删除后仍可通过 %s 清理孤立轨道', (nodePath) => {
         const { AnimationClip, Node } = require('cc');
         const {
             addPropertyCurve,
@@ -1166,10 +1166,95 @@ describe('AnimationService animatable property metadata', () => {
         expect(removePropertyCurve(clip, context, {
             type: 'removePropertyCurve',
             clipUuid: 'clip',
-            nodePath: 'Root/Enemy',
+            nodePath,
             propKey: 'position',
         })).toBe(true);
         expect(clip._tracks).toHaveLength(0);
+    });
+
+    it('缺失节点的已有轨道保留导出、关键帧编辑和曲线参数操作', () => {
+        const { AnimationClip, Node } = require('cc');
+        const curves = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        root.children = [new Node('Enemy')];
+        const clip = new AnimationClip();
+        const context = { rootNode: root, rootPath: 'Root' };
+        const target = { nodePath: 'Enemy', propKey: 'position' };
+        curves.createPropertyKey(clip, context, {
+            ...target,
+            frame: 4,
+            value: { x: 1, y: 2, z: 3 },
+        });
+        for (const channel of clip._tracks[0].channels()) {
+            channel.curve.preExtrapolation = 0;
+            channel.curve.postExtrapolation = 0;
+        }
+        const before = curves.dumpPropertyCurves(clip);
+        root.children = [];
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn(() => null);
+
+        expect(curves.dumpPropertyCurves(clip)).toEqual(before);
+        expect(curves.movePropertyKeys(clip, context, { ...target, frames: [4], offset: 2 })).toBe(true);
+        expect(curves.copyPropertyKeysTo(clip, context, { ...target, frames: [6], dstFrame: 9 })).toBe(true);
+        expect(curves.createPropertyKey(clip, context, {
+            ...target,
+            frame: 12,
+            value: { x: 4, y: 5, z: 6 },
+        })).toBe(true);
+        expect(curves.updatePropertyKey(clip, context, {
+            ...target,
+            frame: 12,
+            value: { x: 7, y: 8, z: 9 },
+        })).toBe(true);
+        expect(curves.setPropertyCurveExtrapolation(clip, context, {
+            ...target,
+            preExtrap: 1,
+            postExtrap: 1,
+        })).toBe(true);
+        expect(curves.removePropertyKeys(clip, context, { ...target, frames: [6] })).toBe(true);
+
+        const channelFrames = curves.dumpPropertyCurves(clip)[0].channels.map((channel: {
+            key: string;
+            keyframes: Array<{ frame: number }>;
+        }) => ({ key: channel.key, frames: channel.keyframes.map(key => key.frame) }));
+        expect(channelFrames).toEqual([
+            { key: 'x', frames: [9, 12] },
+            { key: 'y', frames: [9, 12] },
+            { key: 'z', frames: [9, 12] },
+        ]);
+    });
+
+    it('缺失节点不能新增轨道或通过无效 UUID 操作已有轨道', () => {
+        const { AnimationClip, Node } = require('cc');
+        const curves = require('../scene-process/service/animation/property-curve');
+        const root = new Node('Root');
+        const child = new Node('Enemy');
+        root.children = [child];
+        const clip = new AnimationClip();
+        const context = { rootNode: root, rootPath: 'Root' };
+        curves.addPropertyCurve(clip, context, { nodePath: 'Enemy', propKey: 'position' });
+        root.children = [];
+        (global as any).EditorExtends.Node.getNodeByPath = jest.fn(() => null);
+        const before = curves.dumpPropertyCurves(clip);
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        try {
+            for (const nodePath of ['Enemy', 'Root/Enemy']) {
+                expect(curves.addPropertyCurve(clip, context, { nodePath, propKey: 'scale' })).toBe(false);
+                expect(curves.createPropertyKey(clip, context, {
+                    nodePath,
+                    propKey: 'scale',
+                    frame: 0,
+                    value: { x: 1, y: 1, z: 1 },
+                })).toBe(false);
+            }
+            expect(curves.removePropertyCurve(clip, context, {
+                nodeUuid: child.uuid,
+                propKey: 'position',
+            })).toBe(false);
+            expect(curves.dumpPropertyCurves(clip)).toEqual(before);
+        } finally {
+            warn.mockRestore();
+        }
     });
 
     it('属性值归一化通过 UUID 使用动画 name path，而不是系统后缀路径', async () => {

@@ -1,4 +1,4 @@
-import { AnimationClip, animation } from 'cc';
+import { AnimationClip, Asset, animation, js } from 'cc';
 import type {
     IAnimationCurveDump,
     IAnimationPropertyType,
@@ -14,6 +14,12 @@ import {
     createMaterialUniformPropertyKey,
     parseMaterialUniformPropertyKey,
 } from './material-uniform';
+import { isAnimationAssetValue } from './asset-value';
+
+type PropertyTrackMetadata = Pick<IPropertyTrackDescriptor, 'type' | 'valueCtor'>;
+
+// 空轨道没有值可用于推导类型，保留编辑和快照重建时已确认的元数据
+const propertyTrackMetadata = new WeakMap<AnyTrack, PropertyTrackMetadata>();
 
 const VECTOR_COMPONENTS = ['x', 'y', 'z'] as const;
 const VECTOR4_COMPONENTS = ['x', 'y', 'z', 'w'] as const;
@@ -93,6 +99,7 @@ export function createPropertyTrack(clip: AnimationClip, nodePath: string, descr
         path.toProperty(descriptor.propName);
     }
     track.path = path;
+    rememberPropertyTrackMetadata(track, descriptor);
     ensureClipTrackArray(clip);
     clip.addTrack(track);
     return track;
@@ -214,25 +221,94 @@ export function createPropertyDescriptor(
         : splitComponentPropertyKey(propertyKey);
     const propName = componentProperty?.propName || propertyKey;
     const comp = componentProperty?.comp;
-    const kind = trackKind || (propertyType ? inferPropertyKindFromType(propertyType.value) : undefined) || inferPropertyKind(value);
+    let metadata: PropertyTrackMetadata | undefined;
+    if (propertyType) {
+        metadata = { type: propertyType, valueCtor };
+    } else if (track) {
+        metadata = queryPropertyTrackMetadata(track, trackKind);
+    }
+
+    const kind = trackKind
+        || (metadata ? inferPropertyKindFromType(metadata.type.value) : undefined)
+        || inferPropertyKind(value);
     if (!kind) {
         return null;
     }
 
     const partKeys = queryPartKeys(kind, value, track);
-    return {
+    const descriptor: IPropertyTrackDescriptor = {
         propKey: propertyKey,
         propName,
         comp,
         kind,
-        type: propertyType || queryPropertyType(kind, value, partKeys),
+        type: metadata?.type || queryPropertyType(kind, value, partKeys),
         displayName: propertyKey,
         menuName: propertyKey,
         isCurveSupport: kind !== 'object' && kind !== 'quat',
         partKeys,
-        valueCtor,
+        valueCtor: metadata?.valueCtor,
         materialUniform,
     };
+    if (track) {
+        rememberPropertyTrackMetadata(track, descriptor);
+    }
+    return descriptor;
+}
+
+/**
+ * 保留轨道已确认的属性类型
+ *
+ * 通用对象类型不提供具体类型信息，不写入缓存
+ */
+function rememberPropertyTrackMetadata(track: AnyTrack, metadata: PropertyTrackMetadata): void {
+    if (metadata.type.value !== 'cc.Object') {
+        propertyTrackMetadata.set(track, { type: metadata.type, valueCtor: metadata.valueCtor });
+    }
+}
+
+/**
+ * 读取轨道元数据，必要时从对象关键帧推导类型
+ *
+ * 没有缓存且无法从关键帧确定类型时返回 undefined
+ */
+function queryPropertyTrackMetadata(
+    track: AnyTrack,
+    kind: PropertyKind | undefined,
+): PropertyTrackMetadata | undefined {
+    const metadata = propertyTrackMetadata.get(track);
+    if (metadata || kind !== 'object') {
+        return metadata;
+    }
+
+    let inferredMetadata: PropertyTrackMetadata | undefined;
+    for (const channel of queryTrackChannels(track)) {
+        for (const [, value] of channel.curve.keyframes()) {
+            if (value === null || value === undefined) {
+                continue;
+            }
+            let keyframeMetadata: PropertyTrackMetadata;
+            if (isAnimationAssetValue(value)) {
+                keyframeMetadata = {
+                    type: { value: js.getClassName(value) || 'cc.Asset' },
+                    valueCtor: value.constructor as new () => unknown,
+                };
+            } else if (typeof value === 'boolean' || typeof value === 'string') {
+                keyframeMetadata = { type: { value: queryObjectValueType(value) } };
+            } else {
+                return undefined;
+            }
+
+            if (inferredMetadata && inferredMetadata.type.value !== keyframeMetadata.type.value) {
+                if (!inferredMetadata.valueCtor || !keyframeMetadata.valueCtor) {
+                    return undefined;
+                }
+                // Asset 属性可引用不同资源子类，按共同基类恢复以保留各自的真实资源
+                keyframeMetadata = { type: { value: 'cc.Asset' }, valueCtor: Asset };
+            }
+            inferredMetadata = keyframeMetadata;
+        }
+    }
+    return inferredMetadata;
 }
 
 export function createPropertyDescriptorFromDump(curve: IAnimationCurveDump): IPropertyTrackDescriptor | null {

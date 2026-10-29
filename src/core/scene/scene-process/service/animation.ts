@@ -48,6 +48,7 @@ import { AnimationClipSnapshotCommand } from './animation/undo';
 import { IAnimationSession } from './animation/types';
 import { clipUuid, ensureClipEvents, getClipSample } from './animation/utils';
 import { serializeAnimationPropertyValue } from './animation/property-value';
+import { resolvePropertyCurveTarget } from './animation/property-curve';
 import { AnimationServicePlayback } from './animation/service-playback';
 import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, shouldSyncAnimationClipDuration } from './animation/operation-policy';
 import { normalizeAnimationOperation } from './animation/operation-normalizer';
@@ -68,7 +69,6 @@ import {
     queryAnimationComponent,
     queryAnimationRootNode,
     readPropertyValue,
-    resolveAnimationRelativeNodePath,
 } from './animation/scene-node';
 import {
     assertAnimationEditorOpened,
@@ -470,7 +470,9 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 }
                 return inputFailure;
             }
-            const targetFailure = validateAnimationPropertyTarget(inputOperation, rootNode, session.rootPath);
+            const targetFailure = validateAnimationPropertyTarget(
+                inputOperation, clip, rootNode, session.rootPath,
+            );
             if (targetFailure) {
                 if (shouldRestoreOnFailure) {
                     await this._restoreFailedOperationSnapshot(clip, before, rootNode);
@@ -1018,13 +1020,14 @@ function normalizeSceneNodePath(path: string): string {
 
 function validateAnimationPropertyTarget(
     operation: IAnimationOperation,
+    clip: AnimationClip,
     rootNode: Node,
     rootPath: string,
 ): IAnimationOperationResult | null {
     if (!('propKey' in operation)) {
         return null;
     }
-    if (resolveAnimationRelativeNodePath(rootNode, rootPath, operation) !== null) {
+    if (resolvePropertyCurveTarget(clip, { rootNode, rootPath }, operation) !== null) {
         return null;
     }
 
