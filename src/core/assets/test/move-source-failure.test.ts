@@ -162,6 +162,46 @@ describe('asset source move safety and compatibility', () => {
             .toEqual(['new pixels', '{"uuid":"original"}', 'old pixels', '{"uuid":"old-target"}']);
     });
 
+
+    it('refuses to commit changed installed metadata and retains the previous target backups', async () => {
+        await outputFile(target, 'old pixels');
+        await outputFile(`${target}.meta`, '{"uuid":"old-target"}');
+        let backup = '';
+        setFileSystemProvider({ rename: async (from, to, options) => {
+            await move(from, to, { overwrite: !!options?.overwrite });
+            if (from === target && !backup) backup = to;
+            if (from === source) await outputFile(`${target}.meta`, 'third-party metadata');
+        } });
+
+        await expect(moveAssetSource(source, target, { overwrite: true })).rejects.toThrow('could not be restored safely');
+
+        expect(await readFile(source, 'utf8')).toBe('new pixels');
+        expect(await readFile(`${target}.meta`, 'utf8')).toBe('third-party metadata');
+        expect(await readFile(backup, 'utf8')).toBe('old pixels');
+        expect(await readFile(`${backup}.meta`, 'utf8')).toBe('{"uuid":"old-target"}');
+    });
+
+    it('reports retained metadata paths when recovery never created a staging directory', async () => {
+        setFileSystemProvider({ rename: async (from, to, options) => {
+            await move(from, to, { overwrite: !!options?.overwrite });
+            if (from === source) {
+                await outputFile(source, 'third-party source');
+                await outputFile(target, 'third-party target');
+            }
+        } });
+
+        const error = await moveAssetSource(source, target, { overwrite: true }).catch(error => error) as AggregateError;
+
+        expect(error.message).toContain('could not be restored safely');
+        expect(error.message).toContain(JSON.stringify({
+            originalPath: `${source}.meta`, lastKnownPath: `${target}.meta`,
+        }));
+        expect(await pathExists(join(root, 'temp', 'move-temp'))).toBe(false);
+        expect(await readFile(`${target}.meta`, 'utf8')).toBe('{"uuid":"original"}');
+        expect(await readFile(source, 'utf8')).toBe('third-party source');
+        expect(await readFile(target, 'utf8')).toBe('third-party target');
+    });
+
     it('keeps an unrelated replacement and recovery data instead of attaching old metadata to it', async () => {
         await outputFile(target, 'old pixels');
         await outputFile(`${target}.meta`, '{"uuid":"old-target"}');

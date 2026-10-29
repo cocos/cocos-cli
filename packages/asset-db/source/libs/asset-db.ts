@@ -71,6 +71,8 @@ export interface AssetDBRefreshOptions {
     ignoreSelf?: boolean;
     globList?: string[];
     useCache?: boolean;
+    /** Reload metadata and reconcile UUIDs even when replacement files preserve their timestamps. */
+    reloadMetadata?: boolean;
     // 扫描成功后等待完成一些操作
     hooks?: {
         // 生成 资源 meta 之后
@@ -811,7 +813,7 @@ export class AssetDB extends EventEmitter {
                 if (!addSet.has(file) && !deleteSet.has(file)) {
                     const asset = this.path2asset.get(file);
                     if (asset) {
-                        tasks.push(this._checkAssetStat(asset));
+                        tasks.push(this._checkAssetStat(asset, options.reloadMetadata));
                     }
                 }
             }
@@ -1173,7 +1175,7 @@ export class AssetDB extends EventEmitter {
         }
     }
 
-    private async _checkAssetStat(asset: Asset) {
+    private async _checkAssetStat(asset: Asset, reloadMetadata = false) {
 
         const file = asset.source;
         const fileStat = await stat(file);
@@ -1185,7 +1187,7 @@ export class AssetDB extends EventEmitter {
         }
         const metaStat = await stat(metaFile);
 
-        if (!await this.infoManager.compare(metaFile, metaStat.mtimeMs)) {
+        if (reloadMetadata || !await this.infoManager.compare(metaFile, metaStat.mtimeMs)) {
             this.emit('delete', asset);
             this.emit('deleted', asset);
             asset._isDirectory = fileStat.isDirectory();

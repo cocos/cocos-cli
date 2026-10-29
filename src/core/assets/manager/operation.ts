@@ -2,7 +2,7 @@
  * 资源操作类，会调用 assetManager/assetDB/assetHandler 等模块
  */
 
-import { refresh, reimport, queryUrl, Asset } from '@cocos/asset-db';
+import { refresh, reimport, queryUrl, Asset, type AssetDBRefreshOptions } from '@cocos/asset-db';
 import { copy as fsCopy, move, remove, existsSync } from 'fs-extra';
 import { isAbsolute, basename, dirname, join, relative, extname, resolve } from 'path';
 import { lstatSync, realpathSync, statSync } from 'fs';
@@ -775,10 +775,10 @@ class AssetOperation extends EventEmitter {
         return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID, false]);
     }
 
-    private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<number> {
+    private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true, options?: AssetDBRefreshOptions): Promise<number> {
         const refreshTarget = this._pathToDbUrlIfInsideAssetDB(pathOrUrlOrUUID);
         const refreshDir = this._dirnameForRefresh(refreshTarget);
-        const result = await refresh(refreshTarget);
+        const result = await refresh(refreshTarget, options);
         if (result === undefined) {
             throw new Error(`can not find asset ${pathOrUrlOrUUID}`);
         }
@@ -892,18 +892,27 @@ class AssetOperation extends EventEmitter {
         if (indexed) {
             return indexed;
         }
+        // Many assets share a parent. Cache only within this synchronous lookup;
+        // aliases must be resolved again after a prompt or an external-write wait.
+        const parents = new Map<string, string | null>([[dirname(path), dirname(entry)]]);
         return assetQuery.queryAssets().find(asset => {
             if (asset._parent || !isAbsolute(asset.source)) {
                 return false;
             }
-            try {
-                return this._isSameFilesystemPath(resolveMoveEntryPath(asset.source), entry);
-            } catch (error) {
-                if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
-                    return false;
+            const parent = dirname(asset.source);
+            if (!parents.has(parent)) {
+                try {
+                    parents.set(parent, realpathSync(parent));
+                } catch (error) {
+                    if (!['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                        throw error;
+                    }
+                    parents.set(parent, null);
                 }
-                throw error;
             }
+            const resolvedParent = parents.get(parent);
+            return resolvedParent !== null && resolvedParent !== undefined
+                && this._isSameFilesystemPath(join(resolvedParent, basename(asset.source)), entry);
         }) ?? null;
     }
 
@@ -1003,8 +1012,9 @@ class AssetOperation extends EventEmitter {
         const sourceRequest = source;
         const targetRequest = target;
         const guard = option?.preflightToken !== undefined ? this._movePreflights.take(option.preflightToken) : undefined;
+        let request: ResolvedAssetMove | undefined;
         if (guard) {
-            const request = this._resolveMoveRequest(sourceRequest, targetRequest);
+            request = this._resolveMoveRequest(sourceRequest, targetRequest);
             guard(request);
             source = request.source;
             target = request.target;
@@ -1020,11 +1030,21 @@ class AssetOperation extends EventEmitter {
         const sourceUuid = asset.uuid;
         const requestedTarget = target;
         target = this._checkOverwrite(target, option, this._isMoveTargetOccupied);
-        const indexedTarget = guard ? this._queryMoveEntryAsset(target) : assetQuery.queryAsset(target);
+        const queryTarget = (): IAsset | null => {
+            if (request && target === request.target) {
+                return request.targetUuid ? assetQuery.queryAsset(request.targetUuid) : null;
+            }
+            return guard ? this._queryMoveEntryAsset(target) : assetQuery.queryAsset(target);
+        };
+        let indexedTarget = queryTarget();
         const affectedGraphs = this._queryAnimationGraphAssetsAt(source, indexedTarget?.uuid ?? target);
         return this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
-            if (guard && affectedGraphs.length > 0) {
-                guard(this._resolveMoveRequest(sourceRequest, targetRequest));
+            if (affectedGraphs.length > 0) {
+                if (guard) {
+                    request = this._resolveMoveRequest(sourceRequest, targetRequest);
+                    guard(request);
+                }
+                indexedTarget = queryTarget();
             }
             if (target !== requestedTarget && this._isMoveTargetOccupied(target)) {
                 throw new Error('The generated asset move destination changed before writing. Run preflightMoveAsset again.');
@@ -1036,7 +1056,7 @@ class AssetOperation extends EventEmitter {
             if (fileOptions) {
                 delete fileOptions.preflightToken;
             }
-            const targetIndexed = (guard ? this._queryMoveEntryAsset(target) : assetQuery.queryAsset(target)) !== null;
+            const targetIndexed = indexedTarget !== null;
             const targetDB = this._getMoveTargetDB(target);
             await moveAssetSource(source, target, fileOptions);
 
@@ -1052,7 +1072,7 @@ class AssetOperation extends EventEmitter {
                 // importing into another DB. Otherwise Asset DB rewrites the UUID
                 // as a duplicate, or reuses an asset owned by the wrong DB.
                 await assetDBManager.addTask(this._refreshAsset.bind(this), [source, false]);
-                await assetDBManager.addTask(this._refreshAsset.bind(this), [target]);
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [target, true, { reloadMetadata: targetIndexed }]);
             }
             console.debug(`move asset from ${source} -> ${target} success`);
             const moved = assetQuery.queryAssetInfo(sourceUuid, ASSET_TREE_INFO_DATA_KEYS);
