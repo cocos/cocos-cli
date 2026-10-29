@@ -35,43 +35,163 @@ describe('文件操作', () => {
         }
     }
 
-    it('refreshes an overwritten parent alias without retaining old UUIDs or rewriting moved metadata', async () => {
-        const root = path.join(PATH.ROOT, 'alias-refresh');
-        const targetRoot = path.join(root, 'assets');
-        const source = path.join(targetRoot, 'source');
-        const target = path.join(targetRoot, 'destination', 'folder');
-        const alias = path.join(targetRoot, 'alias');
-        const aliasTarget = path.join(alias, 'folder');
-        fse.outputFileSync(path.join(source, 'new.test'), 'new');
-        fse.outputFileSync(path.join(target, 'old.test'), 'old');
-        const db = new AssetDB({ name: 'alias-refresh', target: targetRoot,
+    for (const deleteParent of [false, true]) {
+        it(`refreshes alias indexes and removes UUIDs after deleting the ${deleteParent ? 'canonical parent' : 'target'}`, async () => {
+            const root = path.join(PATH.ROOT, 'alias-refresh');
+            const targetRoot = path.join(root, 'assets');
+            const source = path.join(targetRoot, 'source');
+            const target = path.join(targetRoot, 'destination', 'folder');
+            const alias = path.join(targetRoot, 'links', 'alias');
+            const aliasTarget = path.join(alias, 'folder');
+            fse.outputFileSync(path.join(source, 'new.test'), 'new');
+            fse.outputFileSync(path.join(target, 'old.test'), 'old');
+            fse.ensureDirSync(path.dirname(alias));
+            const db = new AssetDB({ name: 'alias-refresh', target: targetRoot,
+                library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
+            try {
+                await db.start();
+                const sourceUuid = db.path2asset.get(source).uuid;
+                const childUuid = db.path2asset.get(path.join(source, 'new.test')).uuid;
+                const oldUuids = [target, path.join(target, 'old.test')].map(file => db.path2asset.get(file).uuid);
+                const link = deleteParent && process.platform !== 'win32'
+                    ? path.relative(path.dirname(alias), path.dirname(target)) : path.dirname(target);
+                await fse.symlink(link, alias, 'junction');
+                await fse.move(source + '.meta', target + '.meta', { overwrite: true });
+                await fse.move(source, target, { overwrite: true });
+
+                await db.refresh(source);
+                await db.refresh(aliasTarget);
+
+                expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
+                expect(db.getAsset(sourceUuid).source).to.equal(aliasTarget);
+                expect(db.getAsset(childUuid).source).to.equal(path.join(aliasTarget, 'new.test'));
+                for (const refreshPath of [target, targetRoot]) {
+                    await db.refresh(refreshPath);
+                    expect(fse.readJSONSync(target + '.meta').uuid).to.equal(sourceUuid);
+                    expect(fse.readJSONSync(path.join(target, 'new.test.meta')).uuid).to.equal(childUuid);
+                    expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
+                }
+                await db.refresh(aliasTarget);
+                const removed = deleteParent ? path.dirname(target) : target;
+                await fse.remove(removed);
+                await fse.remove(removed + '.meta');
+                await db.refresh(removed);
+                expect([sourceUuid, childUuid].map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
+            } finally {
+                await db.stop();
+                fse.removeSync(root);
+            }
+        });
+
+    }
+
+    it('publishes a changed event when an imported file is refreshed through a parent alias', async () => {
+        const root = path.join(PATH.ROOT, 'alias-event');
+        const target = path.join(root, 'assets');
+        const file = path.join(target, 'real', 'file.test');
+        const alias = path.join(target, 'alias');
+        fse.outputFileSync(file, 'contents');
+        fse.ensureDirSync(path.join(root, 'library'));
+        const db = new AssetDB({ name: 'alias-event', target,
             library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
         try {
             await db.start();
-            const sourceUuid = db.path2asset.get(source).uuid;
-            const childUuid = db.path2asset.get(path.join(source, 'new.test')).uuid;
-            const oldUuids = [target, path.join(target, 'old.test')].map(file => db.path2asset.get(file).uuid);
-            await fse.symlink(path.dirname(target), alias, 'junction');
-            await fse.move(source + '.meta', target + '.meta', { overwrite: true });
-            await fse.move(source, target, { overwrite: true });
+            const uuid = db.path2asset.get(file).uuid;
+            await fse.symlink(path.dirname(file), alias, 'junction');
+            const changed = [];
+            db.on('changed', asset => {
+                if (asset.uuid === uuid) changed.push(asset.source);
+            });
 
-            await db.refresh(source);
-            await db.refresh(aliasTarget);
+            await db.refresh(path.join(alias, 'file.test'));
 
-            expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
-            expect(db.getAsset(sourceUuid).source).to.equal(aliasTarget);
-            expect(db.getAsset(childUuid).source).to.equal(path.join(aliasTarget, 'new.test'));
-            for (const refreshPath of [target, targetRoot]) {
-                await db.refresh(refreshPath);
-                expect(fse.readJSONSync(target + '.meta').uuid).to.equal(sourceUuid);
-                expect(fse.readJSONSync(path.join(target, 'new.test.meta')).uuid).to.equal(childUuid);
-                expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
-            }
+            expect(changed).to.deep.equal([path.join(alias, 'file.test')]);
         } finally {
             await db.stop();
             fse.removeSync(root);
         }
     });
+
+    for (const linkText of ['missing/../live', 'missing/../alias']) {
+        it(`does not project an untraversable parent link onto live resources: ${linkText}`, async () => {
+            const root = path.join(PATH.ROOT, 'untraversable-alias');
+            const target = path.join(root, 'assets');
+            const file = path.join(target, 'live', 'file.test');
+            const alias = path.join(target, 'alias');
+            fse.outputFileSync(file, 'contents');
+            fse.ensureDirSync(path.join(target, 'missing'));
+            fse.ensureDirSync(path.join(root, 'library'));
+            const db = new AssetDB({ name: 'untraversable-alias', target,
+                library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
+            try {
+                await db.start();
+                const uuid = db.path2asset.get(file).uuid;
+                await fse.symlink(path.dirname(file), alias, 'dir');
+                await db.refresh(path.join(alias, 'file.test'));
+                if (linkText.endsWith('live')) {
+                    await db.refresh(file);
+                }
+                await fse.unlink(alias);
+                await fse.symlink(linkText, alias, 'dir');
+                await fse.remove(path.join(target, 'missing'));
+                await db.refresh(path.join(target, 'missing'));
+
+                await db.refresh(linkText.endsWith('live') ? path.join(alias, 'file.test') : file);
+
+                expect(db.getAsset(uuid)).not.to.equal(null);
+                expect(fse.readFileSync(file, 'utf8')).to.equal('contents');
+                expect(fse.readJSONSync(file + '.meta').uuid).to.equal(uuid);
+            } finally {
+                await db.stop();
+                fse.removeSync(root);
+            }
+        });
+    }
+
+    for (const directory of [false, true]) {
+        it(`refreshes the imported kind when a ${directory ? 'directory replaces a file' : 'file replaces a directory'}`, async () => {
+            const root = path.join(PATH.ROOT, 'replacement-kind');
+            const targetRoot = path.join(root, 'assets');
+            const source = path.join(targetRoot, 'source');
+            const target = path.join(targetRoot, 'target');
+            fse.outputFileSync(directory ? path.join(source, 'new.test') : source, 'new');
+            fse.outputFileSync(directory ? target : path.join(target, 'old.test'), 'old');
+            fse.ensureDirSync(path.join(root, 'library'));
+            const imports = [];
+            class KindImporter extends Importer {
+                get name() { return 'kind'; }
+                async validate() { return true; }
+                async import(asset) { imports.push({ uuid: asset.uuid, directory: asset.isDirectory() }); return true; }
+            }
+            const db = new AssetDB({ name: 'replacement-kind', target: targetRoot,
+                library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
+            db.importerManager.add(KindImporter, ['', '.test']);
+            try {
+                await db.start();
+                const sourceUuid = db.path2asset.get(source).uuid;
+                const targetAsset = db.path2asset.get(target);
+                const targetUuid = targetAsset.uuid;
+                expect(targetAsset.isDirectory()).to.equal(!directory);
+                const removedKinds = [];
+                db.on('deleted', asset => {
+                    if (asset.uuid === targetUuid) removedKinds.push(asset.isDirectory());
+                });
+                imports.length = 0;
+                await fse.move(source + '.meta', target + '.meta', { overwrite: true });
+                await fse.move(source, target, { overwrite: true });
+
+                await db.refresh(source);
+                await db.refresh(target);
+
+                expect(removedKinds).to.deep.equal([!directory]);
+                expect(db.getAsset(sourceUuid).isDirectory()).to.equal(directory);
+                expect(imports.filter(entry => entry.uuid === sourceUuid)).to.deep.equal([{ uuid: sourceUuid, directory }]);
+            } finally {
+                await db.stop();
+                fse.removeSync(root);
+            }
+        });
+    }
 
     describe('在数据库内新增 / 删除文件', async () => {
         let DB;

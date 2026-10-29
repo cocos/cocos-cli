@@ -941,7 +941,7 @@ class AssetOperation extends EventEmitter {
         const targetEntryPath = resolveMoveEntryPath(targetPath);
         const databases = Object.values(assetDBManager.assetDBMap).filter(db => db);
         if (databases.some(db => [sourcePath, targetPath].some(path =>
-            this._isSameFilesystemPath(resolve(db.options.target), path)))) {
+            utils.Path.contains(path, resolve(db.options.target))))) {
             throw new Error('Asset DB roots cannot be moved or replaced.');
         }
         const mounts = databases.flatMap(db => {
@@ -964,7 +964,7 @@ class AssetOperation extends EventEmitter {
             }
         }).sort((left, right) => (right.root?.length ?? 0) - (left.root?.length ?? 0));
         if (mounts.some(({ root, entry }) => [sourceEntryPath, targetEntryPath].some(path =>
-            (root && this._isSameFilesystemPath(path, root)) || this._isSameFilesystemPath(path, entry)))) {
+            (root && utils.Path.contains(path, root)) || utils.Path.contains(path, entry)))) {
             throw new Error('Asset DB roots cannot be moved or replaced.');
         }
         if (mounts.find(({ root }) => root && utils.Path.contains(root, sourceEntryPath))?.db !== sourceDB
@@ -1059,7 +1059,12 @@ class AssetOperation extends EventEmitter {
             const expectedUrl = targetDB
                 ? `db://${targetDB.options.name}/${relative(targetDB.options.target, target).replace(/\\/g, '/')}`
                 : queryUrl(target);
-            if (!moved || moved.uuid !== sourceUuid || moved.url !== expectedUrl) {
+            const expectedDatabaseUrl = /^db:\/\/[^/]+/.exec(expectedUrl)?.[0];
+            const matchesDestination = moved && (moved.url === expectedUrl || (
+                expectedDatabaseUrl && moved.url.startsWith(`${expectedDatabaseUrl}/`)
+                && this._isSameFilesystemPath(url2path(moved.url), target)
+            ));
+            if (!moved || moved.uuid !== sourceUuid || !matchesDestination) {
                 throw new Error(`Asset was moved but its refreshed information is unavailable: ${target}`);
             }
             return moved;
