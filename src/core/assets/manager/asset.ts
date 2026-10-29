@@ -11,6 +11,7 @@ import animationGraphVariant from '../animation-graph-variant';
 import animationGraph from '../animation-graph-service';
 import * as serializedData from '../serialized-data';
 import * as materialService from '../material-service';
+import * as sceneSource from '../scene-source';
 import {
     extractImagePixelsFromFile,
     resolveImageSourceFile,
@@ -47,6 +48,8 @@ class AssetManager extends EventEmitter {
     copyAsset = assetOperation.copyAsset.bind(assetOperation);
     saveAssetMeta = assetOperation.saveAssetMeta.bind(assetOperation);
     saveAsset = assetOperation.saveAsset.bind(assetOperation);
+    querySceneSource = sceneSource.querySceneSource;
+    saveSceneSource = sceneSource.saveSceneSource;
     createAsset = assetOperation.createAsset.bind(assetOperation);
     refreshAsset = assetOperation.refreshAsset.bind(assetOperation);
     refreshAssetOnly = assetOperation.refreshAssetOnly.bind(assetOperation);
@@ -398,6 +401,8 @@ export interface TypedAssetManager extends EventEmitter {
     copyAsset: typeof assetOperation.copyAsset;
     saveAssetMeta: typeof assetOperation.saveAssetMeta;
     saveAsset: typeof assetOperation.saveAsset;
+    querySceneSource: typeof sceneSource.querySceneSource;
+    saveSceneSource: typeof sceneSource.saveSceneSource;
     createAsset: typeof assetOperation.createAsset;
     refreshAsset: typeof assetOperation.refreshAsset;
     refreshAssetOnly: typeof assetOperation.refreshAssetOnly;
