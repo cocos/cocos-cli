@@ -1472,6 +1472,7 @@ export declare interface AssetDBRefreshOptions {
     ignoreSelf?: boolean;
     globList?: string[];
     useCache?: boolean;
+    reloadMetadata?: boolean;
     hooks?: {
         afterGenerateMeta?(): void;
         afterScan?(files: string[]): void;

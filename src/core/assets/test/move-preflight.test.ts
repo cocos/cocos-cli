@@ -33,7 +33,7 @@ const mockPath = (value: string): string =>
     value.startsWith('db://assets/') ? join(mockRoot, 'assets', value.slice('db://assets/'.length)) : value;
 const mockUrl = (value: string): string =>
     value.startsWith('db://') ? value : `db://assets/${relative(join(mockRoot, 'assets'), value).replace(/\\/g, '/')}`;
-const mockRefresh = jest.fn(async (value: string) => {
+const mockRefresh = jest.fn(async (value: string, _options?: { reloadMetadata?: boolean }) => {
     const path = mockPath(value);
     if (existsSync(path) && existsSync(`${path}.meta`)) {
         const meta = JSON.parse(readFileSync(`${path}.meta`, 'utf8')) as { uuid: string };
@@ -51,7 +51,7 @@ const mockRefresh = jest.fn(async (value: string) => {
 const mockExternalWrites = jest.fn(async (_ids: string[], task: () => Promise<unknown>) => task());
 
 jest.mock('@cocos/asset-db', () => ({
-    refresh: (path: string) => mockRefresh(path),
+    refresh: (path: string, options?: { reloadMetadata?: boolean }) => mockRefresh(path, options),
     reimport: jest.fn(),
     queryUrl: (path: string) => mockUrl(path),
     Asset: class { },
@@ -162,6 +162,30 @@ describe('asset move preflight and submission', () => {
         expect(await readFile(`${mockPath(target)}.meta`, 'utf8')).toBe('{"uuid":"source-uuid"}');
     });
 
+
+    it('bounds parent resolution work when moving to an unoccupied destination in a large index', async () => {
+        const source = await createAsset('source.txt', 'source-uuid');
+        const sharedParent = join(mockDatabase.options.target, 'shared');
+        await ensureDir(sharedParent);
+        for (let i = 0; i < 100; i++) {
+            const name = `shared/file-${i}.txt`;
+            mockAssets.set(name, {
+                ...source, uuid: name, url: `db://assets/${name}`,
+                source: join(mockDatabase.options.target, name),
+            });
+        }
+        const realpath = jest.spyOn(jest.requireActual<typeof import('fs')>('fs'), 'realpathSync');
+        const target = 'db://assets/destination/source.txt';
+
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+        await assetOperation.moveAsset(source.uuid, target, { preflightToken: preflight.preflightToken });
+
+        // Work follows distinct parents, not the number of siblings or repeated synchronous checks.
+        const parentReads = realpath.mock.calls.filter(([path]) => path === sharedParent).length;
+        expect(parentReads).toBeGreaterThan(0);
+        expect(parentReads).toBeLessThanOrEqual(2);
+    });
+
     it.each(['body', 'metadata', 'directory'])('reports an unindexed destination %s conflict', async kind => {
         const source = await createAsset('source.txt');
         const target = join(mockRoot, 'assets', 'destination', 'source.txt');
@@ -240,6 +264,7 @@ describe('asset move preflight and submission', () => {
         expect(result).toMatchObject({ uuid: 'source-uuid', url: target.url });
         expect(await readFile(target.source, 'utf8')).toBe('contents of source-uuid');
         expect(mockAssets.has('target-uuid')).toBe(false);
+        expect(mockRefresh).toHaveBeenCalledWith(target.url, { reloadMetadata: true });
     });
 
     it.each(['source body', 'source metadata', 'target body', 'target metadata'])(

@@ -98,7 +98,7 @@ export async function moveAssetSourceWithRecovery(
                     ? after.device === targetDevice && readMoveContentDigest(to) === content
                     : after.identity === before.identity && after.continuity === before.continuity);
             if (!continuous) {
-                throw new Error(`Asset move data changed during rename. Recovery data retained at ${staging}`);
+                throw new Error(`Asset move data changed during rename: ${from} -> ${to}`);
             }
             owner.path = to;
             owner.state = after;
@@ -117,7 +117,7 @@ export async function moveAssetSourceWithRecovery(
                 } catch (validationError) {
                     throw new AggregateError(
                         [error, validationError],
-                        `Asset move failed after its data changed. Recovery data retained at ${staging}`,
+                        `Asset move failed after its data changed: ${from} -> ${to}`,
                     );
                 }
             }
@@ -163,6 +163,11 @@ export async function moveAssetSourceWithRecovery(
         }
         await rename(`${currentSource}.meta`, `${target}.meta`);
         await rename(currentSource, target);
+        // Installing the body may yield to another writer after metadata was verified.
+        const metadata = owned.get(`${target}.meta`);
+        if (!metadata || readMovePathState(metadata.path)?.revision !== metadata.state.revision) {
+            throw new Error(`Asset move installed metadata changed before commit: ${target}.meta`);
+        }
     } catch (error) {
         const failures: unknown[] = [];
         for (const entry of journal.reverse()) {
@@ -199,9 +204,12 @@ export async function moveAssetSourceWithRecovery(
             failures.push(cleanupError);
         }
         if (failures.length) {
+            const paths = [...owned.values()]
+                .filter(item => item.path !== item.origin)
+                .map(item => ({ originalPath: item.origin, lastKnownPath: item.path }));
             throw new AggregateError(
                 [error, ...failures],
-                `Asset move failed and could not be restored safely. Recovery data: ${staging}`,
+                `Asset move failed and could not be restored safely. Last tracked move paths (may have changed): ${JSON.stringify(paths)}`,
             );
         }
         throw error;

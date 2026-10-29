@@ -1,6 +1,6 @@
 'use strict';
 
-import type { AssetDB } from './asset-db';
+import type { AssetDB, AssetDBRefreshOptions } from './asset-db';
 import type { Asset, VirtualAsset } from './asset';
 
 import { isSamePath, isSubPath } from './utils';
@@ -293,13 +293,13 @@ export async function reimport(uuid_url_path: string) {
  * 绝对路径请使用系统分隔符，文件夹末尾不需要带分隔符（mac：/  win：\\）
  * @param uuid_url_path
  */
-export async function refresh(uuid_url_path: string) {
+export async function refresh(uuid_url_path: string, options?: AssetDBRefreshOptions) {
     // path
     if (isAbsolute(uuid_url_path)) {
         for (let name in map) {
             const db = map[name];
             if (isSamePath(db.options.target, uuid_url_path) || isSubPath(uuid_url_path, db.options.target)) {
-                return await db.refresh(uuid_url_path);
+                return await db.refresh(uuid_url_path, options);
             }
         }
     }
@@ -311,7 +311,7 @@ export async function refresh(uuid_url_path: string) {
         if (uri.host && map[uri.host]) {
             const db = map[uri.host || ''];
             const path = join(db.options.target, decodeURIComponent((uri.path || '') + (uri.hash || '')));
-            return await db.refresh(path);
+            return await db.refresh(path, options);
         }
     }
 
@@ -320,7 +320,7 @@ export async function refresh(uuid_url_path: string) {
         const db = map[name];
         const asset = db.getAsset(uuid_url_path);
         if (asset) {
-            return await db.refresh(asset.source);
+            return await db.refresh(asset.source, options);
         }
     }
 }
