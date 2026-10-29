@@ -204,9 +204,12 @@ export async function moveAssetSourceWithRecovery(
             failures.push(cleanupError);
         }
         if (failures.length) {
-            const paths = [...owned.values()]
-                .filter(item => item.path !== item.origin)
-                .map(item => ({ originalPath: item.origin, lastKnownPath: item.path }));
+            const paths: Array<{ originalPath: string; lastKnownPath: string }> = [];
+            for (const item of owned.values()) {
+                if (item.path !== item.origin) {
+                    paths.push({ originalPath: item.origin, lastKnownPath: item.path });
+                }
+            }
             throw new AggregateError(
                 [error, ...failures],
                 `Asset move failed and could not be restored safely. Last tracked move paths (may have changed): ${JSON.stringify(paths)}`,

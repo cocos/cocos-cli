@@ -724,7 +724,6 @@ export class AssetDB extends EventEmitter {
         const fileSet: Set<string> = new PathSet();
         const deleteSet: Set<string> = new PathSet();
         const addSet: Set<string> = new PathSet();
-        const changedPathAssets: Asset[] = [];
         const afterError = (error: unknown) => {
             this.taskManager.clear();
             this.unlock();
@@ -733,7 +732,7 @@ export class AssetDB extends EventEmitter {
         try {
             const aliases = this._reconcileEntryAliases(files, path);
             files = aliases.files;
-            changedPathAssets.push(...aliases.moved);
+            const changedPathAssets = aliases.moved;
             const preAddFiles: string[] = [];
             const addFiles: string[] = [];
             const deleteFiles: string[] = [];
@@ -990,11 +989,13 @@ export class AssetDB extends EventEmitter {
         if (rootEntry !== undefined) {
             recordChange(refreshRoot, rootEntry);
         }
+        const selectedFiles: string[] = [];
         for (const [entry, file] of selected) {
             recordChange(file, entry);
+            selectedFiles.push(file);
         }
         if (changes.size === 0) {
-            return { files: Array.from(selected.values()), moved: [], missing };
+            return { files: selectedFiles, moved: [], missing };
         }
         const moved: Asset[] = [];
         for (const [file, asset] of Array.from(this.path2asset)) {
@@ -1008,7 +1009,7 @@ export class AssetDB extends EventEmitter {
                 moved.push(asset);
             }
         }
-        return { files: Array.from(selected.values()), moved, missing };
+        return { files: selectedFiles, moved, missing };
     }
 
     private _updateAssetSource(asset: Asset, source: string) {

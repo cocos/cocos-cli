@@ -949,11 +949,14 @@ class AssetOperation extends EventEmitter {
         const sourceEntryPath = resolveMoveEntryPath(sourcePath);
         const targetEntryPath = resolveMoveEntryPath(targetPath);
         const databases = Object.values(assetDBManager.assetDBMap).filter(db => db);
-        if (databases.some(db => [sourcePath, targetPath].some(path =>
-            utils.Path.contains(path, resolve(db.options.target))))) {
+        if (databases.some(db => {
+            const root = resolve(db.options.target);
+            return utils.Path.contains(sourcePath, root) || utils.Path.contains(targetPath, root);
+        })) {
             throw new Error('Asset DB roots cannot be moved or replaced.');
         }
-        const mounts = databases.flatMap(db => {
+        const mounts: Array<{ db: IAsset['_assetDB']; root: string | undefined; entry: string }> = [];
+        for (const db of databases) {
             try {
                 const entry = resolveMoveEntryPath(db.options.target);
                 let root: string | undefined;
@@ -964,16 +967,18 @@ class AssetOperation extends EventEmitter {
                         throw error;
                     }
                 }
-                return [{ db, root, entry }];
+                mounts.push({ db, root, entry });
             } catch (error) {
                 if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
-                    return [];
+                    continue;
                 }
                 throw error;
             }
-        }).sort((left, right) => (right.root?.length ?? 0) - (left.root?.length ?? 0));
-        if (mounts.some(({ root, entry }) => [sourceEntryPath, targetEntryPath].some(path =>
-            (root && utils.Path.contains(path, root)) || utils.Path.contains(path, entry)))) {
+        }
+        mounts.sort((left, right) => (right.root?.length ?? 0) - (left.root?.length ?? 0));
+        if (mounts.some(({ root, entry }) =>
+            (root && utils.Path.contains(sourceEntryPath, root)) || utils.Path.contains(sourceEntryPath, entry)
+            || (root && utils.Path.contains(targetEntryPath, root)) || utils.Path.contains(targetEntryPath, entry))) {
             throw new Error('Asset DB roots cannot be moved or replaced.');
         }
         if (mounts.find(({ root }) => root && utils.Path.contains(root, sourceEntryPath))?.db !== sourceDB
