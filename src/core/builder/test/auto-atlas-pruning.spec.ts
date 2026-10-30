@@ -47,6 +47,26 @@ function prune(
 }
 
 describe('auto-atlas original assets across shared bundles', () => {
+    it('reports package growth only for originals retained by options inside an output asset bundle', () => {
+        [
+            { path: 'db://assets/gbundle/lang.pac', expected: true },
+            { path: 'db://assets/outside/lang.pac', expected: false },
+            { path: 'db://assets/gbundle-other/lang.pac', expected: false },
+            { path: 'db://assets/gbundle/lang.pac', expected: false, output: false },
+            { path: 'db://assets/gbundle/lang.pac', expected: false, depended: { [texture]: ['material'] } },
+        ].forEach((test) => {
+            const bundles = sharedBundles();
+            if (test.output === false) { bundles.forEach((bundle) => { bundle.output = false; }); }
+            const retainedByOptions = pruneOriginalAssetsInPac(
+                bundles as unknown as IBundle[],
+                { spriteFrameInfos: [{ uuid: frame, imageUuid: image, textureUuid: texture }] } as IAtlasInfo,
+                { path: test.path, packOptions: { removeTextureInBundle: false, removeImageInBundle: false } } as IPacInfo,
+                test.depended || {},
+            );
+            expect(retainedByOptions).toBe(test.expected);
+        });
+    });
+
     it.each([false, true])('retains the original texture and its image when texture pruning is disabled (image pruning: %s)', (removeImage) => {
         const bundles = sharedBundles();
         const removeTask = prune(bundles, false, removeImage);
