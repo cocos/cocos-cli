@@ -11,7 +11,7 @@ import { ScriptBuilder } from '../script';
 import { BuiltinBundleName, BundleCompressionTypes, DefaultBundleConfig, getBundleDefaultName, transformPlatformSettings } from '../../../../share/bundle-utils';
 import { buildAssetLibrary } from '../../manager/asset-library';
 import { BuilderAssetCache } from '../../manager/asset';
-import { getLibraryDir, queryImageAssetFromSubAssetByUuid } from '../../utils';
+import { getLibraryDir } from '../../utils';
 import { handleJsonGroup, outputJsonGroup } from './json-group';
 import { defaultsDeep } from '../../../../share/utils';
 import { EffectAsset, Material } from 'cc';
@@ -755,13 +755,14 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
                     if (!dependedAssets[spriteFrameInfo.imageUuid].length) {
                         delete dependedAssets[spriteFrameInfo.imageUuid];
                     }
-                    imageCompressManager && imageCompressManager.removeTask(queryImageAssetFromSubAssetByUuid(spriteFrameInfo.uuid));
                 }
             }
+            // Dependency collection does not decide retention; sortBundleInPac removes compression jobs only when it prunes the original image.
             console.debug('start sort bundle in pac', pacRes.uuid);
-            await Promise.all((atlases).map(async (atlas) => {
-                await sortBundleInPac(this.bundles, atlas, pacRes, dependedAssets, imageCompressManager);
-            }));
+            const retainedOriginals = await Promise.all(atlases.map((atlas) => sortBundleInPac(this.bundles, atlas, pacRes, dependedAssets, imageCompressManager)));
+            if (retainedOriginals.some(Boolean)) {
+                console.warn(i18n.t('builder.warn.retained_originals_with_atlas', { info: `{asset(${pacRes.path})}` }));
+            }
             console.debug('end sort bundle in pac', pacRes.uuid);
         }));
         await newConsole.trackTimeEnd('builder:pack-auto-atlas-image', { output: true });

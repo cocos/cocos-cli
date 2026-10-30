@@ -148,6 +148,7 @@
         "exception_remove_splash": "Network exception, remove splash screen configuration failed.",
         "deprecated_tip": "{oldName} is deprecated, please replace with {newName}",
         "resources_remote_lock_waring": "resources directory is configured as remote bundle by default, will ignore all remote bundle configurations of original configuration",
+        "retained_originals_with_atlas": "Auto atlas {info} in an asset bundle retains some original small-image assets (Texture2D / ImageAsset) because their pruning options are disabled. These assets will be packaged alongside the atlas, increasing package size.",
         "repeat_atlas_in_bundle": "Atlas {asset({Atlas})} is referenced by both {bundle1} and {bundle2}. This will cause atlas to be copied multiple times and included in package files, increasing package size.\nConsider the following optimization options to optimize your bundle configuration and reduce package size: \n    1. Adjust bundle priority to ensure Atlas is only included in priority bundle.\n    2. Carefully check atlas usage in various bundles and merge it into single bundle when possible.",
         "engine_modules_fall_back_tip": "Some modules {fallbackMsg} in current engine module configuration are not supported on current platform {platform}, will be automatically removed or fallback to other modules",
         "invalid_option_in_separate_engine": "When separate engine is checked, engine defaults to release mode, debug mode/SourceMap options are invalid for engine compilation results",
