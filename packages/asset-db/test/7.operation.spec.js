@@ -36,118 +36,37 @@ describe('文件操作', () => {
         }
     }
 
-    for (const deleteParent of [false, true]) {
-        it(`refreshes alias indexes and removes UUIDs after deleting the ${deleteParent ? 'canonical parent' : 'target'}`, async () => {
-            const root = path.join(PATH.ROOT, 'alias-refresh');
-            const targetRoot = path.join(root, 'assets');
-            const source = path.join(targetRoot, 'source');
-            const target = path.join(targetRoot, 'destination', 'folder');
-            const alias = path.join(targetRoot, 'links', 'alias');
-            const aliasTarget = path.join(alias, 'folder');
-            fse.outputFileSync(path.join(source, 'new.test'), 'new');
-            fse.outputFileSync(path.join(target, 'old.test'), 'old');
-            fse.ensureDirSync(path.dirname(alias));
-            const db = new AssetDB({ name: 'alias-refresh', target: targetRoot,
-                library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
-            try {
-                await db.start();
-                const sourceUuid = db.path2asset.get(source).uuid;
-                const childUuid = db.path2asset.get(path.join(source, 'new.test')).uuid;
-                const oldUuids = [target, path.join(target, 'old.test')].map(file => db.path2asset.get(file).uuid);
-                const link = deleteParent && process.platform !== 'win32'
-                    ? path.relative(path.dirname(alias), path.dirname(target)) : path.dirname(target);
-                await fse.symlink(link, alias, 'junction');
-                await fse.move(source + '.meta', target + '.meta', { overwrite: true });
-                await fse.move(source, target, { overwrite: true });
-
-                await db.refresh(source);
-                await db.refresh(aliasTarget);
-
-                expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
-                expect(db.getAsset(sourceUuid).source).to.equal(aliasTarget);
-                expect(db.getAsset(childUuid).source).to.equal(path.join(aliasTarget, 'new.test'));
-                for (const refreshPath of [target, targetRoot]) {
-                    await db.refresh(refreshPath);
-                    expect(fse.readJSONSync(target + '.meta').uuid).to.equal(sourceUuid);
-                    expect(fse.readJSONSync(path.join(target, 'new.test.meta')).uuid).to.equal(childUuid);
-                    expect(oldUuids.map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
-                }
-                await db.refresh(aliasTarget);
-                const removed = deleteParent ? path.dirname(target) : target;
-                await fse.remove(removed);
-                await fse.remove(removed + '.meta');
-                await db.refresh(removed);
-                expect([sourceUuid, childUuid].map(uuid => db.getAsset(uuid))).to.deep.equal([null, null]);
-            } finally {
-                await db.stop();
-                fse.removeSync(root);
-            }
-        });
-
-    }
-
-    it('publishes a changed event when an imported file is refreshed through a parent alias', async () => {
-        const root = path.join(PATH.ROOT, 'alias-event');
+    it('does not resolve unrelated indexed parents when refreshing an ordinary file', async () => {
+        const root = path.join(PATH.ROOT, 'scoped-refresh');
         const target = path.join(root, 'assets');
-        const file = path.join(target, 'real', 'file.test');
-        const alias = path.join(target, 'alias');
-        fse.outputFileSync(file, 'contents');
+        const file = path.join(target, 'selected', 'file.test');
+        fse.outputFileSync(file, 'initial');
+        for (let i = 0; i < 30; i++) fse.outputFileSync(path.join(target, `other-${i}`, 'file.test'), 'other');
         fse.ensureDirSync(path.join(root, 'library'));
-        const db = new AssetDB({ name: 'alias-event', target,
+        const db = new AssetDB({ name: 'scoped-refresh', target,
             library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
+        const realpath = fse.realpathSync;
         try {
             await db.start();
             const uuid = db.path2asset.get(file).uuid;
-            await fse.symlink(path.dirname(file), alias, 'junction');
-            const changed = [];
-            db.on('changed', asset => {
-                if (asset.uuid === uuid) changed.push(asset.source);
-            });
+            const unrelatedReads = [];
+            fse.realpathSync = function (file, ...args) {
+                if (String(file).startsWith(path.join(target, 'other-'))) unrelatedReads.push(file);
+                return realpath.call(this, file, ...args);
+            };
+            fse.writeFileSync(file, 'updated contents');
 
-            await db.refresh(path.join(alias, 'file.test'));
+            await db.refresh(file);
 
-            expect(changed).to.deep.equal([path.join(alias, 'file.test')]);
+            expect(db.path2asset.get(file).uuid).to.equal(uuid);
+            expect(fse.readFileSync(file, 'utf8')).to.equal('updated contents');
+            expect(unrelatedReads).to.deep.equal([]);
         } finally {
+            fse.realpathSync = realpath;
             await db.stop();
             fse.removeSync(root);
         }
     });
-
-    for (const linkText of ['missing/../live', 'missing/../alias']) {
-        it(`does not project an untraversable parent link onto live resources: ${linkText}`, async () => {
-            const root = path.join(PATH.ROOT, 'untraversable-alias');
-            const target = path.join(root, 'assets');
-            const file = path.join(target, 'live', 'file.test');
-            const alias = path.join(target, 'alias');
-            fse.outputFileSync(file, 'contents');
-            fse.ensureDirSync(path.join(target, 'missing'));
-            fse.ensureDirSync(path.join(root, 'library'));
-            const db = new AssetDB({ name: 'untraversable-alias', target,
-                library: path.join(root, 'library'), temp: path.join(root, 'temp'), level: 0 });
-            try {
-                await db.start();
-                const uuid = db.path2asset.get(file).uuid;
-                await fse.symlink(path.dirname(file), alias, 'dir');
-                await db.refresh(path.join(alias, 'file.test'));
-                if (linkText.endsWith('live')) {
-                    await db.refresh(file);
-                }
-                await fse.unlink(alias);
-                await fse.symlink(linkText, alias, 'dir');
-                await fse.remove(path.join(target, 'missing'));
-                await db.refresh(path.join(target, 'missing'));
-
-                await db.refresh(linkText.endsWith('live') ? path.join(alias, 'file.test') : file);
-
-                expect(db.getAsset(uuid)).not.to.equal(null);
-                expect(fse.readFileSync(file, 'utf8')).to.equal('contents');
-                expect(fse.readJSONSync(file + '.meta').uuid).to.equal(uuid);
-            } finally {
-                await db.stop();
-                fse.removeSync(root);
-            }
-        });
-    }
 
     for (const [directory, targetDirectory] of [[false, false], [false, true], [true, false], [true, true]]) {
         it(`reconciles equal-mtime metadata when a ${directory ? 'directory' : 'file'} replaces a ${targetDirectory ? 'directory' : 'file'}`, async () => {

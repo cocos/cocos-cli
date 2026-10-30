@@ -1449,8 +1449,7 @@ export declare class AssetDB extends EventEmitter {
     reimport(fileOrUUID: string): Promise<VirtualAsset | null>;
     refresh(path: string, options?: AssetDBRefreshOptions): Promise<number>;
     private _replaceUUID;
-    private _reconcileEntryAliases;
-    private _updateAssetSource;
+    private _updateAssetPathCase;
     private _checkAssetsStatSync;
     private _checkAssetStat;
 }

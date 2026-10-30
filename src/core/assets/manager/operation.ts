@@ -881,41 +881,6 @@ class AssetOperation extends EventEmitter {
             .sort((left, right) => right.options.target.length - left.options.target.length)[0];
     }
 
-    /** Finds an indexed main asset at the same entry without following a final symlink. */
-    private _queryMoveEntryAsset(path: string): IAsset | null {
-        const direct = assetQuery.queryAsset(path);
-        if (direct) {
-            return direct;
-        }
-        const entry = resolveMoveEntryPath(path);
-        const indexed = assetQuery.queryAsset(entry);
-        if (indexed) {
-            return indexed;
-        }
-        // Many assets share a parent. Cache only within this synchronous lookup;
-        // aliases must be resolved again after a prompt or an external-write wait.
-        const parents = new Map<string, string | null>([[dirname(path), dirname(entry)]]);
-        return assetQuery.queryAssets().find(asset => {
-            if (asset._parent || !isAbsolute(asset.source)) {
-                return false;
-            }
-            const parent = dirname(asset.source);
-            if (!parents.has(parent)) {
-                try {
-                    parents.set(parent, realpathSync(parent));
-                } catch (error) {
-                    if (!['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
-                        throw error;
-                    }
-                    parents.set(parent, null);
-                }
-            }
-            const resolvedParent = parents.get(parent);
-            return resolvedParent !== null && resolvedParent !== undefined
-                && this._isSameFilesystemPath(join(resolvedParent, basename(asset.source)), entry);
-        }) ?? null;
-    }
-
     /** Resolves filesystem and mount facts once for both preflight and guarded submission. */
     private _resolveMoveRequest(source: string, target: string): ResolvedAssetMove {
         const asset = assetQuery.queryAsset(source);
@@ -991,6 +956,48 @@ class AssetOperation extends EventEmitter {
         if (utils.Path.contains(sourceEntryPath, targetEntryPath) || utils.Path.contains(targetEntryPath, sourceEntryPath)) {
             throw new Error('Cannot move an asset into or over itself.');
         }
+        const roots = new Map(mounts.map(({ db, root }) => [db, root]));
+        const expectedEntry = (file: string, db: IAsset['_assetDB']) => {
+            const root = roots.get(db);
+            return root ? join(root, relative(resolve(db.options.target), file)) : undefined;
+        };
+        if (!this._isSameFilesystemPath(sourceEntryPath, expectedEntry(sourcePath, sourceDB) ?? '')
+            || !this._isSameFilesystemPath(targetEntryPath, expectedEntry(targetPath, targetDB) ?? '')) {
+            throw new Error('Asset move preflight does not support parent directory aliases inside an Asset DB.');
+        }
+
+        // Reject ambiguous indexed identities instead of reconciling aliases during refresh.
+        // This lookup is local to a move check; ordinary refreshes do not resolve the full index.
+        const parents = new Map<string, string | null>([
+            [dirname(sourcePath), dirname(sourceEntryPath)],
+            [dirname(targetPath), dirname(targetEntryPath)],
+        ]);
+        for (const indexed of assetQuery.queryAssets()) {
+            if (indexed._parent || !isAbsolute(indexed.source)) {
+                continue;
+            }
+            const parent = dirname(indexed.source);
+            if (!parents.has(parent)) {
+                try {
+                    parents.set(parent, realpathSync(parent));
+                } catch (error) {
+                    if (!['ENOENT', 'ENOTDIR', 'ELOOP'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                        throw error;
+                    }
+                    parents.set(parent, null);
+                }
+            }
+            const resolvedParent = parents.get(parent);
+            const entry = resolvedParent ? join(resolvedParent, basename(indexed.source)) : null;
+            const expected = expectedEntry(indexed.source, indexed._assetDB);
+            if (entry && expected && this._isSameFilesystemPath(entry, expected)) {
+                continue;
+            }
+            if (utils.Path.contains(sourcePath, indexed.source) || utils.Path.contains(targetPath, indexed.source)
+                || (entry && (utils.Path.contains(sourceEntryPath, entry) || utils.Path.contains(targetEntryPath, entry)))) {
+                throw new Error(`Asset move preflight does not support aliased asset indexes: ${indexed.source}`);
+            }
+        }
         const parent = dirname(targetPath);
         if (!statSync(parent).isDirectory()
             || !utils.Path.contains(realpathSync(targetDB.options.target), realpathSync(parent))) {
@@ -1008,7 +1015,7 @@ class AssetOperation extends EventEmitter {
             sourceIsDirectory: asset.isDirectory(),
             sourceDB,
             targetDB,
-            targetUuid: this._queryMoveEntryAsset(targetPath)?.uuid ?? null,
+            targetUuid: assetQuery.queryAsset(targetPath)?.uuid ?? null,
         };
     }
 
@@ -1039,7 +1046,7 @@ class AssetOperation extends EventEmitter {
             if (request && target === request.target) {
                 return request.targetUuid ? assetQuery.queryAsset(request.targetUuid) : null;
             }
-            return guard ? this._queryMoveEntryAsset(target) : assetQuery.queryAsset(target);
+            return assetQuery.queryAsset(target);
         };
         let indexedTarget = queryTarget();
         const affectedGraphs = this._queryAnimationGraphAssetsAt(source, indexedTarget?.uuid ?? target);
@@ -1056,6 +1063,10 @@ class AssetOperation extends EventEmitter {
             }
             if (this._reservedImportTargetPaths.has(this._getImportTargetKey(target))) {
                 throw new Error('The move destination is currently reserved by an asset import.');
+            }
+            if (guard && target !== requestedTarget) {
+                // The generated name must satisfy the same indexed-scope restriction.
+                this._resolveMoveRequest(sourceRequest, target);
             }
             const fileOptions = option ? { ...option } : undefined;
             if (fileOptions) {

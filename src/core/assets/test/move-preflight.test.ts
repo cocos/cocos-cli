@@ -522,28 +522,41 @@ describe('asset move preflight and submission', () => {
         },
     );
 
-    it('overwrites through an existing parent symlink inside the Asset DB', async () => {
+    it.each(['source', 'destination'])('rejects an internal parent alias in the %s request without changing identities', async side => {
         const source = await createAsset('source.txt', 'source-uuid');
         const previous = await createAsset('destination/source.txt', 'target-uuid');
-        await symlink(
-            join(mockDatabase.options.target, 'destination'),
-            join(mockDatabase.options.target, 'alias'),
-            'dir',
-        );
-        const target = 'db://assets/alias/source.txt';
-        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
-        expect(preflight.action).toBe('choose-conflict-handling');
+        const sourcePath = source.source;
+        const paths = [sourcePath, `${sourcePath}.meta`, previous.source, `${previous.source}.meta`];
+        const before = await Promise.all(paths.map(path => readFile(path)));
+        const alias = join(mockDatabase.options.target, 'alias');
+        await symlink(side === 'source' ? mockDatabase.options.target : dirname(previous.source), alias, 'dir');
+        if (side === 'source') {
+            source.source = join(alias, 'source.txt');
+            source.url = 'db://assets/alias/source.txt';
+        }
 
-        const moved = await assetOperation.moveAsset(source.uuid, target, {
-            preflightToken: preflight.preflightToken,
-            overwrite: true,
-        });
+        await expect(assetOperation.preflightMoveAsset(source.uuid,
+            side === 'source' ? previous.url : 'db://assets/alias/source.txt'))
+            .rejects.toThrow('parent directory aliases');
 
-        expect(moved).toMatchObject({ uuid: 'source-uuid', url: target });
+        expect(await Promise.all(paths.map(path => readFile(path)))).toEqual(before);
+        expect(mockRefresh).not.toHaveBeenCalled();
+        expect(existsSync(assetConfig.data.tempRoot)).toBe(false);
+    });
+
+    it('supports an explicitly registered symlink mount root', async () => {
+        const source = await createAsset('source.txt', 'source-uuid');
+        const previous = await createAsset('destination/source.txt', 'target-uuid');
+        const root = mockDatabase.options.target;
+        await move(root, `${root}-real`);
+        await symlink(`${root}-real`, root, 'dir');
+
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, previous.url);
+        await expect(assetOperation.moveAsset(source.uuid, previous.url, {
+            preflightToken: preflight.preflightToken, overwrite: true,
+        })).resolves.toMatchObject({ uuid: 'source-uuid', url: previous.url });
         expect(await readFile(previous.source, 'utf8')).toBe('contents of source-uuid');
-        expect(await readFile(`${previous.source}.meta`, 'utf8')).toBe('{"uuid":"source-uuid"}');
-        expect(lstatSync(join(mockDatabase.options.target, 'alias')).isSymbolicLink()).toBe(true);
-        expect(mockRefresh.mock.calls.map(([path]) => path)).toEqual(['db://assets/source.txt', target]);
+        expect(lstatSync(root).isSymbolicLink()).toBe(true);
     });
 
     it.each(['mount root', 'missing mount root', 'readonly descendant', 'readonly source'])(
@@ -621,43 +634,28 @@ describe('asset move preflight and submission', () => {
         },
     );
 
-    it('binds a parent alias to the indexed destination UUID', async () => {
+    it('binds the indexed destination UUID', async () => {
         const source = await createAsset('source.txt', 'source-uuid');
         const previous = await createAsset('destination/source.txt', 'target-uuid');
-        await symlink(
-            join(mockDatabase.options.target, 'destination'),
-            join(mockDatabase.options.target, 'alias'),
-            'dir',
-        );
-        const target = 'db://assets/alias/source.txt';
-        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, previous.url);
         previous.uuid = 'replaced-index-uuid';
 
-        await expect(
-            assetOperation.moveAsset(source.uuid, target, {
-                preflightToken: preflight.preflightToken,
-                overwrite: true,
-            }),
-        ).rejects.toThrow('changed after preflight');
+        await expect(assetOperation.moveAsset(source.uuid, previous.url, {
+            preflightToken: preflight.preflightToken, overwrite: true,
+        })).rejects.toThrow('changed after preflight');
 
         expect(await readFile(previous.source, 'utf8')).toBe('contents of target-uuid');
         expect(mockRefresh).not.toHaveBeenCalled();
     });
 
     it.each(['file', 'directory'])(
-        'coordinates the indexed destination graph before overwriting an aliased %s',
+        'coordinates the indexed destination graph before overwriting a %s',
         async kind => {
             const source = await createAsset('incoming', 'source-uuid', kind === 'directory');
             const folder = await createAsset('destination/folder', 'folder-uuid', true);
             const graph = await createAsset('destination/folder/graph.animgraph', 'dirty-target');
             graph.meta.importer = 'animation-graph';
-            await symlink(
-                join(mockDatabase.options.target, 'destination'),
-                join(mockDatabase.options.target, 'alias'),
-                'dir',
-            );
-            const target =
-                kind === 'directory' ? 'db://assets/alias/folder' : 'db://assets/alias/folder/graph.animgraph';
+            const target = kind === 'directory' ? folder.url : graph.url;
             mockExternalWrites.mockImplementationOnce(async () => {
                 throw new Error('dirty graph');
             });
@@ -676,6 +674,115 @@ describe('asset move preflight and submission', () => {
             expect(mockRefresh).not.toHaveBeenCalled();
         },
     );
+
+    it.each([['source', 'text'], ['destination', 'text'], ['source', 'animation-graph'], ['destination', 'animation-graph']])(
+        'rejects a %s directory with an aliased %s index', async (side, importer) => {
+            const source = await createAsset('incoming', 'source-uuid', true);
+            const target = await createAsset('destination/folder', 'target-uuid', true);
+            const folder = side === 'source' ? source : target;
+            const graph = await createAsset(`${relative(mockDatabase.options.target, folder.source)}/graph.animgraph`, 'dirty-graph');
+            graph.meta.importer = importer;
+            const graphPath = graph.source;
+            const alias = join(mockDatabase.options.target, 'alias');
+            await symlink(folder.source, alias, 'dir');
+            // Refreshing a final directory link can leave its root canonical and its children aliased.
+            graph.source = join(alias, 'graph.animgraph');
+            graph.url = 'db://assets/alias/graph.animgraph';
+            mockExternalWrites.mockImplementationOnce(async () => { throw new Error('dirty graph'); });
+            const paths = [graphPath, `${graphPath}.meta`, `${source.source}.meta`, `${target.source}.meta`];
+            const before = await Promise.all(paths.map(path => readFile(path)));
+
+            await expect(assetOperation.preflightMoveAsset(source.uuid, target.url)).rejects.toThrow('aliased asset indexes');
+
+            expect(await Promise.all(paths.map(path => readFile(path)))).toEqual(before);
+            expect(mockExternalWrites).not.toHaveBeenCalled();
+            expect(await readFile(graphPath, 'utf8')).toBe('contents of dirty-graph');
+            expect(existsSync(source.source)).toBe(true);
+            expect(existsSync(target.source)).toBe(true);
+            expect(mockRefresh).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['source', 'destination'])('rejects a final %s directory symlink with indexed descendants', async side => {
+        const source = await createAsset('incoming', 'source-uuid', true);
+        const target = await createAsset('destination/folder', 'target-uuid', true);
+        const referent = await createAsset('referent', 'referent-uuid', true);
+        const graph = await createAsset('referent/graph.animgraph', 'dirty-graph');
+        graph.meta.importer = 'animation-graph';
+        const graphPath = graph.source;
+        const link = side === 'source' ? source : target;
+        await remove(link.source);
+        await symlink(referent.source, link.source, 'dir');
+        graph.source = join(link.source, 'graph.animgraph');
+        graph.url = `${link.url}/graph.animgraph`;
+        mockExternalWrites.mockImplementationOnce(async () => { throw new Error('dirty graph'); });
+        await expect(assetOperation.preflightMoveAsset(source.uuid, target.url)).rejects.toThrow('aliased asset indexes');
+
+        expect(mockExternalWrites).not.toHaveBeenCalled();
+        expect(await readFile(graphPath, 'utf8')).toBe('contents of dirty-graph');
+        expect(lstatSync(link.source).isSymbolicLink()).toBe(true);
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it('revalidates mixed indexes after waiting for graph writes', async () => {
+        const source = await createAsset('incoming', 'source-uuid', true);
+        const graph = await createAsset('incoming/graph.animgraph', 'source-graph');
+        graph.meta.importer = 'animation-graph';
+        const target = await createAsset('destination/folder', 'target-uuid', true);
+        const child = await createAsset('destination/folder/child.txt', 'child-uuid');
+        const childPath = child.source;
+        const alias = join(mockDatabase.options.target, 'alias');
+        await symlink(target.source, alias, 'dir');
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target.url);
+        mockExternalWrites.mockImplementationOnce(async (_ids, task) => {
+            child.source = join(alias, 'child.txt');
+            child.url = 'db://assets/alias/child.txt';
+            return task();
+        });
+
+        await expect(assetOperation.moveAsset(source.uuid, target.url, {
+            preflightToken: preflight.preflightToken, overwrite: true,
+        })).rejects.toThrow('aliased asset indexes');
+
+        expect(mockExternalWrites).toHaveBeenCalledWith(['source-graph'], expect.any(Function));
+        expect(await readFile(childPath, 'utf8')).toBe('contents of child-uuid');
+        expect(existsSync(source.source)).toBe(true);
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it('rejects a generated destination with a stale aliased index', async () => {
+        const source = await createAsset('source.txt', 'source-uuid');
+        const target = await createAsset('destination/source.txt', 'target-uuid');
+        const alias = join(mockDatabase.options.target, 'alias');
+        await symlink(dirname(target.source), alias, 'dir');
+        mockAssets.set('stale-uuid', {
+            ...source, uuid: 'stale-uuid', url: 'db://assets/alias/source-001.txt',
+            source: join(alias, 'source-001.txt'),
+        });
+        const preflight = await assetOperation.preflightMoveAsset(source.uuid, target.url);
+
+        await expect(assetOperation.moveAsset(source.uuid, target.url, {
+            preflightToken: preflight.preflightToken, rename: true,
+        })).rejects.toThrow('aliased asset indexes');
+
+        expect(await readFile(source.source, 'utf8')).toBe('contents of source-uuid');
+        expect(await readFile(target.source, 'utf8')).toBe('contents of target-uuid');
+        expect(existsSync(join(dirname(target.source), 'source-001.txt'))).toBe(false);
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it.each(['source', 'destination'])('rejects an unindexed directory link inside the %s subtree', async side => {
+        const source = await createAsset('incoming', 'source-uuid', true);
+        const target = await createAsset('destination/folder', 'target-uuid', true);
+        const referenced = await createAsset('referenced/file.txt', 'referenced-uuid');
+        const folder = side === 'source' ? source : target;
+        await symlink(dirname(referenced.source), join(folder.source, 'new-link'), 'dir');
+
+        await expect(assetOperation.preflightMoveAsset(source.uuid, target.url)).rejects.toThrow('nested directory aliases');
+        expect(await readFile(`${referenced.source}.meta`, 'utf8')).toBe('{"uuid":"referenced-uuid"}');
+        expect(existsSync(source.source)).toBe(true);
+        expect(mockRefresh).not.toHaveBeenCalled();
+    });
 
     it.each(['dangling', 'file', 'outside'])('rejects a parent symlink pointing to %s during preflight', async kind => {
         const source = await createAsset('source.txt');
@@ -768,21 +875,21 @@ describe('asset move preflight and submission', () => {
         });
 
         it.each(['before submission', 'while waiting for graph writes'])(
-            'rejects a parent alias redirected into the source %s',
+            'rejects a destination parent replaced by an alias %s',
             async timing => {
                 const source = await createAsset('a', 'source-uuid', true);
                 const child = await createAsset('a/new.txt', 'child-uuid');
                 const graph = await createAsset('a/graph.animgraph', 'graph-uuid');
                 graph.meta.importer = 'animation-graph';
                 const destination = await createAsset('destination/new.txt', 'destination-uuid');
-                const alias = join(mockDatabase.options.target, 'alias');
-                await symlink(join(mockDatabase.options.target, 'destination'), alias, 'dir');
-                const target = 'db://assets/alias/new.txt';
+                const parent = join(mockDatabase.options.target, 'destination');
+                const saved = join(mockDatabase.options.target, 'saved-destination');
+                const target = destination.url;
                 const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
                 expect(preflight.action).toBe('choose-conflict-handling');
                 const redirect = async () => {
-                    await remove(alias);
-                    await symlink(source.source, alias, 'dir');
+                    await move(parent, saved);
+                    await symlink(source.source, parent, 'dir');
                 };
                 if (timing === 'before submission') {
                     await redirect();
@@ -805,11 +912,10 @@ describe('asset move preflight and submission', () => {
                         `${child.source}.meta`,
                         graph.source,
                         `${graph.source}.meta`,
-                        destination.source,
-                        `${destination.source}.meta`,
                     ],
                 );
 
+                expect(await readFile(join(saved, 'new.txt'), 'utf8')).toBe('contents of destination-uuid');
                 if (timing !== 'before submission') {
                     expect(mockExternalWrites).toHaveBeenCalledWith(['graph-uuid'], expect.any(Function));
                 }
@@ -836,21 +942,36 @@ describe('asset move preflight and submission', () => {
             expect(mockRefresh).not.toHaveBeenCalled();
         });
 
-        it('keeps a source symlink as the entry being moved', async () => {
+        it('rejects a source directory symlink even before its descendants are indexed', async () => {
             const referenced = await createAsset('referenced', 'referenced-uuid', true);
             const source = await createAsset('source-link', 'source-uuid', true);
             await remove(source.source);
             await symlink(referenced.source, source.source, 'dir');
 
             await expect(
-                assetOperation.preflightMoveAsset(source.uuid, 'db://assets/referenced/new'),
-            ).resolves.toMatchObject({
-                action: 'move',
-            });
+                assetOperation.preflightMoveAsset(source.uuid, 'db://assets/destination/new'),
+            ).rejects.toThrow('source directory symlinks');
 
             expect(readlinkSync(source.source)).toBe(referenced.source);
             expect(await readFile(`${source.source}.meta`, 'utf8')).toBe('{"uuid":"source-uuid"}');
             expect(mockRefresh).not.toHaveBeenCalled();
+        });
+
+        it('moves a source file symlink without changing its referent or metadata', async () => {
+            const referenced = await createAsset('referenced.txt', 'referenced-uuid');
+            const source = await createAsset('source-link.txt', 'source-uuid');
+            await remove(source.source);
+            await symlink(referenced.source, source.source, 'file');
+            const target = 'db://assets/destination/moved.txt';
+            const preflight = await assetOperation.preflightMoveAsset(source.uuid, target);
+
+            await expect(assetOperation.moveAsset(source.uuid, target, {
+                preflightToken: preflight.preflightToken,
+            })).resolves.toMatchObject({ uuid: 'source-uuid', url: target });
+
+            expect(readlinkSync(mockPath(target))).toBe(referenced.source);
+            expect(await readFile(referenced.source, 'utf8')).toBe('contents of referenced-uuid');
+            expect(await readFile(`${referenced.source}.meta`, 'utf8')).toBe('{"uuid":"referenced-uuid"}');
         });
     });
 });
