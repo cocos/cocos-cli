@@ -1004,6 +1004,12 @@ class AnimationGraphAssetService {
                 if (!Array.from(poseGraph.nodes() as Iterable<any>).includes(node)) {
                     throw this._targetNotFound(document, target);
                 }
+                if (getClassName(node) === 'cc.animation.PoseNodeStateMachine') {
+                    return createAdapterBinding(getClassName(node), {
+                        name: directProperty(node, 'name', { type: 'String', default: '' }),
+                        stateMachine: directProperty(node, 'stateMachine', { readonly: true }),
+                    });
+                }
                 return createDecoratedBinding(node, 'PoseNode');
             }
             case 'pose-input':

@@ -758,6 +758,20 @@ describe('animation graph asset service', () => {
         expect(stateMachineNode.enterInfo).toEqual({ type: 'state-machine' });
         expect(stateMachineNode.title).toBe('State Machine');
 
+        const stateMachineNodeTarget = { kind: 'pose-node' as const, poseGraph: updatedStash.context, nodeId: stateMachineNode.id };
+        const poseNodeInspector = await assetManager.queryAnimationGraphInspector(asset.uuid, stateMachineNodeTarget);
+        const poseNodeDump = poseNodeInspector.dump.value as Record<string, IProperty>;
+        expect(poseNodeDump.name).toMatchObject({ type: 'String', value: '', visible: true, readonly: false });
+        expect(poseNodeDump.stateMachine).toMatchObject({ type: 'cc.animation.StateMachine', visible: true, readonly: true });
+        const renamed = await assetManager.setAnimationGraphInspectorProperty(asset.uuid, {
+            target: stateMachineNodeTarget, path: 'name', patch: 'Nested Machine', expected: poseNodeInspector,
+        });
+        expect((renamed.dump.value as Record<string, IProperty>).name.value).toBe('Nested Machine');
+        await expect(assetManager.setAnimationGraphInspectorProperty(asset.uuid, {
+            target: stateMachineNodeTarget, path: 'stateMachine', patch: {}, expected: renamed,
+        })).rejects.toThrow();
+        snapshot = await assetManager.queryAnimationGraph(asset.uuid);
+
         snapshot = await assetManager.executeAnimationGraphCommand(asset.uuid, {
             command: {
                 type: 'add-state',
