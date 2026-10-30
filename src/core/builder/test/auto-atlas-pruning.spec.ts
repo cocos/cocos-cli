@@ -13,6 +13,8 @@ function sharedBundles(ownerOutput = true) {
         const roots = new Set([image, texture, frame]);
         return {
             name, root, output, redirect, assets, roots,
+            containsAsset(uuid: string) { return assets.has(uuid); },
+            getRedirect(uuid: string) { return this.redirect[uuid]; },
             removeAsset(uuid: string) {
                 assets.delete(uuid);
                 roots.delete(uuid);

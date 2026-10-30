@@ -1,6 +1,6 @@
 import type { IAtlasInfo, IBundle, IPacInfo } from '../../../../@types/protected';
 
-/** Apply the source atlas's retention policy before processing shared SpriteFrames. */
+/** Apply retention and report whether disabled pruning keeps originals in the output. */
 export function pruneOriginalAssetsInPac(
     bundles: IBundle[],
     atlas: IAtlasInfo,
@@ -17,6 +17,17 @@ export function pruneOriginalAssetsInPac(
     const retainedImages = new Set(atlas.spriteFrameInfos
         .filter((sprite) => !shouldRemoveTexture(sprite.textureUuid))
         .map((sprite) => sprite.imageUuid));
+    const requiredImages = new Set(atlas.spriteFrameInfos
+        .filter((sprite) => !!dependedAssets[sprite.textureUuid])
+        .map((sprite) => sprite.imageUuid));
+    const retainedByOptions = atlasInBundle && atlas.spriteFrameInfos.some((sprite) => {
+        const textureByOption = !pacInfo.packOptions.removeTextureInBundle && !dependedAssets[sprite.textureUuid];
+        const imageByOption = !pacInfo.packOptions.removeImageInBundle && !dependedAssets[sprite.imageUuid] && !requiredImages.has(sprite.imageUuid);
+        return outputBundles.some((bundle) => (
+            (textureByOption && bundle.containsAsset(sprite.textureUuid) && !bundle.getRedirect(sprite.textureUuid))
+            || (imageByOption && bundle.containsAsset(sprite.imageUuid) && !bundle.getRedirect(sprite.imageUuid))
+        ));
+    });
     for (const sprite of atlas.spriteFrameInfos) {
         const removeTexture = shouldRemoveTexture(sprite.textureUuid);
         // A retained original Texture2D still needs its original ImageAsset,
@@ -36,4 +47,5 @@ export function pruneOriginalAssetsInPac(
             removeImageTask?.(sprite.imageUuid);
         }
     }
+    return retainedByOptions;
 }

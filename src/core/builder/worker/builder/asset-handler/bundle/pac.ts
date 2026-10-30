@@ -17,7 +17,7 @@ export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: 
     const textureUuid = atlas.textureUuid;
     // Remove originals and their redirects together, even in bundles whose
     // SpriteFrame is redirected and would be skipped by the loop below.
-    pruneOriginalAssetsInPac(bundles, atlas, pacInfo, dependedAssets, (uuid) => imageCompressManager?.removeTask(uuid));
+    const retainedByOptions = pruneOriginalAssetsInPac(bundles, atlas, pacInfo, dependedAssets, (uuid) => imageCompressManager?.removeTask(uuid));
     for (const bundle of bundles) {
         if (!bundle.output) {
             continue;
@@ -152,4 +152,5 @@ export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: 
             bundle2: bundlesWithSamePriority.toString(),
         }));
     }
+    return !!firstBundleContainAtlasImage && retainedByOptions;
 }
