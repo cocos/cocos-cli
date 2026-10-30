@@ -5,6 +5,8 @@ initSentry();
 import { Command } from 'commander';
 import { BuildCommand, McpServerCommand, CommandRegistry, CreateCommand, MakeCommand, RunCommand, UploadCommand, PublishCommand } from './commands';
 import { config } from './display/config';
+import { setEnginePathOverride } from './global';
+import { DoctorCommand } from './commands/doctor';
 
 const program = new Command();
 
@@ -12,10 +14,15 @@ const program = new Command();
 program
     .name('cocos')
     .description('Cocos CLI tool for project management and building')
-    .version('0.2.0-beta.0')
+    .version(require('../package.json').version)
     .option('--debug', 'Enable debug mode')
     .option('--no-interactive', 'Disable interactive mode (for CI)')
-    .option('--config <path>', 'Specify config file path');
+    .option('--config <path>', 'Specify config file path')
+    .option('--engine-path <path>', 'Select an Engine SDK (overrides project and local defaults)');
+
+program.hook('preAction', () => {
+    setEnginePathOverride(program.opts().enginePath);
+});
 
 // 全局错误处理
 program.exitOverride();
@@ -29,6 +36,7 @@ commandRegistry.register(new MakeCommand(program));
 commandRegistry.register(new RunCommand(program));
 commandRegistry.register(new UploadCommand(program));
 commandRegistry.register(new PublishCommand(program));
+commandRegistry.register(new DoctorCommand(program));
 
 // 注册所有命令
 commandRegistry.registerAll();

@@ -1,247 +1,87 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { parseArgs } = require('node:util');
+const { resolveEnginePath } = require('./engine-path');
 
-/**
- * 下载引擎工作流
- * 从 repo.json 配置文件中读取仓库信息并克隆到指定目录
- */
+function isWithin(root, target) {
+    const relative = path.relative(root, target);
+    return relative !== '' && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
+}
+
+/** Explicit source acquisition. Existing SDKs and local source changes are preserved. */
 class UpdateRepo {
-    constructor() {
-        this.repoConfigPath = path.join(__dirname, '../repo.json');
+    constructor({ rootDir = path.resolve(__dirname, '..'), update = false, exec = execFileSync } = {}) {
+        this.rootDir = fs.realpathSync(rootDir);
+        this.update = update;
+        this.exec = exec;
     }
 
-    /**
-     * 读取仓库配置文件
-     */
+    git(args, cwd) {
+        return this.exec('git', args, { cwd, shell: false, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).trim();
+    }
+
     readRepoConfig() {
-        try {
-            const configContent = fs.readFileSync(this.repoConfigPath, 'utf8');
-            return JSON.parse(configContent);
-        } catch (error) {
-            console.error('读取 repo.json 配置文件失败:', error.message);
-            process.exit(1);
-        }
-    }
-
-    /**
-     * 执行命令并输出日志
-     */
-    execCommand(command, cwd = process.cwd()) {
-        console.log(`执行命令: ${command}`);
-        console.log(`工作目录: ${cwd}`);
-        try {
-            const result = execSync(command, { 
-                cwd, 
-                stdio: 'inherit',
-                encoding: 'utf8'
-            });
-            return result;
-        } catch (error) {
-            console.error(`命令执行失败: ${command}`);
-            console.error(error.message);
-            throw error;
-        }
-    }
-
-    /**
-     * 询问用户是否还原所有文件（3秒计时，默认还原）
-     */
-    async promptUserRestore(repoName) {
-        const readline = require('readline');
-        
-        return new Promise((resolve) => {
-            const rl = readline.createInterface({
-                input: process.stdin,
-                output: process.stdout
-            });
-
-            console.log(`\n仓库 ${repoName} 已存在，是否还原所有文件并更新到最新代码？`);
-            console.log('输入 n 跳过，[其他任意键或 3 秒后自动确认还原]...');
-
-            const timeout = setTimeout(() => {
-                rl.close();
-                console.log('\n超时，默认还原所有文件');
-                resolve(true);
-            }, 3000);
-
-            rl.question('', (answer) => {
-                clearTimeout(timeout);
-                rl.close();
-                const shouldRestore = answer.toLowerCase() !== 'n';
-                console.log(shouldRestore ? '确认还原所有文件' : '跳过还原');
-                resolve(shouldRestore);
-            });
-        });
-    }
-
-    /**
-     * 检查目录是否是 git 仓库
-     */
-    isGitRepository(dir) {
-        const gitDir = path.join(dir, '.git');
-        return fs.existsSync(gitDir);
-    }
-
-    /**
-     * 更新已存在的仓库
-     */
-    async updateExistingRepository(key, config, targetDir) {
-        const { repo, branch, tag } = config;
-        
-        console.log(`\n更新已存在的仓库: ${key}`);
-        
-        if (!this.isGitRepository(targetDir)) {
-            console.log(`目录 ${targetDir} 不是 git 仓库，将删除并重新克隆`);
-            fs.rmSync(targetDir, { recursive: true, force: true });
-            return false; // 返回 false 表示需要重新克隆
-        }
-
-        try {
-            // 询问用户是否还原
-            const args = process.argv.slice(2);
-            const isForce = args.includes('--force');
-            isForce && console.log('强制还原仓库更新');
-            const shouldRestore = isForce || await this.promptUserRestore(key);
-            
-            if (!shouldRestore) {
-                console.log(`跳过仓库 ${key} 的更新`);
-                return true;
+        const config = JSON.parse(fs.readFileSync(path.join(this.rootDir, 'repo.json'), 'utf8').replace(/^\uFEFF/, ''));
+        if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('repo.json must contain an object');
+        return Object.entries(config).map(([name, entry]) => {
+            if (!entry || typeof entry.repo !== 'string' || !entry.repo || typeof entry.dist !== 'string' || !entry.dist) throw new Error(`Invalid repository configuration: ${name}`);
+            if (entry.tag && entry.branch) throw new Error(`Specify either tag or branch for ${name}`);
+            for (const ref of [entry.tag, entry.branch]) {
+                if (ref !== undefined && (typeof ref !== 'string' || !ref || ref.startsWith('-'))) throw new Error(`Invalid ref for ${name}`);
             }
-
-            // 还原有 git 记录的文件改动（不删除未跟踪的文件）
-            console.log('还原有 git 记录的文件改动...');
-            this.execCommand('git reset --hard HEAD', targetDir);
-
-            // 获取远程更新
-            console.log('获取远程更新...');
-            this.execCommand('git fetch origin --tags --force', targetDir);
-
-            // 切换到指定分支或标签并更新
-            if (branch) {
-                console.log(`切换到分支并更新: ${branch}`);
-                this.execCommand(`git checkout ${branch}`, targetDir);
-                this.execCommand(`git reset --hard origin/${branch}`, targetDir);
-            } else if (tag) {
-                console.log(`切换到标签: ${tag}`);
-                this.execCommand(`git checkout ${tag}`, targetDir);
-            } else {
-                // 如果没有指定分支或标签，更新当前分支
-                console.log('更新当前分支到最新...');
-                const currentBranch = this.execCommand('git rev-parse --abbrev-ref HEAD', targetDir).toString().trim();
-                this.execCommand(`git reset --hard origin/${currentBranch}`, targetDir);
-            }
-
-            console.log(`仓库 ${key} 更新完成`);
-            return true;
-        } catch (error) {
-            console.error(`更新仓库 ${key} 失败:`, error.message);
-            return false; // 返回 false 表示需要重新克隆
-        }
+            const target = path.resolve(this.rootDir, entry.dist);
+            if (!isWithin(this.rootDir, target) || path.relative(this.rootDir, target).split(path.sep).some(part => part.toLowerCase() === '.git')) throw new Error(`Repository destination must stay inside the CLI root: ${entry.dist}`);
+            let ancestor = target;
+            while (!fs.existsSync(ancestor)) ancestor = path.dirname(ancestor);
+            const real = fs.realpathSync(ancestor);
+            if (real !== this.rootDir && !isWithin(this.rootDir, real)) throw new Error(`Repository destination escapes through a link: ${entry.dist}`);
+            return { name, ...entry, target };
+        }).sort((a, b) => a.target.length - b.target.length);
     }
 
-    /**
-     * 克隆单个仓库
-     */
-    async cloneRepository(key, config) {
-        const { repo, dist, branch, tag } = config;
-        
-        if (!repo || !dist) {
-            console.error(`仓库配置不完整: ${key}`);
-            return false;
-        }
-
-        const targetDir = path.resolve(dist);
-        
-        console.log(`\n开始处理仓库: ${key}`);
-        console.log(`仓库地址: ${repo}`);
-        console.log(`目标目录: ${targetDir}`);
-
-        // 如果目标目录已存在，尝试更新而不是删除
-        if (fs.existsSync(targetDir)) {
-            console.log(`目标目录已存在: ${targetDir}`);
-            const updateSuccess = await this.updateExistingRepository(key, config, targetDir);
-            
-            if (updateSuccess) {
-                return true;
-            }
-            // 如果更新失败，目录已被删除，继续执行克隆逻辑
-        }
-
-        // 确保父目录存在
-        const parentDir = path.dirname(targetDir);
-        if (!fs.existsSync(parentDir)) {
-            fs.mkdirSync(parentDir, { recursive: true });
-        }
-
-        try {
-            // 克隆仓库
-            console.log(`开始克隆仓库: ${key}`);
-
-            // 切换到指定分支或标签
-            if (branch) {
-                console.log(`clone branch: ${branch}`);
-                this.execCommand(`git clone -b ${branch} ${repo} ${targetDir}`);
-            } else if (tag) {
-                console.log(`clone tag: ${tag}`);
-                this.execCommand(`git clone -b ${tag} --depth 1 ${repo} ${targetDir}`);
-            } else {
-                console.log('clone default branch');
-                this.execCommand(`git clone ${repo} ${targetDir}`);
-            }
-
-            console.log(`仓库 ${key} 克隆完成`);
-            return true;
-        } catch (error) {
-            console.error(`克隆仓库 ${key} 失败:`, error.message);
-            return false;
-        }
-    }
-
-    /**
-     * 主要的下载工作流程
-     */
     async run() {
-        console.log('开始执行下载引擎工作流...');
-
-        const repoConfig = this.readRepoConfig();
-        const repositories = Object.keys(repoConfig);
-
-        if (repositories.length === 0) {
-            console.log('没有找到需要克隆的仓库配置');
-            return;
+        const entries = this.readRepoConfig();
+        const engine = entries.find(entry => entry.name === 'engine');
+        if (engine && path.relative(engine.target, resolveEnginePath(this.rootDir)) !== '') {
+            throw new Error('A custom enginePath is configured. Manage that engine separately; fetch:engine/update:repos only manage repo.json destinations.');
         }
-
-        console.log(`找到 ${repositories.length} 个仓库需要克隆`);
-
-        let successCount = 0;
-
-        // 克隆所有仓库
-        for (const key of repositories) {
-            const config = repoConfig[key];
-            const success = await this.cloneRepository(key, config);
-            
-            if (success) {
-                successCount++;
+        // Preflight every existing repository before any fetch or checkout.
+        if (this.update) {
+            for (const entry of entries) {
+                if (!fs.existsSync(entry.target)) continue;
+                if (!fs.existsSync(path.join(entry.target, '.git'))) throw new Error(`Preserving non-Git directory: ${entry.target}`);
+                if (this.git(['status', '--porcelain', '--untracked-files=all'], entry.target)) throw new Error(`Local changes found; preserve or commit them before updating: ${entry.target}`);
+                if (this.git(['remote', 'get-url', 'origin'], entry.target) !== entry.repo) throw new Error(`Origin differs from repo.json; preserving custom repository: ${entry.target}`);
             }
         }
-
-        console.log(`\n工作流执行完成！`);
-        console.log(`成功克隆: ${successCount}/${repositories.length} 个仓库`);
-        
-        if (successCount < repositories.length) {
-            process.exit(1);
+        const preserved = [];
+        for (const entry of entries) {
+            if (preserved.some(parent => isWithin(parent, entry.target))) continue;
+            if (fs.existsSync(entry.target)) {
+                if (!this.update) {
+                    console.log(`Preserving existing directory: ${entry.target}`);
+                    preserved.push(entry.target);
+                    continue;
+                }
+                const branch = entry.tag ? undefined : (entry.branch || this.git(['symbolic-ref', '--short', 'HEAD'], entry.target));
+                this.git(['fetch', 'origin', '--tags'], entry.target);
+                if (entry.tag) this.git(['checkout', '--detach', `refs/tags/${entry.tag}`], entry.target);
+                else {
+                    this.git(['checkout', branch], entry.target);
+                    this.git(['merge', '--ff-only', `refs/remotes/origin/${branch}`], entry.target);
+                }
+            } else {
+                fs.mkdirSync(path.dirname(entry.target), { recursive: true });
+                const ref = entry.tag || entry.branch;
+                this.git(['clone', ...(ref ? ['--branch', ref] : []), ...(entry.tag ? ['--depth', '1'] : []), '--', entry.repo, entry.target], this.rootDir);
+            }
         }
     }
 }
 
-// 如果直接运行此文件，执行下载工作流
 if (require.main === module) {
-    const downloader = new UpdateRepo();
-    downloader.run().catch(error => {
-        console.error('工作流执行失败:', error);
-        process.exit(1);
-    });
+    const { values } = parseArgs({ options: { update: { type: 'boolean' } } });
+    new UpdateRepo({ update: values.update }).run().catch(error => { console.error(error.message); process.exitCode = 1; });
 }
-
 module.exports = UpdateRepo;

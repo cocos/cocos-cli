@@ -48,7 +48,7 @@ export async function onBeforeCompressSettings(options: IInterBuildTaskOption<'w
 }
 
 export async function onBeforeCopyBuildTemplate(this: IBuilder, options: IInterBuildTaskOption<'web-mobile'>, result: IBuildResult) {
-    const staticDir = join(options.engineInfo.typescript.builtin, 'templates/web-mobile');
+    const staticDir = join(options.engineInfo.typescript.path, 'templates/web-mobile');
     const packageOptions = options.packages['web-mobile'];
 
     // 拷贝内部提供的模板文件
