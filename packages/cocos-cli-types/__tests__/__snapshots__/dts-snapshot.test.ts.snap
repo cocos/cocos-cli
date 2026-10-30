@@ -414,6 +414,9 @@ export declare interface AssetInfo extends IAssetInfo {
     imported: boolean;
     invalid: boolean;
 }
+export declare interface AssetMoveOptions extends AssetOperationOption {
+    preflightToken?: string;
+}
 export declare interface AssetOperationOption {
     overwrite?: boolean;
     rename?: boolean;
@@ -705,6 +708,15 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
     id?: string;
     name?: string;
 }
+export declare interface IAssetMoveConflict {
+    sourceUrl: string;
+    targetUrl: string;
+    sourceIsDirectory: boolean;
+    targetIsDirectory: boolean | null;
+}
+export declare type IAssetMovePreflightResult =
+| { action: 'move'; preflightToken: string }
+| { action: 'choose-conflict-handling'; preflightToken: string; conflict: IAssetMoveConflict };
 export declare interface IAssetOperationContext {
     opId: string;
     kind: IAssetOperationKind;
@@ -1020,7 +1032,7 @@ export declare interface MeshSimplifyOptions {
     errorRate?: number;
     lockBoundary?: boolean;
 }
-export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
+export declare function moveAsset(source: string, target: string, options?: AssetMoveOptions): Promise<IAssetInfo>;
 export declare enum NormalImportSetting {
     optional = 0,
     exclude = 1,
@@ -1094,6 +1106,7 @@ export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
 }
+export declare function preflightMoveAsset(source: string, target: string): Promise<IAssetMovePreflightResult>;
 export declare function queryAssetConfigMap(): Promise<Record<string, IAssetConfig>>;
 export declare function queryAssetDBInfos(): Promise<Record<string, IAssetDBInfo>>;
 export declare function queryAssetDependencies(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
@@ -1458,6 +1471,7 @@ export declare interface AssetDBRefreshOptions {
     ignoreSelf?: boolean;
     globList?: string[];
     useCache?: boolean;
+    reloadMetadata?: boolean;
     hooks?: {
         afterGenerateMeta?(): void;
         afterScan?(files: string[]): void;
@@ -9094,6 +9108,9 @@ export declare interface AssetInfo extends IAssetInfo {
     imported: boolean;
     invalid: boolean;
 }
+export declare interface AssetMoveOptions extends AssetOperationOption {
+    preflightToken?: string;
+}
 export declare interface AssetOperationOption {
     overwrite?: boolean;
     rename?: boolean;
@@ -9139,6 +9156,7 @@ export declare namespace Assets {
         queryAssetUsers,
         querySortedPlugins,
         renameAsset,
+        preflightMoveAsset,
         moveAsset,
         updateDefaultUserData,
         queryAssetUserDataConfig,
@@ -9226,6 +9244,9 @@ export declare namespace Assets {
         AssetPropertySchemaMap,
         IAssetInfo,
         AssetOperationOption,
+        AssetMoveOptions,
+        IAssetMoveConflict,
+        IAssetMovePreflightResult,
         DeleteAssetOptions,
         AnimationMaskDump,
         AnimationMaskJoint,
@@ -9712,6 +9733,15 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
     id?: string;
     name?: string;
 }
+export declare interface IAssetMoveConflict {
+    sourceUrl: string;
+    targetUrl: string;
+    sourceIsDirectory: boolean;
+    targetIsDirectory: boolean | null;
+}
+export declare type IAssetMovePreflightResult =
+| { action: 'move'; preflightToken: string }
+| { action: 'choose-conflict-handling'; preflightToken: string; conflict: IAssetMoveConflict };
 export declare interface IAssetOperationContext {
     opId: string;
     kind: IAssetOperationKind;
@@ -10396,7 +10426,7 @@ export declare interface MotionPreviewVariable {
     name: string;
     value: number | null;
 }
-export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
+export declare function moveAsset(source: string, target: string, options?: AssetMoveOptions): Promise<IAssetInfo>;
 export declare enum NormalImportSetting {
     optional = 0,
     exclude = 1,
@@ -10487,6 +10517,7 @@ export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
 }
+export declare function preflightMoveAsset(source: string, target: string): Promise<IAssetMovePreflightResult>;
 export declare class ProgrammingFacet {
     private _packerDriverUpdateCount;
     private _asyncIteration;

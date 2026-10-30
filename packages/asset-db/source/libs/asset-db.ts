@@ -33,7 +33,7 @@ import {
 export { map } from './manager';
 
 function getAsset(uuid) {
-    for (let name in map) {
+    for (const name in map) {
         const db = map[name];
         const asset = db.uuid2asset.get(uuid);
         if (asset) {
@@ -71,6 +71,8 @@ export interface AssetDBRefreshOptions {
     ignoreSelf?: boolean;
     globList?: string[];
     useCache?: boolean;
+    /** Reload metadata and reconcile UUIDs even when replacement files preserve their timestamps. */
+    reloadMetadata?: boolean;
     // 扫描成功后等待完成一些操作
     hooks?: {
         // 生成 资源 meta 之后
@@ -122,7 +124,7 @@ export interface AssetDBOptions {
     importConcurrency?: number;
 }
 
-let deprecatedFlag = false;
+const deprecatedFlag = false;
 
 export const version = '2.0.0';
 
@@ -132,7 +134,7 @@ const migrations: Migrate<any>[] = [{
         return {
             version: '1.0.0',
             data: json,
-        }
+        };
     },
 }, {
     version: '1.0.1',
@@ -142,7 +144,7 @@ const migrations: Migrate<any>[] = [{
             data: {
                 paths: json.data.paths.map(path => relative(db.options.target, path)),
             }
-        }
+        };
     },
 }];
 
@@ -186,7 +188,7 @@ export class AssetDB extends EventEmitter {
             total: this.taskManager.total(),
             // @ts-ignore TODO taskManager 是否可以提供此字段
             wait: this.taskManager._waitQueue.size,
-        }
+        };
     }
 
     /**
@@ -373,12 +375,12 @@ export class AssetDB extends EventEmitter {
         await this.prepareStart();
 
         // 刷新资源数据库内的资源列表
-        let num = await this.refresh(this.options.target, {
+        const num = await this.refresh(this.options.target, {
             ignoreSelf: true,
             hooks: options.hooks,
         });
 
-        this.console.debug(`start asset-db(${this.options.name}) with asset: ${num}`)
+        this.console.debug(`start asset-db(${this.options.name}) with asset: ${num}`);
 
         return new Promise((resolve) => {
             const step = () => {
@@ -448,7 +450,7 @@ export class AssetDB extends EventEmitter {
                     const dir = `${this.options.library}${sep}${uuid.substr(0, 2)}`;
                     if (existsSync(dir)) {
                         const list = await readdir(dir);
-                        for (let name of list) {
+                        for (const name of list) {
                             if (name.startsWith(uuid)) {
                                 await remove(join(dir, name));
                             }
@@ -460,7 +462,7 @@ export class AssetDB extends EventEmitter {
                     this.console.warn(error);
                 }
             }
-        })
+        });
 
         infoDirty && this.infoManager.save();
     }
@@ -471,16 +473,16 @@ export class AssetDB extends EventEmitter {
             data: {
                 paths: Array.from(this.path2asset.keys()).map((path) => relative(this.options.target, path)),
             },
-        }
+        };
     }
 
     async save() {
         try {
             // 保存记录的缓存信息
-            await writeJSON(join(this.cachePath), this._generateRecordInfo(), { spaces: 4 })
+            await writeJSON(join(this.cachePath), this._generateRecordInfo(), { spaces: 4 });
         } catch (error) {
             this.console.error(error);
-            this.console.error(`Save cache for asset db ${this.options.name} failed.`)
+            this.console.error(`Save cache for asset db ${this.options.name} failed.`);
         }
     }
 
@@ -540,7 +542,7 @@ export class AssetDB extends EventEmitter {
      * @param path
      */
     pathToUuid(path: string) {
-        let asset = this.path2asset.get(path);
+        const asset = this.path2asset.get(path);
         if (!asset) {
             return null;
         }
@@ -552,7 +554,7 @@ export class AssetDB extends EventEmitter {
      * @param uuid
      */
     uuidToPath(uuid: string) {
-        let asset = this.uuid2asset.get(uuid);
+        const asset = this.uuid2asset.get(uuid);
         if (!asset) {
             return null;
         }
@@ -568,15 +570,15 @@ export class AssetDB extends EventEmitter {
         if (!uuid || typeof uuid !== 'string') {
             return null;
         }
-        let search = uuid.split('@');
-        let id = search.shift() || '';
+        const search = uuid.split('@');
+        const id = search.shift() || '';
 
         let asset: VirtualAsset | Asset | undefined = this.uuid2asset.get(id);
         if (!asset) {
             return null;
         }
         for (let i = 0; i < search.length; i++) {
-            let idOrName = search[i];
+            const idOrName = search[i];
             asset = asset.subAssets[idOrName];
             if (!asset) {
                 return null;
@@ -722,26 +724,24 @@ export class AssetDB extends EventEmitter {
         const fileSet: Set<string> = new PathSet();
         const deleteSet: Set<string> = new PathSet();
         const addSet: Set<string> = new PathSet();
-        const caseChangedSet: Set<string> = new PathSet();
-        const caseChangedAssets: Asset[] = [];
         const afterError = (error: unknown) => {
             this.taskManager.clear();
             this.unlock();
             throw error;
-        }
+        };
         try {
+            const caseChangedAssets: Asset[] = [];
             const preAddFiles: string[] = [];
             const addFiles: string[] = [];
             const deleteFiles: string[] = [];
             if (this.preImporterHandler) {
-                for (let file of files) {
+                for (const file of files) {
                     const storedPath = getMapStoredPathKey(this.path2asset, file);
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
                             this._updateAssetPathCase(asset, file);
                             caseChangedAssets.push(asset);
-                            caseChangedSet.add(file);
                         }
                     }
                     if (!this.path2asset.has(file)) {
@@ -755,14 +755,13 @@ export class AssetDB extends EventEmitter {
                     fileSet.add(file);
                 }
             } else {
-                for (let file of files) {
+                for (const file of files) {
                     const storedPath = getMapStoredPathKey(this.path2asset, file);
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
                             this._updateAssetPathCase(asset, file);
                             caseChangedAssets.push(asset);
-                            caseChangedSet.add(file);
                         }
                     }
                     if (!this.path2asset.has(file)) {
@@ -807,11 +806,11 @@ export class AssetDB extends EventEmitter {
 
             // 没有改动的数据
             const tasks: Promise<any>[] = [];
-            for (let file of files) {
-                if (!addSet.has(file) && !deleteSet.has(file) && !caseChangedSet.has(file)) {
+            for (const file of files) {
+                if (!addSet.has(file) && !deleteSet.has(file)) {
                     const asset = this.path2asset.get(file);
                     if (asset) {
-                        tasks.push(this._checkAssetStat(asset));
+                        tasks.push(this._checkAssetStat(asset, options.reloadMetadata));
                     }
                 }
             }
@@ -822,7 +821,13 @@ export class AssetDB extends EventEmitter {
                 if (res.status === 'rejected') {
                     console.error(res.reason);
                 }
-            })
+            });
+            for (const asset of caseChangedAssets) {
+                if (asset.action === AssetActionEnum.none && this.uuid2asset.get(asset.uuid) === asset) {
+                    asset.action = AssetActionEnum.change;
+                    asset.task = this.taskManager.addTask(asset);
+                }
+            }
         } catch (error: any) {
             afterError(error);
         }
@@ -871,7 +876,7 @@ export class AssetDB extends EventEmitter {
             const newUUID = v4();
             // 提示两个文件 uuid 冲突
             if (this.options.level >= 2) {
-                let info = JSON.stringify([
+                const info = JSON.stringify([
                     asset.source,
                     oAsset.source,
                 ], null, 2);
@@ -909,7 +914,7 @@ export class AssetDB extends EventEmitter {
      * @param deleteFiles
      */
     private async _checkAssetsStatSync(addFiles: string[], deleteFiles: string[], deleteSet: Set<string>) {
-        for (let file of deleteFiles) {
+        for (const file of deleteFiles) {
             // 毋庸置疑的删除文件
             const asset = this.path2asset.get(file);
             if (asset) {
@@ -924,7 +929,7 @@ export class AssetDB extends EventEmitter {
                 this.infoManager.remove(metaFile);
             }
         }
-        for (let file of addFiles) {
+        for (const file of addFiles) {
             // 获取 meta，没有的话直接生成
             const metaFile = file + '.meta';
             const metaInfo = await this.metaManager.get(metaFile);
@@ -988,7 +993,7 @@ export class AssetDB extends EventEmitter {
                         if (asset.uuid !== uuid) {
                             this.uuid2asset.delete(uuid);
                             if (this.uuid2asset.has(asset.uuid)) {
-                                this._replaceUUID(asset, getAsset(asset.uuid)!)
+                                this._replaceUUID(asset, getAsset(asset.uuid)!);
                             }
                             this.uuid2asset.set(asset.uuid, asset);
                         }
@@ -1044,9 +1049,11 @@ export class AssetDB extends EventEmitter {
         }
     }
 
-    private async _checkAssetStat(asset: Asset) {
+    private async _checkAssetStat(asset: Asset, reloadMetadata = false) {
 
         const file = asset.source;
+        const fileStat = await stat(file);
+        const kindChanged = asset._isDirectory !== undefined && asset._isDirectory !== fileStat.isDirectory();
         const metaFile = file + '.meta';
         if (!existsSync(metaFile)) {
             console.error(`${metaFile} is not exist! will use cache meta.`);
@@ -1054,24 +1061,25 @@ export class AssetDB extends EventEmitter {
         }
         const metaStat = await stat(metaFile);
 
-        if (!await this.infoManager.compare(metaFile, metaStat.mtimeMs)) {
+        if (reloadMetadata || !await this.infoManager.compare(metaFile, metaStat.mtimeMs)) {
             this.emit('delete', asset);
             this.emit('deleted', asset);
+            asset._isDirectory = fileStat.isDirectory();
             asset.action = AssetActionEnum.add;
             const uuid = asset.uuid;
             this.metaManager.read(metaFile);
             if (asset.uuid !== uuid) {
                 this.uuid2asset.delete(uuid);
                 if (this.uuid2asset.has(asset.uuid)) {
-                    this._replaceUUID(asset, getAsset(asset.uuid)!)
+                    this._replaceUUID(asset, getAsset(asset.uuid)!);
                 }
                 this.uuid2asset.set(asset.uuid, asset);
             }
             this.infoManager.add(metaFile, metaStat.mtimeMs);
             asset.task = this.taskManager.addTask(asset);
         } else {
-            const fileStat = await stat(file);
-            if (this.infoManager.compare(file, fileStat.mtimeMs)) {
+            asset._isDirectory = fileStat.isDirectory();
+            if (!kindChanged && this.infoManager.compare(file, fileStat.mtimeMs)) {
                 if (this.dataManager.has(asset)) {
                     asset.action = AssetActionEnum.none;
                     asset.task = this.taskManager.addTask(asset);

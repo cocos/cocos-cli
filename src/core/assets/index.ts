@@ -10,6 +10,7 @@ import assetConfig from './asset-config';
  * 初始化资源数据库相关配置与管理器
  */
 export async function initAssetDB() {
+    assetManager.resetMovePreflights();
     // @ts-ignore HACK 目前引擎有在一些资源序列化会调用的接口里使用这个变量，没有合理的传参之前需要临时设置兼容
     globalThis.Build = true;
     const { scriptConfig } = await import('../scripting/shared/query-shared-settings');
@@ -32,6 +33,7 @@ export async function startAssetDB() {
  * 停止资源数据库
  */
 export async function stopAssetDB() {
+    assetManager.resetMovePreflights();
     for (const name in assetDBManager.assetDBMap) {
         const db = assetDBManager.assetDBMap[name];
         if (db) {

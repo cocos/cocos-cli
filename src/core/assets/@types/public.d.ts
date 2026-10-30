@@ -453,6 +453,26 @@ export interface AssetOperationOption {
     rename?: boolean;
 }
 
+/** Options specific to moving an existing asset. */
+export interface AssetMoveOptions extends AssetOperationOption {
+    /** Single-use token returned by preflightMoveAsset for this source and target. */
+    preflightToken?: string;
+}
+
+/** Destination occupation facts for a host-owned conflict choice. */
+export interface IAssetMoveConflict {
+    sourceUrl: string;
+    targetUrl: string;
+    sourceIsDirectory: boolean;
+    /** Null when only destination metadata occupies the name. */
+    targetIsDirectory: boolean | null;
+}
+
+/** A read-only observation, not a destination reservation or filesystem lock. */
+export type IAssetMovePreflightResult =
+    | { action: 'move'; preflightToken: string }
+    | { action: 'choose-conflict-handling'; preflightToken: string; conflict: IAssetMoveConflict };
+
 export interface DeleteAssetOptions {
     useTrash?: boolean;
 }
