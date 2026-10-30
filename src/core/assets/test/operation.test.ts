@@ -237,6 +237,30 @@ describe('测试 db 的操作接口', function () {
             }
         });
 
+        it('rejects a source directory replaced by a symlink without changing the referent UUID', async () => {
+            const sourcePath = join(databasePath, `${name}-source-link`);
+            const referentPath = join(databasePath, `${name}-referent`);
+            const source = await assetManager.createAsset({ target: sourcePath });
+            await assetManager.createAsset({ target: referentPath });
+            const child = await assetManager.createAsset({ target: join(referentPath, 'child.txt'), content: 'keep' });
+            const childMeta = readFileSync(`${child!.file}.meta`);
+            await remove(sourcePath);
+            await symlink(referentPath, sourcePath, 'dir');
+            try {
+                await expect(assetManager.preflightMoveAsset(source!.uuid, `${sourcePath}-moved`))
+                    .rejects.toThrow('source directory symlinks');
+
+                expect(readFileSync(`${child!.file}.meta`)).toEqual(childMeta);
+                expect(assetManager.queryAssetInfo(child!.uuid)?.url).toBe(child!.url);
+                expect(readlinkSync(sourcePath)).toBe(referentPath);
+                expect(existsSync(`${sourcePath}-moved`)).toBe(false);
+            } finally {
+                await remove(sourcePath);
+                await remove(`${sourcePath}.meta`);
+                await assetManager.refreshAsset(sourcePath);
+            }
+        });
+
         it('overwrites through a symlinked database directory and preserves the source UUID', async () => {
             const dbName = `move-link-${Date.now()}`;
             const dbPath = join(TestGlobalEnv.projectRoot, 'temp', dbName);

@@ -38,8 +38,27 @@ function observe(request: ResolvedAssetMove): MoveObservation {
     if (!source || !sourceMeta) {
         throw new Error('Cannot move an asset without its source file and metadata.');
     }
+    // Refreshing a moved directory link would follow it and import its referent.
+    if (source.symlinks.includes(request.source) && statSync(request.source).isDirectory()) {
+        throw new Error('Asset move preflight does not support source directory symlinks.');
+    }
     const target = readMovePathState(request.target);
     const targetMeta = readMovePathState(`${request.target}.meta`);
+    for (const state of [source, target]) {
+        if (!state?.directory) continue;
+        for (const link of state.symlinks) {
+            let directory: boolean;
+            try {
+                directory = statSync(link).isDirectory();
+            } catch (error) {
+                if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) continue;
+                throw error;
+            }
+            if (directory) {
+                throw new Error(`Asset move preflight does not support nested directory aliases: ${link}`);
+            }
+        }
+    }
     const parent = statSync(dirname(request.target), { bigint: true });
     return {
         source: source.revision,

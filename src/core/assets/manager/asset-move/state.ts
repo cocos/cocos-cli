@@ -10,6 +10,7 @@ export interface MovePathState {
     /** Excludes ctime, which a rename itself can change. */
     continuity: string;
     directory: boolean;
+    symlinks: string[];
 }
 
 /** Observes descendants without following symlinks or reading asset contents. */
@@ -23,6 +24,7 @@ export function readMovePathState(path: string): MovePathState | null {
         }
         throw error;
     }
+    const symlinks: string[] = [];
     const hash = createHash('sha256');
     const continuity = createHash('sha256');
     const visit = (current: string, relative: string, state: typeof root): void => {
@@ -48,6 +50,7 @@ export function readMovePathState(path: string): MovePathState | null {
             ]),
         );
         if (state.isSymbolicLink()) {
+            symlinks.push(current);
             const link = readlinkSync(current);
             hash.update(link);
             continuity.update(link);
@@ -65,6 +68,7 @@ export function readMovePathState(path: string): MovePathState | null {
         revision: hash.digest('hex'),
         continuity: continuity.digest('hex'),
         directory: root.isDirectory(),
+        symlinks,
     };
 }
 

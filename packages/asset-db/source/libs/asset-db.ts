@@ -1,8 +1,8 @@
 
 'use strict';
 
-import { Stats, stat, statSync, realpathSync, readlinkSync, existsSync, readdir, remove, writeJSON, readJSON } from 'fs-extra';
-import { join, normalize, dirname, sep, basename, extname, relative, isAbsolute, parse } from 'path';
+import { Stats, stat, statSync, existsSync, readdir, remove, writeJSON, readJSON } from 'fs-extra';
+import { join, normalize, dirname, sep, basename, extname, relative } from 'path';
 import { EventEmitter } from 'events';
 import { v4 } from 'node-uuid';
 
@@ -730,9 +730,7 @@ export class AssetDB extends EventEmitter {
             throw error;
         };
         try {
-            const aliases = this._reconcileEntryAliases(files, path);
-            files = aliases.files;
-            const changedPathAssets = aliases.moved;
+            const caseChangedAssets: Asset[] = [];
             const preAddFiles: string[] = [];
             const addFiles: string[] = [];
             const deleteFiles: string[] = [];
@@ -742,8 +740,8 @@ export class AssetDB extends EventEmitter {
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
-                            this._updateAssetSource(asset, file);
-                            changedPathAssets.push(asset);
+                            this._updateAssetPathCase(asset, file);
+                            caseChangedAssets.push(asset);
                         }
                     }
                     if (!this.path2asset.has(file)) {
@@ -762,8 +760,8 @@ export class AssetDB extends EventEmitter {
                     if (storedPath !== undefined && storedPath !== file && normalize(storedPath) !== normalize(file)) {
                         const asset = this.path2asset.get(storedPath);
                         if (asset) {
-                            this._updateAssetSource(asset, file);
-                            changedPathAssets.push(asset);
+                            this._updateAssetPathCase(asset, file);
+                            caseChangedAssets.push(asset);
                         }
                     }
                     if (!this.path2asset.has(file)) {
@@ -776,7 +774,7 @@ export class AssetDB extends EventEmitter {
 
             this.path2asset.forEach((asset, file) => {
                 if (files.length === 0 || !fileSet.has(file)) {
-                    if (isSamePath(file, path) || isSubPath(file, path) || aliases.missing.has(asset)) {
+                    if (isSamePath(file, path) || isSubPath(file, path)) {
                         deleteFiles.push(file);
                         deleteSet.add(file);
                     }
@@ -785,7 +783,7 @@ export class AssetDB extends EventEmitter {
 
             this.taskManager.stop();
 
-            for (const asset of changedPathAssets) {
+            for (const asset of caseChangedAssets) {
                 asset.action = AssetActionEnum.change;
                 asset.task = this.taskManager.addTask(asset);
             }
@@ -824,7 +822,7 @@ export class AssetDB extends EventEmitter {
                     console.error(res.reason);
                 }
             });
-            for (const asset of changedPathAssets) {
+            for (const asset of caseChangedAssets) {
                 if (asset.action === AssetActionEnum.none && this.uuid2asset.get(asset.uuid) === asset) {
                     asset.action = AssetActionEnum.change;
                     asset.task = this.taskManager.addTask(asset);
@@ -888,138 +886,13 @@ export class AssetDB extends EventEmitter {
         }
     }
 
-    /** Reuses indexed entries reached through another parent path, including their removed descendants. */
-    private _reconcileEntryAliases(files: string[], refreshRoot: string): { files: string[]; moved: Asset[]; missing: ReadonlySet<Asset> } {
-        const parents = new Map<string, string | undefined>();
-        const resolveParent = (parent: string): string | undefined => {
-            if (parents.has(parent)) {
-                return parents.get(parent);
-            }
-            // An unresolved entry also bounds recursion through cyclic links.
-            parents.set(parent, undefined);
-            let resolved: string | undefined;
-            try {
-                resolved = realpathSync(parent);
-            } catch (error) {
-                const code = (error as NodeJS.ErrnoException).code;
-                if (code === 'ELOOP') {
-                    return undefined;
-                }
-                if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-                    throw error;
-                }
-                const ancestor = dirname(parent);
-                const resolvedAncestor = ancestor !== parent ? resolveParent(ancestor) : undefined;
-                if (!resolvedAncestor) {
-                    return undefined;
-                }
-                resolved = join(resolvedAncestor, basename(parent));
-                let link: string | undefined;
-                try {
-                    link = readlinkSync(resolved);
-                } catch (linkError) {
-                    if (!['EINVAL', 'ENOENT', 'ENOTDIR'].includes((linkError as NodeJS.ErrnoException).code || '')) {
-                        throw linkError;
-                    }
-                }
-                if (link !== undefined) {
-                    let target = isAbsolute(link) ? parse(link).root : dirname(resolved);
-                    const suffix = isAbsolute(link) ? link.slice(target.length) : link;
-                    for (const segment of suffix.split(process.platform === 'win32' ? /[\\/]/ : /\//)) {
-                        if (segment === '..') {
-                            // Do not collapse a missing directory before '..' onto an unrelated live entry.
-                            try {
-                                if (!statSync(target).isDirectory()) {
-                                    return undefined;
-                                }
-                                target = dirname(realpathSync(target));
-                            } catch (targetError) {
-                                if (['ENOENT', 'ENOTDIR', 'ELOOP'].includes((targetError as NodeJS.ErrnoException).code || '')) {
-                                    return undefined;
-                                }
-                                throw targetError;
-                            }
-                        } else {
-                            target = join(target, segment);
-                        }
-                    }
-                    resolved = resolveParent(target);
-                }
-            }
-            parents.set(parent, resolved);
-            return resolved;
-        };
-        const entryPath = (file: string) => {
-            const parent = resolveParent(dirname(file));
-            return parent === undefined ? undefined : join(parent, basename(file));
-        };
-        const rootEntry = entryPath(refreshRoot);
-        const indexed = new PathMap<Asset>();
-        const scopedEntries = new Map<Asset, string>();
-        for (const [file, asset] of this.path2asset) {
-            const entry = entryPath(file);
-            if (entry !== undefined) {
-                indexed.set(entry, asset);
-                if (rootEntry !== undefined && (isSamePath(entry, rootEntry) || isSubPath(entry, rootEntry))) {
-                    scopedEntries.set(asset, entry);
-                }
-            }
-        }
-        const selected = new PathMap<string>();
-        for (const file of files) {
-            const entry = entryPath(file) || file;
-            if (!selected.has(entry) || indexed.get(entry)?.source === file) {
-                selected.set(entry, file);
-            }
-        }
-        const missing = new Set<Asset>();
-        for (const [asset, entry] of scopedEntries) {
-            if (!selected.has(entry)) {
-                missing.add(asset);
-            }
-        }
-        const changes = new PathMap<string>();
-        const recordChange = (file: string, entry: string) => {
-            const asset = indexed.get(entry);
-            if (asset && !isSamePath(asset.source, file)) {
-                changes.set(asset.source, file);
-            }
-        };
-        // A missing refresh root still identifies aliases and descendants that must be removed.
-        if (rootEntry !== undefined) {
-            recordChange(refreshRoot, rootEntry);
-        }
-        const selectedFiles: string[] = [];
-        for (const [entry, file] of selected) {
-            recordChange(file, entry);
-            selectedFiles.push(file);
-        }
-        if (changes.size === 0) {
-            return { files: selectedFiles, moved: [], missing };
-        }
-        const moved: Asset[] = [];
-        for (const [file, asset] of Array.from(this.path2asset)) {
-            let ancestor = file;
-            while (!changes.has(ancestor) && dirname(ancestor) !== ancestor) {
-                ancestor = dirname(ancestor);
-            }
-            const target = changes.get(ancestor);
-            if (target !== undefined) {
-                this._updateAssetSource(asset, join(target, relative(ancestor, file)));
-                moved.push(asset);
-            }
-        }
-        return { files: selectedFiles, moved, missing };
-    }
-
-    private _updateAssetSource(asset: Asset, source: string) {
+    private _updateAssetPathCase(asset: Asset, source: string) {
         const previousSource = asset.source;
         const previousUrl = asset.url;
         if (previousSource === source) {
             return;
         }
 
-        this.path2asset.delete(previousSource);
         this.path2asset.set(source, asset);
         asset._source = source;
         const sourceExtname = extname(source);
