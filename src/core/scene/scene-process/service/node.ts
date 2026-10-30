@@ -1315,6 +1315,12 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
+        if (options.path === 'name') {
+            const nameError = validateNodeName(options.dump.value as string);
+            if (nameError) {
+                throw new Error(nameError);
+            }
+        }
         const result = await this._undo.recordNodeSnapshot(node, {
             label: `Set ${options.path}`,
             type: 'node:set-property',

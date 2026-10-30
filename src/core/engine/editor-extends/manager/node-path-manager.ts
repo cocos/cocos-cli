@@ -17,7 +17,7 @@ export class NodePathManager {
         * 清理名称中的非法字符
         */
     private _sanitizeName(name: string): string {
-        return sanitizeNodeName(name);
+        return name.trim().length === 0 ? 'Node' : sanitizeNodeName(name);
     }
 
     /**
