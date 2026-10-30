@@ -120,6 +120,10 @@ export class ConfigurationManager extends EventEmitter implements IConfiguration
         this.localConfigPath = path.join(projectPath, 'profiles', ConfigurationManager.name);
         const schemaPath = path.join(projectPath, ConfigurationManager.relativeSchemaPath);
         await this.load();
+        const engineSdk = this.projectConfig.engineSdk;
+        if (engineSdk !== undefined && (!engineSdk || typeof engineSdk !== 'object' || Array.isArray(engineSdk))) {
+            throw new Error(`engineSdk in ${this.configPath} must be an object`);
+        }
         try {
             await fse.copy(ConfigurationManager.SchemaPathSource, schemaPath);
             // 迁移不能影响正常的配置初始化流程

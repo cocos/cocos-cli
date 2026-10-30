@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/cocos/cocos4.git",
+  "baseline": { "ref": "refs/heads/v4.0.0", "untilStableTag": "4.0.0" }
+}

@@ -9,85 +9,37 @@ const yaml = require('js-yaml');
 
 const source = fs.readFileSync(path.join(__dirname, 'postinstall.js'), 'utf8');
 
-async function runPostinstall(env = {}, development = true) {
-    const calls = [];
-    let complete;
-    const completed = new Promise(resolve => { complete = resolve; });
-    const utils = {
-        hasDevelopmentEnvironment: () => development,
-        runCommand: async (command, args) => { calls.push({ command, args: Array.from(args) }); },
-    };
-    const requireMock = name => {
-        if (name === './utils') return utils;
-        if (name === 'readline') return {
-            createInterface: () => ({ question: (_prompt, answer) => answer('n'), close() {} }),
-        };
-        throw new Error(`Unexpected dependency: ${name}`);
-    };
+function runPostinstall(env = {}) {
     const execute = vm.runInNewContext(wrap(source), {
-        process: { env, stdin: {}, stdout: {} },
-        console: { log: message => { if (message.includes('所有模块构建完成')) complete(); } },
-        setTimeout: () => 1,
-        clearTimeout() {},
+        process: { env }, console: { log() {} },
     });
     const module = { exports: {} };
-    execute(module.exports, requireMock, module, path.join(__dirname, 'postinstall.js'), __dirname);
-    if (development) await completed;
-    return calls;
+    execute(module.exports, name => { throw new Error('Install must not load preparation dependencies: ' + name); },
+        module, path.join(__dirname, 'postinstall.js'), __dirname);
 }
 
-function scripts(calls) {
-    return calls.map(call => call.args.find(arg => arg.startsWith('./workflow/')));
-}
-
-const preparation = [
-    './workflow/compiler-engine.js',
-    './workflow/build-cc-module.js',
-    './workflow/generate-i18n-types.js',
-];
-
-test('normal local installation still builds the CLI and downloads tools', async () => {
-    assert.deepEqual(scripts(await runPostinstall()), [
-        ...preparation, './workflow/build-ts.js', './workflow/download-tools.js',
-    ]);
-});
-
-test('only an explicit true defers the postinstall build', async () => {
-    for (const value of ['false', '0', '']) {
-        assert.ok(scripts(await runPostinstall({ COCOS_SKIP_POSTINSTALL_BUILD: value })).includes('./workflow/build-ts.js'));
+test('installation never prepares an engine, builds the CLI or downloads tools', () => {
+    runPostinstall();
+    for (const value of ['true', 'false', '0', '']) {
+        runPostinstall({ COCOS_SKIP_POSTINSTALL_BUILD: value, FORCE_UPDATE: 'true', MINIMAL_DOWNLOAD_TOOLS: 'true' });
     }
-    assert.deepEqual(scripts(await runPostinstall({ COCOS_SKIP_POSTINSTALL_BUILD: 'true' })), [
-        ...preparation, './workflow/download-tools.js',
-    ]);
 });
 
-test('deferring the CLI build preserves forced preparation and minimal downloads', async () => {
-    const calls = await runPostinstall({
-        COCOS_SKIP_POSTINSTALL_BUILD: 'true', FORCE_UPDATE: 'true', MINIMAL_DOWNLOAD_TOOLS: 'true',
-    });
-    assert.equal(calls.length, 4);
-    assert.ok(calls.every(call => call.command === 'node' && call.args.includes('--force')));
-    assert.ok(calls[0].args.includes('--max-old-space-size=8192'));
-    assert.deepEqual(calls.at(-1).args, ['./workflow/download-tools.js', '--force', '--minimal']);
-});
-
-test('non-development installations remain a no-op', async () => {
-    assert.deepEqual(await runPostinstall({}, false), []);
-    assert.deepEqual(await runPostinstall({ COCOS_SKIP_POSTINSTALL_BUILD: 'true' }, false), []);
-});
-
-test('shared CI setup prepares dependencies and tools before exactly one explicit build', async () => {
+test('shared CI setup prepares the SDK explicitly after installing dependencies', () => {
     const action = yaml.load(fs.readFileSync(path.join(__dirname, '../.github/actions/setup-env/action.yml'), 'utf8'));
     const steps = action.runs.steps;
     const installs = steps.filter(step => step.run === 'npm ci');
     assert.equal(installs.length, 1);
-    const install = installs[0];
-    const calls = await runPostinstall(install.env);
-    assert.deepEqual(scripts(calls), [...preparation, './workflow/download-tools.js']);
-    const builds = steps.filter(step => step.run === 'npm run build');
-    assert.equal(builds.length, 1);
-    assert.ok(steps.indexOf(install) < steps.indexOf(builds[0]));
-    assert.ok(!builds[0].env?.COCOS_SKIP_POSTINSTALL_BUILD);
+    runPostinstall(installs[0].env);
+    const preparations = steps.filter(step => step.run === 'npm run setup:dev -- --force');
+    assert.equal(preparations.length, 1);
+    const prepare = steps.indexOf(preparations[0]);
+    assert.ok(steps.indexOf(installs[0]) < prepare);
+    for (const command of ['npm run update:repos', 'npm run install:engine']) {
+        const index = steps.findIndex(step => step.run === command);
+        assert.ok(index > steps.indexOf(installs[0]) && index < prepare);
+    }
+    assert.ok(!steps.some(step => step.run === 'npm run build'));
 });
 
 test('DTS publishing reuses the installation from shared setup', () => {
@@ -99,20 +51,19 @@ test('DTS publishing reuses the installation from shared setup', () => {
     assert.ok(steps.slice(setup + 1).some(step => step.run === 'npm run generate:dts'));
 });
 
-test('CI restores downloads before installation and saves them before build or tests can modify them', () => {
+test('CI restores downloads before installation and caches tools after successful preparation', () => {
     const action = yaml.load(fs.readFileSync(path.join(__dirname, '../.github/actions/setup-env/action.yml'), 'utf8'));
     const steps = action.runs.steps;
-    const init = steps.findIndex(step => step.run === 'npm run init');
     const install = steps.findIndex(step => step.run === 'npm ci');
-    const build = steps.findIndex(step => step.run === 'npm run build');
-    assert.equal(steps[install].env.COCOS_STRICT_TOOL_DOWNLOADS, 'true');
+    const build = steps.findIndex(step => step.run === 'npm run setup:dev -- --force');
+    assert.equal(steps[build].env.COCOS_STRICT_TOOL_DOWNLOADS, 'true');
     assert.equal(steps[install].if, undefined);
-    assert.equal(steps[init].if, undefined);
+    assert.equal(steps[build].if, undefined);
     for (const id of ['npm-cache', 'tools-cache']) {
         const restore = steps.findIndex(step => step.id === id);
         const save = steps.findIndex(step => step.uses === 'actions/cache/save@v4' && step.with.key.includes(id));
-        assert.ok(restore >= 0 && restore < init);
-        assert.ok(save > install && save < build);
+        assert.ok(restore >= 0 && restore < install);
+        assert.ok(save > (id === 'tools-cache' ? build : install));
         assert.equal(steps[save].with.path, steps[restore].with.path);
         assert.equal(steps[save].if, `steps.${id}.outputs.cache-hit != 'true'`);
     }

@@ -197,6 +197,8 @@ async function updateRepos() {
  */
 async function installDeps() {
     await runCommand('npm', ['install'], { cwd: context.rootDir });
+    await runCommand('npm', ['run', 'install:engine'], { cwd: context.rootDir });
+    await runCommand('npm', ['run', 'setup:dev', '--', '--force'], { cwd: context.rootDir });
 }
 
 /**
@@ -584,8 +586,8 @@ const collectFilesTask = gulp.series(
 // Main release task
 gulp.task('release', gulp.series(
     (cb) => parseArgs(cb),
-    initTask,
     prepareTask,
+    initTask,
     collectFilesTask,
     async (cb) => {
         // Dynamically create and execute pipelines based on configs

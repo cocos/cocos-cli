@@ -31,7 +31,7 @@ export default class Launcher {
     private serverStarted = false;
     private sceneStarted = false;
 
-    constructor(projectPath: string) {
+    constructor(projectPath: string, private options: { enginePath?: string } = {}) {
         this.projectPath = projectPath;
     }
 
@@ -39,7 +39,6 @@ export default class Launcher {
         if (this._init) {
             return;
         }
-        this._init = true;
         /**
          * 初始化一些基础模块信息
          */
@@ -49,6 +48,10 @@ export default class Launcher {
         });
         const { configurationManager } = await import('./configuration');
         await configurationManager.initialize(this.projectPath);
+        const { selectProjectEngine } = await import('./engine/selection');
+        const selectedEngine = await selectProjectEngine(this.projectPath, this.options.enginePath);
+        const { checkEngineCompatibility } = require('../../workflow/engine-compatibility');
+        checkEngineCompatibility(selectedEngine, GlobalPaths.workspace, 'web');
         // 初始化项目信息
         const { default: Project } = await import('./project');
         await Project.open(this.projectPath);
@@ -57,6 +60,7 @@ export default class Launcher {
         const { initEngine } = await import('./engine');
         await initEngine(GlobalPaths.enginePath, this.projectPath);
         console.log('initEngine success');
+        this._init = true;
     }
 
     /**

@@ -98,7 +98,7 @@ export function modifyPackageName(packageName: string) {
 }
 
 export async function updateXcodeproject(projectPath: string, options: ITaskOption) {
-    const root = options.engineInfo.native.builtin;
+    const root = options.engineInfo.native.path;
     const template = (options as any).packages.native.template; // default ｜ link
     const xcodedir = join(projectPath, 'frameworks/runtime-src/proj.ios_mac', `${options.name}.xcodeproj`);
 
