@@ -85,6 +85,23 @@ export async function saveImageAsset(
     image.name = displayName;
     image._setRawAsset(extName);
 
+    // Parse image dimensions using sharp so that the serialized ImageAsset
+    // contains correct width/height. Without this, _serialize() would emit
+    // { w: 0, h: 0 } and downstream Texture2D assets would have no dimensions,
+    // causing materials to render without textures at runtime.
+    try {
+        const sharpInstance = Sharp(imageDataBufferOrimagePath);
+        const metadata = await sharpInstance.metadata();
+        if (metadata.width && metadata.height) {
+            // @ts-ignore - _width/_height are private but accessible in editor context
+            image._width = metadata.width;
+            // @ts-ignore
+            image._height = metadata.height;
+        }
+    } catch (err) {
+        console.warn(`Failed to parse image dimensions for ${displayName}:`, err);
+    }
+
     const serializeJSON = EditorExtends.serialize(image);
     await asset.saveToLibrary('.json', serializeJSON);
 
