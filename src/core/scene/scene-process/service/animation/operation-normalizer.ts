@@ -1,4 +1,4 @@
-import type { Node } from 'cc';
+import type { AnimationClip, Node } from 'cc';
 import type {
     IAnimationOperation,
     IAnimationOperationResult,
@@ -12,6 +12,7 @@ type PropertyKeyOperation = Extract<IAnimationOperation, { type: 'createProperty
 
 interface IAnimationOperationNormalizerContext {
     currentClipUuid: string;
+    clip: AnimationClip;
     rootNode: Node;
     rootPath: string;
     queryPropertyValueAtFrame(options: IAnimationQueryPropertyValueAtFrameOptions): Promise<IAnimationValue>;
@@ -40,7 +41,12 @@ async function normalizePropertyKeyOperation(
 ): Promise<IAnimationOperation | IAnimationOperationResult> {
     const keyData = operation.keyData ?? operation.curveData;
     if (operation.value !== undefined) {
-        const value = await normalizeProvidedAnimationPropertyOperationValue(context.rootNode, context.rootPath, operation);
+        const value = await normalizeProvidedAnimationPropertyOperationValue(
+            context.rootNode,
+            context.rootPath,
+            operation,
+            context.clip,
+        );
         return { ...operation, keyData, value };
     }
     if (operation.type === 'updatePropertyKey' && keyData) {

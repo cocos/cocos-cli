@@ -18,6 +18,7 @@ describe('normalizeAnimationOperation', () => {
     const queryPropertyValueAtFrame = jest.fn();
     const context = {
         currentClipUuid: 'current-clip',
+        clip: {},
         rootNode,
         rootPath: 'Root',
         queryPropertyValueAtFrame,
@@ -81,7 +82,7 @@ describe('normalizeAnimationOperation', () => {
             keyData: operation.curveData,
             value: normalizedValue,
         });
-        expect(mockNormalizeProvidedValue).toHaveBeenCalledWith(rootNode, 'Root', operation);
+        expect(mockNormalizeProvidedValue).toHaveBeenCalledWith(rootNode, 'Root', operation, context.clip);
         expect(queryPropertyValueAtFrame).not.toHaveBeenCalled();
     });
 
