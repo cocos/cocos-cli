@@ -4,7 +4,6 @@ import type { IPropertyPreviewTarget, IPreviewSetPropertyOptions, IPropertyPrevi
 import type { IProperty } from '../../@types/public';
 import { SnapshotCommand } from './undo/commands/snapshot-command';
 import { createUndoId } from './undo/commands/command-utils-shared';
-import dumpUtil from './dump';
 import { register, BaseService, Service } from './core';
 import { queryRegisteredService } from './core/decorator';
 import { basename, extname } from 'path';
@@ -1313,6 +1312,8 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         const node = NodeMgr.getNode(target.uuid);
         if (!node?.isValid) return undefined;
         if (nodeMgr.hasPreviewSetNodeProperty(target.uuid, target.path)) throw new PropertyPreviewError('PREVIEW_CONFLICT');
+        // Keep service loading independent of the graphics runtime until a property is inspected.
+        const dumpUtil: typeof import('./dump').default = require('./dump').default;
         const info = dumpUtil.parsingPath(target.path, node);
         const container = info.search ? get(node, info.search) : node;
         if (!info.key || container == null || !(info.key in Object(container))) return undefined;
@@ -1338,6 +1339,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
                 return false;
             }
         } else {
+            const dumpUtil: typeof import('./dump').default = require('./dump').default;
             await dumpUtil.restoreProperty(node, target.path, dump);
         }
         if (!node.isValid || NodeMgr.getNode(target.uuid) !== node) return false;
