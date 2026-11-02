@@ -1143,6 +1143,19 @@ function queryAnimationMigrationTargets(
         };
     });
     for (const operation of operations) {
+        if (operation?.type === 'removePropertyCurve') {
+            const nodePath = resolveAnimationRelativeNodePath(rootNode, rootPath, operation, {
+                allowMissingPath: true,
+            });
+            const index = projectedTracks.findIndex(
+                item => item.nodePath === nodePath && item.propKey === operation.propKey,
+            );
+            if (index >= 0) {
+                // 与实际删除一致，只移除首个匹配轨道，空源迁移保留目标原有绑定
+                projectedTracks.splice(index, 1);
+            }
+            continue;
+        }
         if (
             operation?.type === 'addPropertyCurve'
             || operation?.type === 'createPropertyKey'

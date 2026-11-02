@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Component, Node, animation } from 'cc';
+import { Component, MeshRenderer, Node, animation } from 'cc';
 import { isAnimationAssetValue } from './asset-value';
 import { isWritableProperty } from './property-writability';
 import {
@@ -21,6 +21,7 @@ import {
 export interface IAnimationMigrationNodeState extends IAnimationSampledNodeState {
     materialUniforms: IAnimationMaterialUniformSnapshot[];
     propertyBindings?: Array<{ path: animation.TrackPath; value: unknown }>;
+    morphWeights?: Array<{ componentUuid: string; weights: number[][] }>;
 }
 
 export interface IAnimationMigrationBinding {
@@ -28,7 +29,7 @@ export interface IAnimationMigrationBinding {
     proxy?: animation.Track['proxy'];
 }
 
-/** 保存迁移节点自身的独立属性值及材质代理状态 */
+/** 保存迁移节点自身的独立属性值、材质代理状态和形变权重 */
 export function captureAnimationMigrationState(
     node: Node,
     bindings: IAnimationMigrationBinding[],
@@ -52,6 +53,12 @@ export function captureAnimationMigrationState(
         ...cloneMigrationValue(captureAnimationSampledState(node, { includeChildren: false })),
         materialUniforms: captureMaterialUniforms(node, uniformBindings),
         propertyBindings,
+        // 恢复 mesh 会重置所有形变权重，包含未被迁移轨道直接写入的权重
+        morphWeights: node.getComponents(MeshRenderer).map(component => ({
+            componentUuid: component.uuid,
+            weights: (component.mesh?.struct.morph?.subMeshMorphs ?? []).map((morph, subMesh) =>
+                morph?.targets.map((_, shape) => component.getWeight(subMesh, shape)) ?? []),
+        })),
     };
 }
 
@@ -60,13 +67,20 @@ export async function restoreAnimationMigrationState(
     node: Node,
     state: IAnimationMigrationNodeState,
 ): Promise<void> {
-    const { materialUniforms, propertyBindings = [], ...sampledState } = state;
+    const { materialUniforms, propertyBindings = [], morphWeights = [], ...sampledState } = state;
     await restoreAnimationSampledState(node, cloneMigrationValue(sampledState));
     // 重新沿路径定位叶子，组件属性恢复可能已替换其中的对象实例
     for (const { path, value } of propertyBindings) {
         const property = resolveMigrationProperty(node, path);
         if (property) {
             property.target[property.key] = cloneMigrationValue(value);
+        }
+    }
+    // 组件及叶子属性均恢复后再还原权重，避免 mesh setter 覆盖快照值
+    for (const { componentUuid, weights } of morphWeights) {
+        const component = node.components.find(item => item.uuid === componentUuid);
+        if (component instanceof MeshRenderer) {
+            weights.forEach((values, subMesh) => component.setWeights(values, subMesh));
         }
     }
     restoreMaterialUniforms(materialUniforms);
