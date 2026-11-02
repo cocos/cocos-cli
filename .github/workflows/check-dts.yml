@@ -1,6 +1,8 @@
 name: Check DTS
 
 on:
+  push:
+    branches: [codex/validate-cli-beta1-20261102]
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
@@ -15,6 +17,14 @@ jobs:
           clean: false
           persist-credentials: true
           fetch-depth: 0
+          ref: ${{ github.event_name == 'push' && '723a5b6eb76cd9a1e740566bbbb62ae32ae081ef' || github.ref }}
+
+      - name: Verify release source commit
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "723a5b6eb76cd9a1e740566bbbb62ae32ae081ef"
+          echo 'Validating CLI 0.2.0-beta.1 at 723a5b6eb76cd9a1e740566bbbb62ae32ae081ef' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Setup node
         uses: actions/setup-node@v6
@@ -71,8 +81,8 @@ jobs:
         shell: bash
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.event_name == 'push' && 'refs/tags/0.2.0-beta.0' || format('origin/{0}', github.base_ref) }}
         run: |
-          BASE_REF="origin/${{ github.base_ref }}"
           SNAP_FILE="packages/cocos-cli-types/__tests__/__snapshots__/dts-snapshot.test.ts.snap"
 
           # Skip if snapshot file is new (not in base branch yet)
