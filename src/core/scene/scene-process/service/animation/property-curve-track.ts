@@ -284,7 +284,7 @@ export function createPropertyDescriptor(
  *
  * 通用对象类型不提供具体类型信息，不写入缓存
  */
-function rememberPropertyTrackMetadata(track: AnyTrack, metadata: PropertyTrackMetadata): void {
+export function rememberPropertyTrackMetadata(track: AnyTrack, metadata: PropertyTrackMetadata): void {
     if (metadata.type.value !== 'cc.Object') {
         propertyTrackMetadata.set(track, { type: metadata.type, valueCtor: metadata.valueCtor });
     }

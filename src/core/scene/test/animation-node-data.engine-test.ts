@@ -6,6 +6,7 @@
 import { join } from 'node:path';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import Module from 'node:module';
 import type { animation, AnimationClip, Node } from 'cc';
 import { TestGlobalEnv } from '../../../tests/global-env';
 
@@ -22,11 +23,19 @@ describe('Animation node data migration with the real engine', () => {
     let migration: typeof import('../scene-process/service/animation/node-data');
     let snapshots: typeof import('../scene-process/service/animation/clip-snapshot');
     let paths: typeof import('../scene-process/service/animation/property-curve-track');
+    let propertyCurves: typeof import('../scene-process/service/animation/property-curve');
     let temporaryDirectory: string;
+    let restoreModuleHooks: (() => void) | undefined;
     let root: Node;
 
     beforeAll(async () => {
         jest.resetModules();
+        const moduleHooks = Module as typeof Module & { _load: unknown; _resolveFilename: unknown };
+        const { _load, _resolveFilename } = moduleHooks;
+        restoreModuleHooks = () => {
+            moduleHooks._load = _load;
+            moduleHooks._resolveFilename = _resolveFilename;
+        };
         const { EngineLoader } = await import('cc/loader.js');
         modules.forEach(id => jest.doMock(id, () => EngineLoader.getEngineModuleById(id), { virtual: true }));
         temporaryDirectory = await mkdtemp(join(tmpdir(), 'animation-node-data-'));
@@ -44,6 +53,7 @@ describe('Animation node data migration with the real engine', () => {
         migration = await import('../scene-process/service/animation/node-data');
         snapshots = await import('../scene-process/service/animation/clip-snapshot');
         paths = await import('../scene-process/service/animation/property-curve-track');
+        propertyCurves = await import('../scene-process/service/animation/property-curve');
     });
 
     beforeEach(() => {
@@ -57,6 +67,8 @@ describe('Animation node data migration with the real engine', () => {
     });
 
     afterAll(async () => {
+        // 测试结束后恢复引擎加载器改动的全局模块钩子
+        restoreModuleHooks?.();
         if (temporaryDirectory) {
             await rm(temporaryDirectory, { recursive: true, force: true });
         }
@@ -191,6 +203,82 @@ describe('Animation node data migration with the real engine', () => {
             cc.assetManager.assets.remove(asset.uuid);
             asset.destroy();
         }
+    });
+
+    it.each([
+        { nullKey: false, cached: false },
+        { nullKey: true, cached: false },
+        { nullKey: false, cached: true },
+        { nullKey: true, cached: true },
+    ])('restores missing resource track metadata: nullKey=$nullKey, cached=$cached', async ({ nullKey, cached }) => {
+        const clip = new cc.AnimationClip();
+        const track = new cc.animation.ObjectTrack();
+        track.path = new cc.animation.TrackPath().toHierarchy('Missing')
+            .toComponent('cc.Sprite').toProperty('spriteFrame');
+        if (nullKey) {
+            track.channel.curve.assignSorted([0], [null]);
+        }
+        clip.addTrack(track);
+        const context = {
+            queryPropertyMetadata: () => ({
+                type: { value: 'cc.SpriteFrame' },
+                valueCtor: cc.SpriteFrame,
+            }),
+        };
+        if (cached) {
+            // 模拟节点删除前已经读取过类型，后续快照不再依赖真实节点
+            propertyCurves.dumpPropertyCurves(clip, context);
+        }
+        const before = snapshots.captureAnimationClipSnapshot(clip, cached ? {} : context);
+        expect(before.curves[0]?.type?.value).toBe('cc.SpriteFrame');
+
+        move(clip);
+        const after = snapshots.captureAnimationClipSnapshot(clip);
+        await snapshots.restoreAnimationClipSnapshot(clip, before);
+        const restored = clip.getTrack(0);
+        expect(restored).not.toBe(track);
+        expect(paths.parsePropertyTrack(restored)?.descriptor).toMatchObject({
+            type: { value: 'cc.SpriteFrame' },
+            valueCtor: cc.SpriteFrame,
+        });
+        expect(snapshots.captureAnimationClipSnapshot(clip)).toEqual(before);
+
+        await snapshots.restoreAnimationClipSnapshot(clip, after);
+        expect(snapshots.captureAnimationClipSnapshot(clip)).toEqual(after);
+        clip.destroy();
+    });
+
+    it('preserves separate metadata for tracks with the same binding', async () => {
+        const clip = new cc.AnimationClip();
+        for (const assetCtor of [cc.SpriteFrame, cc.Texture2D]) {
+            const descriptor = paths.createPropertyDescriptor(
+                'ResourceComponent.resource', undefined, 'object', undefined,
+                { value: cc.js.getClassName(assetCtor) }, assetCtor,
+            );
+            if (!descriptor) {
+                throw new Error('Resource track descriptor was not created.');
+            }
+            paths.createPropertyTrack(clip, 'Missing', descriptor);
+        }
+        const before = snapshots.captureAnimationClipSnapshot(clip);
+        await snapshots.restoreAnimationClipSnapshot(clip, before);
+        expect(propertyCurves.dumpPropertyCurves(clip).map(curve => curve.type?.value))
+            .toEqual(['cc.SpriteFrame', 'cc.Texture2D']);
+        expect(snapshots.captureAnimationClipSnapshot(clip)).toEqual(before);
+        clip.destroy();
+    });
+
+    it('accepts raw snapshots created before track metadata was recorded', async () => {
+        const clip = new cc.AnimationClip();
+        addTrack(clip, 'Missing');
+        const before = snapshots.captureAnimationClipSnapshot(clip);
+        const legacy = EditorExtends.serialize({ tracks: Array.from(clip.tracks) });
+        await snapshots.restoreAnimationClipSnapshot(clip, {
+            ...before,
+            serializedTracks: typeof legacy === 'string' ? legacy : JSON.stringify(legacy),
+        });
+        expect(snapshots.captureAnimationClipSnapshot(clip)).toEqual(before);
+        clip.destroy();
     });
 
     it('rolls back an invalid raw snapshot without leaving a partially restored clip', async () => {

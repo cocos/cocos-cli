@@ -4,7 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { Asset, animation, deserialize, js, type AnimationClip } from 'cc';
+import type { IAnimationPropertyType } from '../../../common';
 import { loadAnimationAssetValue, queryAnimationAssetCtor } from './asset-value';
+import { parsePropertyTrack, rememberPropertyTrackMetadata } from './property-curve-track';
 
 /**
  * 序列化原始轨道，保留属性 dump 无法表达的路径、代理和未定型曲线
@@ -16,7 +18,10 @@ export function captureAnimationTracks(clip: AnimationClip): string | undefined 
         return undefined;
     }
 
-    const serialized = EditorExtends.serialize({ tracks: Array.from(clip.tracks) }, {
+    const tracks = Array.from(clip.tracks);
+    // 类型按轨道位置保存，避免同路径轨道或空资源曲线在恢复后丢失各自的元数据
+    const types = tracks.map(track => parsePropertyTrack(track)?.descriptor.type ?? null);
+    const serialized = EditorExtends.serialize({ tracks, types }, {
         dontStripDefault: true,
     });
     return typeof serialized === 'string' ? serialized : JSON.stringify(serialized);
@@ -41,7 +46,26 @@ export async function restoreAnimationTracks(clip: AnimationClip, serialized: st
         throw new Error('Invalid animation track snapshot.');
     }
 
+    const types = 'types' in restored ? restored.types : undefined;
+    if (types !== undefined && (
+        !Array.isArray(types)
+        || types.length !== restored.tracks.length
+        || !types.every(isTrackPropertyType)
+    )) {
+        throw new Error('Invalid animation track metadata snapshot.');
+    }
+
     await restoreTrackAssetReferences(details);
+
+    restored.tracks.forEach((track, index) => {
+        const type = types?.[index];
+        if (type) {
+            rememberPropertyTrackMetadata(track, {
+                type,
+                valueCtor: queryAnimationAssetCtor({ type }) ?? undefined,
+            });
+        }
+    });
 
     for (let index = Array.from(clip.tracks).length - 1; index >= 0; index--) {
         clip.removeTrack(index);
@@ -49,6 +73,15 @@ export async function restoreAnimationTracks(clip: AnimationClip, serialized: st
     for (const track of restored.tracks) {
         clip.addTrack(track);
     }
+}
+
+/** 校验快照中的可选轨道类型，无法解析的轨道使用 null */
+function isTrackPropertyType(value: unknown): value is IAnimationPropertyType | null {
+    return value === null || (
+        typeof value === 'object'
+        && 'value' in value
+        && typeof value.value === 'string'
+    );
 }
 
 /**

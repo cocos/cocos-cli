@@ -50,13 +50,15 @@ type PendingAnimationAssetLoads = Map<AnimationAssetCtor, Map<string, Promise<As
 export function captureAnimationClipSnapshot(clip: AnimationClip, options: IPropertyCurveMetadataContext = {}): IAnimationClipSnapshot {
     const sample = getClipSample(clip);
     const events = queryClipEvents(clip) || [];
+    // 先用场景上下文补全轨道类型，再将元数据与原始轨道一起保存
+    const curves = dumpPropertyCurves(clip, { ...options, includeDefaults: true });
     return {
         serializedTracks: captureAnimationTracks(clip),
         duration: Number((clip as any).duration) || 0,
         sample,
         speed: Number((clip as any).speed) || 0,
         wrapMode: Number((clip as any).wrapMode) || 0,
-        curves: dumpPropertyCurves(clip, { ...options, includeDefaults: true }),
+        curves,
         events: events.map((event: any) => ({
             frame: Math.round((Number(event.frame) || 0) * sample),
             func: event.func || '',
