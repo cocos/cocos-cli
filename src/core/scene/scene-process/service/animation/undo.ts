@@ -1,17 +1,17 @@
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../common';
 import { createUndoId } from '../undo/commands/command-utils-shared';
 import type { IAnimationClipSnapshot } from './clip-snapshot';
-import type { IAnimationSampledNodeState } from './sampled-state';
+import type { IAnimationMigrationNodeState } from './migration-state';
 
 interface IAnimationClipSnapshotCommandOptions {
     clipUuid: string;
     before: IAnimationClipSnapshot;
     after: IAnimationClipSnapshot;
-    beforeSampledState?: IAnimationSampledNodeState[];
-    afterSampledState?: IAnimationSampledNodeState[];
+    beforeSampledState?: IAnimationMigrationNodeState[];
+    afterSampledState?: IAnimationMigrationNodeState[];
     applySnapshot: (
         snapshot: IAnimationClipSnapshot,
-        sampledState?: IAnimationSampledNodeState[],
+        sampledState?: IAnimationMigrationNodeState[],
     ) => Promise<void>;
 }
 
@@ -42,7 +42,7 @@ export class AnimationClipSnapshotCommand implements IUndoCommand {
 
     private async _apply(
         snapshot: IAnimationClipSnapshot,
-        sampledState?: IAnimationSampledNodeState[],
+        sampledState?: IAnimationMigrationNodeState[],
     ): Promise<IUndoRedoResult> {
         try {
             await this.options.applySnapshot(snapshot, sampledState);

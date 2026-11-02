@@ -1,0 +1,86 @@
+/*---------------------------------------------------------------------------------------------
+ * Copyright (c) SUD. All rights reserved.
+ * Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+import { Component, Node } from 'cc';
+import { isAnimationAssetValue } from './asset-value';
+import {
+    captureAnimationSampledState,
+    restoreAnimationSampledState,
+    type IAnimationSampledNodeState,
+} from './sampled-state';
+import {
+    captureMaterialUniforms,
+    restoreMaterialUniforms,
+    type IAnimationUniformBinding,
+    type IAnimationMaterialUniformSnapshot,
+} from './material-uniform-snapshot';
+
+export interface IAnimationMigrationNodeState extends IAnimationSampledNodeState {
+    materialUniforms: IAnimationMaterialUniformSnapshot[];
+}
+
+/** 保存迁移节点自身的独立属性值及材质代理状态 */
+export function captureAnimationMigrationState(
+    node: Node,
+    uniformBindings: IAnimationUniformBinding[],
+): IAnimationMigrationNodeState {
+    return {
+        ...cloneMigrationValue(captureAnimationSampledState(node, { includeChildren: false })),
+        materialUniforms: captureMaterialUniforms(node, uniformBindings),
+    };
+}
+
+/** 恢复迁移节点，使用独立副本防止后续采样污染撤销和重做快照 */
+export async function restoreAnimationMigrationState(
+    node: Node,
+    state: IAnimationMigrationNodeState,
+): Promise<void> {
+    const { materialUniforms, ...sampledState } = state;
+    await restoreAnimationSampledState(node, cloneMigrationValue(sampledState));
+    restoreMaterialUniforms(materialUniforms);
+}
+
+/**
+ * 复制迁移快照中的可变值
+ *
+ * CCClass 按引擎序列化字段复制，保留构造初始化、共享关系和循环引用，资源及场景对象保留引用
+ */
+function cloneMigrationValue<T>(value: T, copies = new Map<object, any>()): T {
+    if (value === null || typeof value !== 'object') {
+        return value;
+    }
+    if (isAnimationAssetValue(value) || value instanceof Node || value instanceof Component) {
+        return value;
+    }
+    if (copies.has(value)) {
+        return copies.get(value);
+    }
+    if (typeof (value as any).clone === 'function') {
+        const result = (value as any).clone();
+        copies.set(value, result);
+        return result;
+    }
+    if (Array.isArray(value)) {
+        const result: unknown[] = [];
+        copies.set(value, result);
+        for (const item of value) {
+            result.push(cloneMigrationValue(item, copies));
+        }
+        return result as T;
+    }
+    const ctor = value.constructor as { new(): Record<string, unknown>; __values__?: string[] };
+    const properties = Array.isArray(ctor?.__values__) ? ctor.__values__ : undefined;
+    const prototype = Object.getPrototypeOf(value);
+    if (!properties && prototype !== Object.prototype && prototype !== null) {
+        return value;
+    }
+
+    const result = properties ? new ctor() : Object.create(prototype);
+    copies.set(value, result);
+    for (const key of properties ?? Object.keys(value)) {
+        result[key] = cloneMigrationValue((value as Record<string, unknown>)[key], copies);
+    }
+    return result as T;
+}
