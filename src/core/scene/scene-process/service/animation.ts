@@ -50,6 +50,7 @@ import {
     captureAnimationMigrationState,
     restoreAnimationMigrationState,
     type IAnimationMigrationNodeState,
+    type IAnimationMigrationBinding,
 } from './animation/migration-state';
 import { saveAnimationServiceClip } from './animation/service-save';
 import { AnimationStateRegistry } from './animation/state-registry';
@@ -63,11 +64,12 @@ import { isAllowedSkeletonAnimationOperation, isAnimationOperationResult, should
 import { normalizeAnimationOperation } from './animation/operation-normalizer';
 import { isAnimationNodeDataPath, resolveNodeDataTarget } from './animation/node-data';
 import {
+    createPropertyDescriptor,
     getClipTracks,
+    parsePropertyTrack,
     queryAnimationNodePaths,
     readTrackNodePath,
 } from './animation/property-curve-track';
-import type { IAnimationUniformBinding } from './animation/material-uniform-snapshot';
 import {
     loadAnimationClip,
     queryAnimationClipsInfo,
@@ -85,6 +87,7 @@ import {
     queryAnimationComponent,
     queryAnimationRootNode,
     readPropertyValue,
+    resolveAnimationRelativeNodePath,
 } from './animation/scene-node';
 import {
     assertAnimationEditorOpened,
@@ -481,10 +484,18 @@ export class AnimationService extends BaseService<Record<string, any>> implement
         const shouldRecordUndo = options.recordUndo !== false;
         const before = captureAnimationClipSnapshot(clip, propertyMetadataContext);
         // 整批操作前保存迁移节点，避免后续参数采样提前改变链式迁移的目标值
-        const migrationTargets = queryAnimationMigrationTargets(rootNode, clip, options.operations);
-        const beforeSampledState = migrationTargets.map(
-            ({ node, uniformBindings }) => captureAnimationMigrationState(node, uniformBindings),
+        const migrationTargets = queryAnimationMigrationTargets(
+            rootNode, clip, options.operations, session.rootPath,
         );
+        let beforeSampledState: IAnimationMigrationNodeState[];
+        try {
+            beforeSampledState = migrationTargets.map(
+                ({ node, bindings }) => captureAnimationMigrationState(node, bindings),
+            );
+        } catch (error) {
+            // 目标绑定读取失败时尚未写入，按批量操作约定返回失败
+            return { state: 'failure', result: false, reason: String(error) };
+        }
         const appliedOperations: IAnimationOperation[] = [];
         const isSkeleton = isSkeletonClip(session.clipUuid, rootNode);
         let shouldSyncDuration = false;
@@ -614,7 +625,7 @@ export class AnimationService extends BaseService<Record<string, any>> implement
                 after,
                 beforeSampledState,
                 afterSampledState: migrationTargets.map(
-                    ({ node, uniformBindings }) => captureAnimationMigrationState(node, uniformBindings),
+                    ({ node, bindings }) => captureAnimationMigrationState(node, bindings),
                 ),
                 applySnapshot: (snapshot, sampledState) => this._restoreCurrentClipSnapshot(
                     session.clipUuid, snapshot, sampledState,
@@ -1107,22 +1118,52 @@ function normalizeSceneNodePath(path: string): string {
 /**
  * 收集整批迁移涉及的现存节点
  *
- * 按实例去重，跳过路径无效或已丢失的节点，并预先追踪链式迁移涉及的材质代理
+ * 按实例去重，预先追踪本批新建轨道和链式迁移涉及的属性及材质绑定
  */
 function queryAnimationMigrationTargets(
     rootNode: Node,
     clip: AnimationClip,
     operations: IAnimationOperation[],
-): Array<{ node: Node; uniformBindings: IAnimationUniformBinding[] }> {
+    rootPath: string,
+): Array<{ node: Node; bindings: IAnimationMigrationBinding[] }> {
     if (!operations.some(operation => operation?.type === 'changeNodeDataPath')) {
         return [];
     }
-    const targets = new Map<Node, Map<animation.Track, IAnimationUniformBinding>>();
-    let projectedTracks = getClipTracks(clip).map(track => ({
-        track,
-        ...readTrackNodePath(track.path),
-    }));
+    const targets = new Map<Node, Set<IAnimationMigrationBinding>>();
+    let projectedTracks: Array<{
+        nodePath: string;
+        propKey?: string;
+        binding: IAnimationMigrationBinding;
+    }> = getClipTracks(clip).map(track => {
+        const { nodePath, propertyOffset } = readTrackNodePath(track.path);
+        return {
+            nodePath,
+            propKey: parsePropertyTrack(track)?.descriptor.propKey,
+            binding: { path: track.path.slice(propertyOffset), proxy: track.proxy },
+        };
+    });
     for (const operation of operations) {
+        if (
+            operation?.type === 'addPropertyCurve'
+            || operation?.type === 'createPropertyKey'
+            || operation?.type === 'updatePropertyKey'
+        ) {
+            const nodePath = resolveAnimationRelativeNodePath(rootNode, rootPath, operation);
+            if (nodePath !== null && !projectedTracks.some(
+                item => item.nodePath === nodePath && item.propKey === operation.propKey,
+            )) {
+                const binding = createMigrationPropertyBinding(operation.propKey);
+                if (binding) {
+                    projectedTracks.push({ nodePath, propKey: operation.propKey, binding });
+                    const node = resolveNodeDataTarget(rootNode, nodePath);
+                    if (node) {
+                        // 同批后续操作也可能在已经迁移过的节点上新增绑定
+                        targets.get(node)?.add(binding);
+                    }
+                }
+            }
+            continue;
+        }
         if (operation?.type !== 'changeNodeDataPath' || operation.srcPath === operation.dstPath) {
             continue;
         }
@@ -1135,17 +1176,15 @@ function queryAnimationMigrationTargets(
             if (!node) {
                 continue;
             }
-            const bindings = targets.get(node) ?? new Map<animation.Track, IAnimationUniformBinding>();
+            const bindings = targets.get(node) ?? new Set<IAnimationMigrationBinding>();
             targets.set(node, bindings);
-            // 同时保存原有和即将迁入的代理，目标原先没有轨道时也能恢复 uniform
+            // 同时保存原有和即将迁入的绑定，目标原先没有轨道时也能恢复采样值
             const tracks = projectedTracks.filter(item => item.nodePath === path);
             if (path === operation.dstPath) {
                 tracks.push(...sourceTracks);
             }
-            for (const { track, propertyOffset } of tracks) {
-                if (track.proxy instanceof animation.UniformProxyFactory) {
-                    bindings.set(track, { path: track.path.slice(propertyOffset), proxy: track.proxy });
-                }
+            for (const { binding } of tracks) {
+                bindings.add(binding);
             }
         }
         if (sourceTracks.length > 0) {
@@ -1155,7 +1194,32 @@ function queryAnimationMigrationTargets(
             }
         }
     }
-    return [...targets].map(([node, bindings]) => ({ node, uniformBindings: [...bindings.values()] }));
+    return [...targets].map(([node, bindings]) => ({ node, bindings: [...bindings] }));
+}
+
+/** 投影本批可能新建的属性轨道路径，用于迁移前保存目标值 */
+function createMigrationPropertyBinding(propKey: string): IAnimationMigrationBinding | null {
+    // 绑定路径由属性名决定，曲线类型的校验交由实际操作处理
+    const descriptor = createPropertyDescriptor(propKey, undefined, 'real');
+    if (!descriptor) {
+        return null;
+    }
+    const path = new animation.TrackPath();
+    if (descriptor.comp) {
+        path.toComponent(descriptor.comp);
+    }
+    const uniform = descriptor.materialUniform;
+    path.toProperty(descriptor.propName);
+    if (!uniform) {
+        return { path };
+    }
+    if (uniform.materialIndex !== undefined) {
+        path.toElement(uniform.materialIndex);
+    }
+    return {
+        path,
+        proxy: new animation.UniformProxyFactory(uniform.uniformName, uniform.passIndex),
+    };
 }
 
 /** 校验节点迁移或属性操作使用的目标路径 */

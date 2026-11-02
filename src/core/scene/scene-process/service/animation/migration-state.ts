@@ -3,8 +3,9 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Component, Node } from 'cc';
+import { Component, Node, animation } from 'cc';
 import { isAnimationAssetValue } from './asset-value';
+import { isWritableProperty } from './property-writability';
 import {
     captureAnimationSampledState,
     restoreAnimationSampledState,
@@ -19,16 +20,38 @@ import {
 
 export interface IAnimationMigrationNodeState extends IAnimationSampledNodeState {
     materialUniforms: IAnimationMaterialUniformSnapshot[];
+    propertyBindings?: Array<{ path: animation.TrackPath; value: unknown }>;
+}
+
+export interface IAnimationMigrationBinding {
+    path: animation.TrackPath;
+    proxy?: animation.Track['proxy'];
 }
 
 /** 保存迁移节点自身的独立属性值及材质代理状态 */
 export function captureAnimationMigrationState(
     node: Node,
-    uniformBindings: IAnimationUniformBinding[],
+    bindings: IAnimationMigrationBinding[],
 ): IAnimationMigrationNodeState {
+    const uniformBindings: IAnimationUniformBinding[] = [];
+    const propertyBindings: NonNullable<IAnimationMigrationNodeState['propertyBindings']> = [];
+    for (const { path, proxy } of bindings) {
+        if (proxy instanceof animation.UniformProxyFactory) {
+            uniformBindings.push({ path, proxy });
+        } else if (!proxy) {
+            const property = resolveMigrationProperty(node, path);
+            if (property) {
+                propertyBindings.push({
+                    path,
+                    value: cloneMigrationValue(property.target[property.key]),
+                });
+            }
+        }
+    }
     return {
         ...cloneMigrationValue(captureAnimationSampledState(node, { includeChildren: false })),
         materialUniforms: captureMaterialUniforms(node, uniformBindings),
+        propertyBindings,
     };
 }
 
@@ -37,9 +60,35 @@ export async function restoreAnimationMigrationState(
     node: Node,
     state: IAnimationMigrationNodeState,
 ): Promise<void> {
-    const { materialUniforms, ...sampledState } = state;
+    const { materialUniforms, propertyBindings = [], ...sampledState } = state;
     await restoreAnimationSampledState(node, cloneMigrationValue(sampledState));
+    // 重新沿路径定位叶子，组件属性恢复可能已替换其中的对象实例
+    for (const { path, value } of propertyBindings) {
+        const property = resolveMigrationProperty(node, path);
+        if (property) {
+            property.target[property.key] = cloneMigrationValue(value);
+        }
+    }
     restoreMaterialUniforms(materialUniforms);
+}
+
+/** 定位原始轨道实际写入的字段，允许中间路径经过 getter 或数组 */
+function resolveMigrationProperty(
+    node: Node,
+    path: animation.TrackPath,
+): { target: Record<string, unknown>; key: string } | null {
+    const last = path.length - 1;
+    if (!path.isPropertyAt(last) && !path.isElementAt(last)) {
+        return null;
+    }
+    const target = path.trace(node, 0, last);
+    const key = path.isPropertyAt(last)
+        ? path.parsePropertyAt(last)
+        : String(path.parseElementAt(last));
+    if (!target || typeof target !== 'object' || !isWritableProperty(target, key)) {
+        return null;
+    }
+    return { target: target as Record<string, unknown>, key };
 }
 
 /**
