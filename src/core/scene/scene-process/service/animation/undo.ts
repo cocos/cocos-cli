@@ -1,12 +1,18 @@
 import type { IUndoCommand, IUndoCommandMeta, IUndoRedoResult } from '../../../common';
 import { createUndoId } from '../undo/commands/command-utils-shared';
 import type { IAnimationClipSnapshot } from './clip-snapshot';
+import type { IAnimationSampledNodeState } from './sampled-state';
 
 interface IAnimationClipSnapshotCommandOptions {
     clipUuid: string;
     before: IAnimationClipSnapshot;
     after: IAnimationClipSnapshot;
-    applySnapshot: (snapshot: IAnimationClipSnapshot) => Promise<void>;
+    beforeSampledState?: IAnimationSampledNodeState[];
+    afterSampledState?: IAnimationSampledNodeState[];
+    applySnapshot: (
+        snapshot: IAnimationClipSnapshot,
+        sampledState?: IAnimationSampledNodeState[],
+    ) => Promise<void>;
 }
 
 export class AnimationClipSnapshotCommand implements IUndoCommand {
@@ -27,16 +33,19 @@ export class AnimationClipSnapshotCommand implements IUndoCommand {
     }
 
     async undo(): Promise<IUndoRedoResult> {
-        return await this._apply(this.options.before);
+        return await this._apply(this.options.before, this.options.beforeSampledState);
     }
 
     async redo(): Promise<IUndoRedoResult> {
-        return await this._apply(this.options.after);
+        return await this._apply(this.options.after, this.options.afterSampledState);
     }
 
-    private async _apply(snapshot: IAnimationClipSnapshot): Promise<IUndoRedoResult> {
+    private async _apply(
+        snapshot: IAnimationClipSnapshot,
+        sampledState?: IAnimationSampledNodeState[],
+    ): Promise<IUndoRedoResult> {
         try {
-            await this.options.applySnapshot(snapshot);
+            await this.options.applySnapshot(snapshot, sampledState);
             return {
                 success: true,
                 commandId: this.meta.id,
