@@ -6605,6 +6605,7 @@ export declare interface IChangeNodeOptions {
     propPath?: string;
     index?: number;
     record?: boolean;
+    previousPath?: string;
     dumpImmediately?: boolean;
 }
 export declare interface ICLI {
@@ -7102,8 +7103,11 @@ export declare interface INodeService extends IServiceEvents {
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
     queryNodesByAssetUuid(uuid: string): string[];
     queryNodesMissAsset(): Promise<string[]>;
+    previewSetProperty(options: IPreviewSetPropertyOptions): Promise<IPropertyPreviewResult>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    cancelPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    commitPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
     setProperty(options: ISetPropertyOptions): Promise<boolean>;
     reset(path: string): Promise<boolean>;
     resetProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -7233,6 +7237,11 @@ export declare interface IPreviewService extends IMotionPreviewService {
     open(uuid: string): Promise<IPreviewInstance | null>;
     generateThumbnail(uuid: string, assetType: string, width?: number, height?: number): Promise<any>;
 }
+export declare interface IPreviewSetPropertyOptions extends IPropertyPreviewTarget {
+    dump: Omit<IProperty, 'path'> & {
+        path?: string;
+    };
+}
 export declare interface IProperty {
     value: {
         [key: string]: IPropertyValueType;
@@ -7290,6 +7299,18 @@ export declare type IPropertyLock = {
     default: number;
     message: string;
 };
+export declare interface IPropertyPreviewResult {
+    success: boolean;
+    uuid: string;
+    previewId: string;
+    path: string;
+    previousPath: string;
+}
+export declare interface IPropertyPreviewTarget {
+    uuid: string;
+    path: string;
+    previewId: string;
+}
 export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IQuat {
     x: number;

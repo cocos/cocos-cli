@@ -1,3 +1,10 @@
+import get from 'lodash/get';
+import { PropertyPreviewStore, PropertyPreviewError } from './core/property-preview';
+import type { IPropertyPreviewTarget, IPreviewSetPropertyOptions, IPropertyPreviewResult } from '../../common/node';
+import type { IProperty } from '../../@types/public';
+import { SnapshotCommand } from './undo/commands/snapshot-command';
+import { createUndoId } from './undo/commands/command-utils-shared';
+import dumpUtil from './dump';
 import { register, BaseService, Service } from './core';
 import { queryRegisteredService } from './core/decorator';
 import { basename, extname } from 'path';
@@ -114,6 +121,12 @@ interface ICanvasResolution {
  */
 @register('Node')
 export class NodeService extends BaseService<INodeEvents> implements INodeService {
+    private readonly _propertyPreviews = new PropertyPreviewStore<IProperty>({
+        read: (target, hint) => this._readPreviewProperty(target, hint),
+        write: (target, value, restoring) => this._writePreviewProperty(target, value, restoring),
+        commit: (target, before, after) => this._commitPreviewProperty(target, before, after),
+    });
+
     private readonly _undo = new NodeUndoHelper((event, ...args) => this.emit(event as any, ...args));
     private _prefabCanvasUndoRecords: IPrefabCanvasUndoRecord[] | null = null;
     private _prefabCanvasUndoBeforeNodeUuids: Set<string> | null = null;
@@ -1280,6 +1293,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     public onEditorClosed() {
+        this._propertyPreviews.clear();
         // 场景关闭/重载前结束拖拽预览，避免临时节点残留到下一个场景
         void this._createDrag?.cancelActive('disposed');
         // nodeMgr 清理 EditorExtends.Component 缓存前，先停止组件事件转发。
@@ -1289,25 +1303,105 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
     }
 
     public onEditorDisposed() {
+        this._propertyPreviews.clear();
         // 服务级销毁：退订生命周期事件并清空会话
         this._createDrag?.dispose();
         this._createDrag = undefined;
     }
 
-    public async previewSetProperty(options: ISetPropertyOptions): Promise<boolean> {
-        const node = NodeMgr.getNodeByPath(options.nodePath);
-        if (!node) {
-            return false;
-        }
-        return await nodeMgr.previewSetNodeProperty(node.uuid, options.path, options.dump);
+    private _readPreviewProperty(target: IPropertyPreviewTarget, hint: IProperty): IProperty | undefined {
+        const node = NodeMgr.getNode(target.uuid);
+        if (!node?.isValid) return undefined;
+        if (nodeMgr.hasPreviewSetNodeProperty(target.uuid, target.path)) throw new PropertyPreviewError('PREVIEW_CONFLICT');
+        const info = dumpUtil.parsingPath(target.path, node);
+        const container = info.search ? get(node, info.search) : node;
+        if (!info.key || container == null || !(info.key in Object(container))) return undefined;
+        const value = container[info.key];
+        if (target.path === 'name' && value?.trim() && validateNodeName(value)) throw new PropertyPreviewError('INVALID_PREVIEW_BASELINE');
+        const dump = dumpUtil.encodeObject(value, { type: target.path === 'name' ? 'string' : hint.type, ctor: value?.constructor }, value);
+        return JSON.parse(JSON.stringify(dump));
     }
 
-    public async cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean> {
-        const node = NodeMgr.getNodeByPath(options.nodePath);
-        if (!node) {
-            return false;
+    private async _writePreviewProperty(target: IPropertyPreviewTarget, dump: IProperty, restoring: boolean): Promise<boolean> {
+        const node = NodeMgr.getNode(target.uuid);
+        if (!node?.isValid) return false;
+        if (!restoring && target.path === 'name' && validateNodeName(dump.value as string)) {
+            throw new PropertyPreviewError('INVALID_NODE_NAME');
         }
-        return await nodeMgr.cancelPreviewSetNodeProperty(node.uuid, options.path);
+        const previousPath = NodeMgr.getNodePath(node) ?? '';
+        // Restoration accepts trusted legacy names, including serialized empty names.
+        nodeMgr.emit('node:before-change', node);
+        if (target.path === 'name') {
+            NodeMgr.updateNodeName(node.uuid, dump.value as string);
+            if (node.name !== dump.value) {
+                NodeMgr.updateNodeName(node.uuid, node.name);
+                return false;
+            }
+        } else {
+            await dumpUtil.restoreProperty(node, target.path, dump);
+        }
+        if (!node.isValid || NodeMgr.getNode(target.uuid) !== node) return false;
+        nodeMgr.emit('node:change', node, { type: NodeEventType.SET_PROPERTY, propPath: target.path, record: false, previousPath, source: isUndoApplying() ? 'undo' : 'editor' });
+        return true;
+    }
+
+    private _commitPreviewProperty(target: IPropertyPreviewTarget, before: IProperty, after: IProperty): void {
+        if (target.path === 'name' && validateNodeName(after.value as string)) throw new PropertyPreviewError('INVALID_NODE_NAME');
+        if (Service.Undo.isApplying() || Service.Undo.hasActiveRecording(target.uuid)) {
+            throw new PropertyPreviewError('PREVIEW_UNDO_CONFLICT');
+        }
+        if (JSON.stringify(before) === JSON.stringify(after)) return;
+        const snapshot = (value: IProperty) => new Map([[target.uuid, value]]);
+        Service.Undo.push(new SnapshotCommand({
+            id: createUndoId('node-preview'), label: 'Set ' + target.path, type: 'node:set-property',
+            scope: { editorType: 'scene', nodePath: this.getPathByUuid(target.uuid), propPath: target.path }, timestamp: Date.now(),
+        }, snapshot(before), snapshot(after), {
+            capture: () => snapshot(after),
+            equals: (left, right) => JSON.stringify([...left]) === JSON.stringify([...right]),
+            apply: async data => {
+                this._propertyPreviews.assertAvailable(target.uuid, target.path);
+                const success = await this._writePreviewProperty(target, data.get(target.uuid), true);
+                return { success, reason: success ? undefined : 'Preview target no longer exists or restoration failed' };
+            },
+        }));
+        broadcastAnimationPropertyCommitted({ nodePath: this.getPathByUuid(target.uuid), propPath: target.path, source: 'editor' });
+    }
+
+    private _previewResult(target: IPropertyPreviewTarget, success: boolean, previousPath: string): IPropertyPreviewResult {
+        return { success, uuid: target.uuid, previewId: target.previewId, path: this.getPathByUuid(target.uuid), previousPath };
+    }
+
+    public previewSetProperty(options: IPreviewSetPropertyOptions): Promise<IPropertyPreviewResult>;
+    public previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    public async previewSetProperty(options: IPreviewSetPropertyOptions | ISetPropertyOptions): Promise<IPropertyPreviewResult | boolean> {
+        if ('uuid' in options) {
+            if (!options.dump || typeof options.dump !== 'object') throw new PropertyPreviewError('INVALID_PREVIEW_VALUE');
+            if (options.path === 'name' && validateNodeName(options.dump?.value as string)) throw new PropertyPreviewError('INVALID_NODE_NAME');
+            const previousPath = this.getPathByUuid(options.uuid);
+            return this._previewResult(options, await this._propertyPreviews.preview(options, { ...options.dump, path: options.path }), previousPath);
+        }
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) return false;
+        this._propertyPreviews.assertAvailable(node.uuid, options.path);
+        return nodeMgr.previewSetNodeProperty(node.uuid, options.path, options.dump);
+    }
+
+    public cancelPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
+    public cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    public async cancelPreviewSetProperty(options: IPropertyPreviewTarget | ISetPropertyOptions): Promise<IPropertyPreviewResult | boolean> {
+        if ('uuid' in options) {
+            const previousPath = this.getPathByUuid(options.uuid);
+            return this._previewResult(options, await this._propertyPreviews.cancel(options), previousPath);
+        }
+        const node = NodeMgr.getNodeByPath(options.nodePath);
+        if (!node) return false;
+        this._propertyPreviews.assertAvailable(node.uuid, options.path);
+        return nodeMgr.cancelPreviewSetNodeProperty(node.uuid, options.path);
+    }
+
+    public async commitPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult> {
+        const previousPath = this.getPathByUuid(options.uuid);
+        return this._previewResult(options, await this._propertyPreviews.commit(options), previousPath);
     }
 
     public async setProperty(options: ISetPropertyOptions): Promise<boolean> {
@@ -1315,6 +1409,7 @@ export class NodeService extends BaseService<INodeEvents> implements INodeServic
         if (!node) {
             return false;
         }
+        this._propertyPreviews?.assertAvailable(node.uuid, options.path);
         if (options.path === 'name') {
             const nameError = validateNodeName(options.dump.value as string);
             if (nameError) {
