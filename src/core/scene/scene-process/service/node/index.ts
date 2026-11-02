@@ -483,6 +483,10 @@ export class NodeManager {
      * @param dump
      * @returns
      */
+    hasPreviewSetNodeProperty(uuid: string, path: string): boolean {
+        return this._previewPropertysCache.get(uuid)?.has(path) ?? false;
+    }
+
     async previewSetNodeProperty(uuid: string, path: string, dump: IProperty): Promise<boolean> {
         const node = NodeMgr.getNode(uuid);
         const info = dumpUtil.parsingPath(path, node);

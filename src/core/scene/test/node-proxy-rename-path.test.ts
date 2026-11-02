@@ -61,3 +61,22 @@ describe('NodeProxy.update 重命名路径解析', () => {
     });
 
 });
+
+describe('NodeProxy UUID property previews', () => {
+    it('forwards UUID preview options and the real path result without resolving an old path', async () => {
+        const options = { uuid: 'node', path: 'name', previewId: 'edit', dump: { type: 'String', value: 'Draft' } };
+        const result = { success: true, uuid: 'node', previewId: 'edit', path: 'Draft_1', previousPath: 'Original' };
+        mockRequest.mockResolvedValue(result);
+        expect(await NodeProxy.previewSetProperty(options)).toEqual(result);
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(mockRequest).toHaveBeenCalledWith('Node', 'previewSetProperty', [options]);
+    });
+    it.each(['cancelPreviewSetProperty', 'commitPreviewSetProperty'] as const)('forwards %s without a dump or nodePath', async method => {
+        const options = { uuid: 'node', path: 'name', previewId: 'edit' };
+        const result = { success: false, uuid: 'node', previewId: 'edit', path: '', previousPath: '' };
+        mockRequest.mockResolvedValue(result);
+        expect(await NodeProxy[method](options)).toEqual(result);
+        expect(mockRequest).toHaveBeenCalledTimes(1);
+        expect(mockRequest).toHaveBeenCalledWith('Node', method, [options]);
+    });
+});
