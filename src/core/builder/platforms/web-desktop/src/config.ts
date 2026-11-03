@@ -81,6 +81,7 @@ const config: IPlatformBuildPluginConfig = {
         hook: 'run',
         name: 'run',
         requiredBuildOptions: false,
+        displayName: 'i18n:web-desktop.run.label',
     }],
 };
 
