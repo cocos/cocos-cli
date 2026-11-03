@@ -1203,6 +1203,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
@@ -5269,6 +5270,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
@@ -8256,6 +8258,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
@@ -10914,6 +10917,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
