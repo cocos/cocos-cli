@@ -250,7 +250,10 @@ export const SpriteFrameHandler: AssetHandler = {
             if (asset.parent instanceof Asset) {
                 spriteFrame.name = spriteFrame.name || asset.parent.basename || '';
             }
-            getTexture(asset, spriteFrame);
+            // A zero-sized rect with a texture is expanded to the full image by the engine.
+            if (!asset.userData.cropToBorderCenter || (spriteFrame.rect.width > 0 && spriteFrame.rect.height > 0)) {
+                getTexture(asset, spriteFrame);
+            }
 
             const serializeJSON = EditorExtends.serialize(spriteFrame);
             await asset.saveToLibrary('.json', serializeJSON);
@@ -287,15 +290,34 @@ export async function trimImage(source: string, dest: string, options: TrimOptio
 }
 
 function createSpriteFrame(asset: Asset) {
-    const userData = asset.userData;
+    let userData = asset.userData as SpriteFrameAssetUserData & { atlasUuid?: string };
+    let originalWidth = userData.rawWidth;
+    let originalHeight = userData.rawHeight;
+    if (userData.cropToBorderCenter && (userData.borderLeft || userData.borderRight || userData.borderTop || userData.borderBottom)) {
+        const { rotated, borderLeft, borderRight, borderTop, borderBottom } = userData;
+        const width = Math.max(0, userData.width - borderLeft - borderRight);
+        const height = Math.max(0, userData.height - borderTop - borderBottom);
+        // Keep authored trim, borders and vertices in the meta so a second edit starts from the same frame.
+        userData = {
+            ...userData,
+            trimX: userData.trimX + (rotated ? borderBottom : borderLeft),
+            trimY: userData.trimY + (rotated ? borderLeft : borderTop),
+            width, height, offsetX: 0, offsetY: 0,
+            borderLeft: 0, borderRight: 0, borderTop: 0, borderBottom: 0,
+            meshType: cc.SpriteFrame.MeshType.RECT, vertices: { ...userData.vertices, rawPosition: [] },
+        };
+        initVerticesData(userData);
+        originalWidth = width;
+        originalHeight = height;
+    }
     const sprite = new cc.SpriteFrame();
     sprite.name = asset.displayName ? asset.displayName : asset._name;
-    sprite.atlasUuid = userData.atlasUuid;
+    sprite.atlasUuid = userData.atlasUuid ?? '';
     // @ts-ignore
     sprite._rect = cc.rect(userData.trimX, userData.trimY, userData.width, userData.height);
 
     // @ts-ignore
-    sprite._originalSize = cc.size(userData.rawWidth, userData.rawHeight);
+    sprite._originalSize = cc.size(originalWidth, originalHeight);
     // @ts-ignore
     sprite._offset = cc.v2(userData.offsetX, userData.offsetY);
     // @ts-ignore

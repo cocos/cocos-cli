@@ -19,6 +19,8 @@ export interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    /** Render only the rectangle enclosed by the four authored borders. */
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
