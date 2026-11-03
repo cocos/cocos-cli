@@ -16,6 +16,9 @@ async function preload(options: {
      * 引擎分发目录（引擎编译后的目录）
      */
     engineDev: string;
+    /** Absolute adapter paths supplied by the selected engine backend. */
+    webAdapterPath?: string;
+    engineAdapterPath?: string | null;
     /**
      * 引擎可写目录
      */
@@ -28,6 +31,7 @@ async function preload(options: {
     editorMode?: boolean;
     /** Preserve runtime component semantics when editor-only engine capabilities are enabled. */
     previewMode?: boolean;
+    configureEngine?: (engine: unknown, getModule: (id: string) => unknown) => void;
     validateEngine?: (engine: unknown) => void;
 }) {
     try {
@@ -63,7 +67,7 @@ async function preload(options: {
         };
         
         // loader web adapter
-        require(join(options.engineRoot, 'bin/.editor/web-adapter.js'));
+        require(options.webAdapterPath ?? join(options.engineRoot, 'bin/.editor/web-adapter.js'));
         // init EngineLoader
         await EngineLoader.init(options.engineDev, options.requiredModules);
 
@@ -72,9 +76,12 @@ async function preload(options: {
             // @ts-ignore
             // eslint-disable-next-line no-undef
             const ccm = window.ccm = require('cc');
+            options.configureEngine?.(ccm, id => EngineLoader.getEngineModuleById(id));
             options.validateEngine?.(ccm);
 
-            await import(join(options.engineRoot, 'bin/.editor/engine-adapter.js'));
+            if (options.engineAdapterPath !== null) {
+                await import(options.engineAdapterPath ?? join(options.engineRoot, 'bin/.editor/engine-adapter.js'));
+            }
             // ---- hack creator 使用的一些 engine 参数
             require('./polyfill/engine');
             // overwrite

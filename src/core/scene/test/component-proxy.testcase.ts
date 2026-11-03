@@ -583,15 +583,18 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - boolean类型', async () => {
             try {
+                // Outline moved onto Label in 3.8.2; earlier engines use a separate component.
+                const booleanKey = componentInfo?.properties.enableOutline ? 'enableOutline' : 'enableWrapText';
+                const initial = booleanKey === 'enableOutline' ? false : true;
                 const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
-                    properties: { enableOutline: true },
+                    properties: { [booleanKey]: !initial },
                 };
-                expect(componentInfo?.properties['enableOutline'].value).toBe(false);
+                expect(componentInfo?.properties[booleanKey].value).toBe(initial);
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
-                expect(componentInfo?.properties['enableOutline'].value).toBe(true);
+                expect(componentInfo?.properties[booleanKey].value).toBe(!initial);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;
@@ -599,10 +602,12 @@ describe('Component Proxy 测试', () => {
         });
         it('setProperty - 设置组件属性 - color类型', async () => {
             try {
+                const colorKey = componentInfo?.properties.outlineColor ? 'outlineColor' : 'color';
+                const initialChannel = colorKey === 'outlineColor' ? 0 : 255;
                 const setComponentProperty: ISetPropertyOptionsInfo = {
                     componentPath: componentPath,
                     properties: {
-                        outlineColor: {
+                        [colorKey]: {
                             r: 50,
                             g: 100,
                             b: 150,
@@ -610,17 +615,17 @@ describe('Component Proxy 测试', () => {
                         }
                     },
                 };
-                expect(componentInfo?.properties['outlineColor'].value.r).toBe(0);
-                expect(componentInfo?.properties['outlineColor'].value.g).toBe(0);
-                expect(componentInfo?.properties['outlineColor'].value.b).toBe(0);
-                expect(componentInfo?.properties['outlineColor'].value.a).toBe(255);
+                expect(componentInfo?.properties[colorKey].value.r).toBe(initialChannel);
+                expect(componentInfo?.properties[colorKey].value.g).toBe(initialChannel);
+                expect(componentInfo?.properties[colorKey].value.b).toBe(initialChannel);
+                expect(componentInfo?.properties[colorKey].value.a).toBe(255);
                 const result = await ComponentProxy.setProperty(setComponentProperty);
                 expect(result).toBe(true);
                 componentInfo = await ComponentProxy.query(queryComponent) as IComponentInfo;
-                expect(componentInfo?.properties['outlineColor'].value.r).toBe(50);
-                expect(componentInfo?.properties['outlineColor'].value.g).toBe(100);
-                expect(componentInfo?.properties['outlineColor'].value.b).toBe(150);
-                expect(componentInfo?.properties['outlineColor'].value.a).toBe(200);
+                expect(componentInfo?.properties[colorKey].value.r).toBe(50);
+                expect(componentInfo?.properties[colorKey].value.g).toBe(100);
+                expect(componentInfo?.properties[colorKey].value.b).toBe(150);
+                expect(componentInfo?.properties[colorKey].value.a).toBe(200);
             } catch (e) {
                 console.log(`setComponentProperty test error:  ${e}`);
                 throw e;

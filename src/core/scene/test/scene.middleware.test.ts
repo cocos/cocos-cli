@@ -81,6 +81,31 @@ describe('scene asset middleware', () => {
         expect(response.send).toHaveBeenCalledWith(filePath);
     });
 
+    it('serves a sole binary CCON library file through its advertised cconb URL', async () => {
+        const response = createResponse();
+        const binary = Buffer.from([67, 67, 79, 78, 0, 255, 128]);
+        mockQueryAssetInfo.mockReturnValue({ library: { '.bin': '/tmp/clip.bin' } });
+        mockReadFile.mockResolvedValue(binary);
+        const request = createRequest('Mozilla/5.0');
+        request.params.ext = 'cconb';
+        await route!.handler(request, response as any);
+        expect(mockReadFile).toHaveBeenCalledWith('/tmp/clip.bin');
+        expect(response.status).toHaveBeenCalledWith(200);
+        expect(response.send).toHaveBeenCalledWith(binary);
+        expect(response.setHeader).toHaveBeenCalledWith('Content-Type', 'application/octet-stream');
+    });
+
+    it('does not reinterpret unrelated bin companions as CCON', async () => {
+        const response = createResponse();
+        mockQueryAssetInfo.mockReturnValue({ library: { '.bin': '/tmp/mesh.bin', '.json': '/tmp/mesh.json' } });
+        mockPathExists.mockResolvedValue(false);
+        const request = createRequest('Mozilla/5.0');
+        request.params.ext = 'cconb';
+        await route!.handler(request, response as any);
+        expect(response.status).toHaveBeenCalledWith(404);
+        expect(mockReadFile).not.toHaveBeenCalled();
+    });
+
     it('decodes asset URLs before querying asset info', async () => {
         const response = createResponse();
         const dbUrl = 'db://internal/effects/builtin-standard.effect';

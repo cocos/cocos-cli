@@ -19,6 +19,7 @@ export const SceneHandler: AssetHandler = {
     assetType: 'cc.SceneAsset',
     createInfo: {
         async generateMenuInfo() {
+            const { Engine } = await import('../../../../engine');
             const templateDir = 'db://internal/default_file_content/scene';
             return ['3d', '2d', 'quality'].map((name) => {
                 return {
@@ -26,7 +27,7 @@ export const SceneHandler: AssetHandler = {
                     label: `i18n:ENGINE.assets.newScene.${name}`,
                     name,
                     fullFileName: name === '3d' ? 'scene.scene' : `scene-${name}.scene`,
-                    template: `${templateDir}/${name}.scene`,
+                    template: Engine.resolveAssetTemplate(`${templateDir}/${name}.scene`),
                 };
             });
         },

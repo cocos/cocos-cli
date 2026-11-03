@@ -3,6 +3,7 @@
 import { checkStartScene } from '../../builder/share/common-options-validator';
 
 import { basename } from 'path';
+import glob from 'fast-glob';
 import { assetManager, assetDBManager } from '..';
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
@@ -349,7 +350,9 @@ describe('测试 db 的查询接口', function () {
 
         it('查询 internal 目录下 ccType = cc.SceneAsset 资源', async () => {
             const allScenes = await assetManager.queryAssetInfos({ ccType: 'cc.SceneAsset', pattern: 'db://internal/**/*' });
-            expect(allScenes.length).toBe(6);
+            const sceneFiles = await glob('**/*.scene', { cwd: join(TestGlobalEnv.engineRoot, 'editor/assets'), onlyFiles: true });
+            // Flat legacy templates have no .scene extension; an empty result is valid.
+            expect(allScenes).toHaveLength(sceneFiles.length);
         });
         it('查询 internal 目录下 extname = mp4资源', async () => {
             const allMP4 = await assetManager.queryAssetInfos({ extname: '.mp4', pattern: 'db://internal/**/*' });

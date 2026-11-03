@@ -22,7 +22,8 @@ jest.mock('../../engine/metadata', () => ({
 import i18n from '../i18n';
 import * as path from 'path';
 
-const ENGINE_PATH = path.resolve(__dirname, '../../../../packages/engine');
+// Literal translation snapshots describe the CLI host vocabulary, not historical wording.
+const ENGINE_PATH = process.env.COCOS_TEST_HOST_ENGINE_PATH || path.resolve(__dirname, '../../../../packages/engine');
 
 /**
  * 将嵌套对象扁平化为 dot 分隔的 key-value 对
@@ -992,5 +993,28 @@ describe('registerLanguagePatch 边界场景测试', () => {
         expect(i18n.transI18nName('i18n:engine.trans_test.myKey')).toBe('My Translation');
         expect(i18n.transI18nName('plainText')).toBe('plainText');
         expect(i18n.transI18nName('')).toBe('');
+    });
+});
+
+
+describe('selected engine translations', () => {
+    test.each(['en', 'zh'])('loads every source translation from the selected %s dictionary', lang => {
+        const selected = path.resolve(__dirname, '../../../../packages/engine');
+        const { Engine } = require('../../engine');
+        Engine._loadEngineI18n(selected);
+        i18n.setLanguage(lang);
+        const { readdirSync, statSync } = require('fs');
+        const expected: Record<string, string> = {};
+        const visit = (dir: string) => {
+            for (const entry of readdirSync(dir)) {
+                const file = path.join(dir, entry);
+                if (statSync(file).isDirectory()) visit(file);
+                else if (entry.endsWith('.js')) Object.assign(expected, flattenObject(require(file), 'ENGINE'));
+            }
+        };
+        visit(path.join(selected, 'editor/i18n', lang));
+        expect(Object.keys(expected).length).toBeGreaterThan(100);
+        const mismatches = Object.entries(expected).filter(([key, value]) => i18n.t(key as any) !== value);
+        expect(mismatches).toEqual([]);
     });
 });

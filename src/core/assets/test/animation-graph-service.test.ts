@@ -25,6 +25,12 @@ jest.mock('gl', () => {
 });
 
 import { join } from 'path';
+import { Engine } from '../../engine';
+
+function readEngineTemplate(relative: string): string {
+    const url = Engine.resolveAssetTemplate('db://internal/default_file_content/' + relative);
+    return readFileSync(join(TestGlobalEnv.engineRoot, 'editor/assets', url.slice('db://internal/'.length)), 'utf8');
+}
 import { readFileSync, remove } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
@@ -38,10 +44,7 @@ describe('animation graph asset service', () => {
     const name = `animation-graph-service-${Date.now()}`;
 
     function getDefaultGraphContent(): string {
-        return readFileSync(join(
-            TestGlobalEnv.engineRoot,
-            'editor/assets/default_file_content/animation-graph/default.animgraph',
-        ), 'utf8');
+        return readEngineTemplate('animation-graph/default.animgraph');
     }
 
     beforeAll(async () => {
@@ -59,8 +62,7 @@ describe('animation graph asset service', () => {
         try {
             const asset = await assetManager.createAsset({
                 target: join(TestGlobalEnv.testRoot, `${name}-type.${extension}`),
-                content: readFileSync(join(TestGlobalEnv.engineRoot,
-                    `editor/assets/default_file_content/${importer}/default.${extension}`), 'utf8'),
+                content: readEngineTemplate(`${importer}/default.${extension}`),
                 overwrite: true,
             });
             const expected = {
@@ -88,8 +90,7 @@ describe('animation graph asset service', () => {
         });
         const variant = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-variant.animgraphvari`),
-            content: readFileSync(join(TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-graph-variant/default.animgraphvari'), 'utf8'),
+            content: readEngineTemplate('animation-graph-variant/default.animgraphvari'),
             overwrite: true,
         });
         await assetManager.queryAnimationGraphVariant(variant.uuid);
@@ -1313,8 +1314,14 @@ describe('animation graph asset service', () => {
         const propsDescriptor = Object.getOwnPropertyDescriptor(outputConstructor, '__props__');
         const valuesDescriptor = Object.getOwnPropertyDescriptor(outputConstructor, '__values__')!;
         const deserializeDescriptor = Object.getOwnPropertyDescriptor(outputConstructor, '__deserialize__');
-        expect(valuesDescriptor.value).not.toContain('__editorExtras__');
-        const readonlyValuesDescriptor = { ...valuesDescriptor, writable: false };
+        // Older engines already serialize editor extras. Remove it temporarily so
+        // every backend exercises registration failure rather than a no-op.
+        if (propsDescriptor) Object.defineProperty(outputConstructor, '__props__', {
+            ...propsDescriptor, value: propsDescriptor.value.filter((key: string) => key !== '__editorExtras__'),
+        });
+        const initialPropsDescriptor = Object.getOwnPropertyDescriptor(outputConstructor, '__props__');
+        const readonlyValuesDescriptor = { ...valuesDescriptor,
+            value: valuesDescriptor.value.filter((key: string) => key !== '__editorExtras__'), writable: false };
         Object.defineProperty(outputConstructor, '__values__', readonlyValuesDescriptor);
         try {
             await expect(assetManager.executeAnimationGraphCommand(asset.uuid, {
@@ -1326,7 +1333,7 @@ describe('animation graph asset service', () => {
                 },
                 expected: snapshot,
             })).rejects.toThrow();
-            expect(Object.getOwnPropertyDescriptor(outputConstructor, '__props__')).toEqual(propsDescriptor);
+            expect(Object.getOwnPropertyDescriptor(outputConstructor, '__props__')).toEqual(initialPropsDescriptor);
             expect(Object.getOwnPropertyDescriptor(outputConstructor, '__values__')).toEqual(readonlyValuesDescriptor);
             expect(Object.getOwnPropertyDescriptor(outputConstructor, '__deserialize__')).toEqual(deserializeDescriptor);
             expect((await assetManager.queryAnimationGraph(asset.uuid)).revision).toBe(snapshot.revision);
@@ -1353,18 +1360,12 @@ describe('animation graph asset service', () => {
         });
         const mask = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}.animask`),
-            content: readFileSync(join(
-                TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-mask/default.animask',
-            ), 'utf8'),
+            content: readEngineTemplate('animation-mask/default.animask'),
             overwrite: true,
         });
         const clip = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}.anim`),
-            content: readFileSync(join(
-                TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-clip/default.anim',
-            ), 'utf8'),
+            content: readEngineTemplate('animation-clip/default.anim'),
             overwrite: true,
         });
 
@@ -1439,18 +1440,12 @@ describe('animation graph asset service', () => {
         });
         const clip = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-asset-drag.anim`),
-            content: readFileSync(join(
-                TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-clip/default.anim',
-            ), 'utf8'),
+            content: readEngineTemplate('animation-clip/default.anim'),
             overwrite: true,
         });
         const mask = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-asset-drag.animask`),
-            content: readFileSync(join(
-                TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-mask/default.animask',
-            ), 'utf8'),
+            content: readEngineTemplate('animation-mask/default.animask'),
             overwrite: true,
         });
 
@@ -1627,10 +1622,7 @@ describe('animation graph asset service', () => {
         });
         const clip = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-add-state-clip.anim`),
-            content: readFileSync(join(
-                TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-clip/default.anim',
-            ), 'utf8'),
+            content: readEngineTemplate('animation-clip/default.anim'),
             overwrite: true,
         });
         const initial = await assetManager.queryAnimationGraph(asset.uuid);
@@ -1710,10 +1702,7 @@ describe('animation graph asset service', () => {
         });
         const clip = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-motion-preview-clip.anim`),
-            content: readFileSync(join(
-                TestGlobalEnv.engineRoot,
-                'editor/assets/default_file_content/animation-clip/default.anim',
-            ), 'utf8'),
+            content: readEngineTemplate('animation-clip/default.anim'),
             overwrite: true,
         });
 

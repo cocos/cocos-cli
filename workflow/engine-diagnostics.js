@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { inspectEngineBackend } = require('../adapters/engine/registry.cjs');
 const { resolveEngineSelection } = require('./engine-path');
 const { readPolicy, describePolicy, checkEngineCompatibility } = require('./engine-compatibility');
 
@@ -32,7 +33,7 @@ function diagnose(root, { projectRoot, explicitPath } = {}) {
         schemaVersion: 1, ok: false, cli: cliIdentity(root),
         environment: { node: process.version, platform: process.platform, arch: process.arch, nodeAbi: process.versions.modules },
         project: projectRoot ? path.resolve(projectRoot) : null,
-        engine: null, compatibility: null, runtimeInterfaces: 'not-tested',
+        engine: null, adapter: null, compatibility: null, runtimeInterfaces: 'not-tested',
         lastInitialization: null, warnings: [], errors: [],
     };
     try {
@@ -41,6 +42,8 @@ function diagnose(root, { projectRoot, explicitPath } = {}) {
         const projectConfig = projectSettings(report.project);
         const selection = resolveEngineSelection(root, { projectRoot: report.project, explicitPath, projectConfig });
         report.engine = engineIdentity(selection);
+        report.adapter = inspectEngineBackend(selection, policy);
+        if (report.adapter.runtimeSupport === 'discovery-only') report.warnings.push('This engine series is recognized but runtime/toolchain adaptation is not implemented.');
         const match = checkEngineCompatibility(selection, root, 'web');
         report.compatibility.passed = true;
         if (match.experimental) report.warnings.push('Experimental successor engine; full compatibility is not guaranteed.');

@@ -2,16 +2,7 @@ import { join } from 'path';
 import { mkdtemp, rm } from 'fs/promises';
 import { tmpdir } from 'os';
 import type { Component, Node } from 'cc';
-import { TestGlobalEnv } from '../../../tests/global-env';
 import type { IEditorSessionSnapshot } from '../scene-process/service/core/editor-session';
-
-const engineModules = [
-    'cc', 'cc/editor/populate-internal-constants', 'cc/editor/serialization',
-    'cc/editor/new-gen-anim', 'cc/editor/embedded-player', 'cc/editor/reflection-probe',
-    'cc/editor/lod-group-utils', 'cc/editor/material', 'cc/editor/2d-misc',
-    'cc/editor/offline-mappings', 'cc/editor/custom-pipeline', 'cc/editor/animation-clip-migration',
-    'cc/editor/exotic-animation', 'cc/editor/color-utils',
-];
 
 describe('Serialized node data with the real engine', () => {
     let engine: typeof import('cc');
@@ -21,22 +12,8 @@ describe('Serialized node data with the real engine', () => {
 
     beforeAll(async () => {
         jest.resetModules();
-        const { EngineLoader } = await import('cc/loader.js');
-        engineModules.forEach(module => {
-            jest.doMock(module, () => EngineLoader.getEngineModuleById(module), { virtual: true });
-        });
         writablePath = await mkdtemp(join(tmpdir(), 'cocos-serialized-nodes-'));
-        const { Engine } = await import('../../engine');
-        await Engine.importEditorExtensions();
-        const { default: preload } = await import('cc/preload');
-        await preload({
-            engineRoot: TestGlobalEnv.engineRoot,
-            engineDev: join(TestGlobalEnv.engineRoot, 'bin/.cache/dev-cli'),
-            writablePath,
-            requiredModules: engineModules,
-        });
-        await Engine.initEditorExtensions();
-        engine = await import('cc');
+        engine = await (await import('../../test/preload-test-engine')).preloadTestEngine(writablePath);
         class TestReferences extends engine.Component {
             target: Node | null = null;
             component: Component | null = null;

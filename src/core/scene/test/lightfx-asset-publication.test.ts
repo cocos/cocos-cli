@@ -74,11 +74,11 @@ describe('Fixed Lightmap publication after saving', () => {
         const uuid = await add('LFX_Mesh_0000.png');
         const outside = join(project, 'outside');
         await ensureDir(outside);
-        if (kind === 'directory') await symlink(outside, path('db://assets/LightFX'));
+        if (kind === 'directory') await symlink(outside, path('db://assets/LightFX'), process.platform === 'win32' ? 'junction' : 'dir');
         else {
             const meta = `${path('db://assets/LightFX/output/LFX_Mesh_0000.png')}.meta`;
             await ensureDir(dirname(meta));
-            await symlink(join(outside, 'absent'), meta);
+            await symlink(join(outside, 'absent'), meta, process.platform === 'win32' ? 'junction' : 'file');
         }
         await expect(publishLightmapTextures(root, [uuid], staging, 'db://assets/LightFX')).rejects.toThrow('symbolic');
         expect(mockAssets.moveAsset).not.toHaveBeenCalled();

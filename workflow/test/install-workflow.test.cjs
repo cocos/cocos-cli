@@ -24,7 +24,8 @@ function write(root, name, content = '') {
 }
 function prepared(root, engine = 'my engine') {
     write(root, 'config.local.json', { project: 'preserve-me', enginePath: engine });
-    for (const file of ['package.json', 'bin/.declarations/cc.d.ts', 'bin/.declarations/cc.editor.d.ts', 'bin/.cache/dev-cli/editor/loader.js']) write(root, `${engine}/${file}`, '{}');
+    write(root, engine + '/package.json', { version: '4.0.0-beta.0' });
+    for (const file of ['bin/.declarations/cc.d.ts', 'bin/.declarations/cc.editor.d.ts', 'bin/.cache/dev-cli/editor/loader.js']) write(root, `${engine}/${file}`, '{}');
     return path.join(root, engine);
 }
 function repoConfig(root, dist = 'packages/engine') {
@@ -120,7 +121,7 @@ test('CLI setup reports missing engine outputs before running commands', async t
     let count = 0;
     const run = async () => { count++; };
     await assert.rejects(setupDev({ root, compileEngine: false, run }), /Engine is missing/);
-    write(root, 'packages/engine/package.json', '{}');
+    write(root, 'packages/engine/package.json', { version: '4.0.0-beta.0' });
     await assert.rejects(setupDev({ root, compileEngine: false, run }), /missing bin/);
     assert.equal(count, 0);
 });

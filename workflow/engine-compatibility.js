@@ -1,6 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const semver = require('semver');
+const { getEngineBackendAdapter } = require('../adapters/engine/registry.cjs');
 
 function readPolicy(root) {
     const file = path.join(root, 'engine-compatibility.json');
@@ -40,31 +41,42 @@ function failure(selection, policy, reason) {
 
 function checkEngineCompatibility(selection, root, profile = 'source') {
     const policy = readPolicy(root);
-    const match = matchEngineVersion(selection.version, policy);
-    if (!match.supported) throw failure(selection, policy, match.reason);
-    if (!['source', 'runtime', 'web'].includes(profile)) throw failure(selection, policy, `Unknown validation profile ${profile}`);
-    const profiles = profile === 'source' ? ['source'] : profile === 'runtime' ? ['source', 'runtime'] : ['source', 'runtime', 'web'];
-    for (const file of profiles.flatMap(name => policy.requiredFiles[name])) {
+    let match = matchEngineVersion(selection.version, policy);
+    const optIn = process.env.COCOS_EXPERIMENTAL_ENGINE_ADAPTERS === '1';
+    if (!match.supported && optIn) {
         try {
-            if (!fs.statSync(path.join(selection.path, file)).isFile()) throw new Error('not a file');
-        } catch { throw failure(selection, policy, `Missing required ${profile} file: ${file}`); }
+            if (getEngineBackendAdapter(selection).runtimeSupport === 'experimental') match = { supported: true, experimental: true };
+        } catch { /* Preserve the version-policy error for unsupported engines. */ }
     }
+    if (!match.supported) throw failure(selection, policy, match.reason);
+    if (!['source', 'runtime', 'web'].includes(profile)) throw failure(selection, policy, 'Unknown validation profile ' + profile);
+    let adapter;
+    try {
+        adapter = getEngineBackendAdapter(selection);
+        if (adapter.runtimeSupport === 'discovery-only') throw new Error('Adapter ' + adapter.id + ' supports discovery only; runtime adaptation is not implemented');
+        if (adapter.runtimeSupport === 'experimental' && !optIn) throw new Error('Experimental backend requires COCOS_EXPERIMENTAL_ENGINE_ADAPTERS=1');
+    } catch (error) { throw failure(selection, policy, error.message); }
+    const profiles = profile === 'source' ? ['source'] : profile === 'runtime' ? ['source', 'runtime'] : ['source', 'runtime', 'web'];
+    const required = adapter.requiredFiles ? adapter.requiredFiles(selection, profile) : profiles.flatMap(name => policy.requiredFiles[name]).map(file => path.join(selection.path, file));
+    for (const file of required) {
+        try {
+            if (!fs.statSync(file).isFile()) throw new Error('not a file');
+        } catch { throw failure(selection, policy, 'Missing required ' + profile + ' file: ' + path.relative(selection.path, file).split(path.sep).join('/')); }
+    }
+    try { adapter.validatePreparation?.(selection, profile); } catch (error) { throw failure(selection, policy, error.message); }
     for (const file of ['cc.config.json', 'editor/engine-features/render-config.json']) {
         try {
             const config = JSON.parse(fs.readFileSync(path.join(selection.path, file), 'utf8'));
             if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('Expected an object');
-        } catch { throw failure(selection, policy, `Invalid required configuration: ${file}`); }
+        } catch { throw failure(selection, policy, 'Invalid required configuration: ' + file); }
     }
     return match;
 }
 
 function assertRuntimeInterfaces(engine, selection, root) {
     const policy = readPolicy(root);
-    for (const key of ['game.init', 'physics.selector.switchTo', 'Node', 'Component']) {
-        const value = key.split('.').reduce((value, part) => value?.[part], engine);
-        if (typeof value !== 'function') throw failure(selection, policy, `Missing required interface cc.${key}`);
-    }
-    if (!engine.Layers || typeof engine.Layers.Enum !== 'object' || !engine.Layers.Enum) throw failure(selection, policy, 'Missing required interface cc.Layers.Enum');
+    try { getEngineBackendAdapter(selection).validateRuntime(engine, selection); }
+    catch (error) { throw failure(selection, policy, error.message); }
 }
 
 function queryOptionalSortingLayers(engine) {

@@ -3,6 +3,7 @@ const path = require('path');
 const utils = require('./utils');
 const { parseArgs } = require('node:util');
 const { resolveEnginePath } = require('./engine-path');
+const { getEngineBackendAdapter } = require('../adapters/engine/registry.cjs');
 
 if (!utils.hasDevelopmentEnvironment()) return;
 
@@ -47,12 +48,16 @@ module.exports = modsMgr.syncImport('${moduleId}');
 
     const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'engine-path': { type: 'string' } } });
     const enginePath = resolveEnginePath(path.join(__dirname, '..'), values['engine-path']);
+    const selection = { path: enginePath, version: fse.readJsonSync(path.join(enginePath, 'package.json')).version };
+    const adapter = getEngineBackendAdapter(selection);
+    if (adapter.runtimeSupport === 'experimental') throw new Error('Legacy runtime declarations must not replace CLI development host bindings; build the CLI with its default engine.');
+    const layout = adapter.runtime(selection);
 
     const ccTemplatePath = path.join(__dirname, '../packages/cc-module/statics/cc-template.d.ts');
     const ccPath = path.join(__dirname, '../packages/cc-module/cc.d.ts');
 
-    const ccdPath = path.join(enginePath, '/bin/.declarations/cc.d.ts');
-    const ccEditorExportsDtsPath = path.join(enginePath, 'bin/.declarations/cc.editor.d.ts');
+    const ccdPath = layout.declarations;
+    const ccEditorExportsDtsPath = layout.editorDeclarations;
 
     const relativeCcdPath = path.relative(path.dirname(ccPath), ccdPath);
     const relativeCcEditorExportsDtsPath = path.relative(path.dirname(ccPath), ccEditorExportsDtsPath);
@@ -72,7 +77,7 @@ ${fse.readFileSync(ccTemplatePath)}\n
     fse.removeSync(proxyRoot);
     console.log('remove', proxyRoot);
 
-    readDirRecurse(path.join(enginePath, 'editor', 'exports'), (relativePath) => {
+    readDirRecurse(layout.editorExports, (relativePath) => {
         const extReplaced = relativePath.endsWith('.ts') ? relativePath.substr(0, relativePath.length - 3) : relativePath;
         const modulePath = path.join(proxyRoot, `${extReplaced}.js`);
         const moduleCode = generateProxyModule(relativePath);

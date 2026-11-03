@@ -3,6 +3,7 @@ const path = require('node:path');
 const { parseArgs } = require('node:util');
 const utils = require('./utils');
 const { resolveEnginePath } = require('./engine-path');
+const { getEngineBackendAdapter } = require('../adapters/engine/registry.cjs');
 
 /** Explicit environment preparation; never called by an npm install lifecycle. */
 async function setupDev({ compileEngine = true, force = false, minimalTools = false, root = path.resolve(__dirname, '..'), run = utils.runCommand } = {}) {
@@ -10,9 +11,13 @@ async function setupDev({ compileEngine = true, force = false, minimalTools = fa
     if (!fs.existsSync(path.join(engine, 'package.json'))) {
         throw new Error(`Engine is missing at ${engine}. Configure enginePath in config.local.json, install a prepared SDK in packages/engine, or explicitly run npm run fetch:engine and npm run install:engine for source development.`);
     }
+    const selection = { path: engine, version: JSON.parse(fs.readFileSync(path.join(engine, 'package.json'), 'utf8').replace(/^\uFEFF/, '')).version };
+    const adapter = getEngineBackendAdapter(selection);
+    if (adapter.runtimeSupport === 'experimental') throw new Error('Build the CLI development host with its default engine. Prepare this legacy runtime with workflow/compiler-engine.js --engine-path <path>; do not replace CLI host declaration bindings.');
+    const layout = adapter.runtime(selection);
     if (!compileEngine) {
-        for (const file of ['bin/.declarations/cc.d.ts', 'bin/.declarations/cc.editor.d.ts', 'bin/.cache/dev-cli/editor/loader.js']) {
-            if (!fs.existsSync(path.join(engine, file))) throw new Error(`Prepared Engine SDK is missing ${file} at ${engine}. Use npm run setup:dev to compile engine source explicitly.`);
+        for (const file of [layout.declarations, layout.editorDeclarations, layout.editorLoader]) {
+            if (!fs.existsSync(file)) throw new Error(`Prepared Engine SDK is missing ${path.relative(engine, file).split(path.sep).join('/')} at ${engine}. Use npm run setup:dev to compile engine source explicitly.`);
         }
     }
     const forceArgs = force ? ['--force'] : [];

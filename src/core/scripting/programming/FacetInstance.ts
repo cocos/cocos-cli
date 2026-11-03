@@ -1,4 +1,6 @@
-import { join } from 'path';
+import { dirname } from 'path';
+import { readFileSync } from 'fs';
+import { getEngineBackendAdapter } from '../../engine/adapter';
 import { ProgrammingFacet } from './Facet';
 
 let programmingFacet: ProgrammingFacet | null = null;
@@ -6,10 +8,12 @@ let createProgrammingFacetPromise: Promise<ProgrammingFacet> | null = null;
 
 export async function createProgrammingFacet(enginePath: string, projectPath: string, features: string[]) {
     if (!programmingFacet) {
+        const selection = { path: enginePath, version: JSON.parse(readFileSync(enginePath + '/package.json', 'utf8')).version };
+        const runtime = getEngineBackendAdapter(selection).runtime(selection);
         programmingFacet = await ProgrammingFacet.create(
             {
                 root: enginePath,
-                distRoot: join(enginePath, 'bin', '.cache', 'dev-cli', 'web'),
+                distRoot: dirname(runtime.webLoader),
                 baseUrl: '/scripting/engine',
                 features,
             },

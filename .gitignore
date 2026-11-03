@@ -53,3 +53,9 @@ profiles/cocos.config.json
 
 # performance profiling artifacts
 perf/
+
+# Isolated engine-adapter Jest workspaces and reports
+/.build/adapter-tests/
+
+# Isolated historical engine sources and dependencies
+/.build/engine-versions/

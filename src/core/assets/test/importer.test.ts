@@ -23,23 +23,25 @@ describe('Import Project', () => {
     testAssets.forEach((asset) => {
         const assetPath = join(TestGlobalEnv.projectRoot, asset.url);
         const metaPath = assetPath + '.meta';
-        const meta = readJSONSync(metaPath);
+        const readMeta = () => readJSONSync(metaPath);
         describe(asset.name + ' import', () => {
             it('meta exists', () => {
                 expect(existsSync(metaPath)).toBeTruthy();
             });
             it('importer', () => {
-                expect(meta.importer).toEqual(asset.importer);
+                expect(readMeta().importer).toEqual(asset.importer);
             });
             asset.library.forEach((extension) => {
                 it('library exists', () => {
-                    const uuid = meta.uuid;
+                    const uuid = readMeta().uuid;
                     expect(existsSync(join(TestGlobalEnv.projectRoot, `library/${uuid.substring(0, 2)}/${uuid}${extension}`))).toBeTruthy();
                 });
             });
 
             it('imported', () => {
-                expect(meta.imported).toBeTruthy;
+                const meta = readMeta();
+                expect(meta.imported).toBe(true);
+                expect(meta.invalid).not.toBe(true);
             });
         });
     });

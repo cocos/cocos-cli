@@ -8,11 +8,13 @@ const crypto = require('node:crypto');
 const { parseArgs } = require('node:util');
 const semver = require('semver');
 const { resolveEnginePath } = require('./engine-path');
+const { getEngineBackendAdapter } = require('../adapters/engine/registry.cjs');
+const { supportsVersion: isLegacy38 } = require('../adapters/engine/cocos38/compiler.cjs');
 
-const CLI_ROOTS = ['dist', 'static', 'docs/en', 'docs/zh', 'docs/sdk-packaging.md', 'docs/dev/environment-setup.md', 'readme.md', 'README-zh.md', 'config.local.example.json', 'engine-compatibility.json', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'packages/cc-module', 'packages/engine-compiler/dist', 'packages/platforms', 'LICENSE'];
-const ENGINE_ROOTS = ['cocos', 'editor', 'exports', 'extensions', 'external', 'native', 'pal', 'templates', 'vendor', 'licenses', '@types', 'bin/.cache/dev-cli', 'bin/.declarations', 'bin/.editor', 'bin/adapter', 'bin/simulator', 'bin/native-preview', 'cc.config.json', 'cc.config.schema.json', 'DebugInfos.json', 'DebugInfos.d.ts', 'predefine.ts', 'tsconfig.json', 'LICENSE', 'AUTHORS.txt'];
+const CLI_ROOTS = ['dist', 'static', 'docs/en', 'docs/zh', 'docs/sdk-packaging.md', 'docs/dev/environment-setup.md', 'readme.md', 'README-zh.md', 'config.local.example.json', 'engine-compatibility.json', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'adapters/engine', 'packages/cc-module', 'packages/engine-compiler/dist', 'packages/platforms', 'LICENSE'];
+const ENGINE_ROOTS = ['cocos', 'editor', 'exports', 'extensions', 'external', 'native', 'pal', 'templates', 'vendor', 'licenses', '@types', 'bin/.cache/dev-cli', 'bin/.cache/dev-cli-3.8', 'bin/.declarations', 'bin/.editor', 'bin/adapter', 'bin/simulator', 'bin/native-preview', 'cc.config.json', 'cc.config.schema.json', 'DebugInfos.json', 'DebugInfos.d.ts', 'predefine.ts', 'tsconfig.json', 'LICENSE', 'AUTHORS.txt'];
 const REQUIRED = {
-    cli: ['dist/cli.js', 'dist/index.js', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'engine-compatibility.json', 'packages/cc-module/loader.js', 'packages/cc-module/preload.js', 'packages/engine-compiler/dist/index.js'],
+    cli: ['dist/cli.js', 'dist/index.js', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'adapters/engine/registry.cjs', 'adapters/engine/cocos3-discovery.cjs', 'adapters/engine/cocos4/index.cjs', 'adapters/engine/cocos38/index.cjs', 'adapters/engine/cocos38/compiler.cjs', 'adapters/engine/cocos38/host.cjs', 'adapters/engine/cocos38/asset-transport.cjs', 'engine-compatibility.json', 'packages/cc-module/loader.js', 'packages/cc-module/preload.js', 'packages/engine-compiler/dist/index.js'],
     engine: ['cc.config.json', 'cocos/core/platform/macro.ts', 'editor/engine-features/render-config.json', 'bin/.cache/dev-cli/editor/loader.js', 'bin/.cache/dev-cli/web/loader.js', 'bin/.editor/web-adapter.js', 'bin/.editor/engine-adapter.js', 'bin/.declarations/cc.d.ts'],
 };
 const slash = value => value.split(path.sep).join('/');
@@ -77,7 +79,7 @@ function excluded(relative, kind, dependency) {
     if (dependency) return false;
     if (kind === 'cli' && (parts.includes('test') || parts.includes('tests') || parts.includes('__tests__'))) return true;
     if (kind === 'cli' && relative.startsWith('packages/') && parts.includes('src')) return true;
-    if (kind === 'engine' && (/^bin\/\.cache\/dev-cli\/(editor|web)\/transform-cache\//.test(relative) || /\/(?:\.incremental\.json|partial-import-map\.json)$/.test(relative))) return true;
+    if (kind === 'engine' && (/^bin\/\.cache\/dev-cli(?:-3\.8)?\/(editor|web)\/transform-cache\//.test(relative) || /\/(?:\.incremental\.json|partial-import-map\.json)$/.test(relative))) return true;
     return false;
 }
 
@@ -117,11 +119,20 @@ async function planSdk({ kind, source }) {
     const root = fs.realpathSync.native(source);
     const pkg = readJson(path.join(root, 'package.json'));
     if (!semver.valid(pkg.version)) throw new Error(`Invalid ${kind} version: ${pkg.version}`);
-    for (const required of REQUIRED[kind]) {
+    let requiredFiles = REQUIRED[kind];
+    if (kind === 'engine' && isLegacy38(pkg.version)) {
+        const selection = { path: root, version: pkg.version };
+        const adapter = getEngineBackendAdapter(selection);
+        adapter.validatePreparation(selection, 'web');
+        requiredFiles = adapter.requiredFiles(selection, 'web').filter(file => inside(root, file)).map(file => path.relative(root, file));
+    }
+    for (const required of requiredFiles) {
         if (!fs.existsSync(path.join(root, required))) throw new Error(`Missing ${kind} SDK build input: ${required}. Build this SDK before packing.`);
     }
     const graph = dependencies(root, pkg);
-    const units = (kind === 'cli' ? CLI_ROOTS : ENGINE_ROOTS)
+    const selectedRoots = kind === 'cli' ? CLI_ROOTS : ENGINE_ROOTS.filter(entry => isLegacy38(pkg.version)
+        ? !['bin/.cache/dev-cli', 'bin/.editor'].includes(entry) : entry !== 'bin/.cache/dev-cli-3.8');
+    const units = selectedRoots
         .filter(relative => fs.existsSync(path.join(root, relative)))
         .map(relative => ({ source: path.join(root, relative), destination: relative, dependency: false, root }));
     for (const node of graph.nodes) units.push({ ...node, dependency: true, root });

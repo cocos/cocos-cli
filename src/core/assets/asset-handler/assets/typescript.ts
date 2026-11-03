@@ -32,7 +32,7 @@ export const TypeScriptHandler: AssetHandler = {
                 {
                     label: 'i18n:ENGINE.assets.newTypeScript',
                     fullFileName: `${ScriptNameChecker.getDefaultClassName()}.ts`,
-                    template: `db://internal/default_file_content/${TypeScriptHandler.name}/default`,
+                    template: Engine.resolveAssetTemplate(`db://internal/default_file_content/${TypeScriptHandler.name}/default`),
                     group: 'script',
                     fileNameCheckConfigs: [DefaultScriptFileNameCheckConfig],
                     name: 'default',
@@ -76,7 +76,7 @@ export const TypeScriptHandler: AssetHandler = {
             return menu;
         },
         async create(options) {
-            const path = url2path(options.template || 'db://internal/default_file_content/typescript/default');
+            const path = url2path(Engine.resolveAssetTemplate(options.template || 'db://internal/default_file_content/typescript/default'));
             if (options.content && typeof options.content !== 'string') {
                 outputFileSync(options.target, options.content, 'utf-8');
                 return options.target;

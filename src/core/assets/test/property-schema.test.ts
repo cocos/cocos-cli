@@ -246,7 +246,10 @@ describe('asset property schema map', () => {
     });
 
     it('keeps built-in property schema i18n keys resolvable', () => {
-        const engineAssetsI18n = require('../../../../packages/engine/editor/i18n/en/assets.js');
+        const enginePath = join(__dirname, '../../../../packages/engine');
+        const { getEngineBackendAdapter } = require('../../engine/adapter');
+        const adapter = getEngineBackendAdapter({ path: enginePath, version: require(join(enginePath, 'package.json')).version });
+        const engineAssetsI18n = require('lodash').merge({}, adapter.getEditorI18nFallbacks?.('en') || {}, require(join(enginePath, 'editor/i18n/en/assets.js')));
         const importerI18n = {
             en: JSON.parse(readFileSync(join(__dirname, '../../../../static/i18n/en/importer.json'), 'utf8')),
             zh: JSON.parse(readFileSync(join(__dirname, '../../../../static/i18n/zh/importer.json'), 'utf8')),

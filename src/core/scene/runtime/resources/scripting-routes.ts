@@ -6,6 +6,7 @@ import { pathExists, stat, readFile } from 'fs-extra';
 import { GlobalPaths } from '../../../../global';
 
 import { readFileSync } from 'fs';
+import { getEngineBackendAdapter } from '../../../engine/adapter';
 import {
     CUSTOM_PIPELINE_MODULE,
     deriveGraphicsConfigFromCustomPipeline,
@@ -617,7 +618,9 @@ export const scriptingRoutes = [
 
                 // If not found, try project temp engine target
                 if (!(await pathExists(resourcePath))) {
-                    const engineDistBase = '/bin/.cache/dev-cli/web';
+                    const selection = { path: enginePath, version: Engine.getInfo().version };
+                    const layout = getEngineBackendAdapter(selection).runtime(selection);
+                    const engineDistBase = '/' + relative(enginePath, path.dirname(layout.webLoader)).split(path.sep).join('/');
                     let projectorRelPath = relPath;
                     if (relPath.startsWith(engineDistBase)) {
                         projectorRelPath = relPath.substring(engineDistBase.length);
