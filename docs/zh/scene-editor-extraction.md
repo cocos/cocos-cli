@@ -56,3 +56,25 @@ CLI 场景 Worker 启用引擎的烘焙能力，同时设置引擎预览行为�
 私有包使用 CLI 明确列出的 `cocos-cli/host/...` 出口并要求精确匹配版本，已取消 `host/*` 通配导出。源码已迁入独立仓库，目标 IDE 仍需更新导入入口并做实际预览验收。新的内核和资源接口见 [场景 runtime 契约](scene-runtime-contract.md)。迁仓不移除 CLI 既有 Git 历史中的源码，独立仓库的访问权限需单独管理。
 
 CLI 中立服务接口仍描述宿主可注册的 Camera/Gizmo 等通信契约，便于复用 RPC 和服务容器；CLI 单独启动时不注册这些可视化实现。接口类型的存在不代表服务可直接调用，宿主应先加载私有包的 `scene-entry`。
+
+## 编辑器类型声明
+
+编辑器类型统一扩展 `@cocos/cocos-cli-types` 现有领域声明。能力契约从 `scene` 入口导入：
+
+```ts
+import type { HostCapabilities, BrowserCapabilities, BrowserHost, Editor } from '@cocos/cocos-cli-types/scene';
+
+type SceneSessionDescriptor = Editor.Browser.SceneSessionProtocol.SceneSessionDescriptor;
+```
+
+原 `@cocos/scene-editor-types` 和 `@cocos/cocos-cli-types/scene-editor` 类型入口已移除。消费方应删除旧类型包和 `scene-editor/*` 的 TypeScript `paths` 配置，改用现有领域入口。每个领域的独有编辑器类型通过 `Editor.Host`、`Editor.Browser` 命名空间提供；模块标识按路径片段首字母大写并拼接，例如资产模块为 `assets` 入口的 `Editor.Host.CoreAssetsIndex`，场景会话协议为 `scene` 入口的 `Editor.Browser.SceneSessionProtocol`。原有公共类型继续直接从对应领域导入。本地源码联调可将 `@cocos/cocos-cli-types/*` 映射到 `packages/cocos-cli-types/*`。
+
+`npm run generate:dts`（以及 `generate:dts:ci`）统一生成公共 API 并扩展编辑器声明。日常 `npm run compile` 也执行完整类型生成，保证每次从公共 API 的干净声明开始合并，避免重复叠加扩展。已有 `dist/**/*.d.ts` 时可直接运行 `npm run generate:dts:ci`；不再提供独立的编辑器类型生成命令。这些步骤整理已有声明，不会再次编译 TypeScript 源码。
+
+生成器按原始编译符号和完整声明识别可复用的公共类型，剩余声明及必要依赖由 API Extractor 按领域合并到原有 `.d.ts`。编辑器全局扩展并入共用的 `cc.editor.d.ts`，`scene.d.ts` 引用这份引擎声明。类型包不再包含 `scene-editor/` 目录、`scene-editor.d.ts` 或内部模块路径兼容层。生成时的临时依赖图在完成后清理，不参与发布。
+
+浏览器实际执行的 JavaScript 仍由 `npm run build:scene-runtime` 生成到 `dist/scene-runtime/`。
+
+运行时打包和编辑器声明共用 `workflow/scene-api-entries.json`：`host` 定义宿主类型入口，`browser` 定义浏览器模块到实际实现的映射，`browserOptions` 描述默认导出、仅类型导出及副作用入口。普通实现路径相对 `src`，`cc/...` 保留引擎模块标识。
+
+`workflow/scene-browser-api.js` 据此自动生成 `dist/core/scene/runtime/browser` 下的兼容 JS 和声明，保持 `cocos-cli/browser/*` 包出口与浏览器运行时入口不变；`prepare-dts`、运行时构建和编辑器类型生成都会准备这份产物。源码中不再维护 `src/core/scene/runtime/browser` 转发文件。配置入口直接复用 `scene-configs`，由 `typeOnly` 选项生成类型导出，运行时不加载宿主配置实例。`runtime/browser-assets` 中的宿主适配器、加载器等实际实现继续保留。
