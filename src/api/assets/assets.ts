@@ -71,6 +71,7 @@ import {
     SchemaFilterPluginOptions,
     SchemaPluginScriptInfo,
     SchemaAssetMoveOptions,
+    SchemaAssetMoveTarget,
     SchemaAssetMovePreflightResult,
     TAssetMovePreflightResult,
     SchemaAssetRenameOptions,
@@ -1022,8 +1023,8 @@ export class AssetsApi {
     @description('Inspect an asset move without changing files. A conflict requires the caller to choose overwrite or automatic rename, or cancel by not submitting. Pass the returned token to moveAsset; changes to the request or observed resource state reject the move.')
     @result(SchemaAssetMovePreflightResult)
     async preflightMoveAsset(
-        @param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath,
-        @param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath,
+        @param(SchemaAssetMoveTarget) target: TDirOrDbPath,
     ): Promise<CommonResultType<TAssetMovePreflightResult>> {
         try {
             return { code: COMMON_STATUS.SUCCESS, data: await assetManager.preflightMoveAsset(source, target) };
@@ -1038,8 +1039,8 @@ export class AssetsApi {
     @description('Move assets from the source location to the target location. Supports moving files and folders, with options to overwrite or automatically rename.') // 将资源从源位置移动到目标位置。支持移动文件和文件夹，可选择是否覆盖或自动重命名。
     @result(SchemaAssetInfoResult)
     async moveAsset(
-        @param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath,
-        @param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath,
+        @param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath,
+        @param(SchemaAssetMoveTarget) target: TDirOrDbPath,
         @param(SchemaAssetMoveOptions) options: TAssetMoveOptions = {}
     ): Promise<CommonResultType<TAssetInfoResult>> {
         const code: HttpStatusCode = COMMON_STATUS.SUCCESS;

@@ -12,6 +12,7 @@ jest.mock('../src/api/decorator/decorator.js', () => jest.requireActual('../src/
     virtual: true,
 });
 
+import { resolve } from 'path';
 import { AssetsApi } from '../src/api/assets/assets';
 import { SchemaAssetMoveOptions, SchemaAssetMovePreflightResult } from '../src/api/assets/schema';
 import { COMMON_STATUS } from '../src/api/base/schema-base';
@@ -48,6 +49,24 @@ describe('asset move public contracts', () => {
         );
         expect(mockMove).not.toHaveBeenCalled();
     });
+
+    it.each(['assets-preflight-move-asset', 'assets-move-asset'])(
+        '%s accepts only Asset DB URLs or absolute paths as move targets',
+        toolName => {
+            const parameters = toolRegistry.get(toolName)!.meta.paramSchemas;
+            const target = parameters.find(parameter => parameter.name === 'target')!.schema;
+            const source = parameters.find(parameter => parameter.name === 'source')!.schema;
+            const uuid = 'b54111b8-81d2-456d-950d-6fe39c5eba09';
+
+            for (const value of [uuid, 'destination/file.txt', '', 'db://']) {
+                expect(target.safeParse(value).success).toBe(false);
+            }
+            for (const value of ['db://assets/destination/file.txt', resolve('assets/destination/file.txt')]) {
+                expect(target.parse(value)).toBe(value);
+            }
+            expect(source.parse(uuid)).toBe(uuid);
+        },
+    );
 
     it('preserves the token through schema parsing and submission and returns final resource data', async () => {
         const result = { uuid: 'source-uuid', url: 'db://assets/destination/source-001.txt' };

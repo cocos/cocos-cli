@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAbsolute } from 'path';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
 import { SchemaUrlOrUUID, SchemaUUIDOrPath, SchemaUrlOrUUIDOrPath, SchemaUrlOrPath } from '../base/schema-identifier';
 
@@ -272,6 +273,14 @@ export const SchemaPluginScriptInfo = z.object({
     file: z.string().describe('File path of plugin script'), // 插件脚本的文件路径
     url: z.string().describe('URL address of plugin script'), // 插件脚本的 URL 地址
 }).describe('Plugin script information'); // 插件脚本信息
+
+export const SchemaAssetMoveTarget = z.string()
+    .trim()
+    .min(1)
+    .refine(value => /^db:\/\/[^/]+(?:\/.*)?$/.test(value) || isAbsolute(value), {
+        message: 'The move target must be an Asset DB URL or an absolute path.',
+    })
+    .describe('Target asset path as a db:// Asset DB URL or an absolute file system path.');
 
 export const SchemaAssetMoveOptions = z.object({
     overwrite: z.boolean().optional().describe('Whether to force overwrite existing files, default false'), // 是否强制覆盖已存在的文件，默认 false
