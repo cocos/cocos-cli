@@ -1,5 +1,7 @@
 import {
     SchemaOpenOptions,
+    SchemaDiscardOptions,
+    SchemaReloadFromDiskOptions,
     SchemaCloseResult,
     SchemaCreateOptions,
     SchemaCreateResult,
@@ -8,6 +10,8 @@ import {
     SchemaReload,
     SchemaSaveResult,
     TOpenOptions,
+    TDiscardOptions,
+    TReloadFromDiskOptions,
     TCloseResult,
     TCreateOptions,
     TCreateResult,
@@ -113,6 +117,32 @@ export class SceneApi {
         }
     }
 
+    @tool('scene-discard')
+    @title('Discard and close scene/prefab')
+    @description('Close the current scene/prefab without saving. Permanently discards unsaved in-memory changes; requires discardChanges: true.')
+    @result(SchemaCloseResult)
+    async discard(@param(SchemaDiscardOptions) options: TDiscardOptions): Promise<CommonResultType<TCloseResult>> {
+        try {
+            const data = await Scene.discard(options);
+            return { code: COMMON_STATUS.SUCCESS, data };
+        } catch (e) {
+            return { code: getCommonErrorStatus(e), reason: e instanceof Error ? e.message : String(e) };
+        }
+    }
+
+    @tool('scene-reload-from-disk')
+    @title('Reload scene/prefab from disk')
+    @description('Discard unsaved changes, then reimport and reopen the current scene/prefab from disk. Requires discardChanges: true. Import or open failures leave the editor closed. Unlike scene-reload, this reads disk content.')
+    @result(SchemaOpenResult)
+    async reloadFromDisk(@param(SchemaReloadFromDiskOptions) options: TReloadFromDiskOptions): Promise<CommonResultType<TOpenResult>> {
+        try {
+            const data = await Scene.reloadFromDisk(options);
+            return { code: COMMON_STATUS.SUCCESS, data: data as TOpenResult };
+        } catch (e) {
+            return { code: getCommonErrorStatus(e), reason: e instanceof Error ? e.message : String(e) };
+        }
+    }
+
     @tool('scene-save')
     @title('Save scene/prefab') // 保存场景/预制体
     @description('Save current opened scene/prefab to asset, including scene node structure, component data, asset references etc. Will update .meta file after save.') // 保存当前打开的场景/预制体到资源，包括场景节点结构、组件数据、资源引用等信息。保存后会更新场景的 .meta 文件。
@@ -167,7 +197,7 @@ export class SceneApi {
 
     @tool('scene-reload')
     @title('Reload scene/prefab') // 重新加载场景/预制体
-    @description('Reload scene/prefab') // 重新加载场景/预制体
+    @description('Reload the current in-memory scene/prefab, preserving live content. Does not reread the source file; use scene-reload-from-disk to discard changes and read disk.') // 重新加载场景/预制体
     @result(SchemaReload)
     async reloadScene(): Promise<CommonResultType<TReload>> {
         try {
