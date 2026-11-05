@@ -1,7 +1,9 @@
 import { GlobalPaths } from '../../global';
 export type * from '../../core/engine/@types/public';
 
-export async function init(projectPath: string): Promise<void> {
+export async function init(projectPath: string, options: { enginePath?: string } = {}): Promise<void> {
+    const { selectProjectEngine } = await import('../../core/engine/selection');
+    await selectProjectEngine(projectPath, options.enginePath);
     const { initEngine } = await import('../../core/engine');
     return await initEngine(GlobalPaths.enginePath, projectPath);
 }
@@ -27,6 +29,8 @@ export async function queryJointTextureLayoutPreview() {
 }
 
 export async function initEngine(enginePath: string, projectPath: string, serverURL?: string) {
+    const { selectProjectEngine } = await import('../../core/engine/selection');
+    await selectProjectEngine(projectPath, enginePath);
     const { initEngine } = await import('../../core/engine');
     return await initEngine(enginePath, projectPath, serverURL);
 }
