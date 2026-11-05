@@ -1,5 +1,5 @@
 import { Component, LODGroup } from 'cc';
-import { LODGroupEditorUtility } from 'cc/editor/lod-group-utils';
+import type { LODGroupEditorUtility } from 'cc/editor/lod-group-utils';
 
 import type { ILODGroupBoundsResult, ILODGroupLevelsResult } from '../../../common';
 
@@ -10,7 +10,7 @@ export function requireLODGroup(component: Component | null, path: string): LODG
     if (!component) {
         throw new Error(`LODGroup component not found: ${path}`);
     }
-    if (!(component instanceof LODGroup)) {
+    if (!LODGroup || !(component instanceof LODGroup)) {
         throw new Error(`Parameter error: component is not cc.LODGroup: ${path}`);
     }
     return component;
@@ -81,6 +81,7 @@ export function queryLODGroupRelativeHeight(lodGroup: LODGroup, camera: LODRende
         return 0;
     }
 
+    const { LODGroupEditorUtility } = require('cc/editor/lod-group-utils') as typeof import('cc/editor/lod-group-utils');
     const relativeHeight = LODGroupEditorUtility.getRelativeHeight(lodGroup, camera);
     if (relativeHeight === null || !Number.isFinite(relativeHeight)) {
         throw new Error('Unable to query LODGroup relative height');

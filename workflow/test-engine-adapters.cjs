@@ -22,7 +22,7 @@ function engineFilter(base, file, adapterId) {
     const rel = slash(path.relative(base, file));
     if (rel.split('/').some(part => ['.git', 'node_modules', '.idea', '.vscode'].includes(part))) return false;
     if (rel.startsWith('bin/.cache/')) {
-        const selected = adapterId === 'cocos-3.8-runtime' ? 'dev-cli-3.8' : 'dev-cli';
+        const selected = /^cocos-3\.[5678]-runtime$/.test(adapterId) ? 'dev-cli-' + adapterId.slice(6,9) : 'dev-cli';
         if (!rel.startsWith('bin/.cache/' + selected + '/') && rel !== 'bin/.cache/' + selected) return false;
         if (rel.includes('/transform-cache/')) return false;
     }

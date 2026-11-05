@@ -6,7 +6,7 @@ Local implementation; no commits or pushes.
 
 - CLI-owned EngineBackendAdapter registry, typed runtime boundary, read-only diagnostics and SDK packaging.
 - The default 4.x backend keeps its existing runtime and compilation paths.
-- 3.0 through 3.8 are identified separately. Stable 3.8.0 through 3.8.8 share an experimental backend; other 3.x patches remain discovery-only. The complete 3.8.0–3.8.7 headless Jest matrix passed; see engine-adapter-jest.md for results and remaining acceptance boundaries.
+- 3.0 through 3.8 are identified separately. Stable 3.5.0 through 3.5.2, 3.6.0 through 3.6.3, 3.7.0 through 3.7.4 and 3.8.0 through 3.8.8 have separate experimental backends; other 3.x patches remain discovery-only. The complete 3.8.0–3.8.7 headless Jest matrix passed; see engine-adapter-jest.md for results and remaining acceptance boundaries.
 - 3.8.8 uses the existing HTML5 PAL in an isolated Node host and reuses the engine's Editor semantics. The host is data-only and does not emulate a GPU.
 - Source and Web targets compile into bin/.cache/dev-cli-3.8/editor and web. Creator's dev cache and the 4.x dev-cli cache are not reused.
 - Prepared targets record engine version, backend cache version, configuration hash and source fingerprint. Same-version source edits invalidate readiness.
@@ -34,7 +34,7 @@ Add --compile to prepare both targets first. Smoke checks cover actual CLI engin
 
 Verified source: D:/Cocos/code/cocos-editor/resources/3d/engine, revision 165978a181f776ea664d48c7990058096f1c9a1f, package/runtime version 3.8.8. This does not certify every official or custom 3.8 patch.
 
-Browser rendering, script hot reload, complete resource import coverage and native builds are not certified. Diagnostics report Web preview as unverified and native builds as not implemented. Other 3.x runtimes are not enabled, even by the experimental switch.
+Browser rendering, script hot reload, complete resource import coverage and native builds are not certified. Diagnostics report Web preview as unverified and native builds as not implemented. Only the explicitly matched stable 3.5, 3.6, 3.7 and 3.8 versions are enabled by the experimental switch; this does not certify feature parity with 4.x.
 
 The CLI development host is still compiled against its normal default-engine declarations. Do not replace those bindings with old-engine declarations merely to run a project. Selecting a runtime engine and rebuilding the CLI's own type bindings are separate operations.
 
@@ -45,3 +45,11 @@ See cocos4-adapter-boundaries.md for the reviewed engine commits and the rationa
 ## Local validation
 
 TypeScript compilation passed. Relevant workflow and real-engine/service regressions passed (156 cases across the completed runs, including the additional host-binding guard). Real 3.8.8 smoke passed for the asset host and scene-worker modes; the asset-host run additionally verifies binary CCON round trips. Browser rendering and native builds remain outside acceptance.
+
+## 3.7 runtime boundary
+
+See engine-adapter-37.md for source preparation, compatibility bridges, unsupported capabilities and validation commands. 3.7 compiles to its own bin/.cache/dev-cli-3.7 directory.
+
+Experimental 3.6 support and focused verification are documented in engine-adapter-36.md.
+
+Experimental 3.5 support and focused verification are documented in engine-adapter-35.md.

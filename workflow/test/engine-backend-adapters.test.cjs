@@ -41,7 +41,7 @@ test('ambiguous adapters require an explicit ID and do not silently pick a winne
     assert.throws(() => registry.resolve({ version: '3.0.0' }, 'custom-4'), { code: 'ENGINE_ADAPTER_NOT_FOUND' });
 });
 for (let minor = 0; minor <= 8; minor++) test('recognizes 3.' + minor + '.x without enabling an unimplemented runtime', t => {
-    const { selection } = fixture(t, '3.' + minor + (minor === 8 ? '.9' : '.0'));
+    const { selection } = fixture(t, '3.' + minor + (minor === 8 ? '.9' : minor === 7 ? '.5' : minor === 6 ? '.4' : minor === 5 ? '.3' : '.0'));
     const report = inspectEngineBackend(selection, policy);
     assert.equal(report.id, 'cocos-3.' + minor);
     assert.equal(report.runtimeSupport, 'discovery-only');

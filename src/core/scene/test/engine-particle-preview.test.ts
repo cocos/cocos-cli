@@ -48,6 +48,12 @@ describe('particle preview refresh after the first selection', () => {
         (Service as any).Selection = previousSelection;
     });
 
+    it('requests a frame when a node is added without an engine parent-change event', () => {
+        (service as any)._shouldRepaintInEM = false;
+        service.onNodeAdded();
+        expect((service as any)._shouldRepaintInEM).toBe(true);
+    });
+
     it('keeps simulating when an unrelated node changes after selection', () => {
         service.onNodeChanged(other as any, { type: NodeEventType.SET_PROPERTY });
         expect((service as any)._tickInEM).toBe(true);

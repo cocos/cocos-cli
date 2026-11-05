@@ -29,6 +29,9 @@ function createEngineBackendRegistry() {
     const registry = new EngineBackendRegistry();
     registry.register(require('./cocos4/index.cjs'));
     registry.register(require('./cocos38/index.cjs'));
+    registry.register(require('./cocos37/index.cjs'));
+    registry.register(require('./cocos36/index.cjs'));
+    registry.register(require('./cocos35/index.cjs'));
     const create3 = require('./cocos3-discovery.cjs');
     for (let minor = 0; minor <= 8; minor++) registry.register(create3(minor));
     return registry;

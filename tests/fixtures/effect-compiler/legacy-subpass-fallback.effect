@@ -1,0 +1,25 @@
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: vs:vert
+      frag: fs:frag
+}%
+CCProgram vs %{
+  precision highp float;
+  vec4 vert () { return vec4(0.0); }
+}%
+CCProgram fs %{
+  precision highp float;
+  #if CC_DEVICE_CAN_BENEFIT_FROM_INPUT_ATTACHMENT
+    #if __VERSION__ >= 450
+      layout(binding = 0, input_attachment_index = 0) uniform subpassInput colorInput;
+      layout(binding = 1, input_attachment_index = 1) uniform subpassInput depthInput;
+    #else
+      layout(binding = 1) uniform sampler2D depthInput;
+    #endif
+  #else
+    layout(binding = 0) uniform sampler2D colorInput;
+    layout(binding = 1) uniform sampler2D depthInput;
+  #endif
+  vec4 frag () { return vec4(1.0); }
+}%

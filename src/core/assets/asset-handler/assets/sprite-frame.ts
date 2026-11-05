@@ -352,7 +352,10 @@ function initVerticesData(userData: SpriteFrameBaseAssetUserData) {
     const vertices = userData.vertices;
     vertices.rawPosition.length = 0;
 
-    if (userData.meshType === cc.SpriteFrame.MeshType.POLYGON) {
+    if (!cc.SpriteFrame.MeshType && userData.meshType !== undefined && userData.meshType !== 0) {
+        throw Object.assign(new Error('The selected engine does not support polygon SpriteFrames'), { code: 'ENGINE_CAPABILITY_UNAVAILABLE' });
+    }
+    if (cc.SpriteFrame.MeshType && userData.meshType === cc.SpriteFrame.MeshType.POLYGON) {
         // 使用 Bayazit 来生成顶点并赋值
     } else {
         const width = userData.width;

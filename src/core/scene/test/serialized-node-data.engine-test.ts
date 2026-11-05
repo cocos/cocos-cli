@@ -4,6 +4,12 @@ import { tmpdir } from 'os';
 import type { Component, Node } from 'cc';
 import type { IEditorSessionSnapshot } from '../scene-process/service/core/editor-session';
 
+async function assertUndoResult(result: Promise<{ success: boolean; reason?: string }>) {
+    const value = await result;
+    if (!value.success) throw new Error('Undo/Redo failed: ' + JSON.stringify(value));
+    expect(value.success).toBe(true);
+}
+
 describe('Serialized node data with the real engine', () => {
     let engine: typeof import('cc');
     let helpers: typeof import('../scene-process/service/node/serialized-node-data');
@@ -662,14 +668,14 @@ describe('Serialized node data with the real engine', () => {
             const ids = scene.children.map(node => node.uuid);
 
             if (direction === 'redo') {
-                expect((await services.Service.Undo.undo()).success).toBe(true);
+                await assertUndoResult(services.Service.Undo.undo());
             }
             reloadScene();
 
-            expect((await services.Service.Undo[direction]()).success).toBe(true);
+            await assertUndoResult(services.Service.Undo[direction]());
             if (direction === 'undo') {
                 expect(scene.children).toHaveLength(0);
-                expect((await services.Service.Undo.redo()).success).toBe(true);
+                await assertUndoResult(services.Service.Undo.redo());
             }
             expect(scene.children.map(node => node.uuid)).toEqual(ids);
             expect(scene.children[0].getComponent(References)!.target).toBe(scene.children[1]);
@@ -700,7 +706,7 @@ describe('Serialized node data with the real engine', () => {
             addTree(parent);
             const parentPath = EditorExtends.Node.getNodePath(parent);
             await services.Service.Node.createBySerializedData({ data: createData(), parentPath });
-            expect((await services.Service.Undo.undo()).success).toBe(true);
+            await assertUndoResult(services.Service.Undo.undo());
 
             removeTree(parent);
             parent.setParent(null);
@@ -718,7 +724,7 @@ describe('Serialized node data with the real engine', () => {
         it.each(['undo', 'redo'] as const)('rejects serialized creation %s from an earlier editor session', async direction => {
             await services.Service.Node.createBySerializedData({ data: createData(), parentPath: '/' });
             if (direction === 'redo') {
-                expect((await services.Service.Undo.undo()).success).toBe(true);
+                await assertUndoResult(services.Service.Undo.undo());
             }
             const before = [...scene.children];
 
@@ -775,9 +781,9 @@ describe('Serialized node data with the real engine', () => {
                 for (let cycle = 0; cycle < 2; cycle++) {
                     reloadScene();
                     expect(scene.children[0].children[0].name).toBe('ChangedChild');
-                    expect((await services.Service.Undo.undo()).success).toBe(true);
+                    await assertUndoResult(services.Service.Undo.undo());
                     expect(scene.children).toHaveLength(0);
-                    expect((await services.Service.Undo.redo()).success).toBe(true);
+                    await assertUndoResult(services.Service.Undo.redo());
                 }
             } finally {
                 sceneSpy.mockRestore();
@@ -859,11 +865,11 @@ describe('Serialized node data with the real engine', () => {
                 expectSavedReferences(prefabSource);
                 expect(scene['_prefab']!.targetOverrides).toHaveLength(5);
 
-                expect((await services.Service.Undo.undo()).success).toBe(true);
+                await assertUndoResult(services.Service.Undo.undo());
                 expect(scene.children).toHaveLength(2);
                 expect(scene['_prefab']!.targetOverrides).toEqual([existing]);
 
-                expect((await services.Service.Undo.redo()).success).toBe(true);
+                await assertUndoResult(services.Service.Undo.redo());
                 expect(scene.children.slice(2).map(node => node.uuid)).toEqual(ids);
             }
 

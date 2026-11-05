@@ -14,7 +14,7 @@ interface SavedProbeCoefficients {
 export function preserveLightProbeCoefficients(scene: Scene): (loaded: Scene) => void {
     const byPosition = new Map<string, SavedProbeCoefficients>();
     const keyOf = (position: Readonly<Vec3>) => JSON.stringify([position.x, position.y, position.z]);
-    for (const probe of scene.globals.lightProbeInfo.data?.probes ?? []) {
+    for (const probe of scene.globals.lightProbeInfo?.data?.probes ?? []) {
         const key = keyOf(probe.position);
         let entry = byPosition.get(key);
         if (!entry) {

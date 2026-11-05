@@ -9,6 +9,7 @@ module.exports = function patchEmbeddedPlayer(ccm, embeddedPlayerModule) {
         }
     }
 
+    if (!embeddedPlayerModule) return;
     const EmbeddedPlayer = embeddedPlayerModule.EmbeddedPlayer;
     const editorExtrasTag = ccm.editorExtrasTag || '__editorExtras__';
     const classAttr = ccm.CCClass?.Attr;

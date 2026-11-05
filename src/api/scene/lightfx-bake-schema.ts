@@ -20,7 +20,7 @@ export const SchemaLightProbeBakeOptions = z.object({
 export const SchemaLightProbeBakeResult = z.object({
     sceneUrl: z.string(), probeCount: z.number().int().nonnegative(),
     giScale: z.number(), giSamples: z.number().int(), bounces: z.number().int(),
-    reduceRinging: z.number(), showWireframe: z.boolean(), showConvex: z.boolean(), lightProbeSphereVolume: z.number(),
+    reduceRinging: z.number(), showWireframe: z.boolean(), showConvex: z.boolean(), lightProbeSphereVolume: z.number().optional(),
     durationMs: z.number().nonnegative(),
 });
 
@@ -34,7 +34,7 @@ export const SchemaLightProbeSettings = z.object({
     reduceRinging: LightProbeNumberSetting,
     showWireframe: LightProbeBooleanSetting,
     showConvex: LightProbeBooleanSetting,
-    lightProbeSphereVolume: LightProbeNumberSetting,
+    lightProbeSphereVolume: LightProbeNumberSetting.optional(),
 });
 
 export const SchemaLightmapBakeOptions = z.object({

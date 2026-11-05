@@ -6,7 +6,7 @@ module.exports = minor => {
     const unavailable = () => { const error = new Error('Adapter ' + id + ' currently supports discovery only; runtime/toolchain adaptation is required'); error.code = 'ENGINE_ADAPTER_NOT_IMPLEMENTED'; throw error; };
     return {
         id, protocolVersion: 1, implementationVersion: '0.1.0', runtimeSupport: 'discovery-only',
-        supports: version => { const parsed = semver.parse(version); return parsed?.major === 3 && parsed.minor === minor && !supportsVersion(version); },
+        supports: version => { const parsed = semver.parse(version); return parsed?.major === 3 && parsed.minor === minor && !supportsVersion(version) && !require('./cocos37/compiler.cjs').supportsVersion(version) && !require('./cocos36/compiler.cjs').supportsVersion(version) && !require('./cocos35/compiler.cjs').supportsVersion(version); },
         runtime: unavailable, compile: unavailable, validateRuntime: unavailable,
         inspect() {
             const capability = () => ({ status: 'not-implemented', missing: [], reason: 'This engine series is identified but has no verified runtime/toolchain adapter yet' });

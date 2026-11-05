@@ -26,7 +26,7 @@ async function smoke({ enginePath, experimental = false, compile = false, sceneW
         await Engine.init(enginePath);
         await Engine.initEngine({ enableCustomPipeline: false, writablePath: project, importBase: project, nativeBase: project, ...(sceneWorker ? { editorMode: true, previewMode: true } : {}) });
         const cc = require('cc');
-        assert.equal(cc.VERSION, selection.version, 'Loaded engine version must match the selected source');
+        assert.equal(cc.VERSION, require('./engine-test-identity.cjs').expectedRuntimeVersion(enginePath, selection.version), 'Loaded engine version must match the selected source');
         require('../dist/core/scene/runtime/core');
         const { Service } = require('../dist/core/scene/scene-process/service/core/decorator');
         const { sceneUtils } = require('../dist/core/scene/scene-process/service/scene/utils');
