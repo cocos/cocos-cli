@@ -1,4 +1,6 @@
 import { resolve } from 'path';
+import { EventEmitter } from 'events';
+import { cloneDeep } from 'lodash';
 import type { IFeatureGroup, ModuleRenderConfig } from '../src/core/engine/@types/modules';
 
 // Engine's asset APIs are unrelated to module-cache derivation and pull in a separately built workspace package.
@@ -262,5 +264,103 @@ describe('engine module config cache', () => {
             jest.dontMock('../src/core/configuration');
             jest.dontMock('../src/core/engine/dynamic-metadata');
         }
+    });
+});
+
+describe('engine module config synchronization', () => {
+    beforeEach(() => jest.resetModules());
+    afterEach(() => {
+        jest.dontMock('../src/core/configuration');
+        jest.dontMock('../src/core/engine/dynamic-metadata');
+    });
+
+    it.each([
+        { scope: 'selected config', topLevel: false, modules: ['base'] },
+        { scope: 'empty selected config', topLevel: false, modules: [] },
+        { scope: 'top-level override', topLevel: true, modules: ['audio'] },
+        { scope: 'empty top-level override', topLevel: true, modules: [] },
+    ])('replaces module arrays on init and save: $scope', async ({ topLevel, modules }) => {
+        const defaultModules = ['base', 'audio', 'spine-3.8'];
+        const defaults = {
+            includeModules: defaultModules,
+            globalConfigKey: 'defaultConfig',
+            configs: {
+                defaultConfig: {
+                    name: 'Default',
+                    includeModules: defaultModules,
+                    flags: { LOAD_SPINE_MANUALLY: false },
+                },
+            },
+        };
+        let project: Record<string, any> = {
+            configs: { defaultConfig: { includeModules: ['base'] } },
+            ...(topLevel ? { includeModules: modules } : {}),
+        };
+        if (!topLevel) project.configs.defaultConfig.includeModules = modules;
+        const savedProject = cloneDeep(project);
+        const savedDefaults = cloneDeep(defaults);
+        const events = new EventEmitter();
+        jest.doMock('../src/core/configuration', () => ({
+            configurationRegistry: {
+                register: async (_namespace: string, options: { defaults: object }) => ({
+                    getAll: () => project,
+                    getDefaultConfig: () => ({ ...options.defaults, ...defaults }),
+                    on: events.on.bind(events),
+                }),
+            },
+        }));
+        jest.doMock('../src/core/engine/dynamic-metadata', () => ({
+            getEngineRenderConfig: () => createRenderConfig(),
+            getEngineDynamicConfigContribution: () => ({
+                defaults: { includeModules: defaultModules, flags: {}, macroConfig: {} },
+                metadata: {},
+            }),
+        }));
+        const { Engine } = require('../src/core/engine') as typeof import('../src/core/engine');
+        await Engine.init(resolve(__dirname, '..'));
+
+        expect(Engine.getConfig().includeModules).toEqual(modules);
+        expect(Engine.getConfig()).toMatchObject({
+            configs: {
+                defaultConfig: {
+                    ...defaults.configs.defaultConfig,
+                    includeModules: topLevel ? ['base'] : modules,
+                },
+            },
+        });
+        // Effective config must not share project arrays with callers.
+        Engine.getConfig().includeModules.push('video');
+        expect(project).toEqual(savedProject);
+        expect(defaults).toEqual(savedDefaults);
+
+        project = { configs: { defaultConfig: { includeModules: ['audio'] } } };
+        events.emit('configuration:save');
+        expect(Engine.getConfig().includeModules).toEqual(['audio']);
+        expect(Engine.getConfig()).toMatchObject({
+            configs: { defaultConfig: { includeModules: ['audio'] } },
+        });
+
+        project.configs.defaultConfig.includeModules = [];
+        events.emit('configuration:save');
+        expect(Engine.getConfig().includeModules).toEqual([]);
+
+        project.physicsConfig = { gravity: undefined };
+        events.emit('configuration:save');
+        expect(Engine.getConfig().physicsConfig.gravity).toEqual(Engine.getConfig(true).physicsConfig.gravity);
+
+        project.physicsConfig = undefined;
+        events.emit('configuration:save');
+        expect(Engine.getConfig().physicsConfig).toEqual(Engine.getConfig(true).physicsConfig);
+
+        project.globalConfigKey = 'custom';
+        project.configs.custom = { includeModules: ['base'] };
+        events.emit('configuration:save');
+        expect(Engine.getConfig().includeModules).toEqual(['base']);
+
+        // Missing project values still inherit engine defaults.
+        project = {};
+        events.emit('configuration:save');
+        expect(Engine.getConfig().includeModules).toEqual(defaultModules);
+        expect(defaults).toEqual(savedDefaults);
     });
 });
