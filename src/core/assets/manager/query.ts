@@ -87,7 +87,13 @@ class AssetQueryManager {
         if (['script', 'all'].includes(type)) {
             if (ccType === 'cc.Script') {
                 const pathList: string[] = await script.queryScriptUsers(asset.source);
-                pathList.forEach(path => usages.push(queryUUID(path)));
+                for (const path of pathList) {
+                    const uuid = queryUUID(path);
+                    // Compiler-generated modules, such as CommonJS wrappers, have no asset UUID.
+                    if (uuid) {
+                        usages.push(uuid);
+                    }
+                }
             } else {
                 // 查询依赖此资源的脚本，目前依赖信息都记录在场景上，所以实际上并没有脚本会依赖资源，代码写死是无法查询的
             }
