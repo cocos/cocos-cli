@@ -51,6 +51,7 @@ export {
 
 export type {
     AssetDBOptions,
+    AssetDBRefreshOptions,
 } from './libs/asset-db';
 
 export type {

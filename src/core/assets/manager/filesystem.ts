@@ -2,11 +2,12 @@
 
 import type { IAssetFileSystemProvider, IAssetRenameOptions, IAssetWriteFileOptions } from '@cocos/asset-db';
 import { copy as fsCopy, ensureDir, existsSync, move, outputFile, readFile as fsReadFile, remove } from 'fs-extra';
-import { dirname, join, relative } from 'path';
+import { dirname } from 'path';
 import type { IMoveOptions } from '../@types/private';
 import type { DeleteAssetOptions } from '../@types/public';
 import assetConfig from '../asset-config';
 import Utils from '../../base/utils';
+import { moveAssetSourceWithRecovery } from './asset-move/source';
 
 const localFileSystemProvider: IAssetFileSystemProvider = {
     async readFile(path: string, encoding?: BufferEncoding): Promise<Buffer | string> {
@@ -138,6 +139,16 @@ export async function removeAssetSource(file: string, options: DeleteAssetOption
 }
 
 export async function moveAssetSource(source: string, target: string, options?: IMoveOptions): Promise<void> {
+    if (options?.overwrite || Utils.Path.contains(source, target)) {
+        return moveAssetSourceWithRecovery(source, target, {
+            overwrite: !!options?.overwrite,
+            tempRoot: assetConfig.data.tempRoot,
+        }, {
+            rename: renamePath,
+            createDirectory: createDirectoryPath,
+            remove: deletePath,
+        });
+    }
     const moveOptions = options?.overwrite ? options : { overwrite: false };
     const renameOptions = { overwrite: !!moveOptions.overwrite };
 
@@ -167,26 +178,9 @@ export async function moveAssetSource(source: string, target: string, options?: 
             return;
         }
 
-        const tempDir = join(assetConfig.data.tempRoot, 'move-temp');
-        const relativePath = relative(assetConfig.data.root, target);
-        const tempPath = join(tempDir, relativePath);
-        const tempMetaPath = tempPath + '.meta';
-
-        if (existsSync(tempPath)) {
-            await deletePath(tempPath, { useTrash: false });
-        }
-        if (existsSync(tempMetaPath)) {
-            await deletePath(tempMetaPath, { useTrash: false });
-        }
-
-        await renamePath(source + '.meta', tempMetaPath, { overwrite: true });
-        await renamePath(source, tempPath, { overwrite: true });
-
-        await renamePath(tempMetaPath, target + '.meta', { overwrite: true });
-        await renamePath(tempPath, target, renameOptions);
     } catch (error) {
         console.error(`asset db moveFile from ${source} -> ${target} fail!`);
         console.error(error);
-        if (!renameOptions.overwrite) throw error;
+        throw error;
     }
 }
