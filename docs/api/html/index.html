@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cocos CLI 接口文档 · Cocos CLI 接口文档</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="index.html">Cocos CLI 接口文档</a>
+      <nav class="crumb"><span>首页</span></nav>
+    </div>
+  </header>
+  <main class="wrap">
+<h1>Cocos CLI — 四层接口</h1>
+<p class="lead">由代码反查生成的 HTML 文档，请勿手改。重新生成：<code>npm run generate:api-docs</code></p>
+<p class="meta">生成时间：2026-10-14T02:28:41.203Z</p>
+<div class="grid">
+  <a class="card" href="layer1-mcp/index.html"><h3>1 · 工具（MCP）</h3><p>104 个工具 · src/api @tool<br/><strong>LLM 提示词只靠 tools/list</strong></p></a>
+  <a class="card" href="layer2-commands/index.html"><h3>2 · 命令（CLI）</h3><p>9 个命令 · src/commands</p></a>
+  <a class="card" href="layer3-lib/index.html"><h3>3 · Lib 门面</h3><p>13 模块 / 158 导出 · src/lib</p></a>
+  <a class="card" href="layer4-core/index.html"><h3>4 · Core</h3><p>14 个模块 · src/core</p></a>
+</div>
+<h2>分层结构</h2>
+<pre>Agent / PinK
+  └─ 第 1 层  MCP 工具          （src/api  @tool + Zod → tools/list 注入 LLM）
+人类终端
+  └─ 第 2 层  CLI 命令          （src/commands / commander）
+程序化宿主
+  └─ 第 3 层  Lib 门面          （src/lib → 动态 import core）
+实现
+  └─ 第 4 层  Core + scene RPC  （src/core）</pre>
+<p class="lead">第 1 层工具页用文档框标出模型侧定义（name / description / inputSchema），并单独列出 tools/list 另含字段。</p>
+
+  </main>
+  <footer class="wrap foot">
+    由 <code>workflow/generate-api-docs.ts</code> 从代码反查生成 ·
+    <a href="https://github.com/cocos/cocos-cli/issues/984">#984</a>
+  </footer>
+</body>
+</html>

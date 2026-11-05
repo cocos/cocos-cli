@@ -92,6 +92,29 @@ npm run generate:mcp-types
 
 This generates type-safe definitions for E2E tests in `e2e/types/mcp-tools.generated.ts`.
 
+#### 2b. Generate API Docs (all four layers, HTML, zh-CN)
+
+After modifying MCP tools, CLI commands, lib facades, or core modules:
+
+```bash
+npm run generate:api-docs
+# Layer-1 markdown-only (legacy):
+npm run generate:mcp-docs
+```
+
+This writes a Chinese static HTML site to `docs/api/html/`（打开 `index.html`）：
+
+1. 工具（MCP）— `src/api` `@tool`
+2. 命令（CLI）— `src/commands`
+3. Lib 门面 — `src/lib`
+4. Core — `src/core` 模块地图
+
+**重要（第 1 层）**：模型侧通常用 `name` / `description` / `inputSchema`；`tools/list` 还可带 `title`、`outputSchema`（宿主不一定塞进提示词）。文档生成器从 **`dist/`** 加载 `BuilderHook`（以便扫描 `packages/platforms`，与运行时一致），再按 middleware 的 `jsonSchema7` / `$refStrategy: 'none'` 导出。HTML 站本身不会进入模型上下文。
+
+Tracking: https://github.com/cocos/cocos-cli/issues/984
+
+Published site (fork GitHub Pages, `gh-pages` branch): https://shinjiyu.github.io/cocos-cli-1/
+
 ### Testing
 
 #### Unit Tests
