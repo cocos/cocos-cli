@@ -24,6 +24,7 @@ import { checkProjectSetting } from '../../share/common-options-validator';
 import { I18nKeys } from '../../../../i18n/types/generated';
 import * as buildUtils from './utils';
 import utils from '../../../base/utils';
+import { buildProfiler, profiled } from '../../profile';
 
 export class BuildTask extends BuildTaskBase implements IBuilder {
     public cache: BuilderAssetCache;
@@ -195,42 +196,43 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             }
             await this.lockAssetDB();
             await this.runPluginTask(TaskManager.pluginTasks.onBeforeInit);
-            await this.init();
+            await profiled('init', () => this.init());
             await this.runPluginTask(TaskManager.pluginTasks.onAfterInit);
 
-            await this.initBundleManager();
+            await profiled('initBundleManager', () => this.initBundleManager());
 
             await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleDataTask);
             // 开始执行预制任务
-            await this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight);
+            await profiled('dataTasks', () => this.runBuildTask(TaskManager.getBuildTask('dataTasks'), this.taskManager.taskWeight));
             await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleDataTask);
 
             await this.runPluginTask(TaskManager.pluginTasks.onBeforeBuildAssets);
             await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onBeforeBundleBuildTask);
             // 开始执行构建任务
-            await this.runBuildTask(TaskManager.getBuildTask('buildTasks'), this.taskManager.taskWeight);
+            await profiled('buildTasks', () => this.runBuildTask(TaskManager.getBuildTask('buildTasks'), this.taskManager.taskWeight));
             await this.bundleManager.runPluginTask(this.bundleManager.hookMap.onAfterBundleBuildTask);
             await this.runPluginTask(TaskManager.pluginTasks.onAfterBuildAssets);
 
-            await this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight);
+            await profiled('settingTasks', () => this.runBuildTask(TaskManager.getBuildTask('settingTasks'), this.taskManager.taskWeight));
             await this.runPluginTask(TaskManager.pluginTasks.onBeforeCompressSettings);
-            await this.runBuildTask(TaskManager.getBuildTask('postprocessTasks'), this.taskManager.taskWeight);
+            await profiled('postprocessTasks', () => this.runBuildTask(TaskManager.getBuildTask('postprocessTasks'), this.taskManager.taskWeight));
             await this.runPluginTask(TaskManager.pluginTasks.onAfterCompressSettings);
             await this.runPluginTask(TaskManager.pluginTasks.onBeforeCopyBuildTemplate);
             // 拷贝自定义模板
-            await this.buildTemplate!.copyTo(this.result.paths.output);
+            await profiled('copyBuildTemplate', () => this.buildTemplate!.copyTo(this.result.paths.output));
             await this.runPluginTask(TaskManager.pluginTasks.onAfterCopyBuildTemplate);
             // MD5 处理
-            this.options.md5Cache && (await this.runBuildTask(TaskManager.getBuildTask('md5Tasks'), this.taskManager.taskWeight));
+            this.options.md5Cache && (await profiled('md5Tasks', () => this.runBuildTask(TaskManager.getBuildTask('md5Tasks'), this.taskManager.taskWeight)));
             // 构建进程结束之前
             await this.runPluginTask(TaskManager.pluginTasks.onAfterBuild);
-            await this.postBuild();
-            if(this.options.subTaskPlatforms) await this.runSubTaskBuilds();
+            await profiled('postBuild', () => this.postBuild());
+            if(this.options.subTaskPlatforms) await profiled('subTaskBuilds', () => this.runSubTaskBuilds());
             if (this.error) {
                 failed = true;
                 return false;
             }
-            this.options.nextStages && (await this.handleBuildStageTask(this.options.nextStages));
+            const nextStages = this.options.nextStages;
+            nextStages && (await profiled('nextStages', () => this.handleBuildStageTask(nextStages)));
             if (this.error) {
                 failed = true;
                 return false;
@@ -460,7 +462,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             buildStageTask.on('update', (message: string, increment: number) => {
                 this.updateProcess(message, increment * stageWeight);
             });
-            await buildStageTask.run();
+            await profiled(`stage:${taskName}`, () => buildStageTask.run());
             if (this.error) {
                 await this.onError(this.error);
                 return;
@@ -548,7 +550,7 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         buildStageTask.on('update', (message: string, increment: number) => {
             this.updateProcess(`[${stagePlatform.platform}] ${message}`, increment * stageWeight);
         });
-        await buildStageTask.run();
+        await profiled(`stage:${taskName}:${stagePlatform.platform}`, () => buildStageTask.run());
         if (this.error) {
             await this.onError(this.error);
             return;
@@ -764,13 +766,16 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             this.startProgressStep(taskTitle + ' start', weight);
             console.debug(trickTimeLabel);
             newConsole.trackMemoryStart(taskTitle);
+            const profileToken = buildProfiler.startEntry(task.name || taskTitle);
             try {
                 const result = await task.handle.call(this, this.options, this.result, this.cache, ...args);
                 // @ts-ignore
                 task.name && result && (this.taskResMap[task.name] = result);
                 const time = await newConsole.trackTimeEnd(trickTimeLabel, { output: true });
+                buildProfiler.endEntry(profileToken);
                 this.updateProcess(`run build task ${taskTitle} success in ${formatMSTime(time)}√`, weight, 'log');
             } catch (error: any) {
+                buildProfiler.endEntry(profileToken, error instanceof Error ? error.message : String(error));
                 newConsole.trackMemoryEnd(taskTitle);
                 this.updateProcess(`run build task ${taskTitle} failed!`, weight, 'error');
                 await this.onError(error, true);

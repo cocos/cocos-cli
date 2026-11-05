@@ -4,6 +4,7 @@ import { IBuildOptionBase, IConsoleType } from '../../../@types';
 import { BuildExitCode, IBuildHooksInfo, IBuildResultSuccess } from '../../../@types/protected';
 import Utils from '../../../../base/utils';
 import i18n from '../../../../base/i18n';
+import { buildProfiler, IBuildProfileToken } from '../../../profile';
 
 const PROGRESS_HEARTBEAT_INTERVAL = 10 * 1000;
 const PROGRESS_HEARTBEAT_MAX_RATIO = 0.9;
@@ -162,22 +163,27 @@ export abstract class BuildTaskBase extends EventEmitter {
             const pkgName = this.hooksInfo.pkgNameOrder[i];
             const info = this.hooksInfo.infos[pkgName];
             let hooks: any;
+            let profileToken: IBuildProfileToken | null = null;
             try {
                 const trickTimeLabel = `// ---- build task ${pkgName}：${funcName} ----`;
                 newConsole.trackTimeStart(trickTimeLabel);
                 hooks = Utils.File.requireFile(info.path);
                 if (hooks[funcName]) {
+                    profileToken = buildProfiler.startEntry(`hook:${pkgName}:${funcName}`);
                     this.prepareProgressHeartbeat(increment);
                     // 使用新的 console 方法显示插件任务开始
                     newConsole.pluginTask(pkgName, funcName, 'start');
                     console.debug(trickTimeLabel);
                     await this.handleHook(hooks[funcName], info.internal);
+                    buildProfiler.endEntry(profileToken);
+                    profileToken = null;
                     const time = newConsole.trackTimeEnd(trickTimeLabel, { output: true });
                     // 使用新的 console 方法显示插件任务完成
                     newConsole.pluginTask(pkgName, funcName, 'complete', `${time}ms`);
                     this.updateProcess(`${pkgName}:${funcName} completed ✓`, increment, 'success');
                 }
             } catch (error) {
+                buildProfiler.endEntry(profileToken, error instanceof Error ? error.message : String(error));
                 const errorMsg = i18n.t('builder.error.run_hooks_failed', {
                     pkgName,
                     funcName,
