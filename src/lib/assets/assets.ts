@@ -1,4 +1,4 @@
-import type { AnimationGraphChangedEvent, AnimationGraphExpectedVersion, AnimationGraphInspectorPropertyOperationRequest, AnimationGraphInspectorSnapshot, AnimationGraphMotionPreviewData, AnimationGraphPoseGraphAssetDragHandlersEntry, AnimationGraphSnapshot, AnimationGraphTarget, AssetOperationOption, AssetPropertySchemaMap, CreateAssetByTypeOptions, DeleteAssetOptions, ExecuteAnimationGraphCommandRequest, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, MaterialDump, MaterialEffectInfo, MaterialTechniqueDump, QueryAssetsOption, ReloadAnimationGraphOptions, SerializedAssetPatch, SerializedAssetQueryResult, SetAnimationGraphInspectorPropertyRequest, AnimationMaskChange, AnimationMaskDump } from '../../core/assets/@types/public';
+import type { AnimationGraphChangedEvent, AnimationGraphExpectedVersion, AnimationGraphInspectorPropertyOperationRequest, AnimationGraphInspectorSnapshot, AnimationGraphMotionPreviewData, AnimationGraphPoseGraphAssetDragHandlersEntry, AnimationGraphSnapshot, AnimationGraphTarget, AssetOperationOption, AssetMoveOptions, IAssetMovePreflightResult, AssetPropertySchemaMap, CreateAssetByTypeOptions, DeleteAssetOptions, ExecuteAnimationGraphCommandRequest, IAssetFileSystemProvider, IAssetInfo, IAssetMeta, ISupportCreateType, MaterialDump, MaterialEffectInfo, MaterialTechniqueDump, QueryAssetsOption, ReloadAnimationGraphOptions, SerializedAssetPatch, SerializedAssetQueryResult, SetAnimationGraphInspectorPropertyRequest, AnimationMaskChange, AnimationMaskDump } from '../../core/assets/@types/public';
 import type { CreateAssetOptions, IAssetConfig, IAssetDBInfo, ICreateMenuInfo, IUerDataConfigItem, QueryAssetType, ThumbnailInfo, ThumbnailSize } from '../../core/assets/@types/protected';
 import type { FilterPluginOptions, IPluginScriptInfo } from '../../core/scripting/interface';
 import { assetDBManager, assetManager } from '../../core/assets';
@@ -631,13 +631,25 @@ export async function renameAsset(
 }
 
 /**
- * Move Asset // 移动资源
+ * Inspects one move without changing files. The destination parent must exist
+ * inside a writable Asset DB. Return the token to the matching moveAsset call.
+ */
+export async function preflightMoveAsset(
+    source: string,
+    target: string,
+): Promise<IAssetMovePreflightResult> {
+    return assetManager.preflightMoveAsset(source, target);
+}
+
+/**
+ * Moves a resource and returns its final identity and URL. A supplied preflight
+ * token is single-use and must still match the request and observed state.
  */
 export async function moveAsset(
     source: string,
     target: string,
-    options: AssetOperationOption = {}
-): Promise<any> {
+    options: AssetMoveOptions = {}
+): Promise<IAssetInfo> {
     return await assetManager.moveAsset(source, target, options);
 }
 

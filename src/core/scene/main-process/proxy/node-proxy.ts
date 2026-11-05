@@ -1,3 +1,5 @@
+import type { INodeService } from '../../common/node';
+import type { ISetPropertyOptions } from '../../common/component';
 import {
     INodeTreeItem,
     ICreateByNodeTypeParams,
@@ -33,6 +35,10 @@ export interface INodeProxy extends Omit<IPublicNodeService, 'createByType' | 'c
 }
 
 export const NodeProxy: INodeProxy = {
+    previewSetProperty: ((options: ISetPropertyOptions) => Rpc.getInstance().request('Node', 'previewSetProperty', [options])) as INodeService['previewSetProperty'],
+    cancelPreviewSetProperty: ((options: ISetPropertyOptions) => Rpc.getInstance().request('Node', 'cancelPreviewSetProperty', [options])) as INodeService['cancelPreviewSetProperty'],
+    commitPreviewSetProperty: options => Rpc.getInstance().request('Node', 'commitPreviewSetProperty', [options]),
+
     serialize(params: ISerializeNodesParams): Promise<SerializedNodeData> {
         return Rpc.getInstance().request('Node', 'serialize', [params]);
     },

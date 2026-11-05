@@ -310,3 +310,24 @@ describe('NodePathManager name/path 解耦', () => {
         expect(manager.getNodeUuid('A_B_001')).toBe('b');
     });
 });
+
+describe('legacy empty display names', () => {
+    it('assigns unique, nonempty paths when importing unnamed nodes', () => {
+        const manager = new NodePathManager();
+        expect(manager.generateUniquePath('a', '', 'scene')).toBe('Node');
+        expect(manager.generateUniquePath('b', '   ', 'scene')).toBe('Node_001');
+        expect(manager.getNodeUuid('Node')).toBe('a');
+        expect(manager.getNodeUuid('Node_001')).toBe('b');
+    });
+
+    it('preserves descendant lookup when restoring an empty legacy name', () => {
+        const manager = new NodePathManager();
+        manager.generateUniquePath('existing', 'Node', 'scene');
+        manager.generateUniquePath('parent', 'Parent', 'scene');
+        manager.generateUniquePath('child', 'Child', 'parent');
+        manager.updateUuid('parent', '', 'scene');
+        expect(manager.getNodePath('parent')).toBe('Node_001');
+        expect(manager.getNodeUuid('Node_001/Child')).toBe('child');
+        expect(manager.getNodeResult('Parent/Child').error).toBe('Not found');
+    });
+});

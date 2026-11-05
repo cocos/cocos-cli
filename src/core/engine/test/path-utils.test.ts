@@ -21,3 +21,9 @@ describe('node path utilities', () => {
         expect(sanitizeNodeName('Enemy_001')).toBe('Enemy_001');
     });
 });
+
+describe('empty node names', () => {
+    it.each(['', ' ', '\t\n'])('rejects %p', name => {
+        expect(validateNodeName(name)).toBe('Node name must not be empty.');
+    });
+});

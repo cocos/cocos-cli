@@ -1,6 +1,7 @@
-import { Node } from 'cc';
+import type { AnimationClip, Node } from 'cc';
 import type { IAnimationOperation, IAnimationValue } from '../../../common';
-import type { IAnimationPropertyMetadata } from './property-curve';
+import { resolvePropertyCurveTarget, type IAnimationPropertyMetadata } from './property-curve';
+import { findPropertyTrack, parsePropertyTrack } from './property-curve-track';
 import { queryAnimationPropertyMetadata } from './property-metadata';
 import { resolveAnimationRelativeNodePath } from './scene-node';
 import {
@@ -43,18 +44,26 @@ export async function normalizeProvidedAnimationPropertyOperationValue(
     rootNode: Node,
     rootPath: string,
     operation: PropertyKeyOperation,
+    clip?: AnimationClip,
 ): Promise<IAnimationValue> {
     const value = operation.value;
     if (value === null || value === undefined) {
         return value as IAnimationValue;
     }
 
-    const nodePath = resolveAnimationRelativeNodePath(rootNode, rootPath, operation);
+    const nodePath = clip
+        ? resolvePropertyCurveTarget(clip, { rootNode, rootPath }, operation)?.nodePath ?? null
+        : resolveAnimationRelativeNodePath(rootNode, rootPath, operation);
     if (nodePath === null) {
         return value;
     }
 
-    const metadata = queryAnimationPropertyMetadata(rootNode, nodePath, operation.propKey);
+    let metadata = queryAnimationPropertyMetadata(rootNode, nodePath, operation.propKey);
+    if (!metadata && clip) {
+        // 节点缺失时复用轨道已恢复的类型，在写入前加载真实资源
+        const track = findPropertyTrack(clip, nodePath, operation.propKey);
+        metadata = track ? parsePropertyTrack(track)?.descriptor ?? null : null;
+    }
     return await normalizeProvidedAnimationPropertyValue(metadata, value);
 }
 

@@ -1,9 +1,9 @@
 'use strict';
 import { join } from 'path';
-import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, remove, outputFile, ensureDir } from 'fs-extra';
+import { existsSync, statSync, readJSONSync, writeJSONSync, readFileSync, remove, outputFile, ensureDir, symlink, lstatSync, readlinkSync } from 'fs-extra';
 import { globalSetup } from '../../test/global-setup';
 import { TestGlobalEnv } from '../../../tests/global-env';
-import { assetManager } from '..';
+import { assetDBManager, assetManager } from '..';
 import { ISupportCreateType } from '../@types/asset-types';
 import { IAsset } from '../@types/private';
 
@@ -211,6 +211,139 @@ describe('测试 db 的操作接口', function () {
     //         expect(content).toStrictEqual('test');
     //     });
     // });
+
+    describe('move-asset preflight', () => {
+        it('rejects moving a directory into itself through an alias without changing either UUID', async () => {
+            const folder = join(databasePath, `${name}-overlap-source`);
+            const alias = join(databasePath, `${name}-overlap-alias`);
+            const source = await assetManager.createAsset({ target: folder });
+            const child = await assetManager.createAsset({ target: join(folder, 'new.txt'), content: 'original child' });
+            const sourceMeta = readFileSync(`${folder}.meta`);
+            const childMeta = readFileSync(`${child!.file}.meta`);
+            await symlink(folder, alias, 'dir');
+            try {
+                await expect(assetManager.preflightMoveAsset(source!.uuid, join(alias, 'new.txt')))
+                    .rejects.toThrow('Cannot move an asset into or over itself');
+
+                expect(statSync(folder).isDirectory()).toBe(true);
+                expect(readFileSync(`${folder}.meta`)).toEqual(sourceMeta);
+                expect(readFileSync(child!.file, 'utf8')).toBe('original child');
+                expect(readFileSync(`${child!.file}.meta`)).toEqual(childMeta);
+                expect(assetManager.queryAssetInfo(source!.uuid)?.url).toBe(source!.url);
+                expect(assetManager.queryAssetInfo(child!.uuid)?.url).toBe(child!.url);
+                expect(lstatSync(alias).isSymbolicLink()).toBe(true);
+            } finally {
+                await remove(alias);
+            }
+        });
+
+        it('rejects a source directory replaced by a symlink without changing the referent UUID', async () => {
+            const sourcePath = join(databasePath, `${name}-source-link`);
+            const referentPath = join(databasePath, `${name}-referent`);
+            const source = await assetManager.createAsset({ target: sourcePath });
+            await assetManager.createAsset({ target: referentPath });
+            const child = await assetManager.createAsset({ target: join(referentPath, 'child.txt'), content: 'keep' });
+            const childMeta = readFileSync(`${child!.file}.meta`);
+            await remove(sourcePath);
+            await symlink(referentPath, sourcePath, 'dir');
+            try {
+                await expect(assetManager.preflightMoveAsset(source!.uuid, `${sourcePath}-moved`))
+                    .rejects.toThrow('source directory symlinks');
+
+                expect(readFileSync(`${child!.file}.meta`)).toEqual(childMeta);
+                expect(assetManager.queryAssetInfo(child!.uuid)?.url).toBe(child!.url);
+                expect(readlinkSync(sourcePath)).toBe(referentPath);
+                expect(existsSync(`${sourcePath}-moved`)).toBe(false);
+            } finally {
+                await remove(sourcePath);
+                await remove(`${sourcePath}.meta`);
+                await assetManager.refreshAsset(sourcePath);
+            }
+        });
+
+        it('overwrites through a symlinked database directory and preserves the source UUID', async () => {
+            const dbName = `move-link-${Date.now()}`;
+            const dbPath = join(TestGlobalEnv.projectRoot, 'temp', dbName);
+            const realPath = `${dbPath}-real`;
+            await ensureDir(realPath);
+            await symlink(realPath, dbPath, 'dir');
+            try {
+                await assetDBManager.addDB({ name: dbName, target: dbPath, readonly: false, visible: false });
+                const source = await assetManager.createAsset({ target: join(databasePath, `${name}-link-source.txt`), content: 'source' });
+                const previous = await assetManager.createAsset({ target: `db://${dbName}/target.txt`, content: 'old target' });
+                const preflight = await assetManager.preflightMoveAsset(source!.uuid, previous!.url);
+                expect(preflight.action).toBe('choose-conflict-handling');
+
+                const moved = await assetManager.moveAsset(source!.uuid, previous!.url, {
+                    preflightToken: preflight.preflightToken, overwrite: true,
+                });
+
+                expect(moved).toMatchObject({ uuid: source!.uuid, url: previous!.url });
+                expect(assetManager.queryAssetInfo(previous!.uuid)).toBeNull();
+                expect(readFileSync(join(realPath, 'target.txt'), 'utf8')).toBe('source');
+                expect(readJSONSync(join(realPath, 'target.txt.meta')).uuid).toBe(source!.uuid);
+                expect(lstatSync(dbPath).isSymbolicLink()).toBe(true);
+            } finally {
+                await assetDBManager.removeDB(dbName);
+                await remove(dbPath);
+                await remove(realPath);
+            }
+        });
+
+        it('keeps the source UUID and registers the moved resource in the destination database', async () => {
+            const dbName = `move-target-${Date.now()}`;
+            const dbPath = join(TestGlobalEnv.projectRoot, 'temp', dbName);
+            await ensureDir(dbPath);
+            try {
+                await assetDBManager.addDB({ name: dbName, target: dbPath, readonly: false, visible: false });
+                const source = await assetManager.createAsset({ target: join(databasePath, `${name}-cross-db.txt`), content: 'cross-db' });
+                const target = `db://${dbName}/moved.txt`;
+                const preflight = await assetManager.preflightMoveAsset(source!.uuid, target);
+
+                const moved = await assetManager.moveAsset(source!.uuid, target, { preflightToken: preflight.preflightToken });
+
+                expect(moved).toMatchObject({ uuid: source!.uuid, url: target });
+                expect(assetManager.queryAssetInfo(target)?.uuid).toBe(source!.uuid);
+                expect(assetManager.queryAsset(source!.uuid)?._assetDB.options.name).toBe(dbName);
+                expect(readJSONSync(join(dbPath, 'moved.txt.meta')).uuid).toBe(source!.uuid);
+            } finally {
+                await assetDBManager.removeDB(dbName);
+                await remove(dbPath);
+            }
+        });
+
+        it('returns the final resource through the real Asset DB after automatic naming', async () => {
+            const source = await assetManager.createAsset({ target: join(databasePath, `${name}-move-source.txt`), content: 'source' });
+            const targetPath = join(databasePath, `${name}-move-target.txt`);
+            const original = await assetManager.createAsset({ target: targetPath, content: 'target' });
+            const preflight = await assetManager.preflightMoveAsset(source!.uuid, targetPath);
+            expect(preflight.action).toBe('choose-conflict-handling');
+
+            const moved = await assetManager.moveAsset(source!.uuid, targetPath, { preflightToken: preflight.preflightToken, rename: true });
+
+            expect(moved.uuid).toBe(source!.uuid);
+            expect(moved.url).toBe(`${TestGlobalEnv.testRootUrl}/${name}-move-target-001.txt`);
+            expect(assetManager.queryAssetInfo(moved.uuid)?.url).toBe(moved.url);
+            expect(readJSONSync(`${moved.file}.meta`).uuid).toBe(source!.uuid);
+            expect(assetManager.queryAssetInfo(original!.uuid)?.url).toBe(original!.url);
+            expect(readFileSync(targetPath, 'utf8')).toBe('target');
+        });
+
+        it('uses the same Asset DB URL interpretation for literal percent names during preflight and overwrite', async () => {
+            const source = await assetManager.createAsset({ target: join(databasePath, `${name}-literal-source.txt`), content: 'source' });
+            const literal = await assetManager.createAsset({ target: join(databasePath, `${name}-%61.txt`), content: 'literal' });
+            const decoded = await assetManager.createAsset({ target: join(databasePath, `${name}-a.txt`), content: 'decoded' });
+            const preflight = await assetManager.preflightMoveAsset(source!.url, literal!.url);
+            expect(preflight.action).toBe('choose-conflict-handling');
+
+            const moved = await assetManager.moveAsset(source!.url, literal!.url, { preflightToken: preflight.preflightToken, overwrite: true });
+
+            expect(moved).toMatchObject({ uuid: source!.uuid, url: literal!.url });
+            expect(readFileSync(literal!.file, 'utf8')).toBe('source');
+            expect(readFileSync(decoded!.file, 'utf8')).toBe('decoded');
+            expect(assetManager.queryAssetInfo(literal!.uuid)).toBeNull();
+        });
+    });
 
     // describe('move-asset', () => {
     //     it('移动文件夹', async function() {
@@ -673,6 +806,32 @@ describe('测试 db 的操作接口', function () {
     });
 
     describe('import-asset', () => {
+        it.each(['rename', 'overwrite'] as const)('honors %s when importing over a dangling link', async handling => {
+            const external = join(TestGlobalEnv.projectRoot, 'temp', `${name}-external.txt`);
+            const target = join(databasePath, `${name}-import-link.txt`);
+            const missing = `${external}-missing`;
+            await outputFile(external, 'imported content');
+            await symlink(missing, target);
+            try {
+                const imported = await assetManager.importAsset(external, target, { [handling]: true });
+
+                expect(imported).toHaveLength(1);
+                const suffix = handling === 'rename' ? '-001' : '';
+                expect(imported[0].url).toBe(`${TestGlobalEnv.testRootUrl}/${name}-import-link${suffix}.txt`);
+                expect(readFileSync(imported[0].file, 'utf8')).toBe('imported content');
+                if (handling === 'rename') {
+                    expect(lstatSync(target).isSymbolicLink()).toBe(true);
+                    expect(readlinkSync(target)).toBe(missing);
+                } else {
+                    expect(lstatSync(target).isFile()).toBe(true);
+                }
+                expect(existsSync(missing)).toBe(false);
+            } finally {
+                if (handling === 'rename') await remove(target);
+                await remove(external);
+            }
+        });
+
         it('导入外部文件到项目中', async function () {
             // 创建一个临时测试文件
             const tempFilePath = join(databasePath, `${name}_temp.txt`);

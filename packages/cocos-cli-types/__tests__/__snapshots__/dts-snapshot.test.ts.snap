@@ -414,6 +414,9 @@ export declare interface AssetInfo extends IAssetInfo {
     imported: boolean;
     invalid: boolean;
 }
+export declare interface AssetMoveOptions extends AssetOperationOption {
+    preflightToken?: string;
+}
 export declare interface AssetOperationOption {
     overwrite?: boolean;
     rename?: boolean;
@@ -705,6 +708,15 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
     id?: string;
     name?: string;
 }
+export declare interface IAssetMoveConflict {
+    sourceUrl: string;
+    targetUrl: string;
+    sourceIsDirectory: boolean;
+    targetIsDirectory: boolean | null;
+}
+export declare type IAssetMovePreflightResult =
+| { action: 'move'; preflightToken: string }
+| { action: 'choose-conflict-handling'; preflightToken: string; conflict: IAssetMoveConflict };
 export declare interface IAssetOperationContext {
     opId: string;
     kind: IAssetOperationKind;
@@ -1020,7 +1032,7 @@ export declare interface MeshSimplifyOptions {
     errorRate?: number;
     lockBoundary?: boolean;
 }
-export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
+export declare function moveAsset(source: string, target: string, options?: AssetMoveOptions): Promise<IAssetInfo>;
 export declare enum NormalImportSetting {
     optional = 0,
     exclude = 1,
@@ -1094,6 +1106,7 @@ export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
 }
+export declare function preflightMoveAsset(source: string, target: string): Promise<IAssetMovePreflightResult>;
 export declare function queryAssetConfigMap(): Promise<Record<string, IAssetConfig>>;
 export declare function queryAssetDBInfos(): Promise<Record<string, IAssetDBInfo>>;
 export declare function queryAssetDependencies(uuidOrUrl: string, type?: QueryAssetType): Promise<string[]>;
@@ -1203,6 +1216,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
@@ -1458,6 +1472,7 @@ export declare interface AssetDBRefreshOptions {
     ignoreSelf?: boolean;
     globList?: string[];
     useCache?: boolean;
+    reloadMetadata?: boolean;
     hooks?: {
         afterGenerateMeta?(): void;
         afterScan?(files: string[]): void;
@@ -5270,6 +5285,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
@@ -6606,6 +6622,7 @@ export declare interface IChangeNodeOptions {
     propPath?: string;
     index?: number;
     record?: boolean;
+    previousPath?: string;
     dumpImmediately?: boolean;
 }
 export declare interface ICLI {
@@ -7103,8 +7120,11 @@ export declare interface INodeService extends IServiceEvents {
     queryNodeTree(params: IQueryNodeTreeParams): Promise<INodeTreeItem | null>;
     queryNodesByAssetUuid(uuid: string): string[];
     queryNodesMissAsset(): Promise<string[]>;
+    previewSetProperty(options: IPreviewSetPropertyOptions): Promise<IPropertyPreviewResult>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    cancelPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    commitPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
     setProperty(options: ISetPropertyOptions): Promise<boolean>;
     reset(path: string): Promise<boolean>;
     resetProperty(options: ISetPropertyOptions): Promise<boolean>;
@@ -7234,6 +7254,11 @@ export declare interface IPreviewService extends IMotionPreviewService {
     open(uuid: string): Promise<IPreviewInstance | null>;
     generateThumbnail(uuid: string, assetType: string, width?: number, height?: number): Promise<any>;
 }
+export declare interface IPreviewSetPropertyOptions extends IPropertyPreviewTarget {
+    dump: Omit<IProperty, 'path'> & {
+        path?: string;
+    };
+}
 export declare interface IProperty {
     value: {
         [key: string]: IPropertyValueType;
@@ -7291,6 +7316,18 @@ export declare type IPropertyLock = {
     default: number;
     message: string;
 };
+export declare interface IPropertyPreviewResult {
+    success: boolean;
+    uuid: string;
+    previewId: string;
+    path: string;
+    previousPath: string;
+}
+export declare interface IPropertyPreviewTarget {
+    uuid: string;
+    path: string;
+    previewId: string;
+}
 export declare type IPropertyValueType = IProperty | IProperty[] | null | undefined | number | boolean | string | Vec4 | Vec3 | Vec2 | Mat4 | any | Array<unknown>;
 export declare interface IQuat {
     x: number;
@@ -8236,6 +8273,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;
@@ -9100,6 +9138,9 @@ export declare interface AssetInfo extends IAssetInfo {
     imported: boolean;
     invalid: boolean;
 }
+export declare interface AssetMoveOptions extends AssetOperationOption {
+    preflightToken?: string;
+}
 export declare interface AssetOperationOption {
     overwrite?: boolean;
     rename?: boolean;
@@ -9145,6 +9186,7 @@ export declare namespace Assets {
         queryAssetUsers,
         querySortedPlugins,
         renameAsset,
+        preflightMoveAsset,
         moveAsset,
         updateDefaultUserData,
         queryAssetUserDataConfig,
@@ -9232,6 +9274,9 @@ export declare namespace Assets {
         AssetPropertySchemaMap,
         IAssetInfo,
         AssetOperationOption,
+        AssetMoveOptions,
+        IAssetMoveConflict,
+        IAssetMovePreflightResult,
         DeleteAssetOptions,
         AnimationMaskDump,
         AnimationMaskJoint,
@@ -9719,6 +9764,15 @@ export declare interface IAssetMeta<T extends ISupportCreateType | 'unknown' = '
     id?: string;
     name?: string;
 }
+export declare interface IAssetMoveConflict {
+    sourceUrl: string;
+    targetUrl: string;
+    sourceIsDirectory: boolean;
+    targetIsDirectory: boolean | null;
+}
+export declare type IAssetMovePreflightResult =
+| { action: 'move'; preflightToken: string }
+| { action: 'choose-conflict-handling'; preflightToken: string; conflict: IAssetMoveConflict };
 export declare interface IAssetOperationContext {
     opId: string;
     kind: IAssetOperationKind;
@@ -10405,7 +10459,7 @@ export declare interface MotionPreviewVariable {
     name: string;
     value: number | null;
 }
-export declare function moveAsset(source: string, target: string, options?: AssetOperationOption): Promise<any>;
+export declare function moveAsset(source: string, target: string, options?: AssetMoveOptions): Promise<IAssetInfo>;
 export declare enum NormalImportSetting {
     optional = 0,
     exclude = 1,
@@ -10496,6 +10550,7 @@ export declare interface PrefabAssetUserData {
     persistent?: boolean;
     syncNodeName?: string;
 }
+export declare function preflightMoveAsset(source: string, target: string): Promise<IAssetMovePreflightResult>;
 export declare class ProgrammingFacet {
     private _packerDriverUpdateCount;
     private _asyncIteration;
@@ -10906,6 +10961,7 @@ export declare interface SpriteFrameBaseAssetUserData {
     height: number;
     rawWidth: number;
     rawHeight: number;
+    cropToBorderCenter?: boolean;
     borderTop: number;
     borderBottom: number;
     borderLeft: number;

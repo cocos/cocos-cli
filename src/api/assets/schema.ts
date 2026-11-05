@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAbsolute } from 'path';
 import { ASSET_HANDLER_TYPES, SUPPORT_CREATE_TYPES } from '../../core/assets/@types/interface';
 import { SchemaUrlOrUUID, SchemaUUIDOrPath, SchemaUrlOrUUIDOrPath, SchemaUrlOrPath } from '../base/schema-identifier';
 
@@ -273,10 +274,38 @@ export const SchemaPluginScriptInfo = z.object({
     url: z.string().describe('URL address of plugin script'), // 插件脚本的 URL 地址
 }).describe('Plugin script information'); // 插件脚本信息
 
+export const SchemaAssetMoveTarget = z.string()
+    .trim()
+    .min(1)
+    .refine(value => /^db:\/\/[^/]+(?:\/.*)?$/.test(value) || isAbsolute(value), {
+        message: 'The move target must be an Asset DB URL or an absolute path.',
+    })
+    .describe('Target asset path as a db:// Asset DB URL or an absolute file system path.');
+
 export const SchemaAssetMoveOptions = z.object({
     overwrite: z.boolean().optional().describe('Whether to force overwrite existing files, default false'), // 是否强制覆盖已存在的文件，默认 false
     rename: z.boolean().optional().describe('Whether to automatically rename conflicting files, default false'), // 是否自动重命名冲突文件，默认 false
+    preflightToken: z.string().min(1).optional().describe('Single-use token returned by preflightMoveAsset. Changed requests or asset state are rejected before moving.'),
 }).optional().describe('Asset move options'); // 资源移动选项
+
+export const SchemaAssetMovePreflightResult = z.discriminatedUnion('action', [
+    z.object({
+        action: z.literal('move'),
+        preflightToken: z.string(),
+    }),
+    z.object({
+        action: z.literal('choose-conflict-handling'),
+        preflightToken: z.string(),
+        conflict: z.object({
+            sourceUrl: z.string(),
+            targetUrl: z.string(),
+            sourceIsDirectory: z.boolean(),
+            targetIsDirectory: z.boolean().nullable(),
+        }),
+    }),
+]).describe('Move preflight facts and a single-use observation token. No files are moved or reserved.');
+
+export type TAssetMovePreflightResult = z.infer<typeof SchemaAssetMovePreflightResult>;
 
 export const SchemaAssetRenameOptions = z.object({
     overwrite: z.boolean().optional().describe('Whether to force overwrite existing files, default false'), // 是否强制覆盖已存在的文件，默认 false

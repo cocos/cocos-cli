@@ -5,11 +5,23 @@ const mockLoadAssetValue = jest.fn();
 const mockQueryAssetCtor = jest.fn();
 const mockQueryAssetUuid = jest.fn();
 const mockSerializeAssetValue = jest.fn();
+const mockResolveCurveTarget = jest.fn();
+const mockFindPropertyTrack = jest.fn();
+const mockParsePropertyTrack = jest.fn();
 
 jest.mock('cc', () => ({ Node: class Node {} }));
 
 jest.mock('../scene-process/service/animation/property-metadata', () => ({
     queryAnimationPropertyMetadata: mockQueryPropertyMetadata,
+}));
+
+jest.mock('../scene-process/service/animation/property-curve', () => ({
+    resolvePropertyCurveTarget: mockResolveCurveTarget,
+}));
+
+jest.mock('../scene-process/service/animation/property-curve-track', () => ({
+    findPropertyTrack: mockFindPropertyTrack,
+    parsePropertyTrack: mockParsePropertyTrack,
 }));
 
 jest.mock('../scene-process/service/animation/scene-node', () => ({
@@ -46,6 +58,9 @@ describe('normalizeProvidedAnimationPropertyOperationValue', () => {
         mockResolveRelativeNodePath.mockReturnValue('Enemy');
         mockQueryPropertyMetadata.mockReturnValue({ type: { value: 'cc.SpriteFrame' } });
         mockQueryAssetCtor.mockReturnValue(null);
+        mockResolveCurveTarget.mockReturnValue({ nodePath: 'Enemy', propKey: 'cc.Sprite.spriteFrame' });
+        mockFindPropertyTrack.mockReturnValue(null);
+        mockParsePropertyTrack.mockReturnValue(null);
     });
 
     it.each([null, undefined])('returns %p without resolving the target', async (value) => {
@@ -132,5 +147,69 @@ describe('normalizeProvidedAnimationPropertyOperationValue', () => {
         )).resolves.toBe(loaded);
 
         expect(mockLoadAssetValue).toHaveBeenCalledWith(SpriteFrame, 'asset-uuid');
+    });
+
+    it('loads missing-node resources using metadata recovered from an existing track', async () => {
+        class SpriteFrame {}
+        const clip = {};
+        const track = {};
+        const metadata = { type: { value: 'cc.SpriteFrame' }, valueCtor: SpriteFrame };
+        const loaded = new SpriteFrame();
+        const operation = createOperation({ uuid: 'asset-uuid' });
+        mockQueryPropertyMetadata.mockReturnValue(null);
+        mockFindPropertyTrack.mockReturnValue(track);
+        mockParsePropertyTrack.mockReturnValue({ nodePath: 'Enemy', descriptor: metadata });
+        mockQueryAssetCtor.mockReturnValue(SpriteFrame);
+        mockQueryAssetUuid.mockReturnValue('asset-uuid');
+        mockLoadAssetValue.mockResolvedValue(loaded);
+
+        await expect(normalizeProvidedAnimationPropertyOperationValue(
+            rootNode, 'Root', operation, clip,
+        )).resolves.toBe(loaded);
+
+        expect(mockResolveCurveTarget).toHaveBeenCalledWith(
+            clip, { rootNode, rootPath: 'Root' }, operation,
+        );
+        expect(mockFindPropertyTrack).toHaveBeenCalledWith(clip, 'Enemy', operation.propKey);
+        expect(mockQueryAssetCtor).toHaveBeenCalledWith(metadata);
+        expect(mockLoadAssetValue).toHaveBeenCalledWith(SpriteFrame, 'asset-uuid');
+    });
+
+    it('keeps live-node metadata authoritative when an existing track is available', async () => {
+        const metadata = { type: { value: 'cc.Asset' } };
+        mockQueryPropertyMetadata.mockReturnValue(metadata);
+
+        await normalizeProvidedAnimationPropertyOperationValue(
+            rootNode, 'Root', createOperation({ uuid: 'asset-uuid' }), {},
+        );
+
+        expect(mockQueryAssetCtor).toHaveBeenCalledWith(metadata);
+        expect(mockFindPropertyTrack).not.toHaveBeenCalled();
+    });
+
+    it('does not load a resource when the clip rejects the target', async () => {
+        const value = { uuid: 'asset-uuid' };
+        mockResolveCurveTarget.mockReturnValue(null);
+
+        await expect(normalizeProvidedAnimationPropertyOperationValue(
+            rootNode, 'Root', createOperation(value), {},
+        )).resolves.toBe(value);
+
+        expect(mockQueryPropertyMetadata).not.toHaveBeenCalled();
+        expect(mockFindPropertyTrack).not.toHaveBeenCalled();
+        expect(mockLoadAssetValue).not.toHaveBeenCalled();
+    });
+
+    it('leaves resources unhydrated when the existing track has no recoverable type', async () => {
+        const value = { uuid: 'asset-uuid' };
+        mockQueryPropertyMetadata.mockReturnValue(null);
+        mockFindPropertyTrack.mockReturnValue({});
+        mockParsePropertyTrack.mockReturnValue({ descriptor: { type: { value: 'cc.Object' } } });
+
+        await expect(normalizeProvidedAnimationPropertyOperationValue(
+            rootNode, 'Root', createOperation(value), {},
+        )).resolves.toBe(value);
+
+        expect(mockLoadAssetValue).not.toHaveBeenCalled();
     });
 });
