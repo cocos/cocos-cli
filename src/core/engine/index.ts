@@ -4,7 +4,7 @@ import { EngineInfo } from './@types/public';
 import type { IEngineConfig, IEngineProjectConfig, IInitEngineInfo, IJointTextureLayoutPreviewResult } from './@types/config';
 import type { CategoryDetail, IFeatureItem, IModuleConfig, IModuleItem, ModuleRenderConfig } from './@types/modules';
 import { join } from 'path';
-import { cloneDeep, merge } from 'lodash';
+import { cloneDeep, mergeWith } from 'lodash';
 import { configurationRegistry, IBaseConfiguration } from '../configuration';
 import { assetManager } from '../assets';
 import { getEngineDynamicConfigContribution, getEngineRenderConfig, getLocalizedEngineRenderConfig } from './dynamic-metadata';
@@ -410,9 +410,11 @@ class EngineManager implements IEngine {
         this._configInstance = configInstance;
         const syncConfig = () => {
             const projectConfig = configInstance.getAll() || {};
-            const mergedConfig = merge(
+            const mergedConfig = mergeWith(
                 cloneDeep(configInstance.getDefaultConfig() || {}),
                 projectConfig,
+                // Module selections replace default arrays; undefined still inherits defaults.
+                (_defaultValue: unknown, projectValue: unknown) => Array.isArray(projectValue) ? cloneDeep(projectValue) : undefined,
             ) as IEngineConfig & IEngineProjectConfig;
             const moduleConfig = this.getSelectedModuleProjectConfig(mergedConfig);
 
