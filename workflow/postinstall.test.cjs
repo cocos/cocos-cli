@@ -32,7 +32,7 @@ async function runPostinstall(env = {}, development = true) {
     });
     const module = { exports: {} };
     execute(module.exports, requireMock, module, path.join(__dirname, 'postinstall.js'), __dirname);
-    if (development && env.COCOS_SKIP_POSTINSTALL_PREPARE !== 'true') await completed;
+    if (development) await completed;
     return calls;
 }
 
@@ -76,29 +76,18 @@ test('non-development installations remain a no-op', async () => {
     assert.deepEqual(await runPostinstall({ COCOS_SKIP_POSTINSTALL_BUILD: 'true' }, false), []);
 });
 
-test('SDK preparation opt-out returns before loading build dependencies', async () => {
-    assert.deepEqual(await runPostinstall({ COCOS_SKIP_POSTINSTALL_PREPARE: 'true', FORCE_UPDATE: 'true' }), []);
-    const execute = vm.runInNewContext(wrap(source), { process: { env: { COCOS_SKIP_POSTINSTALL_PREPARE: 'true' } }, console: { log() {} } });
-    const module = { exports: {} };
-    execute(module.exports, name => { throw new Error('Skipped installation loaded ' + name); }, module, 'postinstall.js', __dirname);
-});
-
-test('shared CI setup prepares the SDK explicitly after installing dependencies', async () => {
+test('shared CI setup prepares dependencies and tools before exactly one explicit build', async () => {
     const action = yaml.load(fs.readFileSync(path.join(__dirname, '../.github/actions/setup-env/action.yml'), 'utf8'));
     const steps = action.runs.steps;
     const installs = steps.filter(step => step.run === 'npm ci');
     assert.equal(installs.length, 1);
-    assert.equal(installs[0].env.COCOS_SKIP_POSTINSTALL_PREPARE, 'true');
-    await runPostinstall(installs[0].env);
-    const preparations = steps.filter(step => step.run === 'npm run setup:dev -- --force');
-    assert.equal(preparations.length, 1);
-    const prepare = steps.indexOf(preparations[0]);
-    assert.ok(steps.indexOf(installs[0]) < prepare);
-    for (const command of ['npm run update:repos', 'npm run install:engine']) {
-        const index = steps.findIndex(step => step.run === command);
-        assert.ok(index > steps.indexOf(installs[0]) && index < prepare);
-    }
-    assert.ok(!steps.some(step => step.run === 'npm run build'));
+    const install = installs[0];
+    const calls = await runPostinstall(install.env);
+    assert.deepEqual(scripts(calls), [...preparation, './workflow/download-tools.js']);
+    const builds = steps.filter(step => step.run === 'npm run build');
+    assert.equal(builds.length, 1);
+    assert.ok(steps.indexOf(install) < steps.indexOf(builds[0]));
+    assert.ok(!builds[0].env?.COCOS_SKIP_POSTINSTALL_BUILD);
 });
 
 test('DTS publishing reuses the installation from shared setup', () => {
@@ -110,19 +99,20 @@ test('DTS publishing reuses the installation from shared setup', () => {
     assert.ok(steps.slice(setup + 1).some(step => step.run === 'npm run generate:dts'));
 });
 
-test('CI restores downloads before installation and caches tools after successful preparation', () => {
+test('CI restores downloads before installation and saves them before build or tests can modify them', () => {
     const action = yaml.load(fs.readFileSync(path.join(__dirname, '../.github/actions/setup-env/action.yml'), 'utf8'));
     const steps = action.runs.steps;
+    const init = steps.findIndex(step => step.run === 'npm run init');
     const install = steps.findIndex(step => step.run === 'npm ci');
-    const build = steps.findIndex(step => step.run === 'npm run setup:dev -- --force');
-    assert.equal(steps[build].env.COCOS_STRICT_TOOL_DOWNLOADS, 'true');
+    const build = steps.findIndex(step => step.run === 'npm run build');
+    assert.equal(steps[install].env.COCOS_STRICT_TOOL_DOWNLOADS, 'true');
     assert.equal(steps[install].if, undefined);
-    assert.equal(steps[build].if, undefined);
+    assert.equal(steps[init].if, undefined);
     for (const id of ['npm-cache', 'tools-cache']) {
         const restore = steps.findIndex(step => step.id === id);
         const save = steps.findIndex(step => step.uses === 'actions/cache/save@v4' && step.with.key.includes(id));
-        assert.ok(restore >= 0 && restore < install);
-        assert.ok(save > (id === 'tools-cache' ? build : install));
+        assert.ok(restore >= 0 && restore < init);
+        assert.ok(save > install && save < build);
         assert.equal(steps[save].with.path, steps[restore].with.path);
         assert.equal(steps[save].if, `steps.${id}.outputs.cache-hit != 'true'`);
     }
@@ -157,17 +147,4 @@ test('failed tool downloads fail strict CI preparation so it cannot save an inco
 test('tool download failures retain the default local behavior', () => {
     const result = runFailedToolDownload('false');
     assert.equal(result.status, 0, result.stderr);
-});
-
-test('SDK candidate installation explicitly opts out without suppressing dependency lifecycle scripts', () => {
-    const workflow = yaml.load(fs.readFileSync(path.join(__dirname, '../.github/workflows/sdk-target-tests.yml'), 'utf8'));
-    assert.equal(workflow.env.COCOS_SKIP_POSTINSTALL_PREPARE, 'true');
-    const candidate = workflow.jobs.build.steps.find(step => step.name === 'Install candidate dependencies');
-    assert.equal(candidate.run, 'npm ci');
-});
-
-test('only an explicit true skips all automatic preparation', async () => {
-    for (const value of ['false', '0', '']) {
-        assert.deepEqual(scripts(await runPostinstall({ COCOS_SKIP_POSTINSTALL_PREPARE: value })), [...preparation, './workflow/build-ts.js', './workflow/download-tools.js']);
-    }
 });

@@ -46,10 +46,8 @@ npm install
 3. **Build the Project**
 
 ```bash
-npm run setup:cli
+npm run build
 ```
-
-First place a prepared Engine SDK in `packages/engine` or configure `enginePath` in the CLI root's `config.local.json`. For source development, explicitly fetch missing source with `npm run fetch:engine`, install it with `npm run install:engine`, then use `npm run setup:dev`. Skip fetching custom engines. See [environment setup](docs/dev/environment-setup.md).
 
 This will:
 
@@ -368,10 +366,8 @@ npm install
 3. **构建项目**
 
 ```bash
-npm run setup:cli
+npm run build
 ```
-
-先将已准备的 Engine SDK 放入 `packages/engine`，或在 CLI 根目录的 `config.local.json` 中配置 `enginePath`。开发引擎源码时，显式运行 `npm run fetch:engine` 下载缺失源码、`npm run install:engine` 安装引擎依赖，然后运行 `npm run setup:dev`。自定义引擎跳过下载。详见[环境配置说明](docs/dev/environment-setup.md)。
 
 这将：
 

@@ -232,9 +232,6 @@ describe('engine module config cache', () => {
         jest.doMock('../src/core/configuration', () => ({
             configurationRegistry: { register },
         }));
-        jest.doMock('../src/core/engine/selection', () => ({
-            selectEnginePath: (path: string) => ({ path, version: '4.0.0', source: 'explicit' }),
-        }));
         jest.doMock('../src/core/engine/dynamic-metadata', () => ({
             getEngineRenderConfig,
             getLocalizedEngineRenderConfig: jest.fn(),
@@ -264,7 +261,6 @@ describe('engine module config cache', () => {
                 native: 'USE_SPINE_4_2',
             });
         } finally {
-            jest.dontMock('../src/core/engine/selection');
             jest.dontMock('../src/core/configuration');
             jest.dontMock('../src/core/engine/dynamic-metadata');
         }
@@ -321,7 +317,7 @@ describe('engine module config synchronization', () => {
             }),
         }));
         const { Engine } = require('../src/core/engine') as typeof import('../src/core/engine');
-        await Engine.init(resolve(__dirname, '..', 'packages', 'engine'));
+        await Engine.init(resolve(__dirname, '..'));
 
         expect(Engine.getConfig().includeModules).toEqual(modules);
         expect(Engine.getConfig()).toMatchObject({

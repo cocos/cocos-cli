@@ -1,14 +1,12 @@
 import { join } from 'path';
 import { fork } from 'child_process';
-import { GlobalPaths } from '../../global';
 
 /**
  * 在独立的子进程中运行引擎编译
  * 这样可以避免繁重的 babel 转译阻塞主进程事件循环
  */
-export function startCompileEngineProcess(force: boolean = false, enginePath: string = GlobalPaths.enginePath): Promise<void> {
+export function startCompileEngineProcess(force: boolean = false): Promise<void> {
     return new Promise((resolve, reject) => {
-        let completed = false;
         // 根据运行环境决定是使用 ts-node 还是直接执行 js
         const isTsNode = (process as any)[Symbol.for('ts-node.register.instance')] || process.env.TS_NODE_DEV;
         
@@ -31,7 +29,6 @@ export function startCompileEngineProcess(force: boolean = false, enginePath: st
 
         worker.on('message', (message: any) => {
             if (message.type === 'done') {
-                completed = true;
                 resolve();
             } else if (message.type === 'error') {
                 reject(new Error(`[Worker Error] ${message.message}\n${message.stack}`));
@@ -43,12 +40,12 @@ export function startCompileEngineProcess(force: boolean = false, enginePath: st
         });
 
         worker.on('exit', (code) => {
-            if (!completed) {
-                reject(new Error(`Engine compile worker exited before completion (code ${code})`));
+            if (code !== 0 && code !== null) {
+                reject(new Error(`Engine compile worker exited with code ${code}`));
             }
         });
 
         // 告诉 worker 开始编译
-        worker.send({ type: 'start', force, enginePath });
+        worker.send({ type: 'start', force });
     });
 }

@@ -4,6 +4,7 @@ import { join } from 'path';
 import { IPlatformBuildPluginConfig } from '../../../@types/protected';
 import { GlobalPaths } from '../../../../../global';
 const PLATFORM = 'web-desktop';
+const buildTemplateDir = join(GlobalPaths.enginePath, `templates/${PLATFORM}`);
 
 const config: IPlatformBuildPluginConfig = {
     displayName: 'i18n:web-desktop.title',
@@ -68,9 +69,12 @@ const config: IPlatformBuildPluginConfig = {
         platformType: 'web',
     },
     buildTemplateConfig: {
-        get templates() {
-            return [{ path: join(GlobalPaths.enginePath, `templates/${PLATFORM}/index.ejs`), destUrl: 'index.ejs' }];
-        },
+        templates: ['index.ejs'].map((url) => {
+            return {
+                path: join(buildTemplateDir, url),
+                destUrl: url,
+            };
+        }),
         version: '1.0.0',
     },
     customBuildStages: [{

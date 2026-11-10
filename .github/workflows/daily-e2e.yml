@@ -5,7 +5,7 @@
 # 2. 定时触发：每天北京时间凌晨 00:00（UTC 16:00）
 #
 # 功能：
-# - 运行 main 分支的完整 E2E 测试与引擎兼容矩阵
+# - 运行完整的 E2E 测试套件
 # - 生成可视化的 HTML 测试报告
 # - 检查 E2E 测试覆盖率
 # - 生成覆盖率报告
@@ -43,7 +43,7 @@ jobs:
           clean: false
           persist-credentials: true
           fetch-depth: 0
-          ref: main
+          ref: v0.0.1
       
       - name: Setup configuration
         id: setup-config
@@ -98,8 +98,3 @@ jobs:
           RELEASE_SUCCESS: ${{ steps.release.outputs.release_success }}
           RELEASE_RESULTS: ${{ steps.release.outputs.release_results }}
 
-  engine-compatibility:
-    name: Engine SDK compatibility (main)
-    uses: ./.github/workflows/sdk-tag-matrix.yml
-    with:
-      cli_ref: main

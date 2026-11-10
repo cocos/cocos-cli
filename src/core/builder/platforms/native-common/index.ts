@@ -82,9 +82,10 @@ export const commonOptions: IInternalBuildPluginConfig & Pick<IPlatformBuildPlug
         platformType: 'native',
     },
     buildTemplateConfig: {
-        get templates() {
-            return [{ path: join(GlobalPaths.enginePath, 'templates/native/index.ejs'), destUrl: 'index.ejs' }];
-        },
+        templates: [{
+            path: join(GlobalPaths.enginePath, 'templates/native/index.ejs'),
+            destUrl: 'index.ejs',
+        }],
         version: '1.0.0',
         dirname: 'native',
         displayName: 'i18n:builder.platforms.native.title',

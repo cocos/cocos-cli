@@ -17,17 +17,16 @@ git clone <repository-url>
 cd cocos-cli
 
 # Install dependencies
-COCOS_SKIP_POSTINSTALL_PREPARE=true npm install
+npm run init
+npm install
 
-# Put a prepared Engine SDK in packages/engine, or configure enginePath
-# in config.local.json at the CLI root. Relative paths use that root.
-npm run setup:cli
+# Download development tools (first time only)
+npm run download-tools
 
-# Link globally
+# Build and link globally
+npm run build
 npm link
 ```
-
-For engine source development, explicitly run `npm run fetch:engine` when source is missing, `npm run install:engine`, then `npm run setup:dev` instead of `setup:cli`. Skip fetching for a custom engine. Default installation preserves automatic compilation; the SDK example explicitly skips root preparation with COCOS_SKIP_POSTINSTALL_PREPARE=true. See [environment setup](../dev/environment-setup.md) for local defaults and CI.
 
 ### 3. ✅ Verify Installation
 
