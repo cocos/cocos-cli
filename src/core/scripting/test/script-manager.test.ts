@@ -457,53 +457,69 @@ describe('ScriptManager', () => {
     });
 
     describe('postCompileScripts', () => {
-        it('should schedule delayed compilation', async () => {
-            const delay = 100;
-            const taskId = scriptManager.postCompileScripts(delay);
+        let busy: jest.SpyInstance;
+        let build: jest.SpyInstance;
 
-            expect(taskId).toBeDefined();
+        beforeEach(() => {
+            jest.useFakeTimers();
+            busy = jest.spyOn(scriptManager, 'isCompiling').mockReturnValue(false);
+            build = jest.spyOn(PackerDriver.getInstance(), 'build').mockResolvedValue(undefined);
+        });
+
+        afterEach(() => {
+            jest.clearAllTimers();
+            (scriptManager as any)._pendingCompileTimer = null;
+            (scriptManager as any)._pendingCompileTaskId = null;
+            build.mockRestore();
+            busy.mockRestore();
+            jest.useRealTimers();
+        });
+
+        it('should schedule delayed compilation', async () => {
+            const taskId = scriptManager.postCompileScripts(100);
             expect(typeof taskId).toBe('string');
             expect((scriptManager as any)._pendingCompileTimer).not.toBeNull();
-
-            // Wait for timer to complete (add some buffer time)
-            await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay + 200);
-
-            // Timer should be cleared after execution
+            await jest.advanceTimersByTimeAsync(99);
+            expect(build).not.toHaveBeenCalled();
+            await jest.advanceTimersByTimeAsync(1);
+            expect(build).toHaveBeenCalledTimes(1);
+            expect(build).toHaveBeenCalledWith(undefined, taskId);
             expect((scriptManager as any)._pendingCompileTimer).toBeNull();
-        }, 10000); // Increase timeout for real timer
+        });
 
         it('should cancel previous delayed compilation and schedule new one', async () => {
-            const delay1 = 200;
-            const delay2 = 100;
-
-            const taskId1 = scriptManager.postCompileScripts(delay1);
-            const taskId2 = scriptManager.postCompileScripts(delay2);
-
-            expect(taskId1).toBeDefined();
-            expect(taskId2).toBeDefined();
-            // Should reuse same task ID
-            expect(taskId1).toBe(taskId2);
-
-            // Wait for the second timer to complete (which should cancel the first)
-            await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay2 + 200);
-
-            // Timer should be cleared
+            const taskId = scriptManager.postCompileScripts(200);
+            await jest.advanceTimersByTimeAsync(50);
+            expect(scriptManager.postCompileScripts(100)).toBe(taskId);
+            await jest.advanceTimersByTimeAsync(99);
+            expect(build).not.toHaveBeenCalled();
+            await jest.advanceTimersByTimeAsync(1);
+            expect(build).toHaveBeenCalledWith(undefined, taskId);
             expect((scriptManager as any)._pendingCompileTimer).toBeNull();
-        }, 10000); // Increase timeout for real timer
+            await jest.advanceTimersByTimeAsync(100);
+            expect(build).toHaveBeenCalledTimes(1);
+        });
 
-        it('should clear timer after execution', async () => {
-            const delay = 100;
-            scriptManager.postCompileScripts(delay);
-
-            expect((scriptManager as any)._pendingCompileTimer).not.toBeNull();
-
-            // Wait for timer to complete
-            await waitFor(() => (scriptManager as any)._pendingCompileTimer === null, delay + 100);
-            await waitFor(() => scriptManager.isCompiling() === false, delay + 1000);
-
+        it('should clear timer and task ID after execution', async () => {
+            scriptManager.postCompileScripts(100);
+            await jest.advanceTimersByTimeAsync(100);
+            expect(build).toHaveBeenCalledTimes(1);
             expect((scriptManager as any)._pendingCompileTimer).toBeNull();
             expect((scriptManager as any)._pendingCompileTaskId).toBeNull();
-        }, 10000); // Increase timeout for real timer
+        });
+
+        it('should postpone compilation while busy and retain the task ID', async () => {
+            busy.mockReturnValue(true);
+            const taskId = scriptManager.postCompileScripts(100);
+            await jest.advanceTimersByTimeAsync(300);
+            expect(build).not.toHaveBeenCalled();
+            expect((scriptManager as any)._pendingCompileTaskId).toBe(taskId);
+            busy.mockReturnValue(false);
+            await jest.advanceTimersByTimeAsync(100);
+            expect(build).toHaveBeenCalledTimes(1);
+            expect(build).toHaveBeenCalledWith(undefined, taskId);
+            expect((scriptManager as any)._pendingCompileTaskId).toBeNull();
+        });
     });
 
     describe('isCompiling', () => {
