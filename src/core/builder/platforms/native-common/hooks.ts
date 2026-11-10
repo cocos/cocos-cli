@@ -72,7 +72,7 @@ async function genCocosParams(options: ITaskOption, result: InternalBuildResult)
     }
 
     if (engineInfo.native.type === 'custom') {
-        params.cMakeConfig.BUILTIN_COCOS_X_PATH = `set(BUILTIN_COCOS_X_PATH "${fixPath(engineInfo.native.path)}")`;
+        params.cMakeConfig.BUILTIN_COCOS_X_PATH = `set(BUILTIN_COCOS_X_PATH "${fixPath(engineInfo.native.builtin)}")`;
     }
 
     const moduleConfig = Engine.queryModuleConfig().moduleCmakeConfig;

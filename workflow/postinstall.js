@@ -1,9 +1,3 @@
-// SDK and compatibility jobs prepare their selected engine explicitly.
-if (process.env.COCOS_SKIP_POSTINSTALL_PREPARE === 'true') {
-    console.log('Dependencies installed. Skipping automatic preparation (COCOS_SKIP_POSTINSTALL_PREPARE=true).');
-    return;
-}
-
 const readline = require('readline');
 const utils = require('./utils');
 
@@ -47,9 +41,9 @@ async function mockNpmModules() {
     } else {
         forceUpdate = await askForForceUpdate();
     }
-
+    
     const forceFlag = forceUpdate ? '--force' : '';
-
+    
     console.log(`开始构建${forceUpdate ? ' (强制更新)' : ''}...`);
     // compiler engine
     await utils.runCommand('node', ['--max-old-space-size=8192', './workflow/compiler-engine.js', forceFlag].filter(Boolean));

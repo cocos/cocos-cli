@@ -150,8 +150,6 @@ export class Project implements IProject {
             if (existsSync(packageJSONPath)) {
                 throw new Error('Failed to create project, project exist');
             }
-            const { selectProjectEngine } = await import('../../engine/selection');
-            await selectProjectEngine();
             await mkdir(projectPath, { recursive: true });
             const requiredDirs = [
                 join(projectPath, 'temp'),

@@ -8,9 +8,7 @@ process.on('message', async (message: any) => {
             const engineCompilerPath = join(GlobalPaths.workspace, 'packages', 'engine-compiler', 'dist', 'index');
             const { compileEngine } = require(engineCompilerPath);
 
-            if (typeof message.enginePath !== 'string' || !message.enginePath.trim()) throw new Error('Compile request must provide enginePath');
-            const { selectEnginePath } = await import('./selection');
-            const enginePath = selectEnginePath(message.enginePath).path;
+            const enginePath = GlobalPaths.enginePath;
             //compile for editor
             await compileEngine(enginePath);
             //compile for web
