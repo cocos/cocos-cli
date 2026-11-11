@@ -1,8 +1,10 @@
 import {
     ICloseOptions,
     ICreateOptions,
+    IDiscardOptions,
     IOpenOptions,
     IPublicEditorService,
+    IReloadFromDiskOptions,
     IReloadOptions,
     ISaveOptions,
     ISceneInfo,
@@ -11,8 +13,9 @@ import {
 import { Rpc } from '../rpc';
 import { DumpConverter, IDumpConvertOptions } from './dump-converter';
 
-export interface IEditorProxy extends Omit<IPublicEditorService, 'open' | 'queryCurrent'> {
+export interface IEditorProxy extends Omit<IPublicEditorService, 'open' | 'reloadFromDisk' | 'queryCurrent'> {
     open(params: IOpenOptions): Promise<ISceneInfo | INodeInfo>;
+    reloadFromDisk(params: IReloadFromDiskOptions): Promise<ISceneInfo | INodeInfo>;
     queryCurrent(): Promise<ISceneInfo | INodeInfo | null>;
 }
 
@@ -30,6 +33,13 @@ export const EditorProxy: IEditorProxy = {
     },
     close(params: ICloseOptions) {
         return Rpc.getInstance().request('Editor', 'close', [params]);
+    },
+    discard(params: IDiscardOptions) {
+        return Rpc.getInstance().request('Editor', 'discard', [params]);
+    },
+    async reloadFromDisk(params: IReloadFromDiskOptions) {
+        const result: any = await Rpc.getInstance().request('Editor', 'reloadFromDisk', [params]);
+        return convertEditorResult(result);
     },
     save(params: ISaveOptions) {
         return Rpc.getInstance().request('Editor', 'save', [params]);

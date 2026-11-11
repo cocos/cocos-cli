@@ -42,6 +42,17 @@ export const SchemaOpenOptions = z.object({
 }).describe('Open scene options');
 
 
+export const SchemaDiscardOptions = z.object({
+    discardChanges: z.literal(true).describe('Required explicit consent to discard all unsaved in-memory changes without saving.'),
+}).describe('Discard current scene/prefab options');
+
+export const SchemaReloadFromDiskOptions = SchemaDiscardOptions.extend({
+    includeChildren: z.boolean().default(true).describe('Whether to include child nodes in the result'),
+    includeComponents: z.boolean().default(false).describe('Whether to include prefab components in the result'),
+}).describe('Discard live changes, then reimport and reopen the current source; import/open failures leave the editor closed');
+
+export type TDiscardOptions = z.infer<typeof SchemaDiscardOptions>;
+export type TReloadFromDiskOptions = z.infer<typeof SchemaReloadFromDiskOptions>;
 export type TAssetUrlOrUUID = z.infer<typeof SchemaAssetDbUrlOrUUID>;
 export type TOpenOptions = z.infer<typeof SchemaOpenOptions>;
 export type TCurrentResult = z.infer<typeof SchemaCurrentResult>;
