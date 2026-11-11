@@ -29,6 +29,7 @@ import { url2path } from '../../assets/utils';
 import { compressUuid } from '../../builder/worker/builder/utils';
 import { TypeScriptConfigBuilder } from '../intelligence';
 import { eventEmitter, compilationState } from '../event-emitter';
+import { parentsRestoredByAddedFile, readMissingModuleImport } from './restore-missing-import';
 import { DBInfo } from '../@types/config-export';
 import path from 'path';
 
@@ -577,6 +578,7 @@ export class PackerDriver {
                     if (buildResult.err) {
                         err = buildResult.err;
                         target.deleteCacheFile((err as any).file);
+                        target.rememberUnresolvedImport?.(err);
                         continue;
                     }
                     if (buildResult.depsGraph) {
@@ -930,6 +932,41 @@ class PackTarget {
         }
     }
 
+    /**
+     * 相对导入的目标还不存在时，记下导入方。
+     * deleteCacheFile 已经把该脚本移出入口；等目标文件出现后再放回去。
+     * 语法错误等其它失败没有 specifier，不在这里记录。
+     */
+    rememberUnresolvedImport(err: unknown) {
+        const file = err && typeof err === 'object' && typeof (err as { file?: unknown }).file === 'string'
+            ? (err as { file: string }).file
+            : undefined;
+        const missing = readMissingModuleImport(err);
+        const parentHref = file || missing?.parentHref;
+        if (!missing || !parentHref) {
+            return;
+        }
+        if (!this._pendingMissingImports) {
+            this._pendingMissingImports = new Map();
+        }
+        let specifiers = this._pendingMissingImports.get(parentHref);
+        if (!specifiers) {
+            specifiers = new Set();
+            this._pendingMissingImports.set(parentHref, specifiers);
+        }
+        specifiers.add(missing.specifier);
+    }
+
+    private _restoreImportersWaitingFor(addedHref: string) {
+        if (!this._pendingMissingImports) {
+            return;
+        }
+        for (const parentHref of parentsRestoredByAddedFile(this._pendingMissingImports, addedHref)) {
+            this._prerequisiteAssetMods.add(parentHref);
+            this._pendingMissingImports.delete(parentHref);
+        }
+    }
+
     private async _build(): Promise<BuildResult> {
         const prerequisiteAssetMods = await this._getPrerequisiteAssetModsWithFilter();
         const buildEntries = [
@@ -989,6 +1026,7 @@ class PackTarget {
                     this._uuidURLMap.delete(uuid);
                     this._modLo.unsetUUID(oldURL);
                     const deleted = this._prerequisiteAssetMods.delete(oldURL);
+                    this._pendingMissingImports?.delete(oldURL);
                     if (!deleted) {
                         this._logger.warn(`Unexpected: ${oldURL} is not in registry.`);
                     }
@@ -1003,6 +1041,7 @@ class PackTarget {
                 this._uuidURLMap.set(uuid, url);
                 this._modLo.setUUID(url, uuid);
                 this._prerequisiteAssetMods.add(url);
+                this._restoreImportersWaitingFor(url);
             }
         }
 
@@ -1101,6 +1140,7 @@ class PackTarget {
     private _quickPack: QuickPack;
     private _quickPackLoaderContext: QuickPackLoaderContext;
     private _prerequisiteAssetMods: Set<string> = new Set();
+    private _pendingMissingImports: Map<string, Set<string>> = new Map();
     private _uuidURLMap: Map<string, string> = new Map();
     private _logger: Logger;
     private _firstBuild = true;
