@@ -18,7 +18,19 @@ export const onBeforeMake = nativeCommonHook.onBeforeMake;
 export const make = nativeCommonHook.make;
 export const run = nativeCommonHook.run;
 
+// 后续如果有自定义引擎的情况下需要使用到这个函数。某些 CLI/平台构建入口没有完整走到统一的 checkProjectSetting() 或其他初始化流程，
+// 导致 options.engineInfo 没被注入。
+function ensureEngineInfo(options: IAndroidInternalBuildOptions): void {
+    if (options.engineInfo) {
+        return;
+    }
+
+    const { Engine } = require(join(__dirname, '../../../../engine/index'));
+    options.engineInfo = Engine.getInfo();
+}
+
 export async function onAfterInit(this: IBuilder, options: IAndroidInternalBuildOptions, result: IBuildResult, _cache: BuilderCache) {
+    ensureEngineInfo(options);
     await nativeCommonHook.onAfterInit.call(this, options, result);
 
     const android = await generateAndroidOptions(options);
