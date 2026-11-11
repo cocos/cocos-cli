@@ -15,10 +15,15 @@ export class BuildCommand extends BaseCommand {
             .requiredOption('-j, --project <path>', 'Path to the Cocos project (required)')
             .requiredOption('-p, --platform <platform>', 'Target platform (web-desktop, web-mobile, android, ios, etc.)')
             .option('-c,--build-config <path>', 'Specify build config file path')
+            .option('--profile', 'Generate a build profile report (profile-*.json next to the build log)')
             .option('--ndkPath <path>', 'Android NDK path (for Android platform)')
             .option('--sdkPath <path>', 'Android SDK path (for Android platform)')
             .action(async (options: any) => {
                 try {
+                    // --profile 仅用于生成性能报告（cli.ts 已在 parse 前扫描 argv 设置 COCOS_BUILD_PROFILE），
+                    // 从构建参数中剥离，避免污染 build options
+                    delete options.profile;
+
                     const resolvedPath = this.validateProjectPath(options.project);
 
                     if (options.buildConfig) {

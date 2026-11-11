@@ -30,12 +30,7 @@ function getLegacyProjectAssetCacheRoot() {
 }
 
 function getGlobalCacheRoots() {
-    const engineBin = join(GlobalPaths.enginePath, 'bin');
-    return [
-        join(engineBin, 'temp'),
-        join(engineBin, '.cache', 'editor-cache'),
-        join(engineBin, '.cache', 'dev-cli'),
-    ];
+    return [join(GlobalPaths.enginePath, 'bin', 'temp')];
 }
 
 function uniquePaths(paths: string[]) {
@@ -133,6 +128,9 @@ async function clearGlobalCache(): Promise<string[]> {
     const cleared: string[] = [];
     for (const cacheRoot of uniquePaths(getGlobalCacheRoots())) {
         const resolvedRoot = assertSafeCachePath(cacheRoot);
+        if (!await pathExists(resolvedRoot)) {
+            continue;
+        }
         await emptyDir(resolvedRoot);
         cleared.push(resolvedRoot);
     }
