@@ -6,6 +6,7 @@ import Utils from '../../../../base/utils';
 import i18n from '../../../../base/i18n';
 
 const PROGRESS_HEARTBEAT_INTERVAL = 10 * 1000;
+const PROGRESS_HEARTBEAT_LOG_INTERVAL = 60 * 1000;
 const PROGRESS_HEARTBEAT_MAX_RATIO = 0.9;
 const PROGRESS_HEARTBEAT_MAX_STEP = 0.01;
 const PROGRESS_HEARTBEAT_MIN_STEP = 0.001;
@@ -31,6 +32,7 @@ export abstract class BuildTaskBase extends EventEmitter {
     };
     private progressHeartbeatTimer?: ReturnType<typeof setTimeout>;
     private lastProgressMessage = '';
+    private lastProgressLogTime = 0;
     private displayProgress = 0;
     private heartbeatProgressMax = 0;
 
@@ -59,8 +61,9 @@ export abstract class BuildTaskBase extends EventEmitter {
      * @param message 
      * @param increment 
      * @param outputType 
+     * @param log 是否输出日志；静默更新仍会发送进度事件，并向父任务传递该标记。
      */
-    public updateProcess(message: string, increment = 0, outputType: IConsoleType = 'debug') {
+    public updateProcess(message: string, increment = 0, outputType: IConsoleType = 'debug', log = true) {
         if (increment) {
             this.progress = Utils.Math.clamp01(this.progress + increment);
             this.displayProgress = Math.max(this.displayProgress, this.progress);
@@ -69,7 +72,7 @@ export abstract class BuildTaskBase extends EventEmitter {
             this.syncDisplayProgress();
         }
         this.lastProgressMessage = message;
-        this.emitProgressUpdate(message, outputType);
+        this.emitProgressUpdate(message, outputType, log);
         this.scheduleProgressHeartbeat();
     }
 
@@ -110,7 +113,8 @@ export abstract class BuildTaskBase extends EventEmitter {
             ? `Still running: ${this.lastProgressMessage}`
             : `Still running: ${this.name}`;
         this.displayProgress = this.getNextHeartbeatProgress();
-        this.emitProgressUpdate(message, 'debug');
+        const log = Date.now() - this.lastProgressLogTime >= PROGRESS_HEARTBEAT_LOG_INTERVAL;
+        this.emitProgressUpdate(message, 'debug', log);
         this.scheduleProgressHeartbeat();
     }
 
@@ -124,12 +128,15 @@ export abstract class BuildTaskBase extends EventEmitter {
         this.displayProgress = Math.max(this.displayProgress, this.progress);
     }
 
-    private emitProgressUpdate(message: string, outputType: IConsoleType) {
+    private emitProgressUpdate(message: string, outputType: IConsoleType, log = true) {
         const progress = this.displayProgress;
-        this.emit('update', message, progress);
+        this.emit('update', message, progress, log);
 
-        const percentage = Math.round(progress * 100);
-        newConsole[outputType](`${message} (${percentage}%)`);
+        if (log) {
+            this.lastProgressLogTime = Date.now();
+            const percentage = Math.round(progress * 100);
+            newConsole[outputType](`${message} (${percentage}%)`);
+        }
     }
 
     private getNextHeartbeatProgress() {
