@@ -167,12 +167,55 @@ class AssetDBManager extends EventEmitter {
     }
 
     /**
-     * 直接启动数据库
+     * 创建并注册全部初始数据库，确保首个 importer 能解析跨库脚本依赖。
+     * 仅准备本次新增的库；准备失败时撤销它们，保留配置供重试。
+     */
+    private async _prepareStartupDatabases() {
+        const assetDBNames = Object.keys(this.assetDBInfo)
+            .sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0))
+            .filter((name) => !this.hasDB(name));
+        const attempted: string[] = [];
+        try {
+            for (const name of assetDBNames) {
+                attempted.push(name);
+                await this._createDB(this.assetDBInfo[name]);
+            }
+            return assetDBNames;
+        } catch (error) {
+            for (const name of attempted.reverse()) {
+                const db = this.assetDBMap[name];
+                if (!db) {
+                    continue;
+                }
+                try {
+                    await db.stop();
+                } catch (cleanupError) {
+                    console.error(`Stop prepared AssetDB '${name}' during startup rollback.`, cleanupError);
+                }
+                this.emit('db-removed', db);
+                delete this.assetDBMap[name];
+                try {
+                    // 注册可能在部分更新后失败，因此也撤销失败的当前库。
+                    await scripting.updateDatabases(
+                        { dbID: name, target: this.assetDBInfo[name].target },
+                        DBChangeType.remove,
+                    );
+                } catch (cleanupError) {
+                    console.error(`Remove prepared scripting registration '${name}' during startup rollback.`, cleanupError);
+                }
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * 全部目录注册完成后，按原优先级直接启动已创建的数据库。
      */
     private async _startDirectly() {
-        const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
+        const assetDBNames = await this._prepareStartupDatabases();
         for (const assetDBName of assetDBNames) {
-            await this.startDB(this.assetDBInfo[assetDBName]);
+            await this._startDB(assetDBName);
+            this.emit('assets:db-ready', this.assetDBInfo[assetDBName]);
         }
     }
 
@@ -181,9 +224,9 @@ class AssetDBManager extends EventEmitter {
      */
     private async _startFromCache() {
         console.debug('try start all assetDB from cache...');
-        const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
+        const assetDBNames = await this._prepareStartupDatabases();
         for (const assetDBName of assetDBNames) {
-            const db = await this._createDB(this.assetDBInfo[assetDBName]);
+            const db = this.assetDBMap[assetDBName];
             if (existsSync(db.cachePath)) {
                 try {
                     await db.startWithCache();
@@ -201,6 +244,7 @@ class AssetDBManager extends EventEmitter {
             // 没有正常走完缓存恢复，走普通的启动流程
             const waitingStartupDBInfo = await this._preStartDB(db);
             await this._startupDB(waitingStartupDBInfo);
+            this.emit('assets:db-ready', this.assetDBInfo[assetDBName]);
         }
     }
 
