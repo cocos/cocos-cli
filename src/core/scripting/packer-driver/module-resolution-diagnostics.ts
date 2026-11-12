@@ -1,7 +1,15 @@
 import { fileURLToPath } from 'url';
 import type { ModLo } from '@cocos/creator-programming-mod-lo/lib/mod-lo';
 
+import { ModuleNotFoundError } from '@cocos/creator-programming-mod-lo/lib/resolver/resolve-error';
+
 type Resolver = Pick<ModLo, 'resolve'>;
+export type MissingRelativeImport = Parameters<Resolver['resolve']>;
+const missingRelativeImports = new WeakMap<ModuleNotFoundError, MissingRelativeImport>();
+
+export function getMissingRelativeImport(error: unknown): MissingRelativeImport | undefined {
+    return error instanceof ModuleNotFoundError ? missingRelativeImports.get(error) : undefined;
+}
 
 /** Report the source import before QuickPack rewrites it to an opaque specifier. */
 export function attachModuleResolutionDiagnostics(
@@ -19,6 +27,10 @@ export function attachModuleResolutionDiagnostics(
             reported.delete(key);
             return result;
         } catch (error) {
+            if (error instanceof ModuleNotFoundError && importer?.protocol === 'file:'
+                && (specifier.startsWith('./') || specifier.startsWith('../'))) {
+                missingRelativeImports.set(error, args);
+            }
             if (!reported.has(key)) {
                 // Bound memory even when generated scripts continually introduce new imports.
                 if (reported.size >= 1024) reported.clear();

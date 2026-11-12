@@ -2,18 +2,23 @@ import fs from 'fs';
 import path from 'path';
 import ts from 'typescript';
 import { EventEmitter } from 'events';
+import os from 'os';
+import { pathToFileURL } from 'url';
+import { ModLo } from '@cocos/creator-programming-mod-lo/lib/mod-lo';
+import { QuickPack } from '@cocos/creator-programming-quick-pack/lib/quick-pack';
+import { attachModuleResolutionDiagnostics, getMissingRelativeImport } from '../packer-driver/module-resolution-diagnostics';
 import { CompilationState } from '../compilation-state';
 
 // Execute production methods without loading the engine and asset database.
 const source = ts.createSourceFile('packer.ts', fs.readFileSync(path.join(__dirname, '../packer-driver/index.ts'), 'utf8'), ts.ScriptTarget.Latest, true);
-function method(name: string): string {
+function method(...names: string[]): string {
     let result = '';
     function visit(node: ts.Node) {
-        if (ts.isMethodDeclaration(node) && node.name.getText(source) === name) result = node.getText(source);
+        if (ts.isMethodDeclaration(node) && names.includes(node.name.getText(source))) result += node.getText(source) + '\n';
         ts.forEachChild(node, visit);
     }
     visit(source);
-    if (!result) throw new Error('Missing production method: ' + name);
+    if (!result) throw new Error('Missing production methods: ' + names.join(', '));
     return ts.transpileModule(`class Harness { ${result} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText + '\nreturn new Harness();';
 }
 
@@ -138,5 +143,73 @@ describe('script compilation failure recovery', () => {
         Object.assign(target, { _ensureIdle() {}, _getPrerequisiteAssetModsWithFilter: async () => [], _entryMod: { source: '' }, _entryModSource: '', _logger: { debug() {} } });
         await expect(target.applyAssetChanges([])).resolves.toBeUndefined();
         expect(target._entryMod.source).toBe(makeSource());
+    });
+});
+
+describe('restore script entries when dependencies appear', () => {
+    it.each([
+        { name: 'separate additions', initial: { A: "import './B'; import './C'; export class A {}" }, batches: [{ B: 'export {}' }, { C: 'export {}' }], missing: ['./B', './C'] },
+        { name: 'one batch', initial: { A: "import './B'; import './C'; export class A {}" }, batches: [{ B: 'export {}', C: 'export {}' }], missing: ['./B'] },
+        { name: 'transitive import', initial: { A: "import './B'; export class A {}", B: "import './C';" }, batches: [{ C: 'export {}' }], missing: ['./C'] },
+        { name: 'cycle', initial: { A: "import './B'; export class A {}" }, batches: [{ B: "import './A'; export class B {}" }], missing: ['./B'] },
+    ])('restores unchanged entries for $name', async ({ initial, batches, missing }) => {
+        const temporaryRoot = fs.realpathSync(os.tmpdir());
+        const directory = fs.realpathSync(fs.mkdtempSync(path.join(temporaryRoot, 'cli-missing-dependency-')));
+        try {
+            const workspace = path.join(directory, 'out');
+            fs.mkdirSync(workspace);
+            const logger = { debug() {}, info() {}, warn() {}, error() {} };
+            const modLo = new ModLo({ _compressUUID: uuid => uuid, logger });
+            modLo.setExternals(['cc']);
+            modLo.setAssetPrefixes([pathToFileURL(directory + path.sep).href]);
+            attachModuleResolutionDiagnostics(modLo, 'preview', () => {});
+            const pack = new QuickPack({ modLo, origin: directory, workspace, logger });
+            const makeSource = (entries: string[]) => JSON.stringify(entries);
+            const target = new Function('getMissingRelativeImport', 'makePrerequisiteImportsMod',
+                'makeTentativePrerequisiteImports', 'OPTIMIZE_ENTRY_SOURCE_COMPILATION', 'AssetActionEnum',
+                method('applyAssetChanges', 'deleteCacheFile', 'restoreEntriesWithResolvedDependencies'))(
+                getMissingRelativeImport, makeSource, makeSource, true, { add: 'add', change: 'change', delete: 'delete' });
+            Object.assign(target, {
+                _ensureIdle() {}, _modLo: modLo, _uuidURLMap: new Map(),
+                _prerequisiteAssetMods: new Set(), _waitingForDependency: new Map(),
+                _getPrerequisiteAssetModsWithFilter: async () => [...target._prerequisiteAssetMods],
+                _entryMod: { source: '' }, _entryModSource: '', _logger: logger,
+            });
+            const failures: string[] = [];
+            const addAndBuild = async (scripts: Record<string, string | undefined>) => {
+                const changes = Object.entries(scripts).map(([name, code]) => {
+                    const file = path.join(directory, name + '.ts');
+                    fs.writeFileSync(file, code!);
+                    return { type: 'add', uuid: name, url: pathToFileURL(file) };
+                });
+                await target.applyAssetChanges(changes);
+                try {
+                    await pack.build(JSON.parse(target._entryMod.source));
+                } catch (error) {
+                    const request = getMissingRelativeImport(error);
+                    if (!request) throw error;
+                    failures.push(request[0]);
+                    target.deleteCacheFile((error as Error & { file: string }).file, error);
+                }
+            };
+
+            await addAndBuild(initial);
+            const importer = path.join(directory, 'A.ts');
+            const timestamp = fs.statSync(importer).mtimeMs;
+            for (const batch of batches) await addAndBuild(batch);
+            expect(failures).toEqual(missing);
+            expect(target._waitingForDependency.size).toBe(0);
+            expect(fs.statSync(importer).mtimeMs).toBe(timestamp);
+            const { imports } = JSON.parse(fs.readFileSync(path.join(workspace, 'import-map.json'), 'utf8'));
+            for (const name of ['A', 'B']) {
+                const entry = imports[pathToFileURL(path.join(directory, name + '.ts')).href];
+                expect(entry).toBeDefined();
+                expect(fs.existsSync(path.resolve(workspace, entry))).toBe(true);
+            }
+        } finally {
+            expect(path.dirname(directory)).toBe(temporaryRoot);
+            expect(path.basename(directory)).toMatch(/^cli-missing-dependency-/);
+            fs.rmSync(directory, { recursive: true, force: true });
+        }
     });
 });
