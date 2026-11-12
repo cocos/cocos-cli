@@ -530,11 +530,14 @@ class AssetWatcherManager {
             || uuid.endsWith('@e9a6d')
             || uuid.endsWith('@40c10');
     }
-    public async onAssetChanged(uuid: string) {
+    public async onAssetChanged(uuid: string): Promise<void | { error: unknown; cancelled?: boolean }> {
         const generation = this.generation;
         const info = await Rpc.getInstance().request('assetManager', 'queryAssetInfo', [uuid]);
-        if (!info || generation !== this.generation) {
-            return;
+        if (generation !== this.generation) {
+            return { error: new Error(`Scene changed during asset refresh: ${uuid}`), cancelled: true };
+        }
+        if (!info) {
+            return { error: new Error(`Asset is unavailable: ${uuid}`) };
         }
 
         // 如果是 texture，则 release 掉所依赖的 ImageAsset
@@ -555,13 +558,12 @@ class AssetWatcherManager {
         removeCaches(uuid);
 
         this.updater.lock();
+        let failure: { error: unknown } | undefined;
         try {
             const asset = await this.loadAsset(uuid);
             if (generation !== this.generation) {
                 this.discardCachedAsset(uuid, asset);
-                return;
-            }
-            if (oldAsset && asset && oldAsset.constructor.name !== asset.constructor.name) {
+            } else if (oldAsset && asset && oldAsset.constructor.name !== asset.constructor.name) {
                 this.updater.add(uuid, null);
                 // tslint:disable-next-line: max-line-length
                 console.warn('The asset type has been modified, and emptied the original reference in the scene.');
@@ -569,11 +571,15 @@ class AssetWatcherManager {
                 this.updater.add(uuid, asset);
             }
         } catch (error) {
-            console.error(error);
+            failure = { error };
         } finally {
             this.updater.unlock();
         }
         await this.updater.waitForFlush();
+        if (generation !== this.generation) {
+            return { error: new Error(`Scene changed during asset refresh: ${uuid}`), cancelled: true };
+        }
+        return failure;
     }
 
     private discardCachedAsset(uuid: string, asset: Asset): void {
