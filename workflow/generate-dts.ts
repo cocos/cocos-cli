@@ -17,6 +17,7 @@ import { promisify } from 'util';
 // 主线程(tsx CLI) / worker(tsx ESM) 下都能解析。workflow/ 不在 tsc 编译范围，不影响构建。
 import { normalizeDtsRollupContent } from './generate-dts-postprocess.ts';
 import { isMainThread } from 'worker_threads';
+import publicDts from './extend-public-dts.js';
 
 const execAsync = promisify(exec);// Dynamically build the real PlatformType union from @cocos/ccbuild enums.
 // This is needed because api-extractor incorrectly resolves
@@ -298,6 +299,8 @@ async function generate() {
             process.exit(1);
         }
     }
+
+    await publicDts.extendPublicDts();
 
     const packageJSONPath = path.join(dtsExportRoot, 'package.json');
     // 用 fs.readJSONSync 而非 require：worker 内以 ESM 加载，没有 require。

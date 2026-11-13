@@ -36,6 +36,7 @@
         "**/*.test.ts",
         "src/core/builder/platforms/**/src/view/**",
         "tests/**",
-        "e2e/**"
+        "e2e/**",
+        "src/core/scene/runtime/browser-assets/**"
     ]
 }
