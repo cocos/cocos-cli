@@ -911,7 +911,7 @@ describe('AnimationService enter', () => {
 
         expect(service._restoreClipSnapshotWithStateRecreation).toHaveBeenCalledWith('clip-uuid', currentClip, expect.objectContaining({
             events: [{ frame: 0, func: 'before-save', params: ['ok'] }],
-        }), true);
+        }), { shouldRecreateState: true });
         expect(service._animationStates.reset).toHaveBeenCalledWith('clip-uuid');
         expect(service._animationStates.create).toHaveBeenCalledWith('clip-uuid', currentClip);
         expect(service.setTime).toHaveBeenCalledWith({ time: 0 });
@@ -1148,7 +1148,7 @@ describe('AnimationService enter', () => {
         service._curEditTime = 0.5;
         service.setTime = jest.fn(async () => true);
 
-        await expect(service._restoreFailedOperationSnapshot(clip, snapshot, {})).resolves.toBeUndefined();
+        await expect(service._restoreFailedOperationSnapshot(clip, snapshot, [])).resolves.toBeUndefined();
 
         expect(service._animationStates.reset).toHaveBeenCalledWith('clip-uuid');
         expect(service._animationStates.create).toHaveBeenCalledWith('clip-uuid', clip);
@@ -1189,7 +1189,7 @@ describe('AnimationService enter', () => {
         service._curEditTime = 0.5;
         service.setTime = jest.fn(async () => true);
 
-        await expect(service._restoreFailedOperationSnapshot(clip, snapshot, {})).resolves.toBeUndefined();
+        await expect(service._restoreFailedOperationSnapshot(clip, snapshot, [])).resolves.toBeUndefined();
 
         expect(order).toEqual(['reset:stale', 'create:restored']);
         expect(clip.events).toEqual([{ frame: 0.5, func: 'restored', params: ['ok'] }]);

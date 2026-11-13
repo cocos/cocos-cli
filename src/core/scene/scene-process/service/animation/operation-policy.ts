@@ -9,6 +9,7 @@ export function isAnimationOperationResult(value: IAnimationOperation | IAnimati
 
 export function shouldSyncClipDuration(operation: IAnimationOperation): boolean {
     switch (operation.type) {
+        case 'changeNodeDataPath':
         case 'changeSample':
         case 'addEvent':
         case 'deleteEvent':
