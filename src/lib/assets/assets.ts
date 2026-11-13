@@ -76,7 +76,7 @@ export async function reconcileLocalizationRuntimeMount(): Promise<void> {
  * **注意事项 (Notice)**:
  * - 触发此事件代表**所有**注册的资源数据库都已经完全导入并初始化完成（启动阶段结束）。
  * - 收到此事件后，表示所有的资源查询、操作 API 都可以安全调用。
- * - 第一次 ready 后，将不再有 progress 进度消息。
+ * - 每轮 ready 后停止发送 progress，直到下一轮启动。
  * 
  * @param listener 回调函数
  * @returns 移除监听的函数
@@ -107,7 +107,7 @@ export function onDBReady(listener: (dbInfo: IAssetDBInfo) => void): () => void 
  * 注册初始化过程中的进度监听。
  * 
  * **注意事项 (Notice)**:
- * - **仅在启动阶段有效**。一旦触发过一次 `ready` 事件（即启动阶段结束），将不再会有新的进度消息。
+ * - **仅在每轮启动阶段有效**。该轮触发 `ready` 后停止发送进度消息，重新启动时恢复。
  * - 启动时的资源冷导入会抛出密集的进度信息，建议在 UI 层面进行适当的节流（throttle）渲染。
  * 
  * @param listener 回调函数，包含当前进度、总数、当前处理的资源 url 和导入状态
