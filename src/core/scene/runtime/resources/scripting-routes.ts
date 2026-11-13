@@ -462,6 +462,9 @@ export const scriptingRoutes = [
         url: '/scripting/engine/bin/.editor/:filename',
         async handler(req: Request, res: Response): Promise<Response | void> {
             const { filename } = req.params;
+            if (typeof filename !== 'string') {
+                return res.status(400).send('Invalid filename');
+            }
             const { Engine } = await import('../../../engine/index');
             const enginePath = Engine.getInfo().typescript.path;
             const engineFilePath = path.join(enginePath, 'bin', '.editor', filename);
