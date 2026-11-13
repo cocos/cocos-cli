@@ -178,7 +178,7 @@ export default {
                 }
                 const { dir, uuid, ext, nativeName } = req.params;
                 if (typeof uuid !== 'string') {
-                    return res.status(400).json({ error: 'Invalid UUID for native asset request (/:dir/:uuid/:nativeName.:ext): expected a string' });
+                    return res.status(400).json({ error: 'Invalid route parameter "uuid" for /:dir/:uuid/:nativeName.:ext: expected a string.' });
                 }
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
@@ -223,7 +223,7 @@ export default {
             async handler(req: Request, res: Response) {
                 const { dir, uuid, ext } = req.params;
                 if (typeof uuid !== 'string') {
-                    return res.status(400).json({ error: 'Invalid UUID for library asset request (/:dir/:uuid.:ext): expected a string' });
+                    return res.status(400).json({ error: 'Invalid route parameter "uuid" for /:dir/:uuid.:ext: expected a string.' });
                 }
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
