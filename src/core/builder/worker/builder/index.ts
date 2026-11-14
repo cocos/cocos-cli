@@ -317,10 +317,10 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             const childTask = new BuildTask(childOptions.taskId!, childOptions);
             this.currentSubTask = childTask;
             let lastProgress = 0;
-            childTask.on('update', (message: string, progress: number) => {
+            childTask.on('update', (message: string, progress: number, log = true) => {
                 const increment = Math.max(progress - lastProgress, 0) * this.mainTaskWeight;
                 lastProgress = Math.max(lastProgress, progress);
-                this.updateProcess(`[sub-build:${platform}] ${message}`, increment);
+                this.updateProcess(`[sub-build:${platform}] ${message}`, increment, 'debug', log);
             });
 
             console.log(`[sub-build:${platform}] start`);
@@ -457,8 +457,8 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
                 ...this.buildExitRes.custom,
             };
             this.currentStageTask = buildStageTask;
-            buildStageTask.on('update', (message: string, increment: number) => {
-                this.updateProcess(message, increment * stageWeight);
+            buildStageTask.on('update', (message: string, increment: number, log = true) => {
+                this.updateProcess(message, increment * stageWeight, 'debug', log);
             });
             await buildStageTask.run();
             if (this.error) {
@@ -545,8 +545,8 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
             ...this.buildExitRes.custom,
         };
         this.currentStageTask = buildStageTask;
-        buildStageTask.on('update', (message: string, increment: number) => {
-            this.updateProcess(`[${stagePlatform.platform}] ${message}`, increment * stageWeight);
+        buildStageTask.on('update', (message: string, increment: number, log = true) => {
+            this.updateProcess(`[${stagePlatform.platform}] ${message}`, increment * stageWeight, 'debug', log);
         });
         await buildStageTask.run();
         if (this.error) {
