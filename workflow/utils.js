@@ -61,9 +61,10 @@ async function runCommand(cmd, args = [], opts = {}) {
  * @param sourceDir
  */
 function runTscCommand(sourceDir) {
-    const binDir = path.join(__dirname, '../node_modules', '.bin');
-    const cmd = path.join(binDir, process.platform === 'win32' ? 'tsc.cmd' : 'tsc');
-    spawnSync(cmd, { cwd: sourceDir, shell: true, stdio: 'inherit' });
+    const compiler = require.resolve('typescript/bin/tsc');
+    const result = spawnSync(process.execPath, [compiler], { cwd: sourceDir, shell: false, stdio: 'inherit' });
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(`TypeScript compilation failed in ${sourceDir} (exit ${result.status}, signal ${result.signal || 'none'})`);
 }
 
 /**

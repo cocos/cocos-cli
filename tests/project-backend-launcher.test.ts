@@ -18,6 +18,8 @@ jest.mock('../src/core/base/utils', () => ({ __esModule: true, default: { Path: 
 jest.mock('../src/core/base/console', () => ({ newConsole: { init: jest.fn(), record: jest.fn() } }));
 jest.mock('../src/global', () => ({ GlobalPaths: { enginePath: 'engine' }, GlobalConfig: {} }));
 jest.mock('../src/server', () => ({ startServer: mockServerStart, stopServer: mockServerStop }));
+jest.mock('../src/core/engine/selection', () => ({ selectProjectEngine: jest.fn(async () => ({ path: 'engine', version: '4.0.0-beta.0' })) }));
+jest.mock('../workflow/engine-compatibility', () => ({ checkEngineCompatibility: jest.fn() }));
 jest.mock('../src/core/configuration', () => ({ configurationManager: { initialize: mockConfiguration } }));
 jest.mock('../src/core/project', () => ({ __esModule: true, default: { open: mockProjectOpen, close: mockProjectClose } }));
 jest.mock('../src/core/engine', () => ({ initEngine: jest.fn(async () => undefined), Engine: { getConfig: () => ({ includeModules: [] }), getInfo: () => ({ typescript: { path: 'ts' } }) } }));

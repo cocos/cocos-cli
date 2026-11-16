@@ -12,6 +12,7 @@ export interface EngineInfo {
     },
     tmpDir: string;
     version: string;
+    revision?: string;
 }
 
 export * from './config';
