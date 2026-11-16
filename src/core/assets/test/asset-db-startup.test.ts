@@ -394,29 +394,67 @@ describe('AssetDB startup scripting domains', () => {
         expect(manager.ready).toBe(true);
     });
 
-    it('continues rollback when cleanup fails and preserves the startup error', async () => {
+    it('continues rollback, retaining failed cleanup for retry without masking the startup error', async () => {
+        let failedDB!: typeof manager.assetDBMap[string];
+        let failRegistration = true;
         manager.once('db-created', db => {
+            failedDB = db;
             jest.spyOn(db, 'stop').mockRejectedValueOnce(new Error('cleanup stop failure'));
         });
         const update = mockUpdateDatabases.getMockImplementation()!;
         mockUpdateDatabases.mockImplementation(async (info, kind) => {
             await update(info, kind);
-            if (kind === DBChangeType.remove && info.dbID === 'shared') {
+            if (failRegistration && kind === DBChangeType.remove && info.dbID === 'shared') {
                 throw new Error('cleanup registration failure');
             }
         });
         startFailure = 'assets';
         await expect(manager.start()).rejects.toThrow('start failure');
-        expect(manager.assetDBMap).toEqual({});
-        expect(domains.size).toBe(0);
-        expect(events.filter(event => event.startsWith('db-removed:'))).toHaveLength(4);
+        expect(manager.assetDBMap).toEqual({ internal: failedDB });
+        expect([...domains.keys()]).toEqual(['internal']);
+        expect(events).not.toContain('db-removed:internal');
+        expect(events.filter(event => event.startsWith('db-removed:'))).toHaveLength(3);
         expect(manager.ready).toBe(false);
 
         startFailure = undefined;
+        failRegistration = false;
         imports = [];
         events = [];
         await manager.start();
         expectSuccessfulStartup();
+        expect(failedDB.stop).toHaveBeenCalledTimes(2);
+        expect(events.indexOf('db-removed:internal')).toBeLessThan(events.indexOf('db-created:internal'));
+        expect(events).not.toContain('db-removed:shared');
+    });
+
+    it('blocks startup until scripting cleanup succeeds without stopping an already removed instance twice', async () => {
+        const update = mockUpdateDatabases.getMockImplementation()!;
+        let failRegistration = true;
+        mockUpdateDatabases.mockImplementation(async (info, kind) => {
+            if (failRegistration && kind === DBChangeType.remove && info.dbID === 'shared') {
+                throw new Error('cleanup registration failure');
+            }
+            return update(info, kind);
+        });
+        startFailure = 'assets';
+        await expect(manager.start()).rejects.toThrow('start failure');
+        expect(manager.assetDBMap).toEqual({});
+        expect([...domains.keys()]).toEqual(['shared']);
+        expect(stopped).toEqual([...order].reverse());
+
+        startFailure = undefined;
+        events = [];
+        await expect(manager.start()).rejects.toThrow('cleanup registration failure');
+        expect(manager.ready).toBe(false);
+        expect(mockCreate).toHaveBeenCalledTimes(4);
+        expect(stopped).toHaveLength(4);
+        expect(events).toEqual([]);
+
+        failRegistration = false;
+        imports = [];
+        await manager.start();
+        expectSuccessfulStartup();
+        expect(stopped).toHaveLength(4);
     });
 
     it('still reports a genuinely missing dependency', async () => {

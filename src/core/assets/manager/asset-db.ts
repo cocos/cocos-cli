@@ -29,6 +29,12 @@ interface IStartupDatabaseHandleInfo {
     finish?: Function;
 }
 
+interface IStartupDatabaseCleanupInfo {
+    name: string;
+    target: string;
+    stopped: boolean;
+}
+
 type RefreshState = 'free' | 'busy' | 'wait';
 
 interface IWaitingTask {
@@ -50,6 +56,8 @@ interface IWaitingTaskInfo {
  */
 class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
+    // 保留回滚未完成的实例与注册信息，下一次 start/stop 必须先完成清理。
+    private pendingStartupCleanup = new Map<assetdb.AssetDB, IStartupDatabaseCleanupInfo>();
     public globalInternalLibrary = false;
 
     public setFileSystemProvider(provider: IAssetFileSystemProvider) {
@@ -120,11 +128,12 @@ class AssetDBManager extends EventEmitter {
     }
 
     /**
-     * 启动数据库入口；失败时撤销本轮新建数据库，保留配置供直接重试。
+     * 启动数据库入口；先完成遗留回滚，失败时保留配置与待清理实例供重试。
      */
     async start() {
         newConsole.trackTimeStart('assets:start-database');
         this.ready = false;
+        await this._retryStartupCleanup();
         const assetDBNames = await this._prepareStartupDatabases();
         try {
             if (AssetDBManager.useCache) {
@@ -151,10 +160,11 @@ class AssetDBManager extends EventEmitter {
 
     /**
      * 停止全部数据库并清理实例监听，保留配置供下次启动重新创建。
-     * 停止失败的实例保持登记，便于调用方再次停止。
+     * 先重试遗留启动回滚；停止失败的实例保持登记，便于调用方再次停止。
      */
     async stop() {
         this.ready = false;
+        await this._retryStartupCleanup();
         for (const name in this.assetDBMap) {
             const db = this.assetDBMap[name];
             if (db) {
@@ -215,31 +225,54 @@ class AssetDBManager extends EventEmitter {
 
     /**
      * 逆序撤销本轮新建实例及脚本注册，覆盖准备、导入和启动收尾失败。
-     * 不触碰启动前已有的数据库，也不删除重试所需的配置。
+     * 清理失败保留实例供重试；不触碰原有数据库，不删除重试所需的配置。
      */
     private async _rollbackStartupDatabases(names: readonly string[]) {
         for (const name of [...names].reverse()) {
             const db = this.assetDBMap[name];
-            if (!db) {
-                continue;
+            if (db && !this.pendingStartupCleanup.has(db)) {
+                this.pendingStartupCleanup.set(db, {
+                    name, target: this.assetDBInfo[name].target, stopped: false,
+                });
             }
+        }
+        try {
+            await this._retryStartupCleanup();
+        } catch {
+            // 已记录清理错误并保留待清理项，由调用方继续抛出原始启动错误。
+        }
+    }
+
+    /**
+     * 尽力清理全部待回滚实例；任何清理失败都阻止下一轮创建和 ready。
+     * stop 成功后才移除实例；脚本注销失败只重试注销，避免重复停止与通知。
+     */
+    private async _retryStartupCleanup() {
+        const errors: unknown[] = [];
+        for (const [db, cleanup] of [...this.pendingStartupCleanup]) {
+            const { name, target } = cleanup;
             try {
-                await db.stop();
-            } catch (cleanupError) {
-                console.error(`Stop AssetDB '${name}' during startup rollback.`, cleanupError);
-            }
-            this.emit('db-removed', db);
-            delete this.assetDBMap[name];
-            this.assetDBInfo[name].state = 'none';
-            try {
+                if (!cleanup.stopped) {
+                    await db.stop();
+                    this.emit('db-removed', db);
+                    if (this.assetDBMap[name] === db) {
+                        delete this.assetDBMap[name];
+                        if (this.assetDBInfo[name]) {
+                            this.assetDBInfo[name].state = 'none';
+                        }
+                    }
+                    cleanup.stopped = true;
+                }
                 // 注册可能在部分更新后失败，因此也撤销失败的当前库。
-                await scripting.updateDatabases(
-                    { dbID: name, target: this.assetDBInfo[name].target },
-                    DBChangeType.remove,
-                );
+                await scripting.updateDatabases({ dbID: name, target }, DBChangeType.remove);
+                this.pendingStartupCleanup.delete(db);
             } catch (cleanupError) {
-                console.error(`Remove scripting registration '${name}' during startup rollback.`, cleanupError);
+                console.error(`Clean AssetDB '${name}' during startup rollback.`, cleanupError);
+                errors.push(cleanupError);
             }
+        }
+        if (errors.length) {
+            throw errors[0];
         }
     }
 
