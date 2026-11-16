@@ -63,6 +63,7 @@ describe('AssetDB startup scripting domains', () => {
     let createFailure: string | undefined;
     let registrationFailure: string | undefined;
     let startFailure: string | undefined;
+    let lateStartFailure: string | undefined;
     let corruptCache: string | undefined;
     let previousQuery: typeof globalThis.assetQuery;
 
@@ -95,7 +96,7 @@ describe('AssetDB startup scripting domains', () => {
         imports = [];
         stopped = [];
         cached = new Set();
-        createFailure = registrationFailure = startFailure = corruptCache = undefined;
+        createFailure = registrationFailure = startFailure = lateStartFailure = corruptCache = undefined;
 
         // Deliberately shuffled: internal and assets must retain their priorities.
         for (const name of ['i18n', 'assets', 'internal', 'shared']) {
@@ -137,6 +138,9 @@ describe('AssetDB startup scripting domains', () => {
                 async start({ hooks }: { hooks: Record<string, () => Promise<void>> }) {
                     importScripts(info.name);
                     await hooks.afterPreImport?.();
+                    if (lateStartFailure === info.name) {
+                        throw new Error('late start failure');
+                    }
                     await hooks.afterStart?.();
                 },
                 async startWithCache() {
@@ -241,19 +245,20 @@ describe('AssetDB startup scripting domains', () => {
     });
 
     it('keeps a failed stop tracked while clearing databases that stopped successfully', async () => {
-        const { stopAssetDB } = await import('../index');
         await manager.start();
         const stopError = new Error('stop failure');
         const failedDB = manager.assetDBMap.assets;
         jest.spyOn(failedDB, 'stop').mockRejectedValueOnce(stopError);
-        await expect(stopAssetDB()).rejects.toBe(stopError);
+        await expect(manager.stop()).rejects.toBe(stopError);
         expect(manager.ready).toBe(false);
         expect(manager.assetDBMap.internal).toBeUndefined();
+        expect(manager.assetDBInfo.internal.state).toBe('none');
         expect(manager.assetDBMap.assets).toBe(failedDB);
         expect(events).not.toContain('db-removed:assets');
 
-        await stopAssetDB();
+        await manager.stop();
         expect(manager.assetDBMap).toEqual({});
+        expect(Object.values(manager.assetDBInfo).map(info => info.state)).toEqual(order.map(() => 'none'));
     });
 
     it('waits for asynchronous scripting registration before starting any importer', async () => {
@@ -310,6 +315,108 @@ describe('AssetDB startup scripting domains', () => {
         expect(manager.ready).toBe(false);
         expect(events).not.toContain('assets:db-ready:assets');
         expect(events).not.toContain('assets:ready');
+    });
+
+    it.each(['cache hit', 'cache missing', 'cache corrupt', 'cold startup'])('%s retries failed startup through Assets.start without stopping first', async mode => {
+        const Assets = await import('../../../lib/assets/assets');
+        (manager.constructor as typeof manager.constructor & { useCache: boolean }).useCache = mode !== 'cold startup';
+        cached = new Set(mode === 'cache missing' ? [] : order);
+        corruptCache = mode === 'cache corrupt' ? 'assets' : undefined;
+        startFailure = 'assets';
+
+        await expect(Assets.start()).rejects.toThrow('start failure');
+        expect(manager.ready).toBe(false);
+        expect(events).not.toContain('assets:ready');
+        expect(manager.assetDBMap).toEqual({});
+        expect(domains.size).toBe(0);
+        expect(stopped).toEqual([...order].reverse());
+        expect(Object.values(manager.assetDBInfo).map(info => info.state)).toEqual(order.map(() => 'none'));
+
+        // Retry the public API directly, without stop, init or Launcher cleanup.
+        startFailure = undefined;
+        imports = [];
+        events = [];
+        await Assets.start();
+        expectSuccessfulStartup();
+        for (const info of Object.values(manager.assetDBInfo)) {
+            expect(info.state).toBe('startup');
+        }
+    });
+
+    it('propagates cache fallback failure after pre-import and permits direct retry', async () => {
+        (manager.constructor as typeof manager.constructor & { useCache: boolean }).useCache = true;
+        cached = new Set(order);
+        corruptCache = lateStartFailure = 'assets';
+        await expect(manager.start()).rejects.toThrow('late start failure');
+        expect(manager.assetDBMap).toEqual({});
+        expect(manager.ready).toBe(false);
+        expect(events).not.toContain('assets:ready');
+
+        lateStartFailure = undefined;
+        imports = [];
+        events = [];
+        await manager.start();
+        expectSuccessfulStartup();
+    });
+
+    it('rolls back startup finalization failure before retrying', async () => {
+        const handler = require('../manager/asset-handler').default;
+        handler.compileEffect.mockRejectedValueOnce(new Error('finalization failure'));
+        await expect(manager.start()).rejects.toThrow('finalization failure');
+        expect(manager.assetDBMap).toEqual({});
+        expect(manager.ready).toBe(false);
+        expect(events).not.toContain('assets:ready');
+
+        imports = [];
+        events = [];
+        await manager.start();
+        expectSuccessfulStartup();
+    });
+
+    it('preserves databases running before a failed startup attempt', async () => {
+        const existing = mockCreate(manager.assetDBInfo.internal);
+        manager.assetDBMap.internal = existing;
+        manager.assetDBInfo.internal.state = 'startup';
+        domains.set('internal', roots.internal);
+        resolver.setAssetPrefixes([assetPrefix(roots.internal)]);
+        startFailure = 'assets';
+        await expect(manager.start()).rejects.toThrow('start failure');
+        expect(manager.assetDBMap).toEqual({ internal: existing });
+        expect(manager.assetDBInfo.internal.state).toBe('startup');
+        expect([...domains.keys()]).toEqual(['internal']);
+        expect(stopped).toEqual(['shared', 'i18n', 'assets']);
+
+        startFailure = undefined;
+        imports = [];
+        await manager.start();
+        expect(imports).toEqual(['assets', 'i18n', 'shared']);
+        expect(manager.assetDBMap.internal).toBe(existing);
+        expect(manager.ready).toBe(true);
+    });
+
+    it('continues rollback when cleanup fails and preserves the startup error', async () => {
+        manager.once('db-created', db => {
+            jest.spyOn(db, 'stop').mockRejectedValueOnce(new Error('cleanup stop failure'));
+        });
+        const update = mockUpdateDatabases.getMockImplementation()!;
+        mockUpdateDatabases.mockImplementation(async (info, kind) => {
+            await update(info, kind);
+            if (kind === DBChangeType.remove && info.dbID === 'shared') {
+                throw new Error('cleanup registration failure');
+            }
+        });
+        startFailure = 'assets';
+        await expect(manager.start()).rejects.toThrow('start failure');
+        expect(manager.assetDBMap).toEqual({});
+        expect(domains.size).toBe(0);
+        expect(events.filter(event => event.startsWith('db-removed:'))).toHaveLength(4);
+        expect(manager.ready).toBe(false);
+
+        startFailure = undefined;
+        imports = [];
+        events = [];
+        await manager.start();
+        expectSuccessfulStartup();
     });
 
     it('still reports a genuinely missing dependency', async () => {

@@ -149,4 +149,36 @@ describe('AssetManager startup progress lifecycle', () => {
         await startAssetDB();
         await expectReadyWithoutProgress();
     });
+
+    it('removes listeners from rolled-back instances and tracks progress on direct retry', async () => {
+        managerClass.useCache = true;
+        const created: assetdb.AssetDB[] = [];
+        const failStartup = (db: assetdb.AssetDB) => {
+            created.push(db);
+            if (db.options.name === 'assets') {
+                jest.spyOn(db, 'startWithCache').mockRejectedValueOnce(new Error('cache failure'));
+                jest.spyOn(db, 'start').mockRejectedValueOnce(new Error('start failure'));
+            }
+        };
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(console, 'warn').mockImplementation(() => {});
+        assetDBManager.on('db-created', failStartup);
+        try {
+            await expect(startAssetDB()).rejects.toThrow('start failure');
+        } finally {
+            assetDBManager.removeListener('db-created', failStartup);
+        }
+        expect(assetDBManager.ready).toBe(false);
+        expect(assetDBManager.assetDBMap).toEqual({});
+        expect(created).toHaveLength(2);
+        for (const db of created) {
+            expect([...progressEvents, ...completedEvents, 'unresponsive'].map(event => db.listenerCount(event)))
+                .toEqual([0, 0, 0, 0, 0, 0, 0]);
+        }
+
+        onProgress.mockClear();
+        await startAssetDB();
+        expect(onProgress).toHaveBeenCalledTimes(2);
+        await expectReadyWithoutProgress();
+    });
 });

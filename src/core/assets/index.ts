@@ -34,20 +34,7 @@ export async function startAssetDB() {
  */
 export async function stopAssetDB() {
     assetManager.resetMovePreflights();
-    assetDBManager.ready = false;
-    for (const name in assetDBManager.assetDBMap) {
-        const db = assetDBManager.assetDBMap[name];
-        if (db) {
-            await db.stop();
-            assetDBManager.emit('db-removed', db);
-            if (assetDBManager.assetDBMap[name] === db) {
-                delete assetDBManager.assetDBMap[name];
-                if (assetDBManager.assetDBInfo[name]) {
-                    assetDBManager.assetDBInfo[name].state = 'none';
-                }
-            }
-        }
-    }
+    await assetDBManager.stop();
 }
 
 export { default as assetManager } from './manager/asset';
