@@ -2784,6 +2784,8 @@ export declare enum AssetActionEnum {
 }
 export declare class AssetDB extends EventEmitter {
     static readonly version = "1.0.1";
+    private prebuilt;
+    get isPrebuilt(): boolean;
     options: AssetDBOptions;
     flag: {
         starting: boolean;
@@ -2813,6 +2815,8 @@ export declare class AssetDB extends EventEmitter {
     private prepareStart;
     start(options?: AssetDBStartOptions): Promise<unknown>;
     startWithCache(): Promise<void>;
+    saveSnapshot(): Promise<void>;
+    startFromSnapshot(): Promise<void>;
     updateInfoManager(): Promise<void>;
     private _generateRecordInfo;
     save(): Promise<void>;
@@ -3949,6 +3953,7 @@ export declare interface CustomPluginOptions {
         [plugin: string]: any;
 }
 export declare class DataManager {
+    readonly: boolean;
     file: string | undefined;
     dataMap: {
         [uuid: string]: IData;
@@ -13632,14 +13637,12 @@ export declare class ProgrammingFacet {
     private _staticImportMap;
     private _engineRoot;
     private _engineDistRoot;
-    private _systemJsHomeDir;
+    private readonly _systemJsHomeDir;
     private _systemJsBundleFileName;
-    private _engineStatsQuery;
     private _quickPackLoader;
     private constructor();
     private _getQuickPackLoader;
     private _initialize;
-    private _buildSystemJs;
     private _resetQuickPackLoader;
 }
 export declare namespace Project {
@@ -19444,14 +19447,12 @@ export declare class ProgrammingFacet {
     private _staticImportMap;
     private _engineRoot;
     private _engineDistRoot;
-    private _systemJsHomeDir;
+    private readonly _systemJsHomeDir;
     private _systemJsBundleFileName;
-    private _engineStatsQuery;
     private _quickPackLoader;
     private constructor();
     private _getQuickPackLoader;
     private _initialize;
-    private _buildSystemJs;
     private _resetQuickPackLoader;
 }
 declare class ScriptManager {
