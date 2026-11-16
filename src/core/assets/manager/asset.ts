@@ -168,19 +168,25 @@ class AssetManager extends EventEmitter {
     }
 
     // ------------- 实例化方法 ------------
+    private _initialized = false;
+
     async init() {
+        if (this._initialized) {
+            return;
+        }
         assetDBManager.on('db-created', this._onAssetDBCreated);
         assetDBManager.on('db-removed', this._onAssetDBRemoved);
-        // 当所有数据库 ready 后，移除启动阶段的进度追踪监听器
-        assetDBManager.once('assets:ready', () => {
-            this._removeProgressListeners();
-        });
+        // 每轮启动 ready 后都清理进度监听，支持不重新 init 的 stop/start。
+        assetDBManager.on('assets:ready', this._removeProgressListeners);
+        this._initialized = true;
     }
 
     destroyed() {
         this.resetMovePreflights();
         assetDBManager.removeListener('db-created', this._onAssetDBCreated);
         assetDBManager.removeListener('db-removed', this._onAssetDBRemoved);
+        assetDBManager.removeListener('assets:ready', this._removeProgressListeners);
+        this._initialized = false;
     }
 
     /**
@@ -230,9 +236,9 @@ class AssetManager extends EventEmitter {
 
     /**
      * 移除所有数据库的启动阶段进度追踪监听器
-     * 在 ready 后调用，清理不再需要的监听器
+     * 每轮 ready 后调用，清理不再需要的监听器。
      */
-    private _removeProgressListeners() {
+    private _removeProgressListeners = () => {
         for (const name in assetDBManager.assetDBMap) {
             const db = assetDBManager.assetDBMap[name];
             if (db) {
@@ -241,7 +247,7 @@ class AssetManager extends EventEmitter {
                 db.removeListener('delete', assetManager._onAssetDelete);
             }
         }
-    }
+    };
 
     private _getImportState(asset: IAsset, defaultState: 'processing' | 'success' | 'failed') {
         if (asset.invalid || asset.importError) {
@@ -311,7 +317,7 @@ class AssetManager extends EventEmitter {
      * 
      * **注意事项 (Notice)**:
      * - 触发此事件代表**所有**注册的资源数据库都已经完全导入并初始化完成（启动阶段结束）。
-     * - 第一次 ready 后，将不再有 progress 进度消息。
+     * - 每轮 ready 后停止发送 progress，直到下一轮启动。
      * - ready 后会自动移除启动阶段的进度追踪监听器（add/change/delete），这些监听器仅在启动阶段用于进度追踪。
      * 
      * @param listener 回调函数
@@ -345,7 +351,7 @@ class AssetManager extends EventEmitter {
      * 注册初始化过程中的进度监听。
      * 
      * **注意事项 (Notice)**:
-     * - **仅在启动阶段有效**。一旦触发过一次 `ready` 事件（即启动阶段结束），将不再会有新的进度消息。
+     * - **仅在每轮启动阶段有效**。该轮触发 `ready` 后停止发送进度消息，重新启动时恢复。
      * - 启动时的资源冷导入会抛出密集的进度信息，建议在 UI 层面进行适当的节流（throttle）渲染。
      * 
      * @param listener 回调函数，包含当前进度、总数、当前处理的资源 url 以及导入状态

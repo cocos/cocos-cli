@@ -30,16 +30,11 @@ export async function startAssetDB() {
 }
 
 /**
- * 停止资源数据库
+ * 停止资源数据库并移除已停止的实例，保留配置供下次启动重新创建。
  */
 export async function stopAssetDB() {
     assetManager.resetMovePreflights();
-    for (const name in assetDBManager.assetDBMap) {
-        const db = assetDBManager.assetDBMap[name];
-        if (db) {
-            await db.stop();
-        }
-    }
+    await assetDBManager.stop();
 }
 
 export { default as assetManager } from './manager/asset';
