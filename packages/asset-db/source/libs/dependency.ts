@@ -10,7 +10,9 @@ import {
     findPathAwareIndex,
     isSamePath,
     PathCaseConflictError,
+    PathSet,
     replacePathRecordKey,
+    toPathKey,
 } from './path-identity';
 
 interface DependMap {
@@ -113,31 +115,37 @@ export class DependencyManager {
         const restoredDependMap = getDefaultRecordInfo().data;
         const { path: pathRecord, uuid: uuidRecord } = restoredDependMap;
         Object.keys(cacheInfo.data.path).forEach((relativePath) => {
-            const restoredDependencies: string[] = [];
-            cacheInfo.data.path[relativePath].forEach((subPath) => {
+            const restoredDependencies = new PathSet();
+            for (const subPath of cacheInfo.data.path[relativePath]) {
                 const dependencyPath = join(this.pathRoot, subPath);
-                if (findPathAwareIndex(restoredDependencies, dependencyPath) === -1) {
-                    restoredDependencies.push(dependencyPath);
+                if (!restoredDependencies.has(dependencyPath)) {
+                    restoredDependencies.add(dependencyPath);
                 }
-            });
-            pathRecord[join(this.pathRoot, relativePath)] = restoredDependencies;
+            }
+            pathRecord[join(this.pathRoot, relativePath)] = [...restoredDependencies];
         })
         Object.keys(cacheInfo.data.uuid).forEach((relativePath) => {
             uuidRecord[join(this.pathRoot, relativePath)] = cacheInfo.data.uuid[relativePath];
         })
         this.dependMap = restoredDependMap;
         // 补全关联列表
+        const indexedAssociations = new Map<string, PathSet>();
         for (let type in this.dependMap) {
             const typeMap = this.dependMap[type];
-            for (let path in typeMap) {
-                const array = typeMap[path];
-                array.forEach((urlOrPathOrUUID) => {
-                    associatedMap[urlOrPathOrUUID] = associatedMap[urlOrPathOrUUID] || [];
-                    if (findPathAwareIndex(associatedMap[urlOrPathOrUUID], path) !== -1) {
-                        return;
+            for (const source in typeMap) {
+                for (const dependency of typeMap[source]) {
+                    const files = associatedMap[dependency] ??= [];
+                    const key = toPathKey(dependency);
+                    let indexed = indexedAssociations.get(key);
+                    if (!indexed) {
+                        indexed = new PathSet(files);
+                        indexedAssociations.set(key, indexed);
                     }
-                    associatedMap[urlOrPathOrUUID].push(path);
-                });
+                    if (!indexed.has(source)) {
+                        indexed.add(source);
+                        files.push(source);
+                    }
+                }
             }
         }
     }

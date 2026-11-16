@@ -8,6 +8,14 @@ import { Engine } from '../engine';
 import { createImportMetadataNodes } from './metadata';
 import { DEFAULT_CREATE_TEMPLATE_ROOT, resolveImportTemplateRoot } from './import-config-defaults';
 import { isLegacyProjectLocalization, resolveBuiltinExtensionsRoot } from '../extension-roots';
+import { GlobalPaths } from '../../global';
+
+export function internalAssetPaths(enginePath: string) {
+    return {
+        target: join(enginePath, 'editor', 'assets'),
+        library: join(GlobalPaths.workspace, 'dist', 'internal-assets'),
+    };
+}
 
 export interface AssetDBConfig {
     restoreAssetDBFromCache: boolean;
@@ -280,10 +288,9 @@ class AssetConfig {
             library: join(this._assetConfig.root, 'library'),
         }, {
             name: 'internal',
-            target: join(enginePath, 'editor/assets'),
+            ...internalAssetPaths(enginePath),
             readonly: true,
             visible: true,
-            library: join(enginePath, 'editor/library'),
         }];
 
         // 扫描项目扩展与打包内置扩展的 asset-db mount 声明，并注册 db:// 域

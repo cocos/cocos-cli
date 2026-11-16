@@ -2603,4 +2603,13 @@ module.exports = {
     addChunk,
     compileShader,
     buildEffect,
+    getChunkRegistry() {
+        return { chunks: globalChunks, deprecations: globalDeprecations };
+    },
+    restoreChunkRegistry({ chunks, deprecations }) {
+        Object.assign(globalChunks, chunks);
+        for (const type of Object.keys(globalDeprecations)) {
+            Object.assign(globalDeprecations[type], deprecations[type]);
+        }
+    },
 };

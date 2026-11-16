@@ -28,6 +28,13 @@ declare global {
     var assetQuery: AssetQueryManager;
 }
 
+function getAssetHandlerInfo(asset: IAsset) {
+    const importer = asset.meta.importer;
+    return assetHandlerManager.name2handler[importer]
+        || asset._assetDB.importerManager.name2importer[importer]
+        || asset._assetDB.dataManager.get(asset)?.snapshotHandler;
+}
+
 class AssetQueryManager {
 
     /**
@@ -498,17 +505,11 @@ class AssetQueryManager {
                     }
                 }
             case 'type':
-                {
-                    const handler = assetHandlerManager.name2handler[asset.meta.importer] || asset._assetDB.importerManager.name2importer[asset.meta.importer] || null;
-                    return handler ? handler.assetType || 'cc.Asset' : 'cc.Asset';
-                }
+                return getAssetHandlerInfo(asset)?.assetType || 'cc.Asset';
             case 'isBundle':
                 return asset.meta.userData && asset.meta.userData.isBundle;
             case 'instantiation':
-                {
-                    const handler = assetHandlerManager.name2handler[asset.meta.importer] || asset._assetDB.importerManager.name2importer[asset.meta.importer] || null;
-                    return handler ? handler.instantiation : undefined;
-                }
+                return getAssetHandlerInfo(asset)?.instantiation;
             case 'library':
                 return libArr2Obj(asset);
             case 'displayName':
@@ -518,10 +519,9 @@ class AssetQueryManager {
                 if (asset.meta.userData && asset.meta.userData.redirect) {
                     const redirectInfo = this.queryAsset(asset.meta.userData.redirect);
                     if (redirectInfo) {
-                        const redirectHandler = assetHandlerManager.name2handler[redirectInfo.meta.importer] || null;
                         return {
                             uuid: redirectInfo.uuid,
-                            type: redirectHandler ? redirectHandler.assetType || 'cc.Asset' : 'cc.Asset',
+                            type: getAssetHandlerInfo(redirectInfo)?.assetType || 'cc.Asset',
                         };
                     }
                 }

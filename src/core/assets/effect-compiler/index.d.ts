@@ -13,6 +13,8 @@ export const options: {
     getAlternativeChunkPaths: (path: string) => string[];
 };
 export function addChunk(name: string, content: string): void;
+export function usePrebuiltChunkRegistry(file: string): void;
+export function getChunkRegistry(): object;
 
 export interface IEditorInfo {
     hide: boolean;

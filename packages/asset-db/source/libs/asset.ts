@@ -664,6 +664,7 @@ export class Asset extends VirtualAsset {
      */
     async save() {
         if (
+            this._assetDB.isPrebuilt ||
             !await fsExists(this.source) // 如果源文件被删除了，则不需要继续保存
         ) {
             return false;

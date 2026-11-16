@@ -2,7 +2,7 @@ import ts from 'typescript';
 import ps from 'path';
 import fs from 'fs-extra';
 import { getDatabaseModuleRootURL } from '../utils/db-module-url';
-import { StatsQuery } from '@cocos/ccbuild';
+import { StatsQuery } from '../utils/engine-stats-query';
 import { Engine } from '../../engine';
 import { DBInfo } from '../@types/config-export';
 
