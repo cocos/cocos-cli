@@ -20,7 +20,7 @@ import {
 import { AssetChange, AssetChangeInfo, AssetDatabaseDomain, AssetDbInterop, DBChangeType, ModifiedAssetChange } from './asset-db-interop';
 import { AssetActionEnum } from '@cocos/asset-db';
 import { PackerDriverLogger } from './logger';
-import { attachModuleResolutionDiagnostics } from './module-resolution-diagnostics';
+import { attachModuleResolutionDiagnostics, getMissingRelativeImport, type MissingRelativeImport } from './module-resolution-diagnostics';
 import { LanguageServiceAdapter } from '../language-service';
 import { AsyncDelegate } from '../utils/delegate';
 import JSON5 from 'json5';
@@ -576,7 +576,7 @@ export class PackerDriver {
                     const buildResult = await target.build();
                     if (buildResult.err) {
                         err = buildResult.err;
-                        target.deleteCacheFile((err as any).file);
+                        target.deleteCacheFile((err as any).file, err);
                         continue;
                     }
                     if (buildResult.depsGraph) {
@@ -923,10 +923,24 @@ class PackTarget {
         return buildResult;
     }
 
-    deleteCacheFile(filePath: string) {
-        const mods = this._prerequisiteAssetMods;
-        if (filePath && mods.size) {
-            mods.delete(filePath);
+    deleteCacheFile(filePath: string, error: Error) {
+        if (!this._prerequisiteAssetMods.delete(filePath)) return;
+        const missing = getMissingRelativeImport(error);
+        if (missing?.[1]?.href === filePath) {
+            this._waitingForDependency.set(filePath, missing);
+        }
+    }
+
+    private restoreEntriesWithResolvedDependencies() {
+        for (const [url, request] of this._waitingForDependency) {
+            try {
+                if (this._modLo.resolve(...request).isExternal) continue;
+            } catch {
+                // Leave the entry excluded until the dependency can be resolved.
+                continue;
+            }
+            this._waitingForDependency.delete(url);
+            this._prerequisiteAssetMods.add(url);
         }
     }
 
@@ -968,6 +982,7 @@ class PackTarget {
             await this._buildPromise;
         }
         this._ensureIdle();
+        let hasScriptAdditionOrChange = false;
         for (const change of changes) {
             const uuid = change.uuid;
             // Note: "modified" directive is decomposed as "remove" and "add".
@@ -988,7 +1003,8 @@ class PackTarget {
                 } else {
                     this._uuidURLMap.delete(uuid);
                     this._modLo.unsetUUID(oldURL);
-                    const deleted = this._prerequisiteAssetMods.delete(oldURL);
+                    const removedWaitingEntry = this._waitingForDependency.delete(oldURL);
+                    const deleted = this._prerequisiteAssetMods.delete(oldURL) || removedWaitingEntry;
                     if (!deleted) {
                         this._logger.warn(`Unexpected: ${oldURL} is not in registry.`);
                     }
@@ -1002,9 +1018,13 @@ class PackTarget {
                 const { href: url } = change.url;
                 this._uuidURLMap.set(uuid, url);
                 this._modLo.setUUID(url, uuid);
+                this._waitingForDependency.delete(url);
                 this._prerequisiteAssetMods.add(url);
+                hasScriptAdditionOrChange = true;
             }
         }
+
+        if (hasScriptAdditionOrChange) this.restoreEntriesWithResolvedDependencies();
 
         // Update the import main module
         const prerequisiteImports = await this._getPrerequisiteAssetModsWithFilter();
@@ -1100,6 +1120,7 @@ class PackTarget {
     private _sourceMaps?: boolean | 'inline';
     private _quickPack: QuickPack;
     private _quickPackLoaderContext: QuickPackLoaderContext;
+    private readonly _waitingForDependency = new Map<string, MissingRelativeImport>();
     private _prerequisiteAssetMods: Set<string> = new Set();
     private _uuidURLMap: Map<string, string> = new Map();
     private _logger: Logger;
