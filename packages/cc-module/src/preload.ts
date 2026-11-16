@@ -28,6 +28,7 @@ async function preload(options: {
     editorMode?: boolean;
     /** Preserve runtime component semantics when editor-only engine capabilities are enabled. */
     previewMode?: boolean;
+    validateEngine?: (engine: unknown) => void;
 }) {
     try {
         if (hasPreload) {
@@ -71,6 +72,7 @@ async function preload(options: {
             // @ts-ignore
             // eslint-disable-next-line no-undef
             const ccm = window.ccm = require('cc');
+            options.validateEngine?.(ccm);
 
             await import(join(options.engineRoot, 'bin/.editor/engine-adapter.js'));
             // ---- hack creator 使用的一些 engine 参数

@@ -6,7 +6,7 @@
 
 ## 生成类型定义
 
-运行以下命令生成类型定义（已经集成在 npm i 里）：
+运行以下命令生成类型定义（已集成在 `npm run build` / `npm run compile` 的 prepare-dts 步骤中，`npm i` 不执行生成）：
 
 ```bash
 node workflow/generate-i18n-types.js
