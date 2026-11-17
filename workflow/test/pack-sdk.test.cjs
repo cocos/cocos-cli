@@ -196,7 +196,8 @@ test('relocated CLI SDK resolves the engine registry and compiler from adapters'
     assert.equal(adapter.id, 'cocos-3.8-runtime');
     assert.equal(adapter.compile(selection).compilerModule, 'adapters/engine/cocos38/compiler.cjs');
     assert.equal(typeof require(path.join(options.output, adapter.compile(selection).compilerModule)).compileEngine, 'function');
-    assert.equal(adapter.runtime(selection).webAdapter, path.join(options.output, 'adapters/engine/cocos38/host.cjs'));
+    const packagedHost = path.join(fs.realpathSync(options.output), 'adapters/engine/cocos38/host.cjs');
+    assert.equal(adapter.runtime(selection).webAdapter, packagedHost);
     assert.equal(fs.existsSync(adapter.runtime(selection).webAdapter), true);
     assert.equal(registry.getEngineBackendAdapter({ ...selection, version: '4.0.0' }).id, 'cocos-4');
     assert.equal(registry.getEngineBackendAdapter({ ...selection, version: '3.1.0' }).runtimeSupport, 'discovery-only');
