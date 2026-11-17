@@ -97,7 +97,7 @@ npm run setup:dev
 
 ## CI 与旧发布入口
 
-共享 CI action 设置 `COCOS_SKIP_POSTINSTALL_PREPARE=true`，依次执行 `npm ci`、安装与打包脚本回归测试、`npm run update:repos`、`npm run install:engine`、`npm run setup:dev -- --force`，显式准备引擎。CI 使用独立、干净的源码目录；自定义引擎任务应改用自行准备的引擎和本机配置。这些脚本测试属于基础回归，全量受支持 Engine SDK 的兼容性验证见 [SDK 版本矩阵](sdk-tag-matrix.md)。
+共享 CI action 设置 `COCOS_SKIP_POSTINSTALL_PREPARE=true`，依次执行 `npm ci`、安装与打包脚本回归测试、`npm run update:repos`、`npm run install:engine`、`npm run setup:dev -- --force`，显式准备引擎。CI 使用独立、干净的源码目录；自定义引擎任务应改用自行准备的引擎和本机配置。这些脚本测试属于基础回归，全量受支持 Engine SDK 的兼容性验证见源码仓库中的 `docs/dev/sdk-tag-matrix.md`。
 
 旧 `npm run release` 仍是源码全量发布入口，显式执行引擎安装和构建，并在构建完成后扫描产物；它尚未切换到独立 SDK 发布，可能上传文件。只生成本地拆分产物请用 `pack:cli-sdk` / `pack:engine-sdk`。
 
