@@ -93,4 +93,3 @@ module.exports = function installHost() {
     document.defaultView = globalThis;
     return { document, canvas: gameCanvas };
 };
-
