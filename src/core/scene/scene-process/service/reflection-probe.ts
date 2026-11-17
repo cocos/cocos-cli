@@ -10,7 +10,9 @@ import {
     renderer,
     TextureCube,
 } from 'cc';
-import { ReflectionProbeManager } from 'cc/editor/reflection-probe';
+function reflectionProbeManager(): typeof import('cc/editor/reflection-probe').ReflectionProbeManager {
+    return require('cc/editor/reflection-probe').ReflectionProbeManager;
+}
 import { basename } from 'path';
 import type {
     IPreparedReflectionProbeBake,
@@ -1121,8 +1123,8 @@ Service.Undo.markSaved();
     }
 
     private _notifyCubemapChanged(node: any, component: ReflectionProbe): void {
-        ReflectionProbeManager.probeManager.updateBakedCubemap(component.probe);
-        ReflectionProbeManager.probeManager.updatePreviewSphere(component.probe);
+        reflectionProbeManager().probeManager.updateBakedCubemap(component.probe);
+        reflectionProbeManager().probeManager.updatePreviewSphere(component.probe);
         ServiceEvents.emit('node:change', node, {
             type: NodeEventType.SET_PROPERTY,
             propPath: `_components.${node.components.indexOf(component)}._cubemap`,

@@ -1,3 +1,4 @@
+import { getEngineBackendAdapter } from './adapter';
 import fse from 'fs-extra';
 import { existsSync, readdirSync, statSync } from 'fs';
 import { EngineInfo } from './@types/public';
@@ -34,6 +35,7 @@ import {
 
 export interface IEngine {
     getInfo(): EngineInfo;
+    resolveAssetTemplate(template: string): string;
     getConfig(): IEngineConfig;
     init(enginePath: string): Promise<this>;
     initEngine(info: IInitEngineInfo): Promise<this>;
@@ -130,6 +132,9 @@ class EngineManager implements IEngine {
             if (!existsSync(langDir)) {
                 continue;
             }
+            const version = fse.readJSONSync(join(enginePath, 'package.json')).version;
+            const fallback = getEngineBackendAdapter({ path: enginePath, version }).getEditorI18nFallbacks?.(lang);
+            if (fallback) i18n.registerLanguagePatch(lang, 'ENGINE', fallback);
             loadDir(langDir, lang, 'ENGINE');
         }
     }
@@ -369,6 +374,11 @@ class EngineManager implements IEngine {
         return this._config.includeModules.includes('3d') ? '3d' : '2d';
     }
 
+    resolveAssetTemplate(template: string): string {
+        const selection = { path: this._info.typescript.path, version: this._info.version };
+        return getEngineBackendAdapter(selection).resolveAssetTemplate?.(template, selection) ?? template;
+    }
+
     getInfo() {
         if (!this._init) {
             throw new Error('Engine not init');
@@ -491,29 +501,32 @@ class EngineManager implements IEngine {
         checkEngineCompatibility(selection, GlobalPaths.workspace, 'runtime');
         const { default: preload } = await import('cc/preload');
         await this.importEditorExtensions();
+        const runtime = getEngineBackendAdapter(selection).runtime(selection);
         await preload({
-            editorMode: info.editorMode ?? false,
+            editorMode: runtime.requiresEditorMode ?? info.editorMode ?? false,
             previewMode: info.previewMode ?? false,
-            engineRoot: this._info.typescript.path,
-            engineDev: join(this._info.typescript.path, 'bin', '.cache', 'dev-cli'),
+            engineRoot: runtime.engineRoot,
+            engineDev: runtime.engineDev,
             writablePath: info.writablePath,
+            configureEngine: (engine, getModule) => getEngineBackendAdapter(selection).configureRuntime?.(engine, getModule, {
+                async queryAssetInfo(uuid) {
+                    const { Rpc } = require('../scene/scene-process/rpc');
+                    let remote;
+                    try { remote = Rpc.getInstance(); } catch { /* Asset host has no scene RPC transport. */ }
+                    return remote ? remote.request('assetManager', 'queryAssetInfo', [uuid]) : assetManager.queryAssetInfo(uuid);
+                },
+                getLastSelected(type) {
+                    if (type !== 'node') return '';
+                    const { queryRegisteredService } = require('../scene/scene-process/service/core/decorator');
+                    const selected = queryRegisteredService('Selection')?.query()[0];
+                    const extensions = (globalThis as unknown as { EditorExtends?: typeof import('./editor-extends') }).EditorExtends;
+                    return selected === undefined ? '' : extensions?.Node.getNodeByPath(selected)?.uuid ?? '';
+                },
+            }),
             validateEngine: (engine: unknown) => assertRuntimeInterfaces(engine, selection, GlobalPaths.workspace),
-            requiredModules: [
-                'cc',
-                'cc/editor/populate-internal-constants',
-                'cc/editor/serialization',
-                'cc/editor/new-gen-anim',
-                'cc/editor/embedded-player',
-                'cc/editor/reflection-probe',
-                'cc/editor/lod-group-utils',
-                'cc/editor/material',
-                'cc/editor/2d-misc',
-                'cc/editor/offline-mappings',
-                'cc/editor/custom-pipeline',
-                'cc/editor/animation-clip-migration',
-                'cc/editor/exotic-animation',
-                'cc/editor/color-utils',
-            ]
+            requiredModules: runtime.requiredModules,
+            webAdapterPath: runtime.webAdapter,
+            engineAdapterPath: runtime.engineAdapter
         }).catch((error: unknown) => {
             if (error instanceof Error && error.message.startsWith('[Engine compatibility]')) throw error;
             throw compatibilityError(selection, readPolicy(GlobalPaths.workspace), `Engine preload failed: ${error instanceof Error ? error.message : String(error)}`);

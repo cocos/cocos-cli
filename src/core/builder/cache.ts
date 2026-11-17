@@ -35,6 +35,7 @@ function getGlobalCacheRoots() {
         join(engineBin, 'temp'),
         join(engineBin, '.cache', 'editor-cache'),
         join(engineBin, '.cache', 'dev-cli'),
+        join(engineBin, '.cache', 'dev-cli-3.8'),
     ];
 }
 

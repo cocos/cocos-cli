@@ -174,6 +174,8 @@ export class Parser {
         this.missingObjectReporter = options.missingObjectReporter;
         this.reserveContentsForAllSyncablePrefab = !!options.reserveContentsForSyncablePrefab;
         const customArguments: cc.SerializationContext['customArguments'] = {};
+        // The engine's Editor serializer must retain identity for editable scenes.
+        customArguments.keepNodeUuid = !this.exporting || !!options.keepNodeUuid;
         customArguments[cc.Node.reserveContentsForAllSyncablePrefabTag as any] = this.reserveContentsForAllSyncablePrefab;
         this._serializationContext = {
             root: null,
@@ -387,7 +389,7 @@ export class Parser {
             this.parseField(owner, ownerInfo, propName, val, { formerlySerializedAs, defaultValue });
         }
 
-        if ((CCNode && owner instanceof CCNode) || (CCComponent && owner instanceof CCComponent)) {
+        if ((CCNode && owner instanceof CCNode) || (cc.Scene && owner instanceof cc.Scene) || (CCComponent && owner instanceof CCComponent)) {
             if (this.exporting) {
                 if (!this.keepNodeUuid) {
                     // @ts-ignore member-access

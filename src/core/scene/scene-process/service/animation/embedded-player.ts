@@ -3,14 +3,17 @@ import {
     assetManager as ccAssetManager,
     editorExtrasTag,
 } from 'cc';
-import {
+import { optionalEngineModule, unavailableEngineFeature } from '../../../../engine/optional-module';
+const embeddedApi = optionalEngineModule<typeof import('cc/editor/embedded-player')>('cc/editor/embedded-player');
+const {
     EmbeddedAnimationClipPlayable,
     EmbeddedParticleSystemPlayable,
     EmbeddedPlayer,
     addEmbeddedPlayerTag,
     clearEmbeddedPlayersTag,
     getEmbeddedPlayersTag,
-} from 'cc/editor/embedded-player';
+} = embeddedApi ?? {} as typeof import('cc/editor/embedded-player');
+type EmbeddedPlayer = import('cc/editor/embedded-player').EmbeddedPlayer;
 import type {
     IAnimationEmbeddedPlayerDump,
     IAnimationEmbeddedPlayerGroup,
@@ -34,6 +37,10 @@ export function ensureEmbeddedPlayerGroups(clip: AnimationClip): IAnimationEmbed
 }
 
 export function replaceEmbeddedPlayerGroups(clip: AnimationClip, groups: IAnimationEmbeddedPlayerGroup[]): void {
+    if (!embeddedApi) {
+        if (groups.length) throw unavailableEngineFeature('embedded player groups');
+        return;
+    }
     const target = ensureEmbeddedPlayerGroups(clip);
     target.splice(0, target.length, ...cloneValue(groups));
 }
@@ -63,7 +70,7 @@ export function dumpEmbeddedPlayers(clip: AnimationClip): IAnimationEmbeddedPlay
 }
 
 export function dumpEmbeddedPlayable(playable: unknown): IAnimationEmbeddedPlayerDump['playable'] {
-    if (!playable) {
+    if (!playable || !embeddedApi) {
         return undefined;
     }
     if (playable instanceof EmbeddedAnimationClipPlayable) {
@@ -119,6 +126,7 @@ export async function clearEmbeddedPlayers(clip: AnimationClip, group?: string):
 }
 
 export function addEmbeddedPlayerGroup(clip: AnimationClip, group: IAnimationEmbeddedPlayerGroup): boolean {
+    if (!embeddedApi) return false;
     if (!group?.key || !group.type) {
         return false;
     }
@@ -135,6 +143,7 @@ export function addEmbeddedPlayerGroup(clip: AnimationClip, group: IAnimationEmb
 }
 
 export async function removeEmbeddedPlayerGroup(clip: AnimationClip, key: string): Promise<boolean> {
+    if (!embeddedApi) return false;
     const groups = ensureEmbeddedPlayerGroups(clip);
     const index = groups.findIndex((item) => item.key === key);
     if (index >= 0) {

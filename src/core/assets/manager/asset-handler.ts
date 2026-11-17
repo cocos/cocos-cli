@@ -6,6 +6,7 @@ import lodash from 'lodash';
 import fg from 'fast-glob';
 
 import i18n from '../../base/i18n';
+import { Engine } from '../../engine';
 import { IAsset, IExportData } from '../@types/protected/asset';
 import { AssetHandler, CustomHandler, CustomAssetHandler, ICreateMenuInfo, CreateAssetOptions, IExportOptions, IAssetConfig, ImporterHook, ThumbnailInfo, ThumbnailSize, IUerDataConfigItem } from '../@types/protected/asset-handler';
 import type { AssetHandlerInfo } from '../asset-handler/config';
@@ -415,7 +416,9 @@ class AssetHandlerManager {
         if (options.content === undefined || options.content === null) {
             // 如果给定了模板信息，使用 db 默认的创建拷贝方式
             if (options.template) {
-                const path = url2path(options.template);
+                const template = options.template.startsWith('db://internal/default_file_content/')
+                    ? require('../../engine').Engine.resolveAssetTemplate(options.template) : options.template;
+                const path = url2path(template);
                 if (existsSync(path)) {
                     await copyPath(path, options.target, { overwrite: options.overwrite });
                     await afterCreateAsset(options.target, options);

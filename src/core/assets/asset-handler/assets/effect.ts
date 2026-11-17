@@ -3,7 +3,9 @@
 import { Asset, AssetDB, forEach } from '@cocos/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
 import { EffectAsset } from 'cc';
-import {
+import { optionalEngineModule, unavailableEngineFeature } from '../../../engine/optional-module';
+const customPipeline = optionalEngineModule<typeof import('cc/editor/custom-pipeline')>('cc/editor/custom-pipeline');
+const {
     BinaryOutputArchive,
     LayoutGraphData,
     saveLayoutGraphData,
@@ -11,7 +13,8 @@ import {
     LayoutGraphInfo,
     buildLayoutGraphData,
     getLayoutGraphDataVersion,
-} from 'cc/editor/custom-pipeline';
+} = customPipeline ?? {} as typeof import('cc/editor/custom-pipeline');
+type LayoutGraphData = import('cc/editor/custom-pipeline').LayoutGraphData;
 import { existsSync, readFileSync, readdirSync, writeFileSync, ensureDir, readJSON, writeFile } from 'fs-extra';
 import { basename, dirname, extname, join, relative, resolve } from 'path';
 import { buildEffect, options, addChunk } from '../../effect-compiler';
@@ -268,6 +271,11 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
  * @param force 强制重编
  */
 export async function afterImport(force?: boolean) {
+    // Classic pipelines do not consume the custom pipeline effect.bin archive.
+    if (!customPipeline?.LayoutGraphInfo) {
+        if (force) throw unavailableEngineFeature('custom pipeline layout serialization');
+        return;
+    }
     const effectList: Asset[] = [];
     forEach((database: AssetDB) => {
         database.path2asset.forEach((asset) => {
@@ -373,6 +381,7 @@ function forceRecompileEffects(file: string): boolean {
  * @param force 强制重编
  */
 export async function recompileAllEffects(effectArray: Asset[], force?: boolean) {
+    if (!customPipeline?.LayoutGraphInfo) throw unavailableEngineFeature('custom pipeline layout serialization');
     const file = autoGenEffectBinInfo.effectBinPath;
     // 存在等待刷新的指令或者 effect.bin 不存在时，就重新生成
     if (force || autoGenEffectBinInfo.waitingGenEffectBin || !existsSync(file) || forceRecompileEffects(file)) {

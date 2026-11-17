@@ -20,6 +20,7 @@ export class DoctorCommand extends BaseCommand {
                         console.log(`Engine: ${report.engine.version} (${report.engine.path})`);
                         console.log(`Revision: ${report.engine.revision ?? 'unrecorded'}; source: ${report.engine.source}`);
                     }
+                    if (report.adapter) console.log('Engine adapter: ' + (report.adapter.id ?? 'unavailable') + ' (' + report.adapter.runtimeSupport + ')');
                     console.log(`Required files and version: ${report.ok ? 'PASS' : 'FAIL'}`);
                     console.log('Runtime interfaces: not tested (engine is not loaded)');
                     for (const warning of report.warnings) console.log(`Warning: ${warning}`);

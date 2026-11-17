@@ -2,6 +2,7 @@ import { Asset, queryAsset } from '@cocos/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
 import { SpriteFrame, LabelAtlas } from 'cc';
 import { basename } from 'path';
+import { writePath } from '../../manager/filesystem';
 
 import { getDependUUIDList } from '../utils';
 import { FntData, LabelAtlasAssetUserData } from '../../@types/userDatas';
@@ -24,6 +25,13 @@ export const LabelAtlasHandler: AssetHandler = {
     name: 'label-atlas',
     assetType: 'cc.LabelAtlas',
     createInfo: {
+        async create(options) {
+            // LabelAtlas serializes userData; its source is an empty marker.
+            let content = options.content ?? '';
+            if (typeof content === 'object' && !Buffer.isBuffer(content)) content = JSON.stringify(content, null, 4);
+            await writePath(options.target, content);
+            return options.target;
+        },
         generateMenuInfo() {
             return [
                 {

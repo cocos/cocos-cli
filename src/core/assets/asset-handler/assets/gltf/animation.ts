@@ -1,11 +1,14 @@
 import { Asset, VirtualAsset } from '@cocos/asset-db';
 import * as cc from 'cc';
-import {
+import { optionalEngineModule, unavailableEngineFeature } from '../../../../engine/optional-module';
+const embeddedApi = optionalEngineModule<typeof import('cc/editor/embedded-player')>('cc/editor/embedded-player');
+const {
     addEmbeddedPlayerTag,
     EmbeddedAnimationClipPlayable,
     EmbeddedParticleSystemPlayable,
     EmbeddedPlayer,
-} from 'cc/editor/embedded-player';
+} = embeddedApi ?? {} as typeof import('cc/editor/embedded-player');
+type EmbeddedPlayer = import('cc/editor/embedded-player').EmbeddedPlayer;
 import { additiveSettingsTag } from 'cc/editor/exotic-animation';
 import { pathToFileURL } from 'url';
 import { serializeForLibrary } from '../utils/serialize-library';
@@ -99,6 +102,7 @@ export const GltfAnimationHandler: AssetHandler = {
             }
 
             if (userData.embeddedPlayers) {
+                if (userData.embeddedPlayers.length && !embeddedApi) throw unavailableEngineFeature('embedded animation players');
                 const { embeddedPlayers: embeddedPlayerInfos } = userData;
                 for (const { begin, end, reconciledSpeed, editorExtras, playable: playableInfo } of embeddedPlayerInfos) {
                     const subregion = new EmbeddedPlayer();
@@ -120,17 +124,18 @@ export const GltfAnimationHandler: AssetHandler = {
                         playable.path = playableInfo.path;
                         subregion.playable = playable;
                     }
-                    animationClip[addEmbeddedPlayerTag](subregion);
+                    (animationClip as any)[addEmbeddedPlayerTag](subregion);
                 }
             }
 
             const additiveSettings = animationClip[additiveSettingsTag];
-            additiveSettings.enabled = false;
-            additiveSettings.refClip = null;
+            if (additiveSettings) additiveSettings.enabled = false;
+            if (additiveSettings) additiveSettings.refClip = null;
             const customDependencies: string[] = [];
             if (typeof userData.additive !== 'undefined') {
                 const additiveSettings = animationClip[additiveSettingsTag];
                 if (userData.additive.enabled) {
+                    if (!additiveSettings) throw unavailableEngineFeature('additive animation clips');
                     additiveSettings.enabled = true;
                     if (userData.additive.refClip) {
                         customDependencies.push(userData.additive.refClip);
@@ -140,6 +145,7 @@ export const GltfAnimationHandler: AssetHandler = {
             }
 
             if (typeof userData.auxiliaryCurves !== 'undefined') {
+                if (Object.keys(userData.auxiliaryCurves).length && typeof animationClip.addAuxiliaryCurve_experimental !== 'function') throw unavailableEngineFeature('animation auxiliary curves');
                 for (const [name, { curve: curveSerialized }] of Object.entries(userData.auxiliaryCurves)) {
                     const curveDeserialized = cc.deserialize(curveSerialized, undefined, undefined);
                     assert(curveDeserialized instanceof cc.RealCurve);

@@ -91,6 +91,8 @@ describe('ScriptManager', () => {
         scriptManager = scriptManagerDefault;
         await Engine.init(_EngineRoot);
         await Engine.initEngine({
+            // Scripting tests use a headless classic pipeline on every backend.
+            enableCustomPipeline: false,
             serverURL: '',
             importBase: join(_ProjectRoot, 'library'),
             nativeBase: join(_ProjectRoot, 'library'),

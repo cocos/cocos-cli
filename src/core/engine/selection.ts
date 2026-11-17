@@ -17,7 +17,7 @@ const warned = new Set<string>();
 function checkSelection(selection: EngineSelection) {
     const result = checkEngineCompatibility(selection, GlobalPaths.workspace);
     if (result.experimental && !warned.has(selection.path)) {
-        console.warn(`[Engine compatibility] Experimental successor engine ${selection.version} at ${selection.path}. Supported: ${describePolicy(readPolicy(GlobalPaths.workspace))}`);
+        console.warn(`[Engine compatibility] Experimental engine ${selection.version} at ${selection.path}. Supported: ${describePolicy(readPolicy(GlobalPaths.workspace))}`);
         warned.add(selection.path);
     }
     return activateEngine(selection);

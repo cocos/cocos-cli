@@ -442,6 +442,12 @@ export class EngineService extends BaseService<IEngineEvents> implements IEngine
         void this.repaintInEditMode();
     }
 
+    onNodeAdded() {
+        // Older engines do not emit a parent-change notification when a scene
+        // receives a new root child. The explicit add event must request a frame.
+        void this.repaintInEditMode();
+    }
+
     onNodeChanged(node: Node, opts?: any) {
         this._nodeChangeTimer.callFunctionLimit(node.uuid, this._doNodeChanged.bind(this), node, opts);
     }

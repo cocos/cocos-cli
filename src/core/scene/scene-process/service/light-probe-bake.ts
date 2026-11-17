@@ -28,7 +28,7 @@ interface LightProbeSettings {
     reduceRinging: number;
     showWireframe: boolean;
     showConvex: boolean;
-    lightProbeSphereVolume: number;
+    lightProbeSphereVolume?: number;
 }
 
 @register('LightProbeBake')
@@ -46,7 +46,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         const values = this.getSettings(info);
         const parent = CCClass.attr(scene.globals.constructor, 'lightProbeInfo');
         const parentReadonly = !!parent.readonly || !!(parent.hasGetter && !parent.hasSetter);
-        const property = <K extends keyof LightProbeSettings>(key: K): ILightProbeSetting<LightProbeSettings[K]> => {
+        const property = <K extends keyof LightProbeSettings>(key: K): ILightProbeSetting<NonNullable<LightProbeSettings[K]>> => {
             const value = values[key];
             const expectedType = key === 'showWireframe' || key === 'showConvex' ? 'boolean' : 'number';
             if (typeof value !== expectedType || (typeof value === 'number' && !Number.isFinite(value))) {
@@ -57,7 +57,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             const type = attrs.ctor ? (js.getClassName(attrs.ctor) || 'Unknown')
                 : attrs.type ? String(attrs.type) : expectedType === 'boolean' ? 'Boolean' : 'Number';
             return {
-                value, type,
+                value: value as NonNullable<LightProbeSettings[K]>, type,
                 readonly: parentReadonly || !!attrs.readonly || !!(attrs.hasGetter && !attrs.hasSetter),
             };
         };
@@ -68,7 +68,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             reduceRinging: property('reduceRinging'),
             showWireframe: property('showWireframe'),
             showConvex: property('showConvex'),
-            lightProbeSphereVolume: property('lightProbeSphereVolume'),
+            ...('lightProbeSphereVolume' in info ? { lightProbeSphereVolume: property('lightProbeSphereVolume') } : {}),
         };
     }
 
@@ -95,6 +95,11 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         const probes: any[] = info.data?.probes ?? [];
         if (probes.length < 4) throw new Error('At least four generated light probes are required.');
 
+        if (options.lightProbeSphereVolume !== undefined && !('lightProbeSphereVolume' in info)) {
+            throw Object.assign(new Error('The selected engine does not support lightProbeSphereVolume.'), {
+                code: 'ENGINE_CAPABILITY_UNAVAILABLE',
+            });
+        }
         const previousSettings = this.getSettings(info);
         const settingsToApply: LightProbeSettings = {
             giScale: options.giScale ?? previousSettings.giScale,
@@ -245,7 +250,7 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
             reduceRinging: info.reduceRinging,
             showWireframe: info.showWireframe,
             showConvex: info.showConvex,
-            lightProbeSphereVolume: info.lightProbeSphereVolume,
+            ...('lightProbeSphereVolume' in info ? { lightProbeSphereVolume: info.lightProbeSphereVolume } : {}),
         };
     }
 
@@ -256,7 +261,9 @@ export class LightProbeBakeService extends BaseService<ILightFXBakeEvents> imple
         info.reduceRinging = settings.reduceRinging;
         info.showWireframe = settings.showWireframe;
         info.showConvex = settings.showConvex;
-        info.lightProbeSphereVolume = settings.lightProbeSphereVolume;
+        if ('lightProbeSphereVolume' in info && settings.lightProbeSphereVolume !== undefined) {
+            info.lightProbeSphereVolume = settings.lightProbeSphereVolume;
+        }
     }
 
     private errorMessage(error: unknown): string {

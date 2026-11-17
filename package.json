@@ -19,6 +19,7 @@
         "fetch:engine": "node workflow/update-repo.js",
         "update:repos": "node workflow/update-repo.js --update",
         "test": "node workflow/test.js",
+        "test:engine-adapters": "node workflow/test-engine-adapters.cjs",
         "test:quiet": "node workflow/test.js --silent",
         "test:parallel": "jest --config jest.parallel.config.ts",
         "test:serial": "jest --config jest.serial.config.ts --runInBand",
@@ -77,6 +78,7 @@
         "docs",
         "static",
         "workflow",
+        "adapters",
         "writablePath",
         "packages/cc-module"
     ],

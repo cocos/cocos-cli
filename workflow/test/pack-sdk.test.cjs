@@ -178,3 +178,29 @@ test('dependency scanning and output checks normalize aliased source roots', asy
     await packSdk({ ...options, source: alias });
     assert.equal(fs.existsSync(path.join(options.output, 'node_modules/a/package.json')), true);
 });
+
+
+test('relocated CLI SDK resolves the engine registry and compiler from adapters', async t => {
+    const options = fixture(t);
+    const repository = path.resolve(__dirname, '../..');
+    fs.cpSync(path.join(repository, 'adapters/engine'), path.join(options.source, 'adapters/engine'), { recursive: true });
+    const semverRoot = path.dirname(require.resolve('semver/package.json'));
+    fs.cpSync(semverRoot, path.join(options.source, 'node_modules/semver'), { recursive: true });
+    const pkg = JSON.parse(fs.readFileSync(path.join(options.source, 'package.json'), 'utf8'));
+    pkg.dependencies = { semver: require('semver/package.json').version };
+    write(options.source, 'package.json', pkg);
+    await packSdk(options);
+    const registry = require(path.join(options.output, 'adapters/engine/registry.cjs'));
+    const selection = { path: path.join(options.output, 'selected-engine'), version: '3.8.8' };
+    const adapter = registry.getEngineBackendAdapter(selection);
+    assert.equal(adapter.id, 'cocos-3.8-runtime');
+    assert.equal(adapter.compile(selection).compilerModule, 'adapters/engine/cocos38/compiler.cjs');
+    assert.equal(typeof require(path.join(options.output, adapter.compile(selection).compilerModule)).compileEngine, 'function');
+    const packagedHost = path.join(fs.realpathSync(options.output), 'adapters/engine/cocos38/host.cjs');
+    assert.equal(adapter.runtime(selection).webAdapter, packagedHost);
+    assert.equal(fs.existsSync(adapter.runtime(selection).webAdapter), true);
+    assert.equal(registry.getEngineBackendAdapter({ ...selection, version: '4.0.0' }).id, 'cocos-4');
+    assert.equal(registry.getEngineBackendAdapter({ ...selection, version: '3.1.0' }).runtimeSupport, 'discovery-only');
+    assert.equal(fs.existsSync(path.join(options.output, 'workflow/engine-adapters')), false);
+    assert.equal(fs.existsSync(path.join(options.output, 'workflow/engine-backend-adapters.js')), false);
+});

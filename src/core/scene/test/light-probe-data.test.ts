@@ -20,6 +20,11 @@ function fixture(probes: ReturnType<typeof probe>[]) {
 }
 
 describe('Light probe data across scene activation', () => {
+    it('activates scenes on engines without light probe globals', () => {
+        const scene = { globals: {} } as unknown as Scene;
+        expect(() => preserveLightProbeCoefficients(scene)(scene)).not.toThrow();
+        expect(scene.globals).toEqual({});
+    });
     it('preserves both groups when activation truncates then expands the probe array', () => {
         const original = Array.from({ length: 43 }, (_, i) => probe(i, i + 1));
         const { scene, info } = fixture(original.slice());

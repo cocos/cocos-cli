@@ -81,6 +81,7 @@ export declare type AnimationGraphEditErrorCode =
 | 'UNSUPPORTED_TARGET'
 | 'UNSUPPORTED_PROPERTY_OPERATION'
 | 'INVALID_PROPERTY_PATCH'
+| 'ENGINE_CAPABILITY_UNAVAILABLE'
 | 'READONLY_PROPERTY'
 | 'NAME_CONFLICT'
 | 'DIRTY_DOCUMENT';
@@ -6984,7 +6985,7 @@ export declare interface ILightProbeBakeResult {
     reduceRinging: number;
     showWireframe: boolean;
     showConvex: boolean;
-    lightProbeSphereVolume: number;
+    lightProbeSphereVolume?: number;
     durationMs: number;
 }
 export declare interface ILightProbeBakeService extends IServiceEvents {
@@ -7010,7 +7011,7 @@ export declare interface ILightProbeSettings {
     reduceRinging: ILightProbeSetting<number>;
     showWireframe: ILightProbeSetting<boolean>;
     showConvex: ILightProbeSetting<boolean>;
-    lightProbeSphereVolume: ILightProbeSetting<number>;
+    lightProbeSphereVolume?: ILightProbeSetting<number>;
 }
 export declare interface ILODGroupBoundsResult {
     localBoundaryCenter: IVec3;
@@ -8791,6 +8792,7 @@ export declare type AnimationGraphEditErrorCode =
 | 'UNSUPPORTED_TARGET'
 | 'UNSUPPORTED_PROPERTY_OPERATION'
 | 'INVALID_PROPERTY_PATCH'
+| 'ENGINE_CAPABILITY_UNAVAILABLE'
 | 'READONLY_PROPERTY'
 | 'NAME_CONFLICT'
 | 'DIRTY_DOCUMENT';

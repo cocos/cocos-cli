@@ -414,7 +414,7 @@ describe('Immutable Lightmap asset versions', () => {
     it('rejects missing folders, files and symlinks escaping assets without starting native work', async () => {
         await ensureDir(assetRoot);
         await outputFile(join(assetRoot, 'file'), 'keep');
-        await symlink(root, join(assetRoot, 'outside'), 'dir');
+        await symlink(root, join(assetRoot, 'outside'), process.platform === 'win32' ? 'junction' : 'dir');
         for (const name of ['missing', 'file', 'outside']) {
             await expect(host.begin({ ...opts, outputUrl: `db://assets/${name}` })).rejects.toThrow();
             expect((await host.queryCapabilities()).busy).toBe(false);

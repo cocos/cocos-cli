@@ -165,6 +165,7 @@ class AnimationGraphAssetService {
         const api = getNewGenAnim();
         const js = getCC().js;
         const result: AnimationGraphPoseGraphAssetDragHandlersEntry[] = [];
+        if (typeof api.getPoseGraphAssetDragHandlersMap !== 'function') return result;
         for (const [ctor, info] of api.getPoseGraphAssetDragHandlersMap()) {
             result.push({
                 assetType: js.getClassName(ctor) || ctor.name,
@@ -350,7 +351,8 @@ class AnimationGraphAssetService {
                     throw error;
                 }
                 throw new AnimationGraphEditError(
-                    'INVALID_PROPERTY_PATCH',
+                    (error as { code?: string })?.code === 'ENGINE_CAPABILITY_UNAVAILABLE'
+                        ? 'ENGINE_CAPABILITY_UNAVAILABLE' : 'INVALID_PROPERTY_PATCH',
                     error instanceof Error ? error.message : String(error),
                     this._version(document),
                 );
@@ -684,8 +686,8 @@ class AnimationGraphAssetService {
             weight: layer.weight,
             additive: !!layer.additive,
             maskUuid: getAssetUuid(layer.mask),
-            stashes: Array.from(layer.stashes() as Iterable<[string, unknown]>).map(([name]) => name),
-            stashPoseGraphs: Array.from(layer.stashes() as Iterable<[string, any]>).map(([name, stash]) => ({
+            stashes: Array.from((typeof layer.stashes === 'function' ? layer.stashes() : []) as Iterable<[string, unknown]>).map(([name]) => name),
+            stashPoseGraphs: Array.from((typeof layer.stashes === 'function' ? layer.stashes() : []) as Iterable<[string, any]>).map(([name, stash]) => ({
                 name,
                 poseGraph: this._queryPoseGraph(document, stash.graph, {
                     kind: 'layer-stash',
@@ -755,7 +757,7 @@ class AnimationGraphAssetService {
                 ? { ...context, stateMachinePath: [...context.stateMachinePath, index] }
                 : { kind: 'sub-state-machine', stateMachine: clonePlain(context), stateIndex: index };
             view.stateMachine = this._queryStateMachine(document, state.stateMachine, childContext, [...path, index]);
-        } else if (state instanceof api.ProceduralPoseState) {
+        } else if ((api.ProceduralPoseState && state instanceof api.ProceduralPoseState)) {
             view.poseGraph = this._queryPoseGraph(document, state.graph, {
                 kind: 'state-pose-graph',
                 stateMachine: clonePlain(context),
@@ -774,7 +776,7 @@ class AnimationGraphAssetService {
                 ? 'animation'
                 : transition instanceof api.EmptyStateTransition
                     ? 'empty-state'
-                    : transition instanceof api.ProceduralPoseTransition
+                    : (api.ProceduralPoseTransition && transition instanceof api.ProceduralPoseTransition)
                         ? 'procedural-pose'
                         : 'transition',
             fromStateIndex: states.indexOf(transition.from),
@@ -788,7 +790,7 @@ class AnimationGraphAssetService {
         if (
             api.isAnimationTransition(transition)
             || transition instanceof api.EmptyStateTransition
-            || transition instanceof api.ProceduralPoseTransition
+            || (api.ProceduralPoseTransition && transition instanceof api.ProceduralPoseTransition)
         ) {
             view.duration = transition.duration;
             view.destinationStart = transition.destinationStart;
@@ -812,10 +814,11 @@ class AnimationGraphAssetService {
                 type: 'BinaryCondition',
                 operator: condition.operator,
                 lhs: condition.lhs,
-                lhsBinding: dumpTransitionConditionBinding(condition.lhsBinding),
+                lhsBinding: condition.lhsBinding || api.TCBindingValueType ? dumpTransitionConditionBinding(condition.lhsBinding)
+                    : { variableName: condition.lhs.variable },
                 bindingClass: getClassName(condition.lhsBinding),
-                rhs: condition.rhs,
-                isRhsInteger: condition.lhsBinding?.getValueType?.() === api.TCBindingValueType.INTEGER,
+                rhs: typeof condition.rhs === 'number' ? condition.rhs : condition.rhs.value,
+                isRhsInteger: !!api.TCBindingValueType && condition.lhsBinding?.getValueType?.() === api.TCBindingValueType.INTEGER,
             };
         }
         if (condition instanceof api.UnaryCondition) {
@@ -975,7 +978,7 @@ class AnimationGraphAssetService {
                 return createAdapterBinding('Layer', {
                     name: directProperty(layer, 'name', { type: 'String', default: '' }),
                     weight: directProperty(layer, 'weight', { type: 'Number', default: 1, min: 0 }),
-                    additive: directProperty(layer, 'additive', { type: 'Boolean', default: false }),
+                    ...('additive' in layer ? { additive: directProperty(layer, 'additive', { type: 'Boolean', default: false }) } : {}),
                     mask: directProperty(layer, 'mask', { type: 'Object', ctor: getNewGenAnim().AnimationMask, default: null }),
                 });
             }
@@ -1048,11 +1051,11 @@ class AnimationGraphAssetService {
                     ui: { name: 'animationGraphSpeedMultiplier' },
                 },
             };
-            properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', eventBindingAttrs);
-            properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', eventBindingAttrs);
-        } else if (state instanceof api.ProceduralPoseState) {
-            properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', eventBindingAttrs);
-            properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', eventBindingAttrs);
+            if (state.transitionInEventBinding) properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', eventBindingAttrs);
+            if (state.transitionOutEventBinding) properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', eventBindingAttrs);
+        } else if ((api.ProceduralPoseState && state instanceof api.ProceduralPoseState)) {
+            if (state.transitionInEventBinding) properties.transitionInEvent = nestedProperty(state.transitionInEventBinding, 'methodName', eventBindingAttrs);
+            if (state.transitionOutEventBinding) properties.transitionOutEvent = nestedProperty(state.transitionOutEventBinding, 'methodName', eventBindingAttrs);
         }
         return createAdapterBinding(getClassName(state), properties);
     }
@@ -1063,13 +1066,13 @@ class AnimationGraphAssetService {
         if (
             api.isAnimationTransition(transition)
             || transition instanceof api.EmptyStateTransition
-            || transition instanceof api.ProceduralPoseTransition
+            || (api.ProceduralPoseTransition && transition instanceof api.ProceduralPoseTransition)
         ) {
             properties.duration = directProperty(transition, 'duration', { type: 'Number', default: 0.3, min: 0 });
             properties.destinationStart = directProperty(transition, 'destinationStart', { type: 'Number', default: 0, min: 0 });
             properties.relativeDestinationStart = directProperty(transition, 'relativeDestinationStart', { type: 'Boolean', default: false });
-            properties.startEvent = nestedProperty(transition.startEventBinding, 'methodName', { type: 'String', default: '' });
-            properties.endEvent = nestedProperty(transition.endEventBinding, 'methodName', { type: 'String', default: '' });
+            if (transition.startEventBinding) properties.startEvent = nestedProperty(transition.startEventBinding, 'methodName', { type: 'String', default: '' });
+            if (transition.endEventBinding) properties.endEvent = nestedProperty(transition.endEventBinding, 'methodName', { type: 'String', default: '' });
         }
         if (api.isAnimationTransition(transition)) {
             properties.relativeDuration = directProperty(transition, 'relativeDuration', { type: 'Boolean', default: false });
@@ -1299,7 +1302,7 @@ class AnimationGraphAssetService {
             return this._getPoseGraphByContext(document, target.poseGraph);
         }
         const { state } = this._resolveState(document, target);
-        if (!(state instanceof getNewGenAnim().ProceduralPoseState)) {
+        if (!((getNewGenAnim().ProceduralPoseState && state instanceof getNewGenAnim().ProceduralPoseState))) {
             throw this._targetNotFound(document, target);
         }
         return state.graph;
@@ -1310,7 +1313,7 @@ class AnimationGraphAssetService {
             case 'state-pose-graph': {
                 const stateMachine = this._getStateMachineByContext(document, context.stateMachine);
                 const state = Array.from(stateMachine.states() as Iterable<any>)[context.stateIndex];
-                if (!(state instanceof getNewGenAnim().ProceduralPoseState)) {
+                if (!((getNewGenAnim().ProceduralPoseState && state instanceof getNewGenAnim().ProceduralPoseState))) {
                     throw this._targetNotFound(document, context);
                 }
                 return state.graph;
@@ -1351,6 +1354,9 @@ class AnimationGraphAssetService {
     private async _executeCommand(document: AnimationGraphDocument, command: AnimationGraphCommand): Promise<void> {
         const api = getNewGenAnim();
         const graph = document.graph;
+        if ((!api.TCBindingValueType && command.type === 'set-transition-condition-binding-class') || (!api.poseGraphOp && (/pose|stash/.test(command.type) || (command.type === 'add-state' && command.stateType === 'procedural-pose')))) {
+            throw new AnimationGraphEditError('ENGINE_CAPABILITY_UNAVAILABLE', 'The selected engine does not provide the requested animation graph editing feature', this._version(document));
+        }
         switch (command.type) {
             case 'add-layer': {
                 const layer = graph.addLayer();
@@ -2062,7 +2068,7 @@ class AnimationGraphAssetService {
             for (const state of stateMachine.states() as Iterable<any>) {
                 if (state instanceof api.SubStateMachine) {
                     visitStateMachine(state.stateMachine);
-                } else if (state instanceof api.ProceduralPoseState) {
+                } else if ((api.ProceduralPoseState && state instanceof api.ProceduralPoseState)) {
                     visitPoseGraph(state.graph);
                 }
             }
@@ -2085,7 +2091,7 @@ class AnimationGraphAssetService {
         };
         for (const layer of graph.layers as Iterable<any>) {
             visitStateMachine(layer.stateMachine);
-            for (const [, stash] of layer.stashes() as Iterable<[string, any]>) {
+            for (const [, stash] of (typeof layer.stashes === 'function' ? layer.stashes() : []) as Iterable<[string, any]>) {
                 visitPoseGraph(stash.graph);
             }
         }
@@ -2357,7 +2363,7 @@ function getStateType(state: any, stateMachine: any, api: any): AnimationGraphSt
     if (state instanceof api.MotionState) return 'motion';
     if (state instanceof api.EmptyState) return 'empty';
     if (state instanceof api.SubStateMachine) return 'sub-state-machine';
-    if (state instanceof api.ProceduralPoseState) return 'procedural-pose';
+    if ((api.ProceduralPoseState && state instanceof api.ProceduralPoseState)) return 'procedural-pose';
     return 'unknown';
 }
 
@@ -2786,12 +2792,22 @@ function requireTransitionConditionBindingClass(path: string, value: unknown): s
 
 function setTransitionConditionProperty(condition: any, path: string, value: unknown, api: any): void {
     if (condition instanceof api.BinaryCondition) {
+        if (!api.TCBindingValueType && path.startsWith('lhsBinding.') && path !== 'lhsBinding.variableName') {
+            throw Object.assign(new Error('The selected engine does not provide this transition binding property'), {
+                code: 'ENGINE_CAPABILITY_UNAVAILABLE',
+            });
+        }
         switch (path) {
             case 'operator':
                 condition.operator = requireIntegerInRange(path, value, 0, 5);
                 return;
             case 'rhs':
-                condition.rhs = requireFiniteNumber(path, value);
+                if (condition.rhs && typeof condition.rhs === 'object') {
+                    condition.rhs.value = requireFiniteNumber(path, value);
+                    condition.rhs.variable = '';
+                } else {
+                    condition.rhs = requireFiniteNumber(path, value);
+                }
                 return;
             case 'lhsBinding.type':
                 condition.lhsBinding.type = requireEnumValue(path, value, [
@@ -2800,7 +2816,9 @@ function setTransitionConditionProperty(condition: any, path: string, value: unk
                 ]);
                 return;
             case 'lhsBinding.variableName':
-                condition.lhsBinding.variableName = requireString(path, value);
+                if (condition.lhsBinding) condition.lhsBinding.variableName = requireString(path, value);
+                else if (!api.TCBindingValueType) condition.lhs.variable = requireString(path, value);
+                else throw new Error('The transition has no variable binding.');
                 return;
             case 'lhsBinding.curveName':
                 condition.lhsBinding.curveName = requireString(path, value);

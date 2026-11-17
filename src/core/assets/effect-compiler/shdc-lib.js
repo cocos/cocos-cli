@@ -1591,6 +1591,12 @@ const decorateBindings = (code, manifest, paramInfo) => {
                 // adapt bindings
                 const dest = info.type === 'varyings' || info.type === 'attributes' ? 'location' : 'binding';
                 let validSubstitution = manifest[info.type].find((v) => v[dest] === value);
+                if (!validSubstitution && info.type === 'samplerTextures') {
+                    // Legacy effects provide a sampler fallback for an input
+                    // attachment at the attachment's binding, which may be sparse
+                    // in the sampler-only manifest. Preserve that explicit slot.
+                    validSubstitution = overrides.subpassInputs?.[value] === name;
+                }
                 if (!validSubstitution && info.type === 'subpassInputs') {
                     // input attachments need fallback bindings, skip this check
                     validSubstitution = true;

@@ -87,6 +87,14 @@ describe('Light probe lightweight settings', () => {
         await expect(query()).resolves.toMatchObject({ giSamples: { value: 1024 } });
     });
 
+    it('omits unsupported sphere display size on older engines without inventing a property', async () => {
+        delete (info as Partial<typeof initial>).lightProbeSphereVolume;
+        const result = await query();
+        expect(result).not.toHaveProperty('lightProbeSphereVolume');
+        expect(result.giScale.value).toBe(initial.giScale);
+        expect(info).not.toHaveProperty('lightProbeSphereVolume');
+    });
+
     it('returns fresh live values and detached results on repeated queries', async () => {
         const first = await query();
         first.giScale.value = 99;

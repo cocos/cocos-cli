@@ -1,3 +1,4 @@
+import { getEngineBackendAdapter } from './adapter';
 import { join } from 'path';
 import { GlobalPaths } from '../../global';
 
@@ -5,12 +6,12 @@ import { GlobalPaths } from '../../global';
 process.on('message', async (message: any) => {
     if (message && message.type === 'start') {
         try {
-            const engineCompilerPath = join(GlobalPaths.workspace, 'packages', 'engine-compiler', 'dist', 'index');
-            const { compileEngine } = require(engineCompilerPath);
-
             if (typeof message.enginePath !== 'string' || !message.enginePath.trim()) throw new Error('Compile request must provide enginePath');
             const { selectEnginePath } = await import('./selection');
-            const enginePath = selectEnginePath(message.enginePath).path;
+            const selection = selectEnginePath(message.enginePath);
+            const compilation = getEngineBackendAdapter(selection).compile(selection);
+            const { compileEngine } = require(join(GlobalPaths.workspace, compilation.compilerModule));
+            const enginePath = selection.path;
             //compile for editor
             await compileEngine(enginePath);
             //compile for web

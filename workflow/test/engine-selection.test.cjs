@@ -178,6 +178,8 @@ test('compiler worker uses the parent-selected engine rather than its local defa
     compile(root, 'src/global.ts', 'dist/global.js');
     compile(root, 'src/core/engine/selection.ts', 'dist/core/engine/selection.js');
     compile(root, 'src/core/engine/compile-worker.ts', 'dist/core/engine/compile-worker.js');
+    compile(root, 'src/core/engine/adapter.ts', 'dist/core/engine/adapter.js');
+    fs.cpSync(path.join(cli, 'adapters/engine'), path.join(root, 'adapters/engine'), { recursive: true });
     write(root, 'workflow/engine-path.js', fs.readFileSync(path.join(cli, 'workflow/engine-path.js'), 'utf8'));
     write(root, 'workflow/engine-compatibility.js', fs.readFileSync(path.join(cli, 'workflow/engine-compatibility.js'), 'utf8'));
     write(root, 'engine-compatibility.json', fs.readFileSync(path.join(cli, 'engine-compatibility.json'), 'utf8'));

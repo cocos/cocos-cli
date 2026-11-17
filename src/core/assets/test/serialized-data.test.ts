@@ -1,3 +1,4 @@
+import { Engine } from '../../engine';
 'use strict';
 
 jest.mock('gl', () => {
@@ -239,10 +240,7 @@ describe('serialized asset data', function () {
     });
 
     it('queries RenderPipeline as a top-level IProperty with optionalTypes', async () => {
-        const fixture = join(
-            TestGlobalEnv.engineRoot,
-            'editor/assets/default_file_content/render-pipeline/default.rpp',
-        );
+        const fixture = join(TestGlobalEnv.engineRoot, 'editor/assets', Engine.resolveAssetTemplate('db://internal/default_file_content/render-pipeline/default.rpp').slice('db://internal/'.length));
         const assetInfo = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-pipeline.rpp`),
             content: readFileSync(fixture, 'utf8'),
@@ -268,10 +266,7 @@ describe('serialized asset data', function () {
     });
 
     it('saves a RenderPipeline nested IProperty patch and reads the fresh value back', async () => {
-        const fixture = join(
-            TestGlobalEnv.engineRoot,
-            'editor/assets/default_file_content/render-pipeline/forward-pipeline.rpp',
-        );
+        const fixture = join(TestGlobalEnv.engineRoot, 'editor/assets', Engine.resolveAssetTemplate('db://internal/default_file_content/render-pipeline/forward-pipeline.rpp').slice('db://internal/'.length));
         const assetInfo = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-pipeline-save.rpp`),
             content: readFileSync(fixture, 'utf8'),
@@ -319,10 +314,7 @@ describe('serialized asset data', function () {
     });
 
     it('rejects unknown nested RenderPipeline fields without changing the source file', async () => {
-        const fixture = join(
-            TestGlobalEnv.engineRoot,
-            'editor/assets/default_file_content/render-pipeline/forward-pipeline.rpp',
-        );
+        const fixture = join(TestGlobalEnv.engineRoot, 'editor/assets', Engine.resolveAssetTemplate('db://internal/default_file_content/render-pipeline/forward-pipeline.rpp').slice('db://internal/'.length));
         const assetInfo = await assetManager.createAsset({
             target: join(TestGlobalEnv.testRoot, `${name}-pipeline-unknown.rpp`),
             content: readFileSync(fixture, 'utf8'),

@@ -48,9 +48,10 @@ describe('EditorProxy Scene 测试', () => {
                 'showWireframe', 'showConvex', 'lightProbeSphereVolume',
             ] as const;
             // RPC objects have another realm's Object.prototype; compare the exact scalar contract.
-            expect(Reflect.ownKeys(settings).sort()).toStrictEqual([...keys].sort());
-            for (const key of keys) {
-                const actual = settings[key];
+            const supportedKeys = keys.filter(key => key in info.value);
+            expect(Reflect.ownKeys(settings).sort()).toStrictEqual([...supportedKeys].sort());
+            for (const key of supportedKeys) {
+                const actual = settings[key]!;
                 const property = info.value[key];
                 expect(Reflect.ownKeys(actual).sort()).toStrictEqual(['readonly', 'type', 'value']);
                 expect(actual.value).toBe(property.value);

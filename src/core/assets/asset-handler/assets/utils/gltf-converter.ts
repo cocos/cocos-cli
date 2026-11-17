@@ -52,7 +52,7 @@ import { exoticAnimationTag, RealArrayTrack } from 'cc/editor/exotic-animation';
 import { GlTFTrsAnimationData, GlTFTrsTrackData } from './glTF-animation-utils';
 import { MaxPhysicalMaterial, MayaStandardSurface } from './material-interface';
 import { DocumentExtra, FbxSurfaceLambertProperties, FbxSurfacePhongProperties } from '@cocos/fbx-gltf-conv/types/FBX-glTF-conv-extras';
-import { linearToSrgb8Bit } from 'cc/editor/color-utils';
+import { linearToSrgb8Bit } from './color-conversion';
 import { Filter, TextureBaseAssetUserData, WrapMode } from '../../../@types/userDatas';
 
 type FloatArray = Float32Array | Float64Array;

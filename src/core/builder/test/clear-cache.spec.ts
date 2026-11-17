@@ -75,11 +75,13 @@ describe('builder clearCache', () => {
         const engineTempFile = join(mockGlobalPaths.enginePath, 'bin', 'temp', 'engine-cache.js');
         const editorCacheFile = join(mockGlobalPaths.enginePath, 'bin', '.cache', 'editor-cache', 'wechatgame', 'meta.json');
         const devCliCacheFile = join(mockGlobalPaths.enginePath, 'bin', '.cache', 'dev-cli', 'cc.js');
+        const legacyCliCacheFile = join(mockGlobalPaths.enginePath, 'bin', '.cache', 'dev-cli-3.8', 'editor', 'backend.json');
         const engineLogFile = join(mockGlobalPaths.enginePath, 'bin', '.cache', 'logs', 'log.txt');
 
         await outputFile(engineTempFile, 'engine');
         await outputFile(editorCacheFile, '{}');
         await outputFile(devCliCacheFile, 'cc');
+        await outputFile(legacyCliCacheFile, '{}');
         await outputFile(engineLogFile, 'log');
 
         const result = await clearCache({ scope: 'global' });
@@ -89,6 +91,7 @@ describe('builder clearCache', () => {
         await expect(readdir(join(mockGlobalPaths.enginePath, 'bin', '.cache', 'editor-cache'))).resolves.toEqual([]);
         await expect(readdir(join(mockGlobalPaths.enginePath, 'bin', '.cache', 'dev-cli'))).resolves.toEqual([]);
         expect(await pathExists(engineLogFile)).toBe(true);
+        expect(await pathExists(legacyCliCacheFile)).toBe(false);
     });
 
     it('clears project and global cache when scope is all', async () => {

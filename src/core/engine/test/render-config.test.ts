@@ -3,36 +3,34 @@ import i18n from '../../base/i18n';
 import { TestGlobalEnv } from '../../../tests/global-env';
 
 describe('engine render-config localization', () => {
-    afterEach(() => {
-        i18n.setLanguage('en');
-    });
+    afterEach(() => i18n.setLanguage('en'));
 
-    it('should translate render-config labels and descriptions into English', () => {
-        const dynamicMetadata = jest.requireActual('../dynamic-metadata') as any;
-        const enLocalization = require(join(TestGlobalEnv.engineRoot, 'editor', 'i18n', 'en', 'localization.js'));
-
-        i18n.setLanguage('en');
-        const renderConfig = dynamicMetadata.getLocalizedEngineRenderConfig(TestGlobalEnv.engineRoot);
-
-        expect(renderConfig.features.base.label).toBe(enLocalization.features.core.label);
-        expect(renderConfig.features.base.description).toBe(enLocalization.features.core.description);
-        expect(renderConfig.features.physics.options['physics-ammo'].label).toBe(enLocalization.features.physics_ammo.label);
-        expect(renderConfig.features.physics.options['physics-ammo'].flags.LOAD_BULLET_MANUALLY.description)
-            .toBe(enLocalization.features.flags.bullet.loadManual.description);
-        expect(renderConfig.categories.graphics.label).toBe(enLocalization.features.graphics.label);
-        expect(renderConfig.features.base.label).not.toMatch(/^i18n:/);
-    });
-
-    it('should follow the current language when translating render-config data', () => {
-        const dynamicMetadata = jest.requireActual('../dynamic-metadata') as any;
-        const zhLocalization = require(join(TestGlobalEnv.engineRoot, 'editor', 'i18n', 'zh', 'localization.js'));
-
-        i18n.setLanguage('zh');
-        const renderConfig = dynamicMetadata.getLocalizedEngineRenderConfig(TestGlobalEnv.engineRoot);
-
-        expect(renderConfig.features.base.label).toBe(zhLocalization.features.core.label);
-        expect(renderConfig.features.physics.options['physics-ammo'].label).toBe(zhLocalization.features.physics_ammo.label);
-        expect(renderConfig.categories.graphics.label).toBe(zhLocalization.features.graphics.label);
-        expect(renderConfig.features.base.label).not.toMatch(/^i18n:/);
+    it.each(['en', 'zh'] as const)('translates the selected engine render-config into %s', lang => {
+        const metadata = jest.requireActual('../dynamic-metadata') as any;
+        const localization = require(join(TestGlobalEnv.engineRoot, 'editor/i18n', lang, 'localization.js'));
+        const source = require(join(TestGlobalEnv.engineRoot, 'editor/engine-features/render-config.json'));
+        i18n.setLanguage(lang);
+        const localized = metadata.getLocalizedEngineRenderConfig(TestGlobalEnv.engineRoot);
+        let verified = 0;
+        const visit = (original: any, actual: any): void => {
+            if (original && typeof original === 'object') {
+                expect(Object.keys(actual)).toEqual(Object.keys(original));
+                for (const key of Object.keys(original)) visit(original[key], actual[key]);
+            } else if (typeof original === 'string' && original.startsWith('i18n:ENGINE.')) {
+                const expected = original.slice('i18n:ENGINE.'.length).split('.').reduce((node, key) => node?.[key], localization);
+                if (typeof expected === 'string') {
+                    expect(actual).toBe(expected);
+                    expect(actual).not.toMatch(/^i18n:/);
+                    verified++;
+                } else {
+                    // Some historical dictionaries omit keys already referenced by their source.
+                    expect(typeof actual).toBe('string');
+                }
+            } else {
+                expect(actual).toEqual(original);
+            }
+        };
+        visit(source, localized);
+        expect(verified).toBeGreaterThan(10);
     });
 });

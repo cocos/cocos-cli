@@ -28,7 +28,8 @@ export interface ILightProbeSettings {
     reduceRinging: ILightProbeSetting<number>;
     showWireframe: ILightProbeSetting<boolean>;
     showConvex: ILightProbeSetting<boolean>;
-    lightProbeSphereVolume: ILightProbeSetting<number>;
+    /** Absent when the selected engine has no sphere display-size property. */
+    lightProbeSphereVolume?: ILightProbeSetting<number>;
 }
 
 /** Versioned implementation support, not native executable readiness or a recoverable task. */
@@ -57,7 +58,7 @@ export interface ILightProbeBakeResult {
     reduceRinging: number;
     showWireframe: boolean;
     showConvex: boolean;
-    lightProbeSphereVolume: number;
+    lightProbeSphereVolume?: number;
     durationMs: number;
 }
 

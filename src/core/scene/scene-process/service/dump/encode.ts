@@ -73,7 +73,7 @@ export function encodeNode(node: Node, options: INodeDumpOptions = {}): INode {
         return a.value - b.value;
     });
 
-    const MobilityModeEnumList = Object.keys(MobilityMode).map((key, index) => {
+    const MobilityModeEnumList = Object.keys(MobilityMode ?? {}).map((key, index) => {
         return { name: key, value: MobilityMode[key as keyof typeof MobilityMode] };
     });
 
@@ -121,6 +121,8 @@ export function encodeNode(node: Node, options: INodeDumpOptions = {}): INode {
         mobility: encodeObject(
             node.mobility,
             {
+                visible: !!MobilityMode,
+                readonly: !MobilityMode,
                 displayName: 'i18n:scene.cc.Node.properties.mobility.displayName',
                 tooltip: 'i18n:scene.cc.Node.properties.mobility.tooltip',
                 default: 0,
