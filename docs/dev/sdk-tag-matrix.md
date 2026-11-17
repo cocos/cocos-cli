@@ -100,7 +100,7 @@ npm run test:sdk-tags -- --validation-tag 4.0.0-alpha.33 --cli .publish/sdk/cli-
 npm run test:sdk-tags -- --cli .publish/sdk/full-ci-candidate --test-root . --output .publish/full-ci-tags
 ```
 
-每组新增 `ci-tests.json`、`unit.json`、`unit.log`、`mcp-types.log`、`e2e.json` 和 `e2e.log`。汇总报告中的 `smokeStatus` 只代表最小构建；最终 `status` 同时包含完整 CI 测试结果。完整测试结果见 [版本矩阵验证结果](sdk-full-ci-results.md)。
+每组新增 `ci-tests.json`、`unit.json`、`unit.log`、`mcp-types.log`、`e2e.json` 和 `e2e.log`。汇总报告中的 `smokeStatus` 只代表最小构建；最终 `status` 同时包含完整 CI 测试结果。
 
 新增的 tag matrix 工作流只有全矩阵通过才上传 `verified-cli-test-sdk`；既有独立 release 工作流尚未统一改为依赖此任务，不能宣称所有发布渠道已强制受此门禁控制。已完成的本地验证覆盖 Windows x64 / Node ABI 127，其他平台须在相应 CI runner 执行。
 

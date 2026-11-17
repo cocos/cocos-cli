@@ -9,7 +9,7 @@ const { parseArgs } = require('node:util');
 const semver = require('semver');
 const { resolveEnginePath } = require('./engine-path');
 
-const CLI_ROOTS = ['dist', 'static', 'docs/en', 'docs/zh', 'docs/sdk-packaging.md', 'docs/dev/environment-setup.md', 'readme.md', 'README-zh.md', 'config.local.example.json', 'engine-compatibility.json', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'packages/cc-module', 'packages/engine-compiler/dist', 'packages/platforms', 'LICENSE'];
+const CLI_ROOTS = ['dist', 'static', 'docs/en', 'docs/zh', 'docs/dev/environment-setup.md', 'readme.md', 'README-zh.md', 'config.local.example.json', 'engine-compatibility.json', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'packages/cc-module', 'packages/engine-compiler/dist', 'packages/platforms', 'LICENSE'];
 const ENGINE_ROOTS = ['cocos', 'editor', 'exports', 'extensions', 'external', 'native', 'pal', 'templates', 'vendor', 'licenses', '@types', 'bin/.cache/dev-cli', 'bin/.declarations', 'bin/.editor', 'bin/adapter', 'bin/simulator', 'bin/native-preview', 'cc.config.json', 'cc.config.schema.json', 'DebugInfos.json', 'DebugInfos.d.ts', 'predefine.ts', 'tsconfig.json', 'LICENSE', 'AUTHORS.txt'];
 const REQUIRED = {
     cli: ['dist/cli.js', 'dist/index.js', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'engine-compatibility.json', 'packages/cc-module/loader.js', 'packages/cc-module/preload.js', 'packages/engine-compiler/dist/index.js'],

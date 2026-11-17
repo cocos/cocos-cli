@@ -38,7 +38,7 @@ npm run pack:engine-sdk -- --source D:/engines/my-engine --output .publish/sdk/c
 - workspace 链接物化为目录，使产物不依赖源码位置。指向 SDK 源码根之外的依赖链接或从外部目录解析到的依赖会被拒绝，应先在 SDK 源目录准备正确依赖。
 - 产物顶层 package.json 移除开发脚本、devDependencies 和 workspaces，标记 private；这是预安装目录快照，不是用于发布到 npm registry 的包，不应在产物中重新运行 npm install。
 
-CLI SDK 不包含 `packages/engine`。可将独立 Engine SDK 放入 `<CLI SDK>/packages/engine`，或在 CLI 根目录的 `config.local.json` 中配置 `enginePath`。该本机配置不会打包，解压后的 CLI SDK 如需外部引擎地址，应在其根目录另建配置。`pack:engine-sdk` 默认使用配置路径，`--source` 可覆盖它。CLI 运行时还支持更高优先级的项目 `engineSdk.path` 和命令行 `--engine-path`，详见[环境配置](dev/environment-setup.md)。CLI SDK 包含 engine-compatibility.json 及其检查脚本，加载引擎时执行支持范围、必需文件和接口检查。自动安装及全版本矩阵仍属于后续工作。
+CLI SDK 不包含 `packages/engine`。可将独立 Engine SDK 放入 `<CLI SDK>/packages/engine`，或在 CLI 根目录的 `config.local.json` 中配置 `enginePath`。该本机配置不会打包，解压后的 CLI SDK 如需外部引擎地址，应在其根目录另建配置。`pack:engine-sdk` 默认使用配置路径，`--source` 可覆盖它。CLI 运行时还支持更高优先级的项目 `engineSdk.path` 和命令行 `--engine-path`，详见[环境配置](environment-setup.md)。CLI SDK 包含 engine-compatibility.json 及其检查脚本，加载引擎时执行支持范围、必需文件和接口检查。自动安装及全版本矩阵仍属于后续工作。
 
 ## 清单与校验
 
