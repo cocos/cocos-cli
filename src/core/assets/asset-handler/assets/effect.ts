@@ -4,7 +4,7 @@ import { Asset, AssetDB, forEach } from '@cocos/asset-db';
 import { AssetHandler, IAsset } from '../../@types/protected';
 import { EffectAsset } from 'cc';
 import { optionalEngineModule, unavailableEngineFeature } from '../../../engine/optional-module';
-const customPipeline = optionalEngineModule<typeof import('cc/editor/custom-pipeline')>('cc/editor/custom-pipeline');
+const customPipeline = optionalEngineModule<typeof import('cc/editor/custom-pipeline')>('cc/editor/custom-pipeline', () => require('cc/editor/custom-pipeline'));
 const {
     BinaryOutputArchive,
     LayoutGraphData,
@@ -263,6 +263,10 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
     buildLayoutGraphData(lgInfo.lg, lgData);
 }
 
+export function supportsEffectBin(): boolean {
+    return typeof customPipeline?.LayoutGraphInfo === 'function';
+}
+
 /** 
  * source/contributions/asset-db-hook
  * effect 导入器比较特殊，单独增加了一个在所有 effect 导入完成后的钩子
@@ -272,7 +276,7 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
  */
 export async function afterImport(force?: boolean) {
     // Classic pipelines do not consume the custom pipeline effect.bin archive.
-    if (!customPipeline?.LayoutGraphInfo) {
+    if (!supportsEffectBin()) {
         if (force) throw unavailableEngineFeature('custom pipeline layout serialization');
         return;
     }

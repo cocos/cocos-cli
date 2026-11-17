@@ -1,6 +1,6 @@
 /** Read an optional editor module without hiding failures inside available modules. */
-export function optionalEngineModule<T>(id: string): T | undefined {
-    try { return require(id) as T; }
+export function optionalEngineModule<T>(id: string, load: () => T): T | undefined {
+    try { return load(); }
     catch (error) {
         const message = typeof (error as Error)?.message === 'string' ? (error as Error).message : String(error);
         if (message.startsWith('Can not load engine module: ' + id + '.') ||

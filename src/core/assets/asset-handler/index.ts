@@ -1,5 +1,6 @@
 export async function compileEffect(force?: boolean) {
-    const { afterImport, autoGenEffectBinInfo } = await import('./assets/effect');
+    const { afterImport, autoGenEffectBinInfo, supportsEffectBin } = await import('./assets/effect');
+    if (!supportsEffectBin()) return;
     try {
         await afterImport(force);
         const { existsSync, statSync } = await import('fs-extra');

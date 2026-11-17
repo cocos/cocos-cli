@@ -4,7 +4,7 @@ import {
     editorExtrasTag,
 } from 'cc';
 import { optionalEngineModule, unavailableEngineFeature } from '../../../../engine/optional-module';
-const embeddedApi = optionalEngineModule<typeof import('cc/editor/embedded-player')>('cc/editor/embedded-player');
+const embeddedApi = optionalEngineModule<typeof import('cc/editor/embedded-player')>('cc/editor/embedded-player', () => require('cc/editor/embedded-player'));
 const {
     EmbeddedAnimationClipPlayable,
     EmbeddedParticleSystemPlayable,

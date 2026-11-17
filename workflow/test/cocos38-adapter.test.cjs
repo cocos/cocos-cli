@@ -183,7 +183,29 @@ test('earlier pipeline options preserve the caller input and real asset UUIDs', 
         assert.equal(options.overrideSettings.rendering.renderPipeline, 'builtin');
         const custom = { overrideSettings: { rendering: { renderPipeline: 'real-asset-uuid' } } };
         assert.equal(engine.game.init(custom), custom);
+        const bundledPipeline = { renderPipeline: 'fd8ec536-a354-4a17-9c74-4f3883c378c8' };
+        const local = { overrideSettings: { rendering: bundledPipeline } };
+        assert.equal(engine.game.init(local).overrideSettings.rendering.renderPipeline, Number(version.split('.')[2]) <= 3 ? '' : bundledPipeline.renderPipeline);
+        const served = { overrideSettings: { rendering: bundledPipeline, assets: { server: 'http://localhost:9527' } } };
+        assert.equal(engine.game.init(served), served);
     }
+});
+
+test('glTF animation staging files use local CCONB bytes and preserve remote downloads', async t => {
+    const { root } = fixture(t);
+    const { pathToFileURL } = require('node:url');
+    const staged = path.join(root, '__original-animation-0');
+    fs.writeFileSync(staged + '.bin', Buffer.from([0, 128, 255]));
+    const downloader = { _downloadArrayBuffer(url, options, done) { done(null, url); } };
+    const engine = { VERSION: '3.8.2', cclegacy: { internal: {} }, assetManager: { downloader } };
+    require('../../adapters/engine/cocos38/index.cjs').configureRuntime(engine, serializationExports);
+    const download = url => new Promise((resolve, reject) => downloader._downloadArrayBuffer(url, {},
+        (error, data) => error ? reject(error) : resolve(data)));
+    const data = await download(pathToFileURL(staged + '.cconb').href + '?_t=123');
+    assert.deepEqual([...new Uint8Array(data)], [0, 128, 255]);
+    await assert.rejects(download(pathToFileURL(path.join(root, '__original-animation-1.cconb')).href), { code: 'ENOENT' });
+    const remote = 'http://localhost:9527/__original-animation-0.cconb';
+    assert.equal(await download(remote), remote);
 });
 
 test('legacy Editor queries delegate to the actual host asset backend', async t => {

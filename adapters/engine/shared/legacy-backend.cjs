@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { fileURLToPath } = require('node:url');
 module.exports = function createLegacyBackend(options) {
     const { directory, identity, CACHE_VERSION, ADAPTER_ID, supportsVersion } = options.compiler;
     const sourceFiles = ['cc.config.json', 'cocos/core/platform/macro.ts', 'editor/engine-features/render-config.json'];
@@ -83,6 +84,35 @@ module.exports = function createLegacyBackend(options) {
             return prefix + relative;
         },
         configureRuntime(engine, getModule, host) {
+            const downloader = engine.assetManager?.downloader;
+            const downloadArrayBuffer = downloader?._downloadArrayBuffer;
+            const downloadCCONB = downloader?._downloaders?.['.cconb'];
+            function withLocalAnimation(download, decode) {
+                return function (url, options, done) {
+                    // The glTF importer requests a CCONB URL for its local .bin staging file.
+                    if (typeof url !== 'string' || !/^file:.*__original-animation-\d+\.cconb(?:[?#]|$)/.test(url)) {
+                        return download.call(this, url, options, done);
+                    }
+                    let filename;
+                    try { filename = fileURLToPath(new URL(url)).replace(/\.cconb$/, '.bin'); }
+                    catch (error) { done(error); return; }
+                    fs.readFile(filename, (error, bytes) => {
+                        if (error) { done(error); return; }
+                        let data;
+                        try { data = decode(bytes); }
+                        catch (decodeError) { done(decodeError); return; }
+                        done(null, data);
+                    });
+                };
+            }
+            if (typeof downloadArrayBuffer === 'function') {
+                downloader._downloadArrayBuffer = withLocalAnimation(downloadArrayBuffer,
+                    bytes => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+            } else if (typeof downloadCCONB === 'function' && typeof downloader.register === 'function') {
+                // Earlier engines call their private array-buffer downloader directly.
+                const { decodeCCONBinary } = getModule('cc/editor/serialization');
+                downloader.register('.cconb', withLocalAnimation(downloadCCONB, decodeCCONBinary));
+            }
             // Editor mode activation asks for the focused node even while importing
             // assets, where no scene selection exists yet.
             const editor = globalThis.Editor;
@@ -107,8 +137,12 @@ module.exports = function createLegacyBackend(options) {
                         error.code = 'ENGINE_CAPABILITY_UNAVAILABLE';
                         throw error;
                     }
-                    // Earlier 3.8 releases expect an asset UUID, not the CLI's builtin identifier.
-                    const value = rendering?.renderPipeline === 'builtin' ? { ...options, overrideSettings: {
+                    const pipeline = rendering?.renderPipeline;
+                    // Without an asset server, the legacy host uses the engine's default forward pipeline.
+                    const useDefaultPipeline = pipeline === 'builtin' || (
+                        pipeline === 'fd8ec536-a354-4a17-9c74-4f3883c378c8' && !options.overrideSettings.assets?.server
+                    );
+                    const value = useDefaultPipeline ? { ...options, overrideSettings: {
                         ...options.overrideSettings, rendering: { ...rendering, renderPipeline: '' },
                     } } : options;
                     return init.call(this, value);
