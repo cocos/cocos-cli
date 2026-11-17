@@ -148,6 +148,7 @@
         "exception_remove_splash": "网络异常，移除插屏配置失败。",
         "deprecated_tip": "{oldName} 已废弃，请更换为 {newName}",
         "resources_remote_lock_waring": "resources 目录默认配置为远程包，将会忽略原有配置的所有远程包配置",
+        "retained_originals_with_atlas": "Bundle 内的自动图集 {info} 因未勾选原资源剔除选项而保留了部分小图资源（Texture2D / ImageAsset）。这些小图资源将与图集同时打包，增加包体大小。",
         "repeat_atlas_in_bundle": "图集 {asset({Atlas})} 同时被 {bundle1} 和 {bundle2} 引用。这将导致图集被拷贝多份并包含在打包文件中，增加包体的大小。\n考虑以下优化选项来优化您的 bundle 配置并减小包体大小： \n    1. 调整 bundle 的优先级，确保 Atlas 图集仅被包含在优先的 bundle 中。\n    2. 仔细检查图集在各个 bundle 中的使用情况，并在可能的情况下将其合并到单个 bundle 中。",
         "engine_modules_fall_back_tip": "当前引擎模块配置内有部分模块 {fallbackMsg} 在当前平台 {platform} 不支持，将会自动移除或者回退成其他模块",
         "invalid_option_in_separate_engine": "勾选分离引擎时，引擎默认为 release 模式，调试模式/SourceMap 选项对引擎编译结果无效",

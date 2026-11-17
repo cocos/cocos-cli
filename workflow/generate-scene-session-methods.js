@@ -20,6 +20,8 @@ for (const property of checker.getPropertiesOfType(checker.getTypeAtLocation(dec
         .map(method => method.name).sort();
 }
 // These editor operations already exist in the backend but are intentionally absent from the MCP-facing API.
+// Preserve the existing session boundary for view-local drag operations.
+result.Node = result.Node.filter(method => !['beginCreateDrag', 'updateCreateDrag', 'commitCreateDrag', 'cancelCreateDrag'].includes(method));
 result.Node.push('setProperty', 'resetProperty', 'setParent', 'reorder', 'duplicate', 'paste', 'copy', 'cut');
 result.Component.push('setProperty');
 result.Editor.push('applyRecordedChanges');

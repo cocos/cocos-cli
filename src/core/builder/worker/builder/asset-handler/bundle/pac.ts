@@ -5,15 +5,19 @@ import { buildAssetLibrary } from '../../manager/asset-library';
 import { TextureCompress } from '../texture-compress';
 import i18n from '../../../../../base/i18n';
 import { IBundle, IAtlasInfo, IPacInfo, IImageTaskInfo } from '../../../../@types/protected';
+import { pruneOriginalAssetsInPac } from './pac-pruning';
 
 export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: IPacInfo, dependedAssets: Record<string, string[]>, imageCompressManager?: TextureCompress) {
-    const { removeTextureInBundle, removeImageInBundle, removeSpriteAtlasInBundle } = pacInfo.packOptions;
+    const { removeSpriteAtlasInBundle } = pacInfo.packOptions;
     let firstBundleContainAtlasImage: IBundle | null = null;
     const bundlesWithSamePriority: string[] = [];
 
     // 一个 AutoAtlas 可能会生成多张大图
     const imageUuid = atlas.imageUuid;
     const textureUuid = atlas.textureUuid;
+    // Remove originals and their redirects together, even in bundles whose
+    // SpriteFrame is redirected and would be skipped by the loop below.
+    const retainedByOptions = pruneOriginalAssetsInPac(bundles, atlas, pacInfo, dependedAssets, (uuid) => imageCompressManager?.removeTask(uuid));
     for (const bundle of bundles) {
         if (!bundle.output) {
             continue;
@@ -40,9 +44,7 @@ export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: 
             bundle.addAssetWithUuid(spriteFrameInfo.uuid);
             // 将小图信息从原有分组中删除
             bundle.removeFromGroups(spriteFrameInfo.uuid);
-            if (!dependedAssets[spriteFrameInfo.textureUuid] && (removeTextureInBundle || !inBundle)) {
-                bundle.removeAsset(spriteFrameInfo.textureUuid);
-            } else if (dependedAssets[spriteFrameInfo.textureUuid] && !inBundle) {
+            if (dependedAssets[spriteFrameInfo.textureUuid] && !inBundle) {
                 // 自动图集内的 texture 资源被使用后不剔除，但需要警告
                 // https://github.com/cocos-creator/3d-tasks/issues/4014
                 console.warn(
@@ -52,12 +54,7 @@ export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: 
                     }),
                 );
             }
-            // !dependedAssets[spriteFrameInfo.textureUuid]: 由于 texture 与 image 之间的依赖关系，当 texture 被引用时，image 也不能剔除
-            if (!dependedAssets[spriteFrameInfo.imageUuid] && (removeImageInBundle || !inBundle) && !dependedAssets[spriteFrameInfo.textureUuid]) {
-                bundle.removeAsset(spriteFrameInfo.imageUuid);
-                // 移除 image 碎图后，需要删除原有纹理压缩任务
-                imageCompressManager && imageCompressManager.removeTask(spriteFrameInfo.imageUuid);
-            } else if (dependedAssets[spriteFrameInfo.imageUuid] && !inBundle) {
+            if (dependedAssets[spriteFrameInfo.imageUuid] && !inBundle) {
                 // 自动图集内的 image 资源被使用后不剔除，但需要警告
                 // https://github.com/cocos-creator/3d-tasks/issues/4014
                 console.warn(
@@ -155,4 +152,5 @@ export function sortBundleInPac(bundles: IBundle[], atlas: IAtlasInfo, pacInfo: 
             bundle2: bundlesWithSamePriority.toString(),
         }));
     }
+    return !!firstBundleContainAtlasImage && retainedByOptions;
 }

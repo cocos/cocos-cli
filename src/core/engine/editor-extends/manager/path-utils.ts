@@ -22,6 +22,9 @@ export const ILLEGAL_NAME_CHARS = /[/\\:*?"<>|]/;
  * @returns error description if invalid, null if valid
  */
 export function validateNodeName(name: string): string | null {
+    if (typeof name !== 'string' || name.trim().length === 0) {
+        return 'Node name must not be empty.';
+    }
     const match = name.match(ILLEGAL_NAME_CHARS);
     if (match) {
         return `Node name "${name}" contains illegal character '${match[0]}'. Characters /\\:*?"<>| are not allowed.`;

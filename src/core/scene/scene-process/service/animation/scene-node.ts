@@ -44,19 +44,26 @@ export function getNodePath(node: Node): string {
     return NodeMgr.getNodePath(node) || '';
 }
 
+/**
+ * 将节点路径或 UUID 解析为动画根节点下的名称路径
+ *
+ * 允许缺失路径时，调用方仍须核验剪辑中是否存在目标轨道
+ */
 export function resolveAnimationRelativeNodePath(
     rootNode: Node,
     rootPath: string,
     target: { nodePath?: string; nodeUuid?: string },
+    options: { allowMissingPath?: boolean } = {},
 ): string | null {
     const nodePath = normalizeNodePath(target.nodePath || '');
     const normalizedRootPath = normalizeNodePath(rootPath);
+    const hasRootPrefix = normalizedRootPath !== '' && nodePath.startsWith(`${normalizedRootPath}/`);
     if (nodePath) {
         if (nodePath === normalizedRootPath) {
             return '';
         }
 
-        if (normalizedRootPath && nodePath.startsWith(`${normalizedRootPath}/`)) {
+        if (hasRootPrefix) {
             const relativePath = nodePath.slice(normalizedRootPath.length + 1);
             const animationNode = rootNode.getChildByPath(relativePath);
             const systemNode = getNodeBySystemPathIfAvailable(nodePath);
@@ -79,6 +86,14 @@ export function resolveAnimationRelativeNodePath(
                 return relativePath;
             }
         }
+    }
+
+    // 保留有效 UUID 的回退优先级，只有真实绑定均失败后才尝试孤立轨道
+    if (
+        options.allowMissingPath && nodePath && !hasRootPrefix
+        && !getNodeBySystemPathIfAvailable(`${normalizedRootPath}/${nodePath}`)
+    ) {
+        return nodePath;
     }
 
     return nodePath || target.nodeUuid ? null : '';

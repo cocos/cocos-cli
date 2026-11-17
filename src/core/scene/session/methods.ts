@@ -12,6 +12,8 @@ export const sceneSessionMethods: Record<string, readonly string[]> = {
         "save"
     ],
     "Node": [
+        "cancelPreviewSetProperty",
+        "commitPreviewSetProperty",
         "copy",
         "createByAsset",
         "createBySerializedData",
@@ -21,6 +23,7 @@ export const sceneSessionMethods: Record<string, readonly string[]> = {
         "duplicate",
         "getPathByUuid",
         "paste",
+        "previewSetProperty",
         "query",
         "queryNodeTree",
         "reorder",

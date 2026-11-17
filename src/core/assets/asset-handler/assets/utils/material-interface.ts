@@ -1,5 +1,4 @@
-import '@cocos/fbx-gltf-conv/dist/esm/core/types';
-import { FbxDouble, FbxDouble3, FbxMaterialProperty, TextureReference } from '@cocos/fbx-gltf-conv/types/FBX-glTF-conv-extras';
+import type { FbxDouble, FbxDouble3, FbxMaterialProperty, TextureReference } from '@cocos/fbx-gltf-conv/types/FBX-glTF-conv-extras';
 
 export interface MayaMaterialInterface {
     typeId?: number;

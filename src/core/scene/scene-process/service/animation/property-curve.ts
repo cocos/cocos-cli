@@ -89,7 +89,7 @@ export function createPropertyKey(
     context: IPropertyCurveOperationContext,
     operation: ICreatePropertyKeyOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     const frame = Number(operation.frame);
     if (!target || !Number.isFinite(frame) || frame < 0) {
         return false;
@@ -99,7 +99,7 @@ export function createPropertyKey(
     const descriptor = existedTrack
         ? queryTrackDescriptor(context, existedTrack)
         : createDescriptor(context, target, operation.value);
-    if (!descriptor) {
+    if (!descriptor || !canWritePropertyValue(context, target, descriptor)) {
         return false;
     }
 
@@ -113,7 +113,7 @@ export function addPropertyCurve(
     context: IPropertyCurveOperationContext,
     operation: IPropertyTarget & { value?: IAnimationValue },
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     if (!target) {
         return false;
     }
@@ -136,7 +136,7 @@ export function updatePropertyKey(
     context: IPropertyCurveOperationContext,
     operation: ICreatePropertyKeyOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     const frame = Number(operation.frame);
     if (!target || !Number.isFinite(frame) || frame < 0) {
         return false;
@@ -145,6 +145,9 @@ export function updatePropertyKey(
     const track = findPropertyTrack(clip, target.nodePath, target.propKey);
     const descriptor = track ? queryTrackDescriptor(context, track) : null;
     if (track && descriptor) {
+        if (!canWritePropertyValue(context, target, descriptor)) {
+            return false;
+        }
         return updateTrackKey(track, descriptor, frame / getClipSample(clip), operation.value, operation.channel, operation.keyData ?? operation.curveData);
     }
 
@@ -156,7 +159,7 @@ export function updatePropertyKeyData(
     context: IPropertyCurveOperationContext,
     operation: IUpdatePropertyKeyDataOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     const frame = Number(operation.frame);
     if (!target || !Number.isFinite(frame) || frame < 0) {
         return false;
@@ -176,7 +179,7 @@ export function removePropertyKey(
     context: IPropertyCurveOperationContext,
     operation: IPropertyKeyFramesOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     const frames = normalizeFrames(operation.frames);
     if (!target || frames.length === 0) {
         return false;
@@ -208,7 +211,7 @@ export function removePropertyCurve(
     context: IPropertyCurveOperationContext,
     operation: IPropertyTarget,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     if (!target) {
         return false;
     }
@@ -233,7 +236,7 @@ export function movePropertyKeys(
     context: IPropertyCurveOperationContext,
     operation: IMovePropertyKeysOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     const frames = normalizeFrames(operation.frames);
     const offset = Number(operation.offset);
     if (!target || frames.length === 0 || !Number.isFinite(offset)) {
@@ -258,7 +261,7 @@ export function copyPropertyKeysTo(
     context: IPropertyCurveOperationContext,
     operation: ICopyPropertyKeysOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     const frames = normalizeFrames(operation.frames);
     const dstFrame = Number(operation.dstFrame);
     if (!target || frames.length === 0 || !Number.isFinite(dstFrame)) {
@@ -283,7 +286,7 @@ export function setPropertyCurveExtrapolation(
     context: IPropertyCurveOperationContext,
     operation: ISetPropertyCurveExtrapolationOperation,
 ): boolean {
-    const target = resolvePropertyTarget(context, operation);
+    const target = resolvePropertyCurveTarget(clip, context, operation);
     if (!target) {
         return false;
     }
@@ -318,9 +321,22 @@ export function replacePropertyCurves(clip: AnimationClip, curves: IAnimationCur
     return true;
 }
 
-function resolvePropertyTarget(context: IPropertyCurveOperationContext, operation: IPropertyTarget): IResolvedPropertyTarget | null {
-    const nodePath = resolveAnimationRelativeNodePath(context.rootNode, context.rootPath, operation);
-    if (nodePath === null) {
+/**
+ * 解析真实节点或当前剪辑中已有的孤立属性轨道
+ *
+ * 缺失节点只能操作已有轨道，不能凭路径创建新轨道
+ */
+export function resolvePropertyCurveTarget(
+    clip: AnimationClip,
+    context: IPropertyCurveOperationContext,
+    operation: IPropertyTarget,
+): IResolvedPropertyTarget | null {
+    const nodePath = resolveAnimationRelativeNodePath(context.rootNode, context.rootPath, operation, {
+        allowMissingPath: true,
+    });
+    const hasBoundNode = nodePath === ''
+        || (nodePath !== null && Boolean(context.rootNode.getChildByPath(nodePath)));
+    if (nodePath === null || (!hasBoundNode && !findPropertyTrack(clip, nodePath, operation.propKey))) {
         const target = operation.nodeUuid
             ? `UUID "${operation.nodeUuid}"`
             : `path "${operation.nodePath || '<root>'}"`;
@@ -334,6 +350,18 @@ function resolvePropertyTarget(context: IPropertyCurveOperationContext, operatio
         nodePath,
         propKey: operation.propKey,
     };
+}
+
+/** 缺失对象属性必须具有可恢复的类型，避免将资源 UUID 写成普通对象 */
+function canWritePropertyValue(
+    context: IPropertyCurveOperationContext,
+    target: IResolvedPropertyTarget,
+    descriptor: IPropertyTrackDescriptor,
+): boolean {
+    return descriptor.kind !== 'object'
+        || descriptor.type.value !== 'cc.Object'
+        || target.nodePath === ''
+        || Boolean(context.rootNode.getChildByPath(target.nodePath));
 }
 
 function createDescriptor(

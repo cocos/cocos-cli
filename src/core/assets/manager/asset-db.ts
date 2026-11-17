@@ -29,6 +29,12 @@ interface IStartupDatabaseHandleInfo {
     finish?: Function;
 }
 
+interface IStartupDatabaseCleanupInfo {
+    name: string;
+    target: string;
+    stopped: boolean;
+}
+
 type RefreshState = 'free' | 'busy' | 'wait';
 
 interface IWaitingTask {
@@ -50,6 +56,8 @@ interface IWaitingTaskInfo {
  */
 class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
+    // 保留回滚未完成的实例与注册信息，下一次 start/stop 必须先完成清理。
+    private pendingStartupCleanup = new Map<assetdb.AssetDB, IStartupDatabaseCleanupInfo>();
     public globalInternalLibrary = false;
 
     public setFileSystemProvider(provider: IAssetFileSystemProvider) {
@@ -120,18 +128,24 @@ class AssetDBManager extends EventEmitter {
     }
 
     /**
-     * 启动数据库入口
+     * 启动数据库入口；先完成遗留回滚，失败时保留配置与待清理实例供重试。
      */
     async start() {
         newConsole.trackTimeStart('assets:start-database');
-
-        if (AssetDBManager.useCache) {
-            await this._startFromCache();
-        } else {
-            // await this._start();
-            await this._startDirectly();
+        this.ready = false;
+        await this._retryStartupCleanup();
+        const assetDBNames = await this._prepareStartupDatabases();
+        try {
+            if (AssetDBManager.useCache) {
+                await this._startFromCache(assetDBNames);
+            } else {
+                await this._startDirectly(assetDBNames);
+            }
+            await afterStartDB(this.assetDBInfo);
+        } catch (error) {
+            await this._rollbackStartupDatabases(assetDBNames);
+            throw error;
         }
-        await afterStartDB(this.assetDBInfo);
         this.ready = true;
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
         // 性能测试: 资源冷导入
@@ -142,6 +156,28 @@ class AssetDBManager extends EventEmitter {
 
         this.step();
         // TODO 启动成功后开始再去做一些日志缓存清理
+    }
+
+    /**
+     * 停止全部数据库并清理实例监听，保留配置供下次启动重新创建。
+     * 先重试遗留启动回滚；停止失败的实例保持登记，便于调用方再次停止。
+     */
+    async stop() {
+        this.ready = false;
+        await this._retryStartupCleanup();
+        for (const name in this.assetDBMap) {
+            const db = this.assetDBMap[name];
+            if (db) {
+                await db.stop();
+                this.emit('db-removed', db);
+                if (this.assetDBMap[name] === db) {
+                    delete this.assetDBMap[name];
+                    if (this.assetDBInfo[name]) {
+                        this.assetDBInfo[name].state = 'none';
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -167,23 +203,96 @@ class AssetDBManager extends EventEmitter {
     }
 
     /**
-     * 直接启动数据库
+     * 创建并注册全部初始数据库，确保首个 importer 能解析跨库脚本依赖。
+     * 仅准备本次新增的库；准备失败时撤销它们，保留配置供重试。
      */
-    private async _startDirectly() {
-        const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
+    private async _prepareStartupDatabases() {
+        const assetDBNames = Object.keys(this.assetDBInfo)
+            .sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0))
+            .filter((name) => !this.hasDB(name));
+        const attempted: string[] = [];
+        try {
+            for (const name of assetDBNames) {
+                attempted.push(name);
+                await this._createDB(this.assetDBInfo[name]);
+            }
+            return assetDBNames;
+        } catch (error) {
+            await this._rollbackStartupDatabases(attempted);
+            throw error;
+        }
+    }
+
+    /**
+     * 逆序撤销本轮新建实例及脚本注册，覆盖准备、导入和启动收尾失败。
+     * 清理失败保留实例供重试；不触碰原有数据库，不删除重试所需的配置。
+     */
+    private async _rollbackStartupDatabases(names: readonly string[]) {
+        for (const name of [...names].reverse()) {
+            const db = this.assetDBMap[name];
+            if (db && !this.pendingStartupCleanup.has(db)) {
+                this.pendingStartupCleanup.set(db, {
+                    name, target: this.assetDBInfo[name].target, stopped: false,
+                });
+            }
+        }
+        try {
+            await this._retryStartupCleanup();
+        } catch {
+            // 已记录清理错误并保留待清理项，由调用方继续抛出原始启动错误。
+        }
+    }
+
+    /**
+     * 尽力清理全部待回滚实例；任何清理失败都阻止下一轮创建和 ready。
+     * stop 成功后才移除实例；脚本注销失败只重试注销，避免重复停止与通知。
+     */
+    private async _retryStartupCleanup() {
+        const errors: unknown[] = [];
+        for (const [db, cleanup] of [...this.pendingStartupCleanup]) {
+            const { name, target } = cleanup;
+            try {
+                if (!cleanup.stopped) {
+                    await db.stop();
+                    this.emit('db-removed', db);
+                    if (this.assetDBMap[name] === db) {
+                        delete this.assetDBMap[name];
+                        if (this.assetDBInfo[name]) {
+                            this.assetDBInfo[name].state = 'none';
+                        }
+                    }
+                    cleanup.stopped = true;
+                }
+                // 注册可能在部分更新后失败，因此也撤销失败的当前库。
+                await scripting.updateDatabases({ dbID: name, target }, DBChangeType.remove);
+                this.pendingStartupCleanup.delete(db);
+            } catch (cleanupError) {
+                console.error(`Clean AssetDB '${name}' during startup rollback.`, cleanupError);
+                errors.push(cleanupError);
+            }
+        }
+        if (errors.length) {
+            throw errors[0];
+        }
+    }
+
+    /**
+     * 全部目录注册完成后，按原优先级直接启动已创建的数据库。
+     */
+    private async _startDirectly(assetDBNames: readonly string[]) {
         for (const assetDBName of assetDBNames) {
-            await this.startDB(this.assetDBInfo[assetDBName]);
+            await this._startDB(assetDBName);
+            this.emit('assets:db-ready', this.assetDBInfo[assetDBName]);
         }
     }
 
     /**
      * 从缓存启动数据库，如果恢复失败会回退到原始的启动流程
      */
-    private async _startFromCache() {
+    private async _startFromCache(assetDBNames: readonly string[]) {
         console.debug('try start all assetDB from cache...');
-        const assetDBNames = Object.keys(this.assetDBInfo).sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0));
         for (const assetDBName of assetDBNames) {
-            const db = await this._createDB(this.assetDBInfo[assetDBName]);
+            const db = this.assetDBMap[assetDBName];
             if (existsSync(db.cachePath)) {
                 try {
                     await db.startWithCache();
@@ -198,9 +307,9 @@ class AssetDBManager extends EventEmitter {
                 }
             }
 
-            // 没有正常走完缓存恢复，走普通的启动流程
-            const waitingStartupDBInfo = await this._preStartDB(db);
-            await this._startupDB(waitingStartupDBInfo);
+            // 与冷启动共用完整启动 Promise，让预导入后的失败也能触发回滚。
+            await this._startDB(assetDBName);
+            this.emit('assets:db-ready', this.assetDBInfo[assetDBName]);
         }
     }
 
@@ -836,5 +945,4 @@ async function afterStartDB(dbInfoMap: Record<string, IAssetDBInfo>) {
             }
         }
     }
-    // 目前结构里，没有关闭数据库的逻辑
 }

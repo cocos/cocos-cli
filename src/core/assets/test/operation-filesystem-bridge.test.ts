@@ -188,6 +188,13 @@ describe('asset operation filesystem bridge', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        const fs = require('fs') as typeof import('fs');
+        const lstatSync = fs.lstatSync;
+        jest.spyOn(fs, 'lstatSync').mockImplementation(((path: string, options?: unknown) => {
+            if (!/^[a-z]:/i.test(String(path))) return lstatSync(path, options as any);
+            if (mockExistsSync(path)) return {};
+            throw Object.assign(new Error(`Missing test path: ${path}`), { code: 'ENOENT' });
+        }) as typeof fs.lstatSync);
         mockCopyAssetSource.mockResolvedValue(mockCopyTransaction);
         mockFinalizeCopy.mockResolvedValue(undefined);
         mockRollbackCopy.mockResolvedValue(undefined);
@@ -445,6 +452,7 @@ describe('asset operation filesystem bridge', () => {
         const source = 'D:/project/assets/source.txt';
         const target = 'D:/project/assets/folder/source.txt';
         const asset = {
+            uuid: 'moved',
             source,
             _parent: null,
             isDirectory: () => false,
@@ -460,9 +468,12 @@ describe('asset operation filesystem bridge', () => {
         mockQueryUrl.mockReturnValue('db://assets/folder/source.txt');
         mockExistsSync.mockReturnValue(false);
         mockMoveAssetSource.mockResolvedValue(undefined);
+        mockQueryAssetInfo.mockReturnValue({ uuid: 'moved', source: target, url: 'db://assets/folder/source.txt' });
         jest.spyOn(assetOperation, 'refreshAsset').mockResolvedValue(0);
 
-        await assetOperation.moveAsset(source, target);
+        await expect(assetOperation.moveAsset(source, target)).resolves.toEqual({
+            uuid: 'moved', source: target, url: 'db://assets/folder/source.txt',
+        });
 
         expect(mockMoveAssetSource).toHaveBeenCalledWith(source, target, undefined);
     });
@@ -489,6 +500,20 @@ describe('asset operation filesystem bridge', () => {
         expect(mockRefresh).not.toHaveBeenCalled();
         expect(mockAutoRefreshAssetLazy).not.toHaveBeenCalled();
         expect(mockAddTask).toHaveBeenCalledTimes(1);
+    });
+
+    it('importAsset propagates occupancy read errors before reserving or copying a target', async () => {
+        const { assetOperation } = require('../manager/operation') as typeof import('../manager/operation');
+        const fs = require('fs') as typeof import('fs');
+        const error = Object.assign(new Error('Cannot inspect import destination'), { code: 'EACCES' });
+        jest.spyOn(fs, 'lstatSync').mockImplementationOnce(() => { throw error; });
+
+        await expect(assetOperation.importAsset('D:/outside/source.txt', 'D:/project/assets/source.txt', { rename: true }))
+            .rejects.toBe(error);
+
+        expect(mockCopyPath).not.toHaveBeenCalled();
+        expect(mockGetName).not.toHaveBeenCalled();
+        expect(mockRefresh).not.toHaveBeenCalled();
     });
 
     it('importAsset should delegate copy to filesystem bridge', async () => {

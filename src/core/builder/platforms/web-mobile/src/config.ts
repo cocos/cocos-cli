@@ -96,6 +96,7 @@ const config: IPlatformBuildPluginConfig = {
         hook: 'run',
         name: 'run',
         requiredBuildOptions: false,
+        displayName: 'i18n:web-mobile.run.label',
     }],
 };
 

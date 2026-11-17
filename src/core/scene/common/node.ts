@@ -6,6 +6,18 @@ import { IPrefabStateInfo, ITargetOverrideInfo } from './prefab';
 import type { IProperty } from '../@types/public';
 import type { IScene } from './editor/scene';
 
+/** UUID is authoritative; a preview ID must be unique for each edit. */
+export interface IPropertyPreviewTarget { uuid: string; path: string; previewId: string }
+export interface IPreviewSetPropertyOptions extends IPropertyPreviewTarget { dump: Omit<IProperty, 'path'> & { path?: string } }
+export interface IPropertyPreviewResult {
+    success: boolean;
+    uuid: string;
+    previewId: string;
+    /** Current real node path. Empty means the node no longer exists. */
+    path: string;
+    previousPath: string;
+}
+
 // ====== Hierarchy tree types (for queryNodeTree) ======
 
 export interface INodeTreeComponent {
@@ -501,6 +513,7 @@ export interface IChangeNodeOptions {
     propPath?: string; // 属性路径
     index?: number; // 数组变动可能会传 index
     record?: boolean;// 是否记录到 undo 堆栈上
+    previousPath?: string;
     dumpImmediately?: boolean;// 是否马上记录 dump 数据，默认为 true， animation -> 其他模式 下为 false
 }
 
@@ -521,8 +534,6 @@ export interface INodeEvents {
 }
 
 export type IPublicNodeService = Omit<INodeService, keyof IServiceEvents |
-    'previewSetProperty' |
-    'cancelPreviewSetProperty' |
     'setProperty' |
     'reset' |
     'resetProperty' |
@@ -655,6 +666,7 @@ export interface INodeService extends IServiceEvents {
      * });
      * ```
      */
+    previewSetProperty(options: IPreviewSetPropertyOptions): Promise<IPropertyPreviewResult>;
     previewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
 
     /**
@@ -666,7 +678,10 @@ export interface INodeService extends IServiceEvents {
      * @param options.path - 属性路径
      * @returns 恢复成功返回 true，无缓存的预览数据或节点无效返回 false
      */
+    cancelPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
     cancelPreviewSetProperty(options: ISetPropertyOptions): Promise<boolean>;
+    /** Commit the final preview as one property-scoped Undo command. */
+    commitPreviewSetProperty(options: IPropertyPreviewTarget): Promise<IPropertyPreviewResult>;
 
     /**
      * 设置节点属性，会记录到 undo 栈

@@ -2,17 +2,19 @@
  * 资源操作类，会调用 assetManager/assetDB/assetHandler 等模块
  */
 
-import { refresh, reimport, queryUrl, Asset } from '@cocos/asset-db';
+import { refresh, reimport, queryUrl, Asset, type AssetDBRefreshOptions } from '@cocos/asset-db';
 import { copy as fsCopy, move, remove, existsSync } from 'fs-extra';
-import { isAbsolute, dirname, join, relative, extname } from 'path';
+import { isAbsolute, basename, dirname, join, relative, extname, resolve } from 'path';
+import { lstatSync, realpathSync, statSync } from 'fs';
 import { IMoveOptions } from '../@types/private';
 import { IAsset, CreateAssetOptions, IExportOptions, IExportData, CreateAssetByTypeOptions, ICreateMenuInfo } from '../@types/protected';
-import { AssetOperationOption, AssetUserDataMap, DeleteAssetOptions, IAssetInfo, IAssetMeta, ISupportCreateType } from '../@types/public';
+import { AssetOperationOption, AssetMoveOptions, IAssetMovePreflightResult, AssetUserDataMap, DeleteAssetOptions, IAssetInfo, IAssetMeta, ISupportCreateType } from '../@types/public';
 import assetConfig from '../asset-config';
 import { url2path, ensureOutputData, url2uuid, pathToDbUrlIfAssetDBPath, dirnameForDbUrlOrPath } from '../utils';
 import assetDBManager from './asset-db';
 import assetHandlerManager from './asset-handler';
 import { copyAssetSource } from './asset-copy';
+import { AssetMovePreflights, type ResolvedAssetMove } from './asset-move/preflight';
 import { copyPath, moveAssetSource, removeAssetSource, renamePath } from './filesystem';
 import i18n from '../../base/i18n';
 import assetQuery, { ASSET_TREE_INFO_DATA_KEYS } from './query';
@@ -22,6 +24,24 @@ import { mergeMeta } from '../asset-handler/utils';
 import * as lodash from 'lodash';
 
 const REIMPORT_BUSY_TIMEOUT_MS = 10_000;
+
+/** A symlink occupies its name even when the referenced path does not exist. */
+function hasPathEntrySync(path: string): boolean {
+    try {
+        lstatSync(path);
+        return true;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return false;
+        }
+        throw error;
+    }
+}
+
+/** Resolve parent aliases while retaining the entry being moved or replaced. */
+function resolveMoveEntryPath(path: string): string {
+    return join(realpathSync(dirname(path)), basename(path));
+}
 
 function waitForAssetInit(asset: IAsset, timeoutMs: number, pathOrUrlOrUUID: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -233,6 +253,19 @@ class AssetOperation extends EventEmitter {
 
     private readonly _importTaskByTargetPath = new Map<string, Promise<void>>();
     private readonly _reservedImportTargetPaths = new Map<string, number>();
+    private readonly _movePreflights = new AssetMovePreflights();
+    private _moveQueue: Promise<void> = Promise.resolve();
+
+    /** Invalidates both pending tokens and guards already waiting to write. */
+    resetMovePreflights(): void {
+        this._movePreflights.clear();
+    }
+
+    private _enqueueMove<T>(task: () => Promise<T>): Promise<T> {
+        const result = this._moveQueue.then(task);
+        this._moveQueue = result.then(() => undefined, () => undefined);
+        return result;
+    }
 
     /**
      * 检查一个资源文件夹是否为只读
@@ -562,8 +595,13 @@ class AssetOperation extends EventEmitter {
     }
 
     private _isPathOccupied = (path: string) => {
-        return existsSync(path) || this._reservedImportTargetPaths.has(this._getImportTargetKey(path));
+        return hasPathEntrySync(path) || this._reservedImportTargetPaths.has(this._getImportTargetKey(path));
     };
+
+    private _isMoveTargetOccupied = (path: string): boolean => {
+        return this._isPathOccupied(path) || hasPathEntrySync(`${path}.meta`);
+    };
+
     private _reserveImportTargetPath(targetPath: string, options?: AssetOperationOption) {
         const resolvedTargetPath = this._checkOverwrite(targetPath, options, this._isPathOccupied);
         const targetKey = this._getImportTargetKey(resolvedTargetPath);
@@ -737,10 +775,10 @@ class AssetOperation extends EventEmitter {
         return await assetDBManager.addTask(this._refreshAsset.bind(this), [pathOrUrlOrUUID, false]);
     }
 
-    private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true): Promise<number> {
+    private async _refreshAsset(pathOrUrlOrUUID: string, autoRefreshDir = true, options?: AssetDBRefreshOptions): Promise<number> {
         const refreshTarget = this._pathToDbUrlIfInsideAssetDB(pathOrUrlOrUUID);
         const refreshDir = this._dirnameForRefresh(refreshTarget);
-        const result = await refresh(refreshTarget);
+        const result = await refresh(refreshTarget, options);
         if (result === undefined) {
             throw new Error(`can not find asset ${pathOrUrlOrUUID}`);
         }
@@ -826,13 +864,173 @@ class AssetOperation extends EventEmitter {
      * @param option 导入资源的参数 { overwrite, xxx, rename }
      * @returns {Promise<IAssetInfo | null>}
      */
-    async moveAsset(source: string, target: string, option?: AssetOperationOption) {
-        return await assetDBManager.addTask(this._moveAsset.bind(this), [source, target, option]);
+    async preflightMoveAsset(source: string, target: string): Promise<IAssetMovePreflightResult> {
+        return this._enqueueMove(() => assetDBManager.addTask(async () => {
+            return this._movePreflights.create(this._resolveMoveRequest(source, target));
+        }, []));
     }
 
-    private async _moveAsset(source: string, target: string, option?: AssetOperationOption) {
+    async moveAsset(source: string, target: string, option?: AssetMoveOptions): Promise<IAssetInfo> {
+        const options = option ? { ...option } : undefined;
+        return this._enqueueMove(() => assetDBManager.addTask(this._moveAsset.bind(this), [source, target, options]));
+    }
+
+    private _getMoveTargetDB(target: string): IAsset['_assetDB'] | undefined {
+        return Object.values(assetDBManager.assetDBMap)
+            .filter(db => db && utils.Path.contains(resolve(db.options.target), resolve(target)))
+            .sort((left, right) => right.options.target.length - left.options.target.length)[0];
+    }
+
+    /** Resolves filesystem and mount facts once for both preflight and guarded submission. */
+    private _resolveMoveRequest(source: string, target: string): ResolvedAssetMove {
+        const asset = assetQuery.queryAsset(source);
+        if (!asset || asset._parent || !isAbsolute(asset.source)) {
+            throw new Error('The move source must be an existing main asset.');
+        }
+        const sourceDB = asset._assetDB;
+        if (assetDBManager.assetDBMap[sourceDB.options.name] !== sourceDB || sourceDB.flag.started === false) {
+            throw new Error('The source Asset DB is no longer active.');
+        }
+        this._checkReadonly(asset);
+        const sourcePath = resolve(asset.source);
+        const urlMatch = /^db:\/\/([^/]+)(?:\/(.*))?$/.exec(target);
+        const requestedDB = urlMatch ? assetDBManager.assetDBMap[urlMatch[1]] : undefined;
+        if (target.startsWith('db://') && !requestedDB) {
+            throw new Error(`Unknown move destination Asset DB: ${target}`);
+        }
+        if (!urlMatch && !isAbsolute(target)) {
+            throw new Error('The move target must be an Asset DB URL or an absolute path.');
+        }
+        const targetPath = urlMatch
+            ? resolve(url2path(target))
+            : resolve(target);
+        const targetDB = this._getMoveTargetDB(targetPath);
+        if (!targetDB || (requestedDB && targetDB !== requestedDB) || targetDB.flag.started === false) {
+            throw new Error(`Move destination is outside its active Asset DB: ${target}`);
+        }
+        if (targetDB.options.readonly) {
+            throw new Error(`Move destination Asset DB is readonly: ${target}`);
+        }
+        const sourceEntryPath = resolveMoveEntryPath(sourcePath);
+        const targetEntryPath = resolveMoveEntryPath(targetPath);
+        const databases = Object.values(assetDBManager.assetDBMap).filter(db => db);
+        if (databases.some(db => {
+            const root = resolve(db.options.target);
+            return utils.Path.contains(sourcePath, root) || utils.Path.contains(targetPath, root);
+        })) {
+            throw new Error('Asset DB roots cannot be moved or replaced.');
+        }
+        const mounts: Array<{ db: IAsset['_assetDB']; root: string | undefined; entry: string }> = [];
+        for (const db of databases) {
+            try {
+                const entry = resolveMoveEntryPath(db.options.target);
+                let root: string | undefined;
+                try {
+                    root = realpathSync(db.options.target);
+                } catch (error) {
+                    if (!['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                        throw error;
+                    }
+                }
+                mounts.push({ db, root, entry });
+            } catch (error) {
+                if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                    continue;
+                }
+                throw error;
+            }
+        }
+        mounts.sort((left, right) => (right.root?.length ?? 0) - (left.root?.length ?? 0));
+        if (mounts.some(({ root, entry }) =>
+            (root && utils.Path.contains(sourceEntryPath, root)) || utils.Path.contains(sourceEntryPath, entry)
+            || (root && utils.Path.contains(targetEntryPath, root)) || utils.Path.contains(targetEntryPath, entry))) {
+            throw new Error('Asset DB roots cannot be moved or replaced.');
+        }
+        if (mounts.find(({ root }) => root && utils.Path.contains(root, sourceEntryPath))?.db !== sourceDB
+            || mounts.find(({ root }) => root && utils.Path.contains(root, targetEntryPath))?.db !== targetDB) {
+            throw new Error('The move entry is outside its owning Asset DB.');
+        }
+        if (utils.Path.contains(sourcePath, targetPath) || utils.Path.contains(targetPath, sourcePath)) {
+            throw new Error('Cannot move an asset into or over itself.');
+        }
+        if (utils.Path.contains(sourceEntryPath, targetEntryPath) || utils.Path.contains(targetEntryPath, sourceEntryPath)) {
+            throw new Error('Cannot move an asset into or over itself.');
+        }
+        const roots = new Map(mounts.map(({ db, root }) => [db, root]));
+        const expectedEntry = (file: string, db: IAsset['_assetDB']) => {
+            const root = roots.get(db);
+            return root ? join(root, relative(resolve(db.options.target), file)) : undefined;
+        };
+        if (!this._isSameFilesystemPath(sourceEntryPath, expectedEntry(sourcePath, sourceDB) ?? '')
+            || !this._isSameFilesystemPath(targetEntryPath, expectedEntry(targetPath, targetDB) ?? '')) {
+            throw new Error('Asset move preflight does not support parent directory aliases inside an Asset DB.');
+        }
+
+        // Reject ambiguous indexed identities instead of reconciling aliases during refresh.
+        // This lookup is local to a move check; ordinary refreshes do not resolve the full index.
+        const parents = new Map<string, string | null>([
+            [dirname(sourcePath), dirname(sourceEntryPath)],
+            [dirname(targetPath), dirname(targetEntryPath)],
+        ]);
+        for (const indexed of assetQuery.queryAssets()) {
+            if (indexed._parent || !isAbsolute(indexed.source)) {
+                continue;
+            }
+            const parent = dirname(indexed.source);
+            if (!parents.has(parent)) {
+                try {
+                    parents.set(parent, realpathSync(parent));
+                } catch (error) {
+                    if (!['ENOENT', 'ENOTDIR', 'ELOOP'].includes((error as NodeJS.ErrnoException).code ?? '')) {
+                        throw error;
+                    }
+                    parents.set(parent, null);
+                }
+            }
+            const resolvedParent = parents.get(parent);
+            const entry = resolvedParent ? join(resolvedParent, basename(indexed.source)) : null;
+            const expected = expectedEntry(indexed.source, indexed._assetDB);
+            if (entry && expected && this._isSameFilesystemPath(entry, expected)) {
+                continue;
+            }
+            if (utils.Path.contains(sourcePath, indexed.source) || utils.Path.contains(targetPath, indexed.source)
+                || (entry && (utils.Path.contains(sourceEntryPath, entry) || utils.Path.contains(targetEntryPath, entry)))) {
+                throw new Error(`Asset move preflight does not support aliased asset indexes: ${indexed.source}`);
+            }
+        }
+        const parent = dirname(targetPath);
+        if (!statSync(parent).isDirectory()
+            || !utils.Path.contains(realpathSync(targetDB.options.target), realpathSync(parent))) {
+            throw new Error('The move destination parent must be a directory inside its Asset DB.');
+        }
+        if (this._reservedImportTargetPaths.has(this._getImportTargetKey(targetPath))) {
+            throw new Error('The move destination is currently reserved by an asset import.');
+        }
+        return {
+            source: sourcePath,
+            target: targetPath,
+            sourceUrl: asset.url,
+            targetUrl: `db://${targetDB.options.name}/${relative(targetDB.options.target, targetPath).replace(/\\/g, '/')}`,
+            sourceUuid: asset.uuid,
+            sourceIsDirectory: asset.isDirectory(),
+            sourceDB,
+            targetDB,
+            targetUuid: assetQuery.queryAsset(targetPath)?.uuid ?? null,
+        };
+    }
+
+    private async _moveAsset(source: string, target: string, option?: AssetMoveOptions): Promise<IAssetInfo> {
         console.debug(`start move asset from ${source} -> ${target}...`);
-        if (target.startsWith('db://')) {
+        const sourceRequest = source;
+        const targetRequest = target;
+        const guard = option?.preflightToken !== undefined ? this._movePreflights.take(option.preflightToken) : undefined;
+        let request: ResolvedAssetMove | undefined;
+        if (guard) {
+            request = this._resolveMoveRequest(sourceRequest, targetRequest);
+            guard(request);
+            source = request.source;
+            target = request.target;
+        } else if (target.startsWith('db://')) {
             target = url2path(target);
         }
         const asset = assetQuery.queryAsset(source);
@@ -841,25 +1039,71 @@ class AssetOperation extends EventEmitter {
         }
         this._checkReadonly(asset);
         source = asset.source;
-        target = this._checkOverwrite(target, option);
-        const affectedGraphs = this._queryAnimationGraphAssetsAt(source, target);
-        await this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
-            await moveAssetSource(source, target, option);
+        const sourceUuid = asset.uuid;
+        const requestedTarget = target;
+        target = this._checkOverwrite(target, option, this._isMoveTargetOccupied);
+        const queryTarget = (): IAsset | null => {
+            if (request && target === request.target) {
+                return request.targetUuid ? assetQuery.queryAsset(request.targetUuid) : null;
+            }
+            return assetQuery.queryAsset(target);
+        };
+        let indexedTarget = queryTarget();
+        const affectedGraphs = this._queryAnimationGraphAssetsAt(source, indexedTarget?.uuid ?? target);
+        return this._runAnimationGraphExternalWrites(affectedGraphs, async () => {
+            if (affectedGraphs.length > 0) {
+                if (guard) {
+                    request = this._resolveMoveRequest(sourceRequest, targetRequest);
+                    guard(request);
+                }
+                indexedTarget = queryTarget();
+            }
+            if (target !== requestedTarget && this._isMoveTargetOccupied(target)) {
+                throw new Error('The generated asset move destination changed before writing. Run preflightMoveAsset again.');
+            }
+            if (this._reservedImportTargetPaths.has(this._getImportTargetKey(target))) {
+                throw new Error('The move destination is currently reserved by an asset import.');
+            }
+            if (guard && target !== requestedTarget) {
+                // The generated name must satisfy the same indexed-scope restriction.
+                this._resolveMoveRequest(sourceRequest, target);
+            }
+            const fileOptions = option ? { ...option } : undefined;
+            if (fileOptions) {
+                delete fileOptions.preflightToken;
+            }
+            const targetIndexed = indexedTarget !== null;
+            const targetDB = this._getMoveTargetDB(target);
+            await moveAssetSource(source, target, fileOptions);
 
-            const url = queryUrl(target);
-            const reg = /db:\/\/[^/]+/.exec(url);
-            // 常规的资源移动：期望只有 change 消息
-            if (reg && reg[0] && url.startsWith(reg[0])) {
+            if (!targetIndexed && targetDB === asset._assetDB) {
+                // An unoccupied same-DB destination can reuse the source asset
+                // and publish its normal change notification.
                 await assetDBManager.addTask(this._refreshAsset.bind(this), [target]);
                 // 因为文件被移走之后，文件夹的 mtime 会变化，所以要主动刷新一次被移走文件的文件夹
                 // 必须在目标位置文件刷新完成后再刷新，如果放到前面，会导致先识别到文件被删除，触发 delete 后再发送 add
                 await assetDBManager.addTask(this._refreshAsset.bind(this), [dirname(source)]);
             } else {
-                // 跨数据库移动资源或者覆盖操作时需要先刷目标文件，触发 delete 后再发送 add
-                await assetDBManager.addTask(this._refreshAsset.bind(this), [source]);
-                await assetDBManager.addTask(this._refreshAsset.bind(this), [target]);
+                // Release the source UUID before replacing an indexed target or
+                // importing into another DB. Otherwise Asset DB rewrites the UUID
+                // as a duplicate, or reuses an asset owned by the wrong DB.
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [source, false]);
+                await assetDBManager.addTask(this._refreshAsset.bind(this), [target, true, { reloadMetadata: targetIndexed }]);
             }
             console.debug(`move asset from ${source} -> ${target} success`);
+            const moved = assetQuery.queryAssetInfo(sourceUuid, ASSET_TREE_INFO_DATA_KEYS);
+            const expectedUrl = targetDB
+                ? `db://${targetDB.options.name}/${relative(targetDB.options.target, target).replace(/\\/g, '/')}`
+                : queryUrl(target);
+            const expectedDatabaseUrl = /^db:\/\/[^/]+/.exec(expectedUrl)?.[0];
+            const matchesDestination = moved && (moved.url === expectedUrl || (
+                expectedDatabaseUrl && moved.url.startsWith(`${expectedDatabaseUrl}/`)
+                && this._isSameFilesystemPath(url2path(moved.url), target)
+            ));
+            if (!moved || moved.uuid !== sourceUuid || !matchesDestination) {
+                throw new Error(`Asset was moved but its refreshed information is unavailable: ${target}`);
+            }
+            return moved;
         });
     }
 

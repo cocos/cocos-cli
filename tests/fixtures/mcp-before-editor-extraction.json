@@ -270,8 +270,8 @@
       "@result(SchemaAssetInfoResult)"
     ],
     "parameters": [
-      "@param(SchemaUrlOrUUIDOrPath) source: TDirOrDbPath",
-      "@param(SchemaUrlOrUUIDOrPath) target: TDirOrDbPath",
+      "@param(SchemaUrlOrUUIDOrPath) source: TUrlOrUUIDOrPath",
+      "@param(SchemaAssetMoveTarget) target: TDirOrDbPath",
       "@param(SchemaAssetMoveOptions) options: TAssetMoveOptions = {}"
     ],
     "returnType": "Promise<CommonResultType<TAssetInfoResult>>"

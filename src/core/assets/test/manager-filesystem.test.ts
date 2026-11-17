@@ -118,7 +118,7 @@ describe('asset filesystem manager', () => {
         expect(mockRemove).not.toHaveBeenCalled();
     });
 
-    it.each([undefined, false, true])('moveAssetSource forwards overwrite=%s to custom provider for both files', async overwrite => {
+    it.each([undefined, false])('non-overwriting moves use the provider for both files with overwrite=%s', async overwrite => {
         const filesystem = require('../manager/filesystem') as typeof import('../manager/filesystem');
         const provider = {
             readFile: jest.fn(async () => Buffer.from('{"uuid":"source"}')),
