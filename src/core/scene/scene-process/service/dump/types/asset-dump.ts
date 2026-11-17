@@ -2,6 +2,39 @@ import { IProperty } from '../../../../@types/public';
 
 import { DumpInterface } from './dump-interface';
 
+/**
+ * 判断 dump 的属性类型是否为脚本资产（`cc.Script` 及其子类）。
+ *
+ * 脚本资产在 Cocos 4.0 中不再是可加载资源：asset library 里没有脚本条目，
+ * 引擎也没有 `cc.Script` 的加载处理器，`loadAny` 必然失败。只能按属性类型判定。
+ */
+function isScriptAssetDump(dump: any): boolean {
+    if (!dump) {
+        return false;
+    }
+    if (dump.type === 'cc.Script') {
+        return true;
+    }
+    const extendsList: unknown = dump.extends;
+    return Array.isArray(extendsList) && extendsList.includes('cc.Script');
+}
+
+/**
+ * 为脚本资产构造占位实例：保留 uuid，但不加载脚本本体。
+ *
+ * 引用信息（uuid）必须保留，否则场景重新打开后属性会退化成 null；
+ * 脚本对应的类由场景运行时的脚本注册表解析（uuid → cid → `cc.js.getClassById`）。
+ */
+function createScriptAssetPlaceholder(uuid: string): any {
+    const ScriptCtor = cc.js.getClassByName('cc.Script');
+    if (!ScriptCtor) {
+        return null;
+    }
+    const placeholder = new ScriptCtor();
+    placeholder.initDefault(uuid);
+    return placeholder;
+}
+
 // valueType直接使用引擎序列化
 class AssetDump implements DumpInterface {
     public encode(object: any, data: IProperty, opts?: any) {
@@ -37,10 +70,18 @@ class AssetDump implements DumpInterface {
                     if (asset) {
                         result[i] = asset;
                     } else {
-                        // @ts-ignore
-                        const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
-                        placeHolder.initDefault();
-                        result[i] = placeHolder;
+                        // 脚本资产无法 loadAny，用带 uuid 的占位实例保留引用。
+                        const scriptPlaceHolder = isScriptAssetDump(dump)
+                            ? createScriptAssetPlaceholder(data.value.uuid)
+                            : null;
+                        if (scriptPlaceHolder) {
+                            result[i] = scriptPlaceHolder;
+                        } else {
+                            // @ts-ignore
+                            const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
+                            placeHolder.initDefault();
+                            result[i] = placeHolder;
+                        }
                     }
 
                 }
@@ -67,7 +108,14 @@ class AssetDump implements DumpInterface {
                 if (asset) {
                     data[info.key] = asset;
                 } else {
-                    if (opts?.suppressError != undefined && opts?.suppressError == true) {
+                    // 脚本资产无法 loadAny，用带 uuid 的占位实例保留引用，
+                    // 避免整份场景因一次资源加载失败而打不开。
+                    const scriptPlaceHolder = isScriptAssetDump(dump)
+                        ? createScriptAssetPlaceholder(dump.value.uuid)
+                        : null;
+                    if (scriptPlaceHolder) {
+                        data[info.key] = scriptPlaceHolder;
+                    } else if (opts?.suppressError != undefined && opts?.suppressError == true) {
                         // @ts-ignore
                         const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
                         placeHolder.initDefault();
