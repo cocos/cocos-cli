@@ -35,7 +35,7 @@ export default {
                 if (dest && file) {
                     const path = join(dest, file);
                     if (existsSync(path)) {
-                        return res.sendFile(path);
+                        return res.sendFile(file, { root: dest });
                     }
                 }
                 
