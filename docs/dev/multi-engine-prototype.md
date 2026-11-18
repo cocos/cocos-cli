@@ -15,9 +15,8 @@ Local implementation; no commits or pushes.
 
 ## Enable and validate 3.8.8
 
-Use an already built CLI. Default compatibility policy is unchanged; experimental selection requires an explicit process opt-in:
+Use an already built CLI. Implemented stable 3.6.x, 3.7.x and 3.8.x adapters are enabled by default. Individual patch versions and custom engine changes may remain unverified; adapter version bounds and artifact validation still apply. The 3.5 adapter still requires COCOS_EXPERIMENTAL_ENGINE_ADAPTERS=1:
 
-    $env:COCOS_EXPERIMENTAL_ENGINE_ADAPTERS = '1'
     node workflow/compiler-engine.js --engine-path D:/Cocos/code/cocos-editor/resources/3d/engine
     node dist/cli.js --engine-path D:/Cocos/code/cocos-editor/resources/3d/engine doctor --json
 
@@ -34,7 +33,7 @@ Add --compile to prepare both targets first. Smoke checks cover actual CLI engin
 
 Verified source: D:/Cocos/code/cocos-editor/resources/3d/engine, revision 165978a181f776ea664d48c7990058096f1c9a1f, package/runtime version 3.8.8. This does not certify every official or custom 3.8 patch.
 
-Browser rendering, script hot reload, complete resource import coverage and native builds are not certified. Diagnostics report Web preview as unverified and native builds as not implemented. Only the explicitly matched stable 3.5, 3.6, 3.7 and 3.8 versions are enabled by the experimental switch; this does not certify feature parity with 4.x.
+Browser rendering, script hot reload, complete resource import coverage and native builds are not certified. Diagnostics report Web preview as unverified and native builds as not implemented. Only versions matched by an implemented adapter can start. Stable 3.6, 3.7 and 3.8 adapters do not require the experimental switch; 3.5 still requires it. Default availability does not certify every patch version or feature parity with 4.x.
 
 The CLI development host is still compiled against its normal default-engine declarations. Do not replace those bindings with old-engine declarations merely to run a project. Selecting a runtime engine and rebuilding the CLI's own type bindings are separate operations.
 

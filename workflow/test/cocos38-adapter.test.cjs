@@ -36,9 +36,9 @@ test('stable 3.8.0 through 3.8.8 select the shared experimental runtime', t => {
         assert.equal(getEngineBackendAdapter({ ...selection, version }).runtimeSupport, 'discovery-only');
     }
 });
-test('the 3.8 runtime remains disabled without explicit opt-in', t => {
+test('the 3.8 runtime is available without explicit opt-in', t => {
     optIn(t, ''); const { selection } = fixture(t, true);
-    assert.throws(() => checkEngineCompatibility(selection, cli, 'web'), /Outside stable range/);
+    assert.equal(checkEngineCompatibility(selection, cli, 'web').experimental, true);
 });
 test('experimental source and runtime validation use the selected backend contract', t => {
     optIn(t); const { selection } = fixture(t, true);
@@ -52,7 +52,7 @@ test('experimental source and runtime validation use the selected backend contra
 });
 test('the opt-in cannot activate an unimplemented 3.x adapter or an unsupported family', t => {
     optIn(t); const { selection } = fixture(t);
-    for (const version of ['3.0.2', '3.1.0', '3.8.9', '5.0.0']) assert.throws(() => checkEngineCompatibility({ ...selection, version }, cli), /Outside stable range/);
+    for (const version of ['3.0.2', '3.1.0', '3.8.9', '5.0.0']) assert.throws(() => checkEngineCompatibility({ ...selection, version }, cli), /Outside stable range|discovery only/);
 });
 test('old Creator and 4.x caches do not satisfy the 3.8 runtime', t => {
     optIn(t); const { root, selection } = fixture(t);

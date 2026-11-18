@@ -17,3 +17,14 @@ export interface EngineInfo {
 
 export * from './config';
 export * from './modules';
+
+/** @beta */
+export interface EditorMaterialDescriptor {
+    supported: boolean; reason?: string; effectName?: string; techniqueCount?: number;
+    triangleDepthTechnique?: number; triangleDepthOverride?: boolean;
+}
+/** @beta */
+export interface EditorMaterialCatalog {
+    protocolVersion: 1;
+    effects: Record<string, EditorMaterialDescriptor>;
+}

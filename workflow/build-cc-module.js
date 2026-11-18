@@ -47,9 +47,15 @@ module.exports = modsMgr.syncImport('${moduleId}');
     console.time('Bundle node_modules/cc');
 
     const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'engine-path': { type: 'string' } } });
-    const enginePath = resolveEnginePath(path.join(__dirname, '..'), values['engine-path']);
-    const selection = { path: enginePath, version: fse.readJsonSync(path.join(enginePath, 'package.json')).version };
-    const adapter = getEngineBackendAdapter(selection);
+    let enginePath = resolveEnginePath(path.join(__dirname, '..'), values['engine-path']);
+    let selection = { path: enginePath, version: fse.readJsonSync(path.join(enginePath, 'package.json')).version };
+    let adapter = getEngineBackendAdapter(selection);
+    if (adapter.runtimeSupport === 'experimental' && values['engine-path'] === undefined) {
+        enginePath = path.resolve(__dirname, '../packages/engine');
+        selection = { path: enginePath, version: fse.readJsonSync(path.join(enginePath, 'package.json')).version };
+        adapter = getEngineBackendAdapter(selection);
+        console.log('Using the bundled development engine for CLI declaration bindings: ' + enginePath);
+    }
     if (adapter.runtimeSupport === 'experimental') throw new Error('Legacy runtime declarations must not replace CLI development host bindings; build the CLI with its default engine.');
     const layout = adapter.runtime(selection);
 

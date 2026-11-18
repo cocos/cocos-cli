@@ -152,10 +152,15 @@ export const scriptingRoutes = [
             try {
                 const { Engine } = await import('../../../engine/index');
                 const enginePath = Engine.getInfo().typescript.path;
+                const { getEngineSelection } = await import('../../../../global');
+                const { getEngineBackendAdapter } = await import('../../../engine/adapter');
+                const selection = getEngineSelection();
+                const screenEventsModule = selection && getEngineBackendAdapter(selection).runtime(selection).screenEventsModule;
                 const { default: scripting } = await import('../../../scripting/index');
                 res.json({
                     projectPath: scripting.projectPath.replace(/\\/g, '/'),
                     enginePath: enginePath.replace(/\\/g, '/'),
+                    screenEventsModule,
                 });
             } catch (err) {
                 next(err);

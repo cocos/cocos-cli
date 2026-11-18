@@ -46,7 +46,7 @@ function diagnose(root, { projectRoot, explicitPath } = {}) {
         if (report.adapter.runtimeSupport === 'discovery-only') report.warnings.push('This engine series is recognized but runtime/toolchain adaptation is not implemented.');
         const match = checkEngineCompatibility(selection, root, 'web');
         report.compatibility.passed = true;
-        if (match.experimental) report.warnings.push('Experimental successor engine; full compatibility is not guaranteed.');
+        if (match.experimental) report.warnings.push('Experimental engine adapter or prerelease; compatibility is not verified for every version.');
         if (!selection.revision) report.warnings.push('Engine revision is unrecorded; the version alone does not identify source changes.');
         report.ok = true;
     } catch (error) { report.errors.push(error.message); }

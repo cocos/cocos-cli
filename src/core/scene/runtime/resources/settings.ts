@@ -1,3 +1,5 @@
+import { getEngineSelection } from '../../../../global';
+import { getEngineBackendAdapter } from '../../../engine/adapter';
 import type { IPreviewSettingsResult } from '../../../builder/@types/private/index';
 
 /**
@@ -185,6 +187,15 @@ async function generatePreviewSettings(startScene: string, sceneEditor: boolean)
         rendering.effectSettingsPath = '/scripting/engine/effect-settings';
     }
 
+    if (!sceneEditor) {
+        const selection = getEngineSelection();
+        const packages = selection && getEngineBackendAdapter(selection).getPreviewScriptPackages?.();
+        if (packages?.length) {
+            const settings = result.settings as any;
+            settings.scripting ??= {};
+            settings.scripting.scriptPackages = [...new Set([...(settings.scripting.scriptPackages ?? []), ...packages])];
+        }
+    }
     return result;
 }
 

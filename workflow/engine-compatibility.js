@@ -7,6 +7,7 @@ function readPolicy(root) {
     const file = path.join(root, 'engine-compatibility.json');
     const policy = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
     if (policy?.schemaVersion !== 1 || typeof policy.stable !== 'string' || !semver.validRange(policy.stable) || !Array.isArray(policy.prereleases)) throw new Error(`Invalid compatibility policy: ${file}`);
+    if (policy.defaultAdapterRanges !== undefined && (!Array.isArray(policy.defaultAdapterRanges) || policy.defaultAdapterRanges.some(range => typeof range !== 'string' || !semver.validRange(range)))) throw new Error(`Invalid default adapter ranges in ${file}`);
     for (const rule of policy.prereleases) {
         const core = semver.parse(rule?.core);
         if (!core || core.prerelease.length || core.build.length || core.version !== rule.core || typeof rule.tag !== 'string' || !/^[a-zA-Z][a-zA-Z0-9-]*$/.test(rule.tag)
@@ -21,14 +22,22 @@ function readPolicy(root) {
 }
 
 function describePolicy(policy) {
-    return `${policy.stable}; ${policy.prereleases.map(rule => `${rule.core}-${rule.tag}.N (N >= ${rule.min}${rule.max === undefined ? '' : `, N <= ${rule.max}`})`).join('; ')}`;
+    const adapters = policy.defaultAdapterRanges?.length ? `; default adapters: ${policy.defaultAdapterRanges.join(', ')} (partial version validation)` : '';
+    return `${policy.stable}${adapters}; ${policy.prereleases.map(rule => `${rule.core}-${rule.tag}.N (N >= ${rule.min}${rule.max === undefined ? '' : `, N <= ${rule.max}`})`).join('; ')}`;
+}
+
+function usesDefaultAdapter(version, policy) {
+    return (policy.defaultAdapterRanges || []).some(range => semver.satisfies(version, range));
 }
 
 /** Shared by runtime and the SDK matrix. Never globally enable includePrerelease. */
 function matchEngineVersion(version, policy) {
     const parsed = typeof version === 'string' && /^\d/.test(version) && version.trim() === version ? semver.parse(version) : null;
     if (!parsed) return { supported: false, reason: 'Invalid SemVer' };
-    if (!parsed.prerelease.length) return { supported: semver.satisfies(parsed, policy.stable), experimental: false, reason: 'Outside stable range' };
+    if (!parsed.prerelease.length) {
+        const defaultAdapter = usesDefaultAdapter(parsed, policy);
+        return { supported: semver.satisfies(parsed, policy.stable) || defaultAdapter, experimental: defaultAdapter, reason: defaultAdapter ? 'Default-enabled adapter; individual versions may be unverified' : 'Outside stable range' };
+    }
     const [tag, sequence] = parsed.prerelease;
     const core = `${parsed.major}.${parsed.minor}.${parsed.patch}`;
     const rule = parsed.prerelease.length === 2 && Number.isSafeInteger(sequence) && policy.prereleases.find(rule => rule.core === core && rule.tag === tag && sequence >= rule.min && (rule.max === undefined || sequence <= rule.max));
@@ -54,7 +63,7 @@ function checkEngineCompatibility(selection, root, profile = 'source') {
     try {
         adapter = getEngineBackendAdapter(selection);
         if (adapter.runtimeSupport === 'discovery-only') throw new Error('Adapter ' + adapter.id + ' supports discovery only; runtime adaptation is not implemented');
-        if (adapter.runtimeSupport === 'experimental' && !optIn) throw new Error('Experimental backend requires COCOS_EXPERIMENTAL_ENGINE_ADAPTERS=1');
+        if (adapter.runtimeSupport === 'experimental' && !optIn && !usesDefaultAdapter(selection.version, policy)) throw new Error('Experimental backend requires COCOS_EXPERIMENTAL_ENGINE_ADAPTERS=1');
     } catch (error) { throw failure(selection, policy, error.message); }
     const profiles = profile === 'source' ? ['source'] : profile === 'runtime' ? ['source', 'runtime'] : ['source', 'runtime', 'web'];
     const required = adapter.requiredFiles ? adapter.requiredFiles(selection, profile) : profiles.flatMap(name => policy.requiredFiles[name]).map(file => path.join(selection.path, file));

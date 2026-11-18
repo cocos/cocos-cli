@@ -8451,6 +8451,14 @@ export declare type CCEModuleMap = {
 } & {
     mapLocation: string;
 };
+export declare interface EditorMaterialCatalog {
+    protocolVersion: 1;
+    effects: Record<string, EditorMaterialDescriptor>;
+}
+export declare interface EditorMaterialDescriptor {
+    supported: boolean; reason?: string; effectName?: string; techniqueCount?: number;
+    triangleDepthTechnique?: number; triangleDepthOverride?: boolean;
+}
 export declare interface EngineInfo {
     typescript: {
         type: 'builtin' | 'custom';
@@ -8470,6 +8478,7 @@ export declare interface Features {
     [feature: string]: IModuleItem;
 }
 export declare function getConfig(useDefault?: boolean): Promise<IEngineConfig>;
+export declare function getEditorMaterials(): Promise<EditorMaterialCatalog>;
 export declare function getInfo(): Promise<EngineInfo>;
 export declare function getRenderConfig(): Promise<ModuleRenderConfig>;
 export declare interface IChunkContent {
@@ -9471,6 +9480,14 @@ export declare interface DirectoryAssetUserData {
     priority?: number;
 }
 export declare function discoverProjectBackend(project: string): Promise<ProjectBackendDescriptor | null>;
+export declare interface EditorMaterialCatalog {
+    protocolVersion: 1;
+    effects: Record<string, EditorMaterialDescriptor>;
+}
+export declare interface EditorMaterialDescriptor {
+    supported: boolean; reason?: string; effectName?: string; techniqueCount?: number;
+    triangleDepthTechnique?: number; triangleDepthOverride?: boolean;
+}
 export declare interface EffectAssetUserData {
     combinations?: any;
     editor?: any;
@@ -9486,7 +9503,10 @@ export declare namespace Engine {
         startEngineCompilation,
         queryLayerBuiltin,
         querySortingLayerBuiltin,
+        getEditorMaterials,
         EngineInfo,
+        EditorMaterialDescriptor,
+        EditorMaterialCatalog,
         IFlags,
         MakeRequired,
         IPhysicsConfig,
@@ -9603,6 +9623,7 @@ export declare function get_2(): Promise<Project_2>;
 export declare function getConfig(useDefault?: boolean): Promise<IEngineConfig>;
 export declare function getConfigPath(scope?: ConfigurationScope): Promise<string>;
 export declare function getCurrentToolCallContext(): Readonly<McpToolCallContext> | undefined;
+export declare function getEditorMaterials(): Promise<EditorMaterialCatalog>;
 export declare const getExecutablePath: (enginePath?: string) => Promise<string | null>;
 export declare function getInfo(): Promise<EngineInfo>;
 export declare function getInfo_2(): Promise<ProjectInfo>;

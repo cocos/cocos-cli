@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "stable": "~4.0.0",
+  "defaultAdapterRanges": ["~3.6.0", "~3.7.0", "~3.8.0"],
   "prereleases": [
     { "core": "4.0.0", "tag": "alpha", "min": 32, "experimental": false },
     { "core": "4.0.0", "tag": "beta", "min": 0, "experimental": false },

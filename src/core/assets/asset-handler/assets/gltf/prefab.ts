@@ -135,62 +135,64 @@ export const GltfPrefabHandler: AssetHandler = {
                 }
             }
 
-            // 生成 LODGroup 组件
-            const lodToInsert: cc.LOD[] = [];
-            let lodGroup = sceneNode.getComponent(cc.LODGroup);
-            sceneNode.children.forEach((child: cc.Node) => {
-                const lodArr = /_LOD(\d+)$/i.exec(child.name);
-                if (lodArr && lodArr.length > 1) {
-                    if (!lodGroup) {
-                        try {
-                            lodGroup = sceneNode.addComponent(cc.LODGroup);
-                        } catch (error) {
-                            console.error('Add LODGroup component failed!');
+            if (cc.LODGroup && cc.LOD) {
+                // 生成 LODGroup 组件
+                const lodToInsert: cc.LOD[] = [];
+                let lodGroup = sceneNode.getComponent(cc.LODGroup);
+                sceneNode.children.forEach((child: cc.Node) => {
+                    const lodArr = /_LOD(\d+)$/i.exec(child.name);
+                    if (lodArr && lodArr.length > 1) {
+                        if (!lodGroup) {
+                            try {
+                                lodGroup = sceneNode.addComponent(cc.LODGroup);
+                            } catch (error) {
+                                console.error('Add LODGroup component failed!');
+                            }
                         }
+                        const index = parseInt(lodArr[1], 10);
+                        let lod = lodGroup?.LODs[index];
+                        lod = lod !== undefined ? lod : lodToInsert[index];
+                        if (!lod) {
+                            lod = new cc.LOD();
+                            lodToInsert[index] = lod;
+                        }
+
+                        const deepFindMeshRenderer = (node: cc.Node) => {
+                            const meshRenderers = node.getComponents(cc.MeshRenderer);
+                            if (meshRenderers && meshRenderers.length > 0) {
+                                meshRenderers.forEach((meshRenderer: cc.MeshRenderer) => {
+                                    lod?.insertRenderer(-1, meshRenderer);
+                                });
+                            }
+                            if (node.children && node.children.length > 0) {
+                                node.children.forEach((node: cc.Node) => {
+                                    deepFindMeshRenderer(node);
+                                });
+                            }
+                        };
+                        deepFindMeshRenderer(child);
                     }
-                    const index = parseInt(lodArr[1], 10);
-                    let lod = lodGroup?.LODs[index];
-                    lod = lod !== undefined ? lod : lodToInsert[index];
-                    if (!lod) {
-                        lod = new cc.LOD();
-                        lodToInsert[index] = lod;
+                });
+                if (lodGroup) {
+                    let screenSize = 0.25;
+                    const len = lodToInsert.length;
+                    for (let index = 0; index < len - 1; index++) {
+                        const lod: cc.LOD = lodToInsert[index];
+                        screenSize = gltfUserData.lods?.options[index]?.screenRatio || screenSize;
+                        lodGroup.insertLOD(index, screenSize, lod);
+                        screenSize /= 2;
                     }
 
-                    const deepFindMeshRenderer = (node: cc.Node) => {
-                        const meshRenderers = node.getComponents(cc.MeshRenderer);
-                        if (meshRenderers && meshRenderers.length > 0) {
-                            meshRenderers.forEach((meshRenderer: cc.MeshRenderer) => {
-                                lod?.insertRenderer(-1, meshRenderer);
-                            });
-                        }
-                        if (node.children && node.children.length > 0) {
-                            node.children.forEach((node: cc.Node) => {
-                                deepFindMeshRenderer(node);
-                            });
-                        }
-                    };
-                    deepFindMeshRenderer(child);
-                }
-            });
-            if (lodGroup) {
-                let screenSize = 0.25;
-                const len = lodToInsert.length;
-                for (let index = 0; index < len - 1; index++) {
-                    const lod: cc.LOD = lodToInsert[index];
-                    screenSize = gltfUserData.lods?.options[index]?.screenRatio || screenSize;
-                    lodGroup.insertLOD(index, screenSize, lod);
-                    screenSize /= 2;
-                }
-
-                // 手动修改的最后一层 screenSize，不做处理
-                // 默认的最后一层 screenSize，最后一层小于 1%， 以计算结果为准；如果大于1 ，则用 1% 作为最后一个层级的屏占比
-                if (gltfUserData.lods?.options[len - 1]?.screenRatio) {
-                    lodGroup.insertLOD(len - 1, gltfUserData.lods.options[len - 1].screenRatio, lodToInsert[len - 1]);
-                } else {
-                    if (screenSize < 0.01) {
-                        lodGroup.insertLOD(len - 1, screenSize, lodToInsert[len - 1]);
+                    // 手动修改的最后一层 screenSize，不做处理
+                    // 默认的最后一层 screenSize，最后一层小于 1%， 以计算结果为准；如果大于1 ，则用 1% 作为最后一个层级的屏占比
+                    if (gltfUserData.lods?.options[len - 1]?.screenRatio) {
+                        lodGroup.insertLOD(len - 1, gltfUserData.lods.options[len - 1].screenRatio, lodToInsert[len - 1]);
                     } else {
-                        lodGroup.insertLOD(len - 1, 0.01, lodToInsert[len - 1]);
+                        if (screenSize < 0.01) {
+                            lodGroup.insertLOD(len - 1, screenSize, lodToInsert[len - 1]);
+                        } else {
+                            lodGroup.insertLOD(len - 1, 0.01, lodToInsert[len - 1]);
+                        }
                     }
                 }
             }

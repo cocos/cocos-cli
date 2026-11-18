@@ -74,6 +74,13 @@ function decodePathParam(value: string): string {
 export default {
     get: [
         {
+            url: '/engine/editor-materials',
+            async handler(_req: Request, res: Response) {
+                const { getEditorMaterials } = await import('../../lib/engine/engine');
+                res.json(await getEditorMaterials());
+            },
+        },
+        {
             url: '/engine/read-file-sync',
             async handler(req: Request, res: Response) {
                 let filePath = req.query.path as string;

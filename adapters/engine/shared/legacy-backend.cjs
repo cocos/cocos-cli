@@ -16,7 +16,7 @@ module.exports = function createLegacyBackend(options) {
             webLoader: path.join(directory(selection.path), 'web/loader.js'),
             webAdapter: options.hostEntry, engineAdapter: null,
             declarations: path.join(selection.path, 'bin/.declarations/cc.d.ts'),
-            editorDeclarations: path.join(selection.path, 'bin/.declarations/cc.editor.d.ts'), requiredModules: [...modules], requiresEditorMode: true };
+            editorDeclarations: path.join(selection.path, 'bin/.declarations/cc.editor.d.ts'), requiredModules: [...modules], requiresEditorMode: true, screenEventsModule: 'pal/screen-adapter' };
     }
     function requiredFiles(selection, profile) {
         const files = sourceFiles.map(file => path.join(selection.path, file));
@@ -47,6 +47,8 @@ module.exports = function createLegacyBackend(options) {
     return {
         id: ADAPTER_ID, protocolVersion: 1, implementationVersion: '0.1.0', runtimeSupport: 'experimental',
         supports: supportsVersion, runtime, requiredFiles, validatePreparation,
+        // Legacy Game.init loads scriptPackages rather than the newer preview hook.
+        getPreviewScriptPackages: () => ['cce:/internal/x/prerequisite-imports'],
         compile: selection => ({ directory: directory(selection.path), version: CACHE_VERSION,
             compilerSource: null, compilerModule: options.compilerModule }),
         inspect(selection) {

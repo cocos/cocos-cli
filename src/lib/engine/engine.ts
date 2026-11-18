@@ -49,3 +49,14 @@ export async function querySortingLayerBuiltin() {
     const { Engine } = await import('../../core/engine');
     return Engine.querySortingLayerBuiltin();
 }
+
+/** Serializable editor material capabilities for the selected Engine SDK.
+ * @beta
+ */
+export async function getEditorMaterials() {
+    const { getEngineBackendAdapter } = await import('../../core/engine/adapter');
+    const { getEngineSelection } = await import('../../global');
+    const selection = getEngineSelection();
+    if (!selection) throw new Error('Select an Engine SDK before querying editor materials');
+    return getEngineBackendAdapter(selection).getEditorMaterials(selection);
+}

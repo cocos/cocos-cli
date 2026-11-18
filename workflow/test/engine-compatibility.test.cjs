@@ -51,13 +51,13 @@ test('malformed prerelease policy is rejected explicitly', t => {
     }
 });
 
-for (const version of ['4.0.0', '4.0.1', '4.0.999', '4.0.2+team.3', '4.0.0-alpha.32', '4.0.0-alpha.999', '4.0.0-beta.0', '4.0.0-beta.99+team.2', '4.1.0-alpha.0', '4.1.0-alpha.7+team.2']) {
+for (const version of ['3.6.0', '3.6.3', '3.7.0', '3.7.4', '3.8.0', '3.8.3', '3.8.8', '4.0.0', '4.0.1', '4.0.999', '4.0.2+team.3', '4.0.0-alpha.32', '4.0.0-alpha.999', '4.0.0-beta.0', '4.0.0-beta.99+team.2', '4.1.0-alpha.0', '4.1.0-alpha.7+team.2']) {
     test(`accept declared engine ${version}`, () => assert.equal(matchEngineVersion(version, policy).supported, true));
 }
-for (const version of ['3.8.8', '4.1.0', '5.0.0', '4.0.0-alpha.31', '4.0.0-alpha', '4.0.0-beta', '4.0.0-beta.foo', '4.0.0-beta.01', '4.0.0-rc.0', '4.0.1-beta.0', '4.1.0-alpha', '4.1.0-alpha.1.extra', '4.1.0-alpha.foo', '4.1.0-alpha.01', '4.1.0-beta.1', '4.1.0-rc.1', '4.1.1-alpha.1', '4.2.0-alpha.1', 'v4.0.0', '4.0', ' 4.0.0', '', undefined]) {
+for (const version of ['3.5.2', '3.6.0-beta.0', '3.7.0-alpha.1', '3.8.3-beta.0', '4.1.0', '5.0.0', '4.0.0-alpha.31', '4.0.0-alpha', '4.0.0-beta', '4.0.0-beta.foo', '4.0.0-beta.01', '4.0.0-rc.0', '4.0.1-beta.0', '4.1.0-alpha', '4.1.0-alpha.1.extra', '4.1.0-alpha.foo', '4.1.0-alpha.01', '4.1.0-beta.1', '4.1.0-rc.1', '4.1.1-alpha.1', '4.2.0-alpha.1', 'v4.0.0', '4.0', ' 4.0.0', '', undefined]) {
     test(`reject undeclared or invalid engine ${String(version)}`, () => assert.equal(matchEngineVersion(version, policy).supported, false));
 }
-test('only the declared successor is experimental and prerelease ceilings are respected', () => {
+test('legacy adapters and the declared successor are experimental and prerelease ceilings are respected', () => {
     assert.equal(matchEngineVersion('4.1.0-alpha.1', policy).experimental, true);
     assert.equal(matchEngineVersion('4.0.0', policy).experimental, false);
     const bounded = { ...policy, prereleases: [{ core: '4.1.0', tag: 'alpha', min: 2, max: 3, experimental: true }] };
@@ -144,4 +144,13 @@ test('optional sorting-layer support is detected from the actual module', () => 
     assert.deepEqual(queryOptionalSortingLayers({ SortingLayers: {} }), []);
     const layers = [{ id: 0, name: 'Default' }];
     assert.equal(queryOptionalSortingLayers({ SortingLayers: { value: layers, getBuiltinLayers() { return this.value; } } }), layers);
+});
+
+test('malformed default adapter ranges are rejected', t => {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'engine-policy-defaults-'));
+    t.after(() => fs.rmSync(temp, { recursive: true, force: true }));
+    for (const ranges of ['~3.6.0', [null], ['not-a-range']]) {
+        fs.writeFileSync(path.join(temp, 'engine-compatibility.json'), JSON.stringify({ ...policy, defaultAdapterRanges: ranges }));
+        assert.throws(() => readPolicy(temp), /Invalid default adapter ranges/);
+    }
 });
