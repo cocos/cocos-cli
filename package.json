@@ -19,6 +19,7 @@
         "fetch:engine": "node workflow/update-repo.js",
         "update:repos": "node workflow/update-repo.js --update",
         "test": "node workflow/test.js",
+        "test:terser": "node --test workflow/terser-regression.test.cjs",
         "test:quiet": "node workflow/test.js --silent",
         "test:parallel": "jest --config jest.parallel.config.ts",
         "test:serial": "jest --config jest.serial.config.ts --runInBand",
@@ -82,7 +83,19 @@
         "packages/cc-module"
     ],
     "overrides": {
-        "fsevents": "2.3.3"
+        "fsevents": "2.3.3",
+        "terser": "5.44.0",
+        "@cocos/build-polyfills": {
+            "rollup": "2.79.2",
+            "rollup-plugin-terser": "7.0.2"
+        },
+        "@cocos/transform-utilities": {
+            "rollup": "2.79.2",
+            "rollup-plugin-terser": "7.0.2"
+        },
+        "webpack": {
+            "terser-webpack-plugin": "4.2.3"
+        }
     },
     "license": "ISC",
     "workspaces": [
