@@ -9,6 +9,16 @@ const { browserFacadePath, generateBrowserFacades } = require('./scene-browser-a
 const normalize = file => path.resolve(file).replace(/\\/g, '/');
 const printer = ts.createPrinter({ removeComments: true });
 
+function modulePath(target, from) {
+    // Resolve both paths inside the declaration graph, independently of the checkout directory.
+    const graphRoot = '/scene-editor';
+    const relative = path.posix.relative(
+        path.posix.dirname(path.posix.join(graphRoot, from)),
+        path.posix.join(graphRoot, target),
+    ).replace(/\.d\.ts$/, '');
+    return relative.startsWith('.') ? relative : './' + relative;
+}
+
 function publicEntries(packageRoot) {
     return fs.readdirSync(packageRoot).filter(name => name.endsWith('.d.ts')).flatMap(name => {
         const id = name.slice(0, -5);
@@ -187,10 +197,6 @@ async function extendPublicDts() {
         'pal/input/input-source': `export interface InputSource<T> { getValue(): T; }\nexport type InputSourceButton = InputSource<number>;\nexport type InputSourceDpad = InputSource<import('cc').Vec2>;\nexport type InputSourceStick = InputSource<import('cc').Vec2>;\nexport type InputSourcePosition = InputSource<import('cc').Vec3>;\nexport type InputSourceOrientation = InputSource<import('cc').Quat>;\n`,
         '../foundation/node-shell': `export type NodeInputPath = readonly [string] | readonly [string, number];\n`,
     };
-    function modulePath(target, from) {
-        const relative = path.posix.relative(path.posix.dirname(from), target.replace(/\.d\.ts$/, ''));
-        return relative.startsWith('.') ? relative : './' + relative;
-    }
     function declarationModule(id, importer) {
         if (id === 'cc' || id.startsWith('cc/') || nodeBuiltin.has(id)) return id;
         const resolved = ts.resolveModuleName(id, importer.source.fileName, options, host).resolvedModule;
@@ -359,4 +365,4 @@ async function extendPublicDts() {
     }
 }
 
-module.exports = { extendPublicDts };
+module.exports = { extendPublicDts, modulePath };

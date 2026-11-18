@@ -66,14 +66,12 @@ function externalizePublicImports(code, name) {
 
 function capabilityDeclarations() {
     const fields = kind => domainEntries().filter(entry => entry.kind === kind).map(entry => {
-        const namespace = `typeof import('${PACKAGE_NAME}/${entry.domain}').Editor.${kind === 'host' ? 'Host' : 'Browser'}.${entry.namespace}`;
-        // export= is a compiler-internal module member, not a named namespace
-        // export. Preserve the existing capability object shape explicitly.
-        const assignment = kind === 'browser' && entry.id === 'engine/overwrite'
-            ? " & { 'export=': typeof import('cc/overwrite') }" : '';
-        return `    '${entry.id}': ${namespace}${assignment};`;
+        const namespace = `typeof import('./${entry.domain}').Editor.${kind === 'host' ? 'Host' : 'Browser'}`;
+        return `    '${entry.id}': CapabilityModule<${namespace}, '${entry.namespace}'>;`;
     }).join('\n');
     return `
+type CapabilityModule<Namespace, Name extends PropertyKey> = Name extends keyof Namespace ? Namespace[Name] : Record<never, never>;
+
 export interface HostModules {
 ${fields('host')}
 }
@@ -121,7 +119,7 @@ async function rollupDomains({ workspace, packageRoot, generated, reachable, pub
         const baseline = published.find(entry => entry.module === PACKAGE_NAME + '/' + domain);
         if (!baseline) throw new Error('Missing domain declaration: ' + domain);
         const baselineCode = fs.readFileSync(baseline.output, 'utf8');
-        write(path.join(graph, domain + '-baseline.d.ts'), baselineCode + (domain === 'scene' ? capabilityDeclarations() : ''));
+        write(path.join(graph, domain + '-baseline.d.ts'), baselineCode);
         const groups = [];
         for (const kind of ['host', 'browser']) {
             const modules = mappings.filter(entry => entry.domain === domain && entry.kind === kind);
@@ -160,7 +158,10 @@ async function rollupDomains({ workspace, packageRoot, generated, reachable, pub
         let code = restoreNamespaceExports(fs.readFileSync(output, 'utf8'));
         code = code.replace(/^[ \t]+/gm, indent => indent.replace(/\t/g, '    '));
         code = code.replace(/(['"])@cocos\/cocos-cli-types(?:\/([^'"\r\n]+))?\1/g, (_, quote, id) => quote + './' + (id || 'index') + quote);
-        if (domain === 'scene') code = '/// <reference path="./cc.d.ts" />\n/// <reference path="./cc.editor.d.ts" />\n' + code;
+        if (domain === 'scene') {
+            // API Extractor drops typeof from qualified import type queries in the capability map.
+            code = '/// <reference path="./cc.d.ts" />\n/// <reference path="./cc.editor.d.ts" />\n' + code + capabilityDeclarations();
+        }
         staged.set(path.join(packageRoot, domain + '.d.ts'), code);
     }
     for (const name of ['cc.d.ts', 'cc.editor.d.ts']) staged.set(path.join(packageRoot, name), fs.readFileSync(path.join(root, 'packages/engine/bin/.declarations', name), 'utf8'));

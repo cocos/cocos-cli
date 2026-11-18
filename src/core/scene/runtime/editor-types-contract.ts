@@ -72,8 +72,7 @@ export interface BrowserModules {
     'engine/prefab': Omit<typeof import('../../engine/editor-extends/utils/prefab'), 'default'>;
     'engine/graphics-config': Omit<typeof import('../../engine/graphics-config'), 'default'>;
     'engine/polyfill': Record<never, never>;
-    // TypeScript exposes the CommonJS export-assignment member on this namespace.
-    'engine/overwrite': { default: typeof import('cc/overwrite'); 'export=': typeof import('cc/overwrite') };
+    'engine/overwrite': { default: typeof import('cc/overwrite') };
     'engine/editor/2d-misc': Omit<typeof import('cc/editor/2d-misc'), 'default'>;
     'engine/editor/new-gen-anim': Omit<typeof import('cc/editor/new-gen-anim'), 'default'>;
     'engine/editor/lod-group-utils': Omit<typeof import('cc/editor/lod-group-utils'), 'default'>;

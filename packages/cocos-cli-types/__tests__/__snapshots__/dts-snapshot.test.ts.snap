@@ -14290,7 +14290,6 @@ import type { Camera } from 'cc';
 import { CancelCreateDragResult } from './cli';
 import { default as cc_2 } from 'cc';
 import { CCEModuleMap } from './engine';
-import { ccOverwrite } from 'cc/overwrite';
 import { ChildProcess } from 'child_process';
 import { CommitCreateDragResult } from './cli';
 import { Component } from 'cc';
@@ -14306,16 +14305,6 @@ import { CreateDragSession } from './cli';
 import { CustomConsole } from './builder';
 import { DeleteAssetOptions } from './assets';
 import { DependencyManager } from './builder';
-import { Editor as Editor_10 } from './simulator';
-import { Editor as Editor_11 } from './engine';
-import { Editor as Editor_2 } from './base';
-import { Editor as Editor_3 } from './assets';
-import { Editor as Editor_4 } from './builder';
-import { Editor as Editor_5 } from './configuration';
-import { Editor as Editor_6 } from './cli';
-import { Editor as Editor_7 } from './project';
-import { Editor as Editor_8 } from './scene';
-import { Editor as Editor_9 } from './scripting';
 import type { EffectAsset } from 'cc';
 import EventEmitter from 'events';
 import { ExecuteAnimationGraphCommandRequest } from './assets';
@@ -15161,63 +15150,6 @@ export declare namespace Browser {
         SceneSessionMethods,
         SceneSessionProtocol
     }
-}
-export declare interface BrowserCapabilities {
-    readonly apiVersion: 1;
-    readonly identity: object;
-    readonly modules: BrowserModules;
-    readonly environment: BrowserEnvironment;
-}
-export declare interface BrowserEnvironment { serverURL: string; runtimeResourceBase: string; [key: string]: unknown; }
-export declare interface BrowserHost {
-    readonly apiVersion: 1;
-    loadEngine(options: Record<string, unknown>): Promise<BrowserEnvironment>;
-    prepareScene(options: Record<string, unknown>): Promise<BrowserCapabilities>;
-}
-export declare interface BrowserModules {
-    'scene': Editor_8.Browser.Scene;
-    'scene/context': Editor_8.Browser.SceneContext;
-    'scene/common': Editor_8.Browser.SceneCommon;
-    'scene/config': Editor_8.Browser.SceneConfig;
-    'scene/i18n': Editor_8.Browser.SceneI18n;
-    'scene/rpc': Editor_8.Browser.SceneRpc;
-    'scene/light-probe-normal-reset': Editor_8.Browser.SceneLightProbeNormalReset;
-    'scene/animation/property-commit-event': Editor_8.Browser.SceneAnimationPropertyCommitEvent;
-    'scene/editor-session': Editor_8.Browser.SceneEditorSession;
-    'scene/dump': Editor_8.Browser.SceneDump;
-    'scene/engine': Editor_8.Browser.SceneEngine;
-    'scene/message': Editor_8.Browser.SceneMessage;
-    'scene/node': Editor_8.Browser.SceneNode;
-    'scene/node/node-create': Editor_8.Browser.SceneNodeNodeCreate;
-    'scene/node/node-type-config': Editor_8.Browser.SceneNodeNodeTypeConfig;
-    'scene/node/node-utils': Editor_8.Browser.SceneNodeNodeUtils;
-    'scene/node/prefab-canvas-mutation': Editor_8.Browser.SceneNodePrefabCanvasMutation;
-    'scene/operation/types': Editor_8.Browser.SceneOperationTypes;
-    'scene/prefab/prefab-editor-utils': Editor_8.Browser.ScenePrefabPrefabEditorUtils;
-    'scene/reference-image': Editor_8.Browser.SceneReferenceImage;
-    'scene/scene/light-probe-snapshot': Editor_8.Browser.SceneSceneLightProbeSnapshot;
-    'scene/scene/light-probe-transform': Editor_8.Browser.SceneSceneLightProbeTransform;
-    'scene/scene/utils': Editor_8.Browser.SceneSceneUtils;
-    'scene/service-manager': Editor_8.Browser.SceneServiceManager;
-    'scene/utils/asset-reload': Editor_8.Browser.SceneUtilsAssetReload;
-    'scene/utils/editor-node': Editor_8.Browser.SceneUtilsEditorNode;
-    'scene/utils/state-machine/finite-state-machine': Editor_8.Browser.SceneUtilsStateMachineFiniteStateMachine;
-    'scene/utils/state-machine/state-interface': Editor_8.Browser.SceneUtilsStateMachineStateInterface;
-    'scene/session/client': Editor_8.Browser.SceneSessionClient;
-    'scene/session/methods': Editor_8.Browser.SceneSessionMethods;
-    'scene/session/protocol': Editor_8.Browser.SceneSessionProtocol;
-    'engine/editor-extends': Editor_11.Browser.EngineEditorExtends;
-    'engine/node-path': Editor_11.Browser.EngineNodePath;
-    'engine/serialize': Editor_11.Browser.EngineSerialize;
-    'engine/deserialize': Editor_11.Browser.EngineDeserialize;
-    'engine/geometry': Editor_11.Browser.EngineGeometry;
-    'engine/prefab': Editor_11.Browser.EnginePrefab;
-    'engine/graphics-config': Editor_11.Browser.EngineGraphicsConfig;
-    'engine/polyfill': Editor_11.Browser.EnginePolyfill;
-    'engine/overwrite': Editor_11.Browser.EngineOverwrite & { 'export=': ccOverwrite };
-    'engine/editor/2d-misc': Editor_11.Browser.EngineEditor2dMisc;
-    'engine/editor/new-gen-anim': Editor_11.Browser.EngineEditorNewGenAnim;
-    'engine/editor/lod-group-utils': Editor_11.Browser.EngineEditorLodGroupUtils;
 }
 export declare const BUILTIN_NODE_CREATE_TARGETS: Readonly<{
     readonly empty: "db:
@@ -16339,46 +16271,6 @@ export declare namespace Host {
         CoreSceneRuntimeResourcesScriptingRoutes,
         CoreSceneRuntimeResourcesSettings
     }
-}
-export declare interface HostCapabilities {
-    readonly apiVersion: 1;
-    readonly cliVersion: string;
-    readonly identity: object;
-    readonly modules: HostModules;
-    readonly portable: Pick<BrowserModules, 'scene/session/client' | 'scene/session/methods' | 'scene/session/protocol'>;
-    readonly browserHostPath: string;
-}
-export declare interface HostModules {
-    'commands/base': Editor_2.Host.CommandsBase;
-    'core/assets/index': Editor_3.Host.CoreAssetsIndex;
-    'core/base/editor-shim': Editor_2.Host.CoreBaseEditorShim;
-    'core/base/i18n': Editor_2.Host.CoreBaseI18n;
-    'core/base/utils/uuid': Editor_2.Host.CoreBaseUtilsUuid;
-    'core/builder/@types/protected': Editor_4.Host.CoreBuilderTypesProtected;
-    'core/builder/index': Editor_4.Host.CoreBuilderIndex;
-    'core/builder/platforms/web-common/utils': Editor_4.Host.CoreBuilderPlatformsWebCommonUtils;
-    'core/builder/share/common-options-validator': Editor_4.Host.CoreBuilderShareCommonOptionsValidator;
-    'core/configuration/index': Editor_5.Host.CoreConfigurationIndex;
-    'core/configuration/script/interface': Editor_5.Host.CoreConfigurationScriptInterface;
-    'core/extension-roots': Editor_6.Host.CoreExtensionRoots;
-    'core/launcher': Editor_6.Host.CoreLauncher;
-    'core/project/index': Editor_7.Host.CoreProjectIndex;
-    'core/scene/common/index': Editor_8.Host.CoreSceneCommonIndex;
-    'core/scene/common/preview': Editor_8.Host.CoreSceneCommonPreview;
-    'core/scene/common/reflection-probe': Editor_8.Host.CoreSceneCommonReflectionProbe;
-    'core/scene/index': Editor_8.Host.CoreSceneIndex;
-    'core/scene/main-process/index': Editor_8.Host.CoreSceneMainProcessIndex;
-    'core/scene/main-process/rpc': Editor_8.Host.CoreSceneMainProcessRpc;
-    'core/scene/runtime/resources/scene-routes': Editor_8.Host.CoreSceneRuntimeResourcesSceneRoutes;
-    'core/scene/runtime/resources/scripting-routes': Editor_8.Host.CoreSceneRuntimeResourcesScriptingRoutes;
-    'core/scene/runtime/resources/settings': Editor_8.Host.CoreSceneRuntimeResourcesSettings;
-    'core/scripting/index': Editor_9.Host.CoreScriptingIndex;
-    'global': Editor_6.Host.Global;
-    'lib/simulator/simulator': Editor_10.Host.LibSimulatorSimulator;
-    'server/index': Editor_6.Host.ServerIndex;
-    'server/interfaces': Editor_6.Host.ServerInterfaces;
-    'server/middleware/index': Editor_6.Host.ServerMiddlewareIndex;
-    'server/socket': Editor_6.Host.ServerSocket;
 }
 declare class I18n {
     _lang: string;
@@ -19302,6 +19194,104 @@ export declare class WorkerSceneCommandProvider implements ISceneCommandProvider
     dispose(): void;
 }
 export { }
+type CapabilityModule<Namespace, Name extends PropertyKey> = Name extends keyof Namespace ? Namespace[Name] : Record<never, never>;
+export interface HostModules {
+    'commands/base': CapabilityModule<typeof import('./base').Editor.Host, 'CommandsBase'>;
+    'core/assets/index': CapabilityModule<typeof import('./assets').Editor.Host, 'CoreAssetsIndex'>;
+    'core/base/editor-shim': CapabilityModule<typeof import('./base').Editor.Host, 'CoreBaseEditorShim'>;
+    'core/base/i18n': CapabilityModule<typeof import('./base').Editor.Host, 'CoreBaseI18n'>;
+    'core/base/utils/uuid': CapabilityModule<typeof import('./base').Editor.Host, 'CoreBaseUtilsUuid'>;
+    'core/builder/@types/protected': CapabilityModule<typeof import('./builder').Editor.Host, 'CoreBuilderTypesProtected'>;
+    'core/builder/index': CapabilityModule<typeof import('./builder').Editor.Host, 'CoreBuilderIndex'>;
+    'core/builder/platforms/web-common/utils': CapabilityModule<typeof import('./builder').Editor.Host, 'CoreBuilderPlatformsWebCommonUtils'>;
+    'core/builder/share/common-options-validator': CapabilityModule<typeof import('./builder').Editor.Host, 'CoreBuilderShareCommonOptionsValidator'>;
+    'core/configuration/index': CapabilityModule<typeof import('./configuration').Editor.Host, 'CoreConfigurationIndex'>;
+    'core/configuration/script/interface': CapabilityModule<typeof import('./configuration').Editor.Host, 'CoreConfigurationScriptInterface'>;
+    'core/extension-roots': CapabilityModule<typeof import('./cli').Editor.Host, 'CoreExtensionRoots'>;
+    'core/launcher': CapabilityModule<typeof import('./cli').Editor.Host, 'CoreLauncher'>;
+    'core/project/index': CapabilityModule<typeof import('./project').Editor.Host, 'CoreProjectIndex'>;
+    'core/scene/common/index': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneCommonIndex'>;
+    'core/scene/common/preview': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneCommonPreview'>;
+    'core/scene/common/reflection-probe': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneCommonReflectionProbe'>;
+    'core/scene/index': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneIndex'>;
+    'core/scene/main-process/index': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneMainProcessIndex'>;
+    'core/scene/main-process/rpc': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneMainProcessRpc'>;
+    'core/scene/runtime/resources/scene-routes': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneRuntimeResourcesSceneRoutes'>;
+    'core/scene/runtime/resources/scripting-routes': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneRuntimeResourcesScriptingRoutes'>;
+    'core/scene/runtime/resources/settings': CapabilityModule<typeof import('./scene').Editor.Host, 'CoreSceneRuntimeResourcesSettings'>;
+    'core/scripting/index': CapabilityModule<typeof import('./scripting').Editor.Host, 'CoreScriptingIndex'>;
+    'global': CapabilityModule<typeof import('./cli').Editor.Host, 'Global'>;
+    'lib/simulator/simulator': CapabilityModule<typeof import('./simulator').Editor.Host, 'LibSimulatorSimulator'>;
+    'server/index': CapabilityModule<typeof import('./cli').Editor.Host, 'ServerIndex'>;
+    'server/interfaces': CapabilityModule<typeof import('./cli').Editor.Host, 'ServerInterfaces'>;
+    'server/middleware/index': CapabilityModule<typeof import('./cli').Editor.Host, 'ServerMiddlewareIndex'>;
+    'server/socket': CapabilityModule<typeof import('./cli').Editor.Host, 'ServerSocket'>;
+}
+export interface BrowserModules {
+    'scene': CapabilityModule<typeof import('./scene').Editor.Browser, 'Scene'>;
+    'scene/context': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneContext'>;
+    'scene/common': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneCommon'>;
+    'scene/config': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneConfig'>;
+    'scene/i18n': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneI18n'>;
+    'scene/rpc': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneRpc'>;
+    'scene/light-probe-normal-reset': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneLightProbeNormalReset'>;
+    'scene/animation/property-commit-event': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneAnimationPropertyCommitEvent'>;
+    'scene/editor-session': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneEditorSession'>;
+    'scene/dump': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneDump'>;
+    'scene/engine': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneEngine'>;
+    'scene/message': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneMessage'>;
+    'scene/node': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneNode'>;
+    'scene/node/node-create': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneNodeNodeCreate'>;
+    'scene/node/node-type-config': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneNodeNodeTypeConfig'>;
+    'scene/node/node-utils': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneNodeNodeUtils'>;
+    'scene/node/prefab-canvas-mutation': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneNodePrefabCanvasMutation'>;
+    'scene/operation/types': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneOperationTypes'>;
+    'scene/prefab/prefab-editor-utils': CapabilityModule<typeof import('./scene').Editor.Browser, 'ScenePrefabPrefabEditorUtils'>;
+    'scene/reference-image': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneReferenceImage'>;
+    'scene/scene/light-probe-snapshot': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneSceneLightProbeSnapshot'>;
+    'scene/scene/light-probe-transform': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneSceneLightProbeTransform'>;
+    'scene/scene/utils': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneSceneUtils'>;
+    'scene/service-manager': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneServiceManager'>;
+    'scene/utils/asset-reload': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneUtilsAssetReload'>;
+    'scene/utils/editor-node': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneUtilsEditorNode'>;
+    'scene/utils/state-machine/finite-state-machine': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneUtilsStateMachineFiniteStateMachine'>;
+    'scene/utils/state-machine/state-interface': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneUtilsStateMachineStateInterface'>;
+    'scene/session/client': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneSessionClient'>;
+    'scene/session/methods': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneSessionMethods'>;
+    'scene/session/protocol': CapabilityModule<typeof import('./scene').Editor.Browser, 'SceneSessionProtocol'>;
+    'engine/editor-extends': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineEditorExtends'>;
+    'engine/node-path': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineNodePath'>;
+    'engine/serialize': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineSerialize'>;
+    'engine/deserialize': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineDeserialize'>;
+    'engine/geometry': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineGeometry'>;
+    'engine/prefab': CapabilityModule<typeof import('./engine').Editor.Browser, 'EnginePrefab'>;
+    'engine/graphics-config': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineGraphicsConfig'>;
+    'engine/polyfill': CapabilityModule<typeof import('./engine').Editor.Browser, 'EnginePolyfill'>;
+    'engine/overwrite': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineOverwrite'>;
+    'engine/editor/2d-misc': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineEditor2dMisc'>;
+    'engine/editor/new-gen-anim': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineEditorNewGenAnim'>;
+    'engine/editor/lod-group-utils': CapabilityModule<typeof import('./engine').Editor.Browser, 'EngineEditorLodGroupUtils'>;
+}
+export interface HostCapabilities {
+    readonly apiVersion: 1;
+    readonly cliVersion: string;
+    readonly identity: object;
+    readonly modules: HostModules;
+    readonly portable: Pick<BrowserModules, 'scene/session/client' | 'scene/session/methods' | 'scene/session/protocol'>;
+    readonly browserHostPath: string;
+}
+export interface BrowserEnvironment { serverURL: string; runtimeResourceBase: string; [key: string]: unknown; }
+export interface BrowserCapabilities {
+    readonly apiVersion: 1;
+    readonly identity: object;
+    readonly modules: BrowserModules;
+    readonly environment: BrowserEnvironment;
+}
+export interface BrowserHost {
+    readonly apiVersion: 1;
+    loadEngine(options: Record<string, unknown>): Promise<BrowserEnvironment>;
+    prepareScene(options: Record<string, unknown>): Promise<BrowserCapabilities>;
+}
 "
 `;
 

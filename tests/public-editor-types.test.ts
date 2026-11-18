@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
 import * as ts from 'typescript';
 
@@ -9,6 +11,22 @@ const { browserFacadePath } = require('../workflow/scene-browser-api');
 const entries = require('../workflow/scene-api-entries.json');
 
 interface DomainEntry { kind: 'host' | 'browser'; id: string; domain: string; namespace: string; }
+
+it.each(['cocos-cli', 'cli'])('resolves public declaration imports from a checkout named %s', checkout => {
+    const parent = fs.mkdtempSync(path.join(tmpdir(), 'public-editor-types-'));
+    const cwd = path.join(parent, checkout);
+    fs.mkdirSync(cwd);
+    try {
+        const result = execFileSync(process.execPath, ['-e', `
+            const { modulePath } = require(process.argv[1]);
+            console.log(modulePath('../cli.d.ts', 'internal/cli/core/scene/common/cli/node.d.ts'));
+        `, require.resolve('../workflow/extend-public-dts')], { cwd, encoding: 'utf8' });
+        expect(result.trim()).toBe('../../../../../../../cli');
+    } finally {
+        fs.rmdirSync(cwd);
+        fs.rmdirSync(parent);
+    }
+});
 
 describe('editor types integrated into public declarations', () => {
     const mappings: DomainEntry[] = domainEntries();
@@ -37,7 +55,12 @@ const queriedNode: Node | null = manager.query('test-node');
 const mountedRoot: Node | undefined = node[editorExtrasTag].mountedRoot;
 const portable = host.portable['scene/session/client'];
 const prepared = browser.prepareScene({});
-const overwrite: typeof import('cc/overwrite') = capabilities.modules['engine/overwrite']['export='];
+const overwrite: typeof import('cc/overwrite') = capabilities.modules['engine/overwrite'].default;
+type OverwriteIsTyped = AssertTyped<IsAny<typeof capabilities.modules['engine/overwrite']['default']>>;
+type AssetModuleIsTyped = AssertTyped<IsAny<typeof host.modules['core/assets/index']>>;
+type EmptyModuleIsTyped = AssertTyped<IsAny<typeof capabilities.modules['engine/polyfill']>>;
+// @ts-expect-error The browser capability exposes the CommonJS value as default.
+capabilities.modules['engine/overwrite']['export='];
 `;
     const options: ts.CompilerOptions = {
         target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS,
@@ -88,7 +111,6 @@ const overwrite: typeof import('cc/overwrite') = capabilities.modules['engine/ov
     it.each(mappings)('preserves $kind/$id exports in $domain.Editor', entry => {
         const oldSource = program.getSourceFile(oldFile(entry))!;
         // export= is the compiler's export-assignment symbol, not a named export.
-        // Its capability-object member is checked in the consumer fixture above.
         const oldExports = exportsOf(checker.getSymbolAtLocation(oldSource)!).filter(item => item.name !== 'export=');
         const newSource = program.getSourceFile(path.join(packageRoot, entry.domain + '.d.ts'))!;
         let symbol = checker.getSymbolAtLocation(newSource)!;
