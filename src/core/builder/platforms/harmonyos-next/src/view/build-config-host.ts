@@ -80,38 +80,38 @@ async function readHarmonyOSNDKPath(ctx: PreBuildContext): Promise<string | unde
     return ctx.getConfig<string>(NDK_CONFIG_KEY);
 }
 
-export function activate(context: HostContext): void {
-    context.registerMethod('getI18nBundle', () => loadBundle());
-    context.registerMethod('t', (key: string, sub?: Record<string, unknown>) => {
-        const text = lookup(loadBundle(), key);
-        return text === undefined ? key : substitute(text, sub);
-    });
+export function activate() {
+    return {
+        buildHooks: {
+            [PLATFORM]: {
+                preBuildHook: async (options: Record<string, unknown>, ctx: PreBuildContext) => {
+                    const pkg = (options.packages as { [PLATFORM]?: { sdkPath?: string; ndkPath?: string } } | undefined)?.[PLATFORM];
+                    const patch: { sdkPath?: string; ndkPath?: string } = {};
 
-    context.registerPreBuildHook?.(async (options, ctx) => {
-        const pkg = (options.packages as { [PLATFORM]?: { sdkPath?: string; ndkPath?: string } } | undefined)?.[PLATFORM];
-        const patch: { sdkPath?: string; ndkPath?: string } = {};
+                    if (!pkg?.sdkPath) {
+                        const sdkPath = await readHarmonyOSSDKPath(ctx);
+                        if (sdkPath) {
+                            patch.sdkPath = sdkPath;
+                        }
+                    }
 
-        if (!pkg?.sdkPath) {
-            const sdkPath = await readHarmonyOSSDKPath(ctx);
-            if (sdkPath) {
-                patch.sdkPath = sdkPath;
-            }
-        }
+                    if (!pkg?.ndkPath) {
+                        const ndkPath = await readHarmonyOSNDKPath(ctx);
+                        if (ndkPath) {
+                            patch.ndkPath = ndkPath;
+                        }
+                    }
 
-        if (!pkg?.ndkPath) {
-            const ndkPath = await readHarmonyOSNDKPath(ctx);
-            if (ndkPath) {
-                patch.ndkPath = ndkPath;
-            }
-        }
-
-        if (Object.keys(patch).length) {
-            return {
-                packages: {
-                    [PLATFORM]: patch,
+                    if (Object.keys(patch).length) {
+                        return {
+                            packages: {
+                                [PLATFORM]: patch,
+                            },
+                        };
+                    }
+                    return;
                 },
-            };
-        }
-        return;
-    });
+            },
+        },
+    };
 }

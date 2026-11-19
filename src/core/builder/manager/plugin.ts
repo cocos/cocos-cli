@@ -295,6 +295,7 @@ export class PluginManager extends EventEmitter {
     }
 
     private async applyRegistration(input: BuildRegistration): Promise<void> {
+        if (input.kind !== 'platform' && input.kind !== 'plugin') { throw new Error('Unsupported build registration kind.'); }
         const { platform, extensionId, root } = input;
         if (!platform || !extensionId || !root || ['__proto__', 'prototype', 'constructor'].includes(platform)
             || ['__proto__', 'prototype', 'constructor'].includes(extensionId)) {

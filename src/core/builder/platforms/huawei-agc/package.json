@@ -12,36 +12,20 @@
             "config": "./src/config",
             "hooks": "./src/hooks"
         },
-        "pinkBuilder": {
-            "platform": "huawei-agc",
-            "customView": "./dist/view/build-config.js",
-            "customExtensionHost": "./dist/view/build-config-host.js",
-            "customFields": [
-                "apiLevel",
-                "keystorePath",
-                "useDebugKeystore",
-                "keystorePassword",
-                "keystoreAlias",
-                "keystoreAliasPassword",
-                "resizeableActivity",
-                "maxAspectRatio"
-            ],
-            "optionsUI": {
-                "serviceConfigPath": {
-                    "editPresentation": "filepath",
-                    "editPresentationOptions": {
-                        "protocols": [
-                            "file"
-                        ]
-                    }
-                }
-            },
-            "card": "./static/card.png",
-            "icon": "./static/icon.png"
-        }
+        "pinkBuildPlatforms": [
+            {
+                "platform": "huawei-agc",
+                "config": "./src/pink-config.js",
+                "hooks": "./src/hooks.js"
+            }
+        ]
     },
     "scripts": {
         "build-view": "node scripts/build-view.js",
         "watch-view": "node scripts/build-view.js --watch"
+    },
+    "publisher": "pink-cli",
+    "engines": {
+        "vscode": "*"
     }
 }

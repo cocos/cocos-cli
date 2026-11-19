@@ -102,4 +102,10 @@ describe('explicit build registration', () => {
         const manager = new PluginManager();
         await expect(manager.registerContribution({ kind: 'plugin', platform: 'missing', extensionId: 'acme.hooks', root: '/hooks', hooks: '/hooks/hooks.js' })).rejects.toThrow('not registered');
     });
+    it('rejects unknown kinds before modifying the registry', async () => {
+        const manager = new PluginManager();
+        await expect(manager.registerContribution({ ...platform('web-a'), kind: 'other' } as unknown as Parameters<PluginManager['registerContribution']>[0])).rejects.toThrow('Unsupported build registration kind');
+        expect(manager.platformConfig['web-a']).toBeUndefined();
+    });
+
 });
