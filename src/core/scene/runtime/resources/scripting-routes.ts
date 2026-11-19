@@ -1,7 +1,7 @@
 import { compilationState } from '../../../scripting/event-emitter';
 import { describeChunkImport } from './module-diagnostic';
 import type { Request, Response, NextFunction } from 'express';
-import path, { isAbsolute, join, relative } from 'path';
+import path, { join, relative } from 'path';
 import { pathExists, stat, readFile } from 'fs-extra';
 import { GlobalPaths } from '../../../../global';
 
@@ -36,18 +36,8 @@ async function getLibraryDirs(): Promise<string[]> {
 }
 
 async function findLibraryFileByRelativePath(relPath: string): Promise<string | undefined> {
-    const dirs = await getLibraryDirs();
-    for (const dir of dirs) {
-        const full = join(dir, relPath);
-        const rel = relative(dir, full);
-        if (rel.startsWith('..') || isAbsolute(rel)) {
-            continue;
-        }
-        if (await pathExists(full) && (await stat(full)).isFile()) {
-            return full;
-        }
-    }
-    return undefined;
+    const { resolveLibraryAssetFile } = await import('../../../engine/library-file');
+    return resolveLibraryAssetFile(relPath, await getLibraryDirs());
 }
 
 function decodePathParam(value: string): string {
@@ -155,12 +145,13 @@ export const scriptingRoutes = [
                 const { getEngineSelection } = await import('../../../../global');
                 const { getEngineBackendAdapter } = await import('../../../engine/adapter');
                 const selection = getEngineSelection();
-                const screenEventsModule = selection && getEngineBackendAdapter(selection).runtime(selection).screenEventsModule;
+                const runtime = selection && getEngineBackendAdapter(selection).runtime(selection);
                 const { default: scripting } = await import('../../../scripting/index');
                 res.json({
                     projectPath: scripting.projectPath.replace(/\\/g, '/'),
                     enginePath: enginePath.replace(/\\/g, '/'),
-                    screenEventsModule,
+                    screenEventsModule: runtime?.screenEventsModule,
+                    runtimeCompatibilityModule: runtime?.runtimeCompatibilityModule,
                 });
             } catch (err) {
                 next(err);

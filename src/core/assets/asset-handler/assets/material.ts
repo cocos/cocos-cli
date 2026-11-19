@@ -39,7 +39,7 @@ export const MaterialHandler: AssetHandler = {
 
     importer: {
         // 版本号如果变更，则会强制重新导入
-        version: '1.0.21',
+        version: '1.0.22',
 
         /**
          * 实际导入流程
@@ -55,8 +55,14 @@ export const MaterialHandler: AssetHandler = {
                 const material = readJSONSync(asset.source);
 
                 // uuid dependency
-                const uuid = material._effectAsset && material._effectAsset.__uuid__;
-                asset.depend(uuid);
+                const effect = material._effectAsset;
+                if (effect !== undefined && effect !== null) {
+                    const uuid = effect.__uuid__;
+                    if (typeof uuid !== 'string' || uuid.trim().length === 0) {
+                        throw new Error(`Material ${asset.source} has an invalid effect asset UUID`);
+                    }
+                    asset.depend(uuid);
+                }
 
                 // upgrade properties
                 if (await upgradeProperties(material, asset)) {

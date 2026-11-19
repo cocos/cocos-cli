@@ -4,7 +4,7 @@ export interface EngineBackendIdentity { path: string; version: string; revision
 export interface EngineRuntimeConfiguration {
     engineRoot: string; engineDev: string; editorExports: string; editorLoader: string; webLoader: string;
     webAdapter: string; engineAdapter: string | null; declarations: string; editorDeclarations: string;
-    requiredModules: string[]; requiresEditorMode?: boolean; screenEventsModule?: string;
+    requiredModules: string[]; requiresEditorMode?: boolean; screenEventsModule?: string; runtimeCompatibilityModule?: string;
 }
 export interface EngineCapability {
     status: 'ready' | 'missing' | 'unverified' | 'not-implemented';
@@ -27,6 +27,7 @@ export interface EngineBackendAdapter {
     requiredFiles?(selection: EngineBackendIdentity, profile: 'source' | 'runtime' | 'web'): string[];
     validatePreparation?(selection: EngineBackendIdentity, profile: 'source' | 'runtime' | 'web'): void;
     configureRuntime?(engine: unknown, getModule: (id: string) => unknown, host?: { getLastSelected(type: string): string; queryAssetInfo?(uuid: string): unknown | Promise<unknown> }): void;
+    resolveSerializedAssetFile?(requestedFile: string): string | undefined;
     getPreviewScriptPackages?(): string[];
     getEditorMaterials(selection: EngineBackendIdentity): EditorMaterialCatalog;
     getEditorI18nFallbacks?(lang: string): Record<string, unknown>;

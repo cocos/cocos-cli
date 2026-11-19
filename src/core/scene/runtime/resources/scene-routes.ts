@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { join, relative, isAbsolute } from 'path';
-import { existsSync } from 'fs';
+import { join } from 'path';
 import { pathExists } from 'fs-extra';
 export const sceneResourceRoutes = [
 {
@@ -118,16 +117,6 @@ async function getSceneEditorLibraryDirs(): Promise<string[]> {
 
 async function resolveSceneEditorLibraryFile(tail: string): Promise<string | undefined> {
     const encodedTail = tail.replace(/[^\\/@]+/g, encodeURIComponent);
-    const dirs = await getSceneEditorLibraryDirs();
-    for (const dir of dirs) {
-        const full = join(dir, encodedTail);
-        const rel = relative(dir, full);
-        if (rel.startsWith('..') || isAbsolute(rel)) {
-            continue;
-        }
-        if (existsSync(full)) {
-            return full;
-        }
-    }
-    return undefined;
+    const { resolveLibraryAssetFile } = await import('../../../engine/library-file');
+    return resolveLibraryAssetFile(encodedTail, await getSceneEditorLibraryDirs());
 }

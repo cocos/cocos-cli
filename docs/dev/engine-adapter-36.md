@@ -29,3 +29,15 @@ The real 3.6.3 scene-worker smoke also passed initialization, node/descendant pa
 All changes remain local; no commits or pushes were made.
 
 Additional real-engine regression passed on 3.6.3 and default 4.0.0-alpha.32: 69 script-manager/serialization/runtime-identity assertions each, zero failures. Serial Adapter, discovery and SDK packaging checks passed 46 assertions. Original failed iterations remain available. No complete default Jest, GPU, browser or native certification is claimed.
+
+## Bake settings compatibility
+
+The generated 3.6 `cc/editor/cli-host` module maps `cc.ModelBakeSettings` to the
+engine's native `cc.ModelLightmapSettings` class. Its renderer decoder accepts
+both `bakeSettings` and `lightmapSettings`, preserving the texture and UV values
+supported by 3.6. Native serialization field lists and project source data are
+not changed. This does not implement newer light-probe, reflection-probe or LOD
+features. Browser runtimes load the adapter module before project assets.
+
+Adapter cache version `cocos-3.6-cli-2` requires regenerating both editor and Web
+outputs when upgrading from the previous adapter cache.

@@ -15,7 +15,11 @@ class EngineBackendRegistry {
             throw new EngineAdapterError('ENGINE_ADAPTER_INVALID', 'Invalid EngineBackendAdapter contract');
         }
         if (this.adapters.has(adapter.id)) throw new EngineAdapterError('ENGINE_ADAPTER_DUPLICATE', 'Duplicate engine adapter: ' + adapter.id);
-        this.adapters.set(adapter.id, Object.freeze({ getEditorMaterials: require('./shared/editor-materials.cjs').getEditorMaterials, ...adapter }));
+        this.adapters.set(adapter.id, Object.freeze({
+            resolveSerializedAssetFile: require('./shared/serialized-asset.cjs').resolveSerializedAssetFile,
+            getEditorMaterials: require('./shared/editor-materials.cjs').getEditorMaterials,
+            ...adapter,
+        }));
     }
     resolve(selection, adapterId) {
         if (typeof selection?.version !== 'string' || selection.version.trim() !== selection.version || !/^\d/.test(selection.version) || !semver.valid(selection.version)) throw new EngineAdapterError('ENGINE_VERSION_INVALID', 'Invalid engine SemVer');

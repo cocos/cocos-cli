@@ -60,3 +60,11 @@ export async function getEditorMaterials() {
     if (!selection) throw new Error('Select an Engine SDK before querying editor materials');
     return getEngineBackendAdapter(selection).getEditorMaterials(selection);
 }
+
+/** Resolve a library request using the selected engine's serialized asset format.
+ * @beta
+ */
+export async function resolveLibraryAssetFile(relativePath: string, libraryDirectories: readonly string[]): Promise<string | undefined> {
+    const resolver = await import('../../core/engine/library-file');
+    return resolver.resolveLibraryAssetFile(relativePath, libraryDirectories);
+}

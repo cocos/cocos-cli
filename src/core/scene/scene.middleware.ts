@@ -37,19 +37,8 @@ async function getLibraryDirs(): Promise<string[]> {
  * 这里补上路由注释早已声明、却未实现的「回退到 library 磁盘」逻辑。
  */
 async function resolveFromLibrary(tail: string): Promise<string | undefined> {
-    const dirs = await getLibraryDirs();
-    for (const d of dirs) {
-        const full = path.join(d, tail);
-        // 防目录穿越：join 后必须仍位于 library 目录内
-        const rel = path.relative(d, full);
-        if (rel.startsWith('..') || path.isAbsolute(rel)) {
-            continue;
-        }
-        if (await fse.pathExists(full)) {
-            return full;
-        }
-    }
-    return undefined;
+    const { resolveLibraryAssetFile } = await import('../engine/library-file');
+    return resolveLibraryAssetFile(tail, await getLibraryDirs());
 }
 
 function isBrowserRequest(req: Request): boolean {
@@ -235,10 +224,6 @@ export default {
                 const { assetManager } = await import('../assets');
                 const assetInfo = assetManager.queryAssetInfo(uuid);
                 let filePath = assetInfo?.library?.[`.${ext}`];
-                // query-extname exposes sole-bin CCON data using the engine's .cconb URL.
-                if (!filePath && ext === 'cconb' && assetInfo?.library?.['.bin'] && Object.keys(assetInfo.library).length === 1) {
-                    filePath = assetInfo.library['.bin'];
-                }
                 if (!filePath) {
                     // asset-db 未命中：回退到 library 磁盘目录（见 resolveFromLibrary 注释）。
                     // 修复内置 effect（pipeline/cluster-build 等）经 `${serverURL}/45/<uuid>.json`

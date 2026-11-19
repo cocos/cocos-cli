@@ -16,6 +16,9 @@ const backend = require('../shared/legacy-backend.cjs')({
     modules: ['cc', 'cc/editor/cli-host', 'cc/editor/populate-internal-constants', 'cc/editor/serialization', 'cc/editor/new-gen-anim', 'cc/editor/embedded-player', 'cc/editor/material', 'cc/editor/2d-misc', 'cc/editor/offline-mappings', 'cc/editor/custom-pipeline', 'cc/editor/animation-clip-migration', 'cc/editor/exotic-animation', 'cc/editor/color-utils'],
 });
 
+const runtime = backend.runtime;
+backend.runtime = selection => ({ ...runtime(selection), runtimeCompatibilityModule: 'cc/editor/cli-host' });
+
 const fallbackLabels = backend.getEditorI18nFallbacks;
 backend.getEditorI18nFallbacks = lang => {
     const labels = fallbackLabels(lang);

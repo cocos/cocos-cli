@@ -8708,6 +8708,7 @@ export declare function querySortingLayerBuiltin(): Promise<readonly {
     name: string;
     value: number;
 }[]>;
+export declare function resolveLibraryAssetFile(relativePath: string, libraryDirectories: readonly string[]): Promise<string | undefined>;
 export declare function startEngineCompilation(force?: boolean): Promise<void>;
 export { }
 "
@@ -9504,6 +9505,7 @@ export declare namespace Engine {
         queryLayerBuiltin,
         querySortingLayerBuiltin,
         getEditorMaterials,
+        resolveLibraryAssetFile,
         EngineInfo,
         EditorMaterialDescriptor,
         EditorMaterialCatalog,
@@ -10741,6 +10743,7 @@ export declare interface RenderTextureAssetUserData extends TextureBaseAssetUser
     height: number;
 }
 export declare function resetCommandProvider(): void;
+export declare function resolveLibraryAssetFile(relativePath: string, libraryDirectories: readonly string[]): Promise<string | undefined>;
 export declare interface RtSpriteFrameAssetUserData {
     imageUuidOrDatabaseUri: string;
     width?: number;

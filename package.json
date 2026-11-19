@@ -290,6 +290,10 @@
             "types": "./dist/core/engine/graphics-config.d.ts",
             "default": "./dist/core/engine/graphics-config.js"
         },
+        "./host/lib/engine/engine": {
+            "types": "./dist/lib/engine/engine.d.ts",
+            "default": "./dist/lib/engine/engine.js"
+        },
         "./host/core/engine/index": {
             "types": "./dist/core/engine/index.d.ts",
             "default": "./dist/core/engine/index.js"
