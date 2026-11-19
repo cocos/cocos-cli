@@ -7,6 +7,7 @@ import { ModLo } from '@cocos/creator-programming-mod-lo/lib/mod-lo';
 import { ModuleNotFoundError } from '@cocos/creator-programming-mod-lo/lib/resolver/resolve-error';
 import { DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 import type AssetDBManager from '../manager/asset-db';
+import { GlobalPaths } from '../../../global';
 
 const mockCreate = jest.fn();
 const mockUpdateDatabases = jest.fn();
@@ -46,6 +47,7 @@ jest.mock('../../scripting', () => ({
     default: { updateDatabases: (...args: unknown[]) => mockUpdateDatabases(...args) },
 }));
 jest.mock('../utils', () => ({}));
+jest.mock('../effect-compiler', () => ({ usePrebuiltChunkRegistry: jest.fn(), addChunk: jest.fn() }));
 
 const order = ['internal', 'assets', 'i18n', 'shared'];
 const assetPrefix = (root: string) => pathToFileURL(root + sep).href;
@@ -211,6 +213,36 @@ describe('AssetDB startup scripting domains', () => {
         corruptCache = mode === 'corrupt cache fallback' ? 'assets' : undefined;
         await manager.start();
         expectSuccessfulStartup();
+    });
+
+    it('imports a read-only internal database when the selected SDK has no matching snapshot', async () => {
+        manager.assetDBInfo.internal.readonly = true;
+        await manager.start();
+        expectSuccessfulStartup();
+    });
+
+    it('mounts a matching packaged snapshot without importing its internal sources', async () => {
+        const internal = manager.assetDBInfo.internal;
+        internal.readonly = true;
+        internal.library = join(GlobalPaths.workspace, 'dist', 'internal-assets');
+        cached = new Set(['chunks.json', 'effect.bin'].map(file => join(internal.library, file)));
+        const mount = jest.fn().mockResolvedValue(undefined);
+        manager.once('db-created', db => Object.assign(db, { startFromSnapshot: mount, path2asset: new Map() }));
+        await manager.start();
+        expect(mount).toHaveBeenCalledTimes(1);
+        expect(imports).toEqual(['assets', 'i18n', 'shared']);
+        expect(events.filter(event => event === 'assets:db-ready:internal')).toHaveLength(1);
+        expect(manager.ready).toBe(true);
+    });
+
+    it('reports incomplete matching snapshots and rolls back without announcing readiness', async () => {
+        const internal = manager.assetDBInfo.internal;
+        internal.readonly = true;
+        internal.library = join(GlobalPaths.workspace, 'dist', 'internal-assets');
+        await expect(manager.start()).rejects.toThrow('Rebuild or reinstall cocos-cli');
+        expect(manager.ready).toBe(false);
+        expect(events).not.toContain('assets:ready');
+        expect(manager.assetDBMap).toEqual({});
     });
 
     it.each(['cache hit', 'cache missing', 'cache corrupt', 'cold restart'])('%s recreates stopped databases before announcing readiness', async mode => {

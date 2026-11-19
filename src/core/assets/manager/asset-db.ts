@@ -18,6 +18,7 @@ import assetConfig from '../asset-config';
 import scripting from '../../scripting';
 import { AssetChangeInfo, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 import { AssetActionEnum } from '@cocos/asset-db';
+import { GlobalPaths } from '../../../global';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -135,11 +136,14 @@ class AssetDBManager extends EventEmitter {
         this.ready = false;
         await this._retryStartupCleanup();
         const internal = this.assetDBInfo.internal;
-        const prebuiltInternal = internal?.readonly ? internal : undefined;
+        const prebuiltInternal = internal?.readonly && internal.library === join(GlobalPaths.workspace, 'dist', 'internal-assets')
+            ? internal : undefined;
         const assetDBNames = await this._prepareStartupDatabases(prebuiltInternal);
         try {
             if (prebuiltInternal && assetDBNames.includes(prebuiltInternal.name)) {
                 await this._startInternalSnapshot(prebuiltInternal);
+            } else if (internal && assetDBNames.includes(internal.name)) {
+                await this._registerInternalChunks(internal.target);
             }
             const importDBNames = assetDBNames.filter(name => name !== prebuiltInternal?.name);
             if (AssetDBManager.useCache) {
@@ -426,13 +430,8 @@ class AssetDBManager extends EventEmitter {
     async buildInternalSnapshot(): Promise<void> {
         const db = await this._createDB(this.assetDBInfo.internal);
         try {
-            // Keep basename aliases for existing shaders that include a built-in chunk by name.
-            const { addChunk, getChunkRegistry } = await import('../effect-compiler');
-            const chunkDir = join(db.options.target, 'chunks');
-            const chunks = readdirSync(chunkDir, { recursive: true, encoding: 'utf8' }).filter(file => file.endsWith('.chunk'));
-            for (const chunk of chunks) {
-                addChunk(basename(chunk, '.chunk'), readFileSync(join(chunkDir, chunk), 'utf8'));
-            }
+            const { getChunkRegistry } = await import('../effect-compiler');
+            await this._registerInternalChunks(db.options.target);
             await this._startDB(db.options.name);
             // Queries need these fields before any lazy importer is activated.
             const storeHandlerInfo = (asset: IAsset) => {
@@ -452,6 +451,17 @@ class AssetDBManager extends EventEmitter {
             await db.saveSnapshot();
         } finally {
             await db.stop();
+        }
+    }
+
+    private async _registerInternalChunks(target: string): Promise<void> {
+        // Keep basename aliases for existing shaders that include a built-in chunk by name.
+        const chunkDir = join(target, 'chunks');
+        if (!existsSync(chunkDir)) return;
+        const { addChunk } = await import('../effect-compiler');
+        const chunks = readdirSync(chunkDir, { recursive: true, encoding: 'utf8' }).filter(file => file.endsWith('.chunk'));
+        for (const chunk of chunks) {
+            addChunk(basename(chunk, '.chunk'), readFileSync(join(chunkDir, chunk), 'utf8'));
         }
     }
 

@@ -1,4 +1,4 @@
-const { cp, mkdir, mkdtemp, rename, rm } = require('node:fs/promises');
+const { cp, mkdir, mkdtemp, rename, rm, writeFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { dirname, join, resolve } = require('node:path');
 
@@ -15,11 +15,10 @@ async function buildInternalAssets() {
     const { configurationManager } = require('../dist/core/configuration');
     const { Engine, initEngine } = require('../dist/core/engine');
     const assetConfig = require('../dist/core/assets/asset-config');
-    const { target, library: output } = assetConfig.internalAssetPaths(GlobalPaths.enginePath);
-    const library = resolve(output);
-    if (library !== resolve(__dirname, '../dist/internal-assets')) {
-        throw new Error(`Unexpected internal asset build output: ${library}`);
-    }
+    const { internalAssetFingerprint } = require('../dist/core/assets/internal-assets');
+    const fingerprint = await internalAssetFingerprint(GlobalPaths.enginePath);
+    const target = join(GlobalPaths.enginePath, 'editor', 'assets');
+    const library = resolve(__dirname, '../dist/internal-assets');
     const scratch = await mkdtemp(join(tmpdir(), 'cocos-internal-assets-'));
     let staging;
     try {
@@ -27,7 +26,7 @@ async function buildInternalAssets() {
         staging = await mkdtemp(join(dirname(library), '.internal-assets-'));
         const source = join(scratch, 'internal');
         // Importers update .meta files. Build against a copy of the engine assets.
-        await cp(target, source, { recursive: true });
+        await cp(target, source, { recursive: true, dereference: true });
         GlobalConfig.mode = 'simple';
         if (!(await Project.create(scratch))) throw new Error('Failed to create the internal asset build project.');
         await configurationManager.initialize(scratch);
@@ -45,6 +44,7 @@ async function buildInternalAssets() {
             const { initAssetDB, assetDBManager } = require('../dist/core/assets');
             await initAssetDB();
             await assetDBManager.buildInternalSnapshot();
+            await writeFile(join(staging, 'engine.json'), JSON.stringify({ version: 1, fingerprint }));
             await rm(library, { recursive: true, force: true });
             await rename(staging, library);
             console.log(`[AssetDB] Built internal assets in ${library}`);

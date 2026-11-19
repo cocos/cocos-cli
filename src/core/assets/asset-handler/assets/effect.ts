@@ -343,7 +343,7 @@ export async function recompileAllEffects(effectArray: Asset[], force?: boolean)
         autoGenEffectBinInfo.waitingGenEffectBin = false;
         autoGenEffectBinInfo.waitingGenEffectBinTimmer && clearTimeout(autoGenEffectBinInfo.waitingGenEffectBinTimmer);
         await ensureDir(dirname(file));
-        if (effectArray.length && effectArray.every(asset => asset._assetDB.options.name === 'internal')) {
+        if (effectArray.length && effectArray.every(asset => asset._assetDB.isPrebuilt)) {
             await copyFile(join(effectArray[0]._assetDB.options.library, 'effect.bin'), file);
             console.debug('copied prebuilt effect.bin');
         } else {

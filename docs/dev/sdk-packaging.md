@@ -33,6 +33,7 @@ npm run pack:engine-sdk -- --source D:/engines/my-engine --output .publish/sdk/c
 ## 打包内容
 
 - CLI：编译后的 dist、static、cc-module 桥接、engine-compiler 构建工具、平台资源，以及运行依赖。
+- CLI 必须先完成 `npm run build`，仅执行 `build:base` 不满足出包条件。打包会检查内置快照索引、SDK 指纹 `engine.json`、`chunks.json`、`effect.bin` 和预览 `system.js`，缺失时拒绝出包。
 - Engine：引擎源码、配置、editor 资源、native/external、pal、模板、声明文件、dev-cli loader、adapter，以及引擎自己的运行依赖。
 - 依赖：从实际安装环境追踪 dependencies、optionalDependencies 和 peerDependencies，保留嵌套解析布局。未安装的可选依赖记录在清单；缺少必需依赖时失败。devDependencies 和不被运行依赖引用的安装包不主动纳入。
 - workspace 链接物化为目录，使产物不依赖源码位置。指向 SDK 源码根之外的依赖链接或从外部目录解析到的依赖会被拒绝，应先在 SDK 源目录准备正确依赖。
@@ -77,3 +78,5 @@ node workflow/test/engine-sdk-load.cjs <CLI根目录> <EngineSDK目录> explicit
 该检查读取实际版本和 revision，并在选择外部 SDK 时禁止模块加载退回 CLI 仓库的 `packages/engine`。它验证引擎初始化，不替代完整项目构建。
 
 SDK 不记录发行来源。内部测试通过后可将同一份产物发布为官方包，version / revision 保持不变；引擎内容变更时重新打包计算 revision。发行状态由制品库或发布记录管理。
+
+内置资源快照记录构建时所选 Engine SDK 的版本、revision（若有）、配置和资源内容的组合指纹。运行时只复用指纹一致的快照；更换 SDK 或修改同版本 SDK 的内置资源后，将资源复制到工程的 `library/internal/<指纹>/source` 再导入，导入库也按指纹隔离，避免修改 SDK 本身或复用其他 SDK 的缓存。默认快照匹配但产物不完整时仍报错，需重建或重新安装 CLI。
