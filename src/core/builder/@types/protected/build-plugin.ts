@@ -174,6 +174,8 @@ export interface IBuildStagesInfo {
     infos: Record<string, IBuildStageItem>;
 }
 export interface IBuildAssetHandlerInfo {
+    /** Explicitly registered processors must not silently fall back after failure. */
+    required?: string[];
     pkgNameOrder: string[];
     handles: {[pkgName: string]: Function};
 }

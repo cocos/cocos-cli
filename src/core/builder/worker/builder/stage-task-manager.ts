@@ -41,11 +41,13 @@ export class BuildStageTask extends BuildTaskBase implements IBuildStageTask {
     }
 
     public async run() {
+        if (!this.isStageSupported()) { return true; }
+        return this.withHookLifecycle(() => this.runTask());
+    }
+
+    private async runTask() {
         const restoreLogSink = newConsole.createLogSinkRestorer();
         try {
-            if (!this.isStageSupported()) {
-                return true;
-            }
             const trickTimeLabel = `// ---- builder:run-build-stage-${this.name} ----`;
             console.debug(trickTimeLabel);
             // 为了保障构建 + 编译或者单独编译的情况都有统计到，直接加在此处

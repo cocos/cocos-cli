@@ -5,10 +5,13 @@ export type BuildRegistration = {
     extensionId: string;
     root: string;
     translations?: Record<string, Record<string, unknown>>;
+    /** Resolved module exporting resource processors, scoped to this platform. */
+    assetHandlers?: string;
 } & (
     | { kind: 'platform'; platform: string; config: IPlatformBuildPluginConfig; hooks?: string }
     | { kind: 'plugin'; platform: string; config: IInternalBuildPluginConfig; hooks?: string }
     | { kind: 'plugin'; platform: string; config?: IInternalBuildPluginConfig; hooks: string }
+    | { kind: 'plugin'; platform: string; config?: IInternalBuildPluginConfig; hooks?: string; assetHandlers: string }
 );
 
 /** External discovery initializes services without discovering or registering any plugins. */
