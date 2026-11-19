@@ -25,12 +25,14 @@ function isScriptAssetDump(dump: any): boolean {
  * 引用信息（uuid）必须保留，否则场景重新打开后属性会退化成 null；
  * 脚本对应的类由场景运行时的脚本注册表解析（uuid → cid → `cc.js.getClassById`）。
  */
-function createScriptAssetPlaceholder(uuid: string): any {
+function createScriptAssetPlaceholder(uuid: string, declaredType: unknown): any {
     const ScriptCtor = cc.js.getClassByName('cc.Script');
     if (!ScriptCtor) {
         return null;
     }
-    const placeholder = new ScriptCtor();
+    const DeclaredCtor = typeof declaredType === 'string' ? cc.js.getClassByName(declaredType) : undefined;
+    const PlaceholderCtor = cc.js.isChildClassOf(DeclaredCtor, ScriptCtor) ? DeclaredCtor : ScriptCtor;
+    const placeholder = new PlaceholderCtor();
     placeholder.initDefault(uuid);
     return placeholder;
 }
@@ -71,8 +73,8 @@ class AssetDump implements DumpInterface {
                         result[i] = asset;
                     } else {
                         // 脚本资产无法 loadAny，用带 uuid 的占位实例保留引用。
-                        const scriptPlaceHolder = isScriptAssetDump(dump)
-                            ? createScriptAssetPlaceholder(data.value.uuid)
+                        const scriptPlaceHolder = isScriptAssetDump(data) || isScriptAssetDump(dump)
+                            ? createScriptAssetPlaceholder(data.value.uuid, data.type ?? dump.type)
                             : null;
                         if (scriptPlaceHolder) {
                             result[i] = scriptPlaceHolder;
@@ -111,7 +113,7 @@ class AssetDump implements DumpInterface {
                     // 脚本资产无法 loadAny，用带 uuid 的占位实例保留引用，
                     // 避免整份场景因一次资源加载失败而打不开。
                     const scriptPlaceHolder = isScriptAssetDump(dump)
-                        ? createScriptAssetPlaceholder(dump.value.uuid)
+                        ? createScriptAssetPlaceholder(dump.value.uuid, dump.type)
                         : null;
                     if (scriptPlaceHolder) {
                         data[info.key] = scriptPlaceHolder;
