@@ -106,9 +106,10 @@ export class LightFXExporter {
     private exportLight(light: Light, hdr: boolean): LightFXLight | null {
         const p = light.node.worldPosition; const d = new Vec3(0, 0, -1); Vec3.transformQuat(d, d, light.node.worldRotation); const c: any = light.color;
         const out: LightFXLight = { type: 2, position: [p.x, p.y, p.z], direction: [d.x, d.y, d.z], color: [c.x, c.y, c.z], size: 0, range: 0, attenuationFalloff: 1, spotInner: 1, spotOuter: .7071, spotFalloff: 1, directScale: light.node.mobility === MobilityMode.Static ? 1 : 0, indirectScale: 1, giEnabled: true, castShadow: (light as any).staticSettings.castShadow, shadowMask: 0 };
+        const lightMeterScale = hdr ? renderer.scene.Camera.standardLightMeterScale : 1;
         if (light instanceof DirectionalLight) { out.type = 2; out.shadowMask = 1 - light.shadowSaturation; out.color = out.color.map((v) => v * light.illuminance); }
-        else if (light instanceof SphereLight) { out.type = 0; out.size = light.size; out.range = light.range; out.color = out.color.map((v) => v * light.luminance * (hdr ? 10_000 : 1)); }
-        else if (light instanceof SpotLight) { out.type = 1; out.size = light.size; out.range = light.range; out.spotInner = Math.cos(light.spotAngle / 4 * Math.PI / 180); out.spotOuter = Math.cos(light.spotAngle / 2 * Math.PI / 180); out.color = out.color.map((v) => v * light.luminance * (hdr ? 10_000 : 1)); }
+        else if (light instanceof SphereLight) { out.type = 0; out.size = light.size; out.range = light.range; out.color = out.color.map((v) => v * light.luminance * lightMeterScale); }
+        else if (light instanceof SpotLight) { out.type = 1; out.size = light.size; out.range = light.range; out.spotInner = Math.cos(light.spotAngle / 4 * Math.PI / 180); out.spotOuter = Math.cos(light.spotAngle / 2 * Math.PI / 180); out.color = out.color.map((v) => v * light.luminance * lightMeterScale); }
         else return null; return out;
     }
 }
