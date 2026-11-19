@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL, URL } from 'url';
 import { performance } from 'perf_hooks';
 import { makePrerequisiteImportsMod, makeTentativePrerequisiteImports, prerequisiteImportsModURL } from './prerequisite-imports';
 import { editorBrowserslistQuery } from '@cocos/lib-programming/dist/utils';
-import { StatsQuery } from '../utils/engine-stats-query';
+import { StatsQuery } from '@cocos/ccbuild';
 import { asserts } from '../utils/asserts';
 import { querySharedSettings, scriptConfig, SharedSettings } from '../shared/query-shared-settings';
 import { Logger } from '@cocos/creator-programming-common/lib/logger';

@@ -62,8 +62,8 @@ SDK 的 engine 模块支持 `init(projectPath, { enginePath })`；已有 `initEn
 
 | 命令 | 行为 |
 | --- | --- |
-| `npm install` / `npm ci` | 默认沿用旧 postinstall：编译引擎、生成 cc-module/i18n、构建 CLI 并下载工具；COCOS_SKIP_POSTINSTALL_PREPARE=true 时仅跳过根项目自动准备，依赖包原生安装脚本仍执行 |
-| `npm run setup:cli` | 要求现成 Engine SDK，生成 CLI 的 cc-module、构建 CLI、下载开发工具，不编译引擎 |
+| `npm install` / `npm ci` | 默认 postinstall 编译引擎、生成 cc-module/i18n，下载工具后构建 CLI 并预热内置资源；COCOS_SKIP_POSTINSTALL_PREPARE=true 时仅跳过根项目自动准备，依赖包原生安装脚本仍执行 |
+| `npm run setup:cli` | 要求现成 Engine SDK，生成 CLI 的 cc-module、下载开发工具、构建 CLI 并预热内置资源，不编译引擎 |
 | `npm run setup:dev` | 显式编译引擎并准备 CLI；`-- --force` 强制重编，`-- --minimal-tools` 仅下载最小工具集 |
 | `npm run init` | 兼容入口，等同 `setup:cli`，不再下载或重置源码 |
 | `npm run fetch:engine` | 按 repo.json 下载缺失源码；已有目录及其子仓库保持原样 |

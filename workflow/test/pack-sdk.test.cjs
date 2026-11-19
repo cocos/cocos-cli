@@ -134,9 +134,10 @@ test('missing build input and invalid version fail early', async t => {
 });
 
 test('CLI packaging rejects build:base inputs and each missing prebuilt artifact', async t => {
-    const artifacts = ['dist/internal-assets/.internal', 'dist/internal-assets/engine.json', 'dist/internal-assets/chunks.json', 'dist/internal-assets/effect.bin', 'dist/preview-systemjs/system.js'];
+    const artifacts = ['dist/internal-assets/.internal', 'dist/internal-assets/.internal-info.json', 'dist/internal-assets/.internal-data.json', 'dist/internal-assets/.internal-dependency.json', 'dist/internal-assets/engine.json', 'dist/internal-assets/chunks.json', 'dist/internal-assets/effect.bin', 'dist/preview-systemjs/system.js'];
     for (const missing of [artifacts, ...artifacts.map(file => [file])]) {
         const options = fixture(t);
+        for (const file of artifacts) write(options.source, file, 'prepared');
         for (const file of missing) fs.unlinkSync(path.join(options.source, file));
         await assert.rejects(planSdk(options), error => error.message.includes(missing[0]));
         assert.equal(fs.existsSync(options.output), false);

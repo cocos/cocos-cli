@@ -5,6 +5,7 @@ import { newConsole } from './base/console';
 import { startServer } from '../server';
 import { GlobalConfig, GlobalPaths } from '../global';
 import scripting from './scripting';
+import { startupScene } from './scene';
 import { ensureProjectOwnership, releaseProjectOwnership, ProjectBackendError, type ProjectBackendLease } from './project-backend/ownership';
 import { ensureOwnedSceneSession, closeOwnedSceneSession } from './project-backend/runtime';
 
@@ -121,7 +122,6 @@ export default class Launcher {
 
             // 启动场景进程，需要在 Builder 之后，因为服务器路由场景还没有做前缀约束匹配范围比较广
             this.sceneStarted = true;
-            const { startupScene } = await import('./scene');
             await startupScene(GlobalPaths.enginePath, this.projectPath);
             await ensureOwnedSceneSession({ project: this.projectPath, allowedOrigins: options.allowedOrigins });
             if (options.publishReady !== false) await this.ownership!.publish({ state: 'ready' });

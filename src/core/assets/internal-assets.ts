@@ -11,9 +11,8 @@ import { join, relative, sep } from 'path';
 export async function internalAssetFingerprint(enginePath: string): Promise<string> {
     const hash = createHash('sha256');
     const pkg = JSON.parse(await readFile(join(enginePath, 'package.json'), 'utf8'));
-    const sdkFile = join(enginePath, 'engine-sdk.json');
-    const sdk = existsSync(sdkFile) ? JSON.parse(await readFile(sdkFile, 'utf8')) : undefined;
-    hash.update(JSON.stringify([pkg.version, sdk?.revision]));
+    // Packaging adds a revision without changing the inputs imported into this snapshot.
+    hash.update(JSON.stringify(pkg.version));
     const root = join(enginePath, 'editor', 'assets');
     const files: string[] = [];
     const collectFiles = async (directory: string, ancestors: Set<string>): Promise<void> => {

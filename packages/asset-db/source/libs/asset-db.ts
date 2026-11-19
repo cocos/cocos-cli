@@ -502,6 +502,25 @@ export class AssetDB extends EventEmitter {
             return join(this.options.target, path);
         });
         assertNoPathIdentityConflicts(sources);
+        // Ordinary caches can be rebuilt after a read error; immutable snapshots cannot.
+        const [info, data, dependency] = await Promise.all(['info', 'data', 'dependency']
+            .map(name => readJSON(`${this.cachePath}-${name}.json`)));
+        if (info?.version !== InfoManager.version || dependency?.version !== DependencyManager.version
+            || [info?.map, info?.missing, data, dependency?.data?.path, dependency?.data?.uuid]
+                .some(record => !record || typeof record !== 'object' || Array.isArray(record))
+            || Object.values<SimpleInfo>(info.map).some(record => typeof record?.time !== 'number')
+            || [...Object.values(dependency.data.path), ...Object.values(dependency.data.uuid)]
+                .some(dependencies => !Array.isArray(dependencies) || dependencies.some(value => typeof value !== 'string'))) {
+            throw new Error(`Invalid prebuilt Asset DB records: ${this.options.library}`);
+        }
+        const metadata = snapshot.assets.map(record => record.meta);
+        for (const meta of metadata) {
+            const values = data[meta.uuid]?.value;
+            if (!values || typeof values !== 'object' || Array.isArray(values)) {
+                throw new Error(`Invalid prebuilt asset data in ${this.options.library}: ${meta.uuid}`);
+            }
+            metadata.push(...Object.values(meta.subMetas ?? {}).filter(submeta => submeta.name));
+        }
         await this.prepareStart();
         const conflict = this.infoManager.cacheConflict || this.dependencyManager.cacheConflict;
         if (conflict) throw conflict;

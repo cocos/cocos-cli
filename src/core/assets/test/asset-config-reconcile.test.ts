@@ -70,15 +70,31 @@ describe('asset-config builtin Localization mount reconcile', () => {
         expect(paths.library).not.toBe(missing.library);
     });
 
-    it('invalidates snapshots for changed SDK revisions, sources and metadata', async () => {
+    it('reuses the source snapshot when an unchanged SDK is packaged', async () => {
+        const engine = join(fixtureRoot, 'engine');
+        const snapshot = join(fixtureRoot, 'snapshot');
+        const fingerprint = await internalAssetFingerprint(engine);
+        await outputJSON(join(snapshot, 'engine.json'), { version: 1, fingerprint });
+        for (const revision of ['first-package', 'repacked-sdk']) {
+            await outputJSON(join(engine, 'engine-sdk.json'), { revision });
+            expect(await internalAssetFingerprint(engine)).toBe(fingerprint);
+            expect(await resolveInternalAssetPaths(engine, join(fixtureRoot, 'library'), snapshot)).toEqual({
+                target: join(engine, 'editor', 'assets'), library: snapshot,
+            });
+        }
+    });
+
+    it('invalidates snapshots for changed SDK versions, configuration, sources and metadata', async () => {
         const engine = join(fixtureRoot, 'engine');
         const original = await internalAssetFingerprint(engine);
-        await outputJSON(join(engine, 'engine-sdk.json'), { revision: 'revision-2' });
-        const revision = await internalAssetFingerprint(engine);
+        await outputJSON(join(engine, 'package.json'), { version: '4.0.1' });
+        const version = await internalAssetFingerprint(engine);
+        await outputJSON(join(engine, 'cc.config.json'), { features: [] });
+        const config = await internalAssetFingerprint(engine);
         await outputJSON(join(engine, 'editor', 'assets', 'material.mtl.meta'), { uuid: 'changed' });
         const metadata = await internalAssetFingerprint(engine);
         await remove(join(engine, 'editor', 'assets', 'material.mtl'));
-        expect(new Set([original, revision, metadata, await internalAssetFingerprint(engine)]).size).toBe(4);
+        expect(new Set([original, version, config, metadata, await internalAssetFingerprint(engine)]).size).toBe(5);
     });
 
     it('reports unreadable SDK inputs instead of using another SDK snapshot', async () => {
