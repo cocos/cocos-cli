@@ -179,3 +179,11 @@ Standalone `init(platforms?)` keeps its existing discovery and MCP behavior. Hos
 A registration supplies `kind` (`platform` or `plugin`), `platform`, `extensionId`, `root`, the existing CLI `config` object, and an optional absolute worker `hooks` module path. Parameter-only plugins may omit hooks; hook-only plugins may omit config. Optional `translations` supplies language-to-translation-object data. The primitive does not read a manifest or a conventional language directory. Existing callback names, arguments and dispatch remain unchanged.
 
 Platform parameters use `packages[platform]`; extension parameters use `packages[extensionId]`, preserving dots in IDs. Inputs are copied, concurrent registrations are serialized, and duplicate owners or slots and missing target platforms are rejected. The host must keep registration separate from running tasks and recreate the execution host after an unsuccessful registration before publishing readiness. Templates, persistence, UI and task scheduling belong to the embedding host.
+
+### Separate discovery entries for bundled platforms
+
+Bundled Web and native platforms retain `contributes.builder` for standalone CLI discovery. PinK reads `pinkBuildPlatforms`; an internal packaging adapter supplies schema and translation resources while reusing the execution configuration and lifecycle hook module. Hook names, arguments and `this` bindings remain unchanged.
+
+The adapter retains execution-only fields and defaults omitted from the display schema, and recursively preserves validation metadata on visible fields. Android, Google Play and HarmonyOS Next expose their editor hooks through the normal extension main entry: `activate()` returns `buildHooks`. Standalone CLI does not activate these editor scripts.
+
+These declarations require the corresponding PinK registration implementation. Separate platform repositories and real-project builds still require integration verification; this change remains a draft.

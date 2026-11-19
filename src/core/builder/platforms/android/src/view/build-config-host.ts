@@ -206,45 +206,25 @@ function getNativeEngineInfo(): NativeEngineInfo {
     }
 }
 
-export function activate(context: HostContext): void {
-    context.registerMethod('getI18nBundle', () => loadBundle());
-    context.registerMethod('t', (key: string, sub?: Record<string, unknown>) => {
-        const text = lookup(loadBundle(), key);
-        return text === undefined ? key : substitute(text, sub);
-    });
-    context.registerMethod('getAndroidAPILevels', () => getAndroidAPILevels());
-    context.registerMethod('getNativeEngineInfo', () => getNativeEngineInfo());
-    context.registerMethod('openEngineSettings', async () => {
-        try {
-            const vscode = require('vscode') as typeof import('vscode');
-            await vscode.commands.executeCommand('pinkSettings.start', { scope: 'global', nodeId: 'cocos.engine' });
-            return true;
-        } catch {
-            return false;
-        }
-    });
-    context.registerMethod('openProgramSettings', async () => {
-        try {
-            const vscode = require('vscode') as typeof import('vscode');
-            await vscode.commands.executeCommand('pinkSettings.start', { scope: 'global', nodeId: 'pinkProgramManagerSettings' });
-            return true;
-        } catch {
-            return false;
-        }
-    });
+export function activate() {
+    return {
+        buildHooks: {
+            [PLATFORM]: {
+                preBuildHook: async (options: Record<string, unknown>) => {
+                    const buildOptions = options as AndroidBuildOptions;
+                    const pkg = buildOptions.packages?.[PLATFORM];
+                    const patch = await createProgramPathPatch(pkg);
 
-    context.registerPreBuildHook?.(async (options) => {
-        const buildOptions = options as AndroidBuildOptions;
-        const pkg = buildOptions.packages?.[PLATFORM];
-        const patch = await createProgramPathPatch(pkg);
-
-        if (Object.keys(patch).length) {
-            return {
-                packages: {
-                    [PLATFORM]: patch,
+                    if (Object.keys(patch).length) {
+                        return {
+                            packages: {
+                                [PLATFORM]: patch,
+                            },
+                        };
+                    }
+                    return;
                 },
-            };
-        }
-        return;
-    });
+            },
+        },
+    };
 }

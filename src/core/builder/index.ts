@@ -18,6 +18,9 @@ export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheOptions, ClearCacheResult } from './cache';
 
 export async function init(platform?: string[] | BuildInitializationOptions) {
+    if (platform && !Array.isArray(platform) && platform.discovery !== 'external') {
+        throw new Error('Unsupported build discovery mode.');
+    }
     await builderConfig.init();
     if (platform && !Array.isArray(platform)) {
         middlewareService.register('Build', BuildMiddleware);

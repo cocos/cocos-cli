@@ -53,6 +53,10 @@ jest.mock('../../assets/manager/asset', () => ({
 import { init } from '../index';
 
 describe('builder init', () => {
+    it('rejects invalid discovery modes before initializing services', async () => {
+        await expect(init({ discovery: 'invalid' } as unknown as Parameters<typeof init>[0])).rejects.toThrow('Unsupported build discovery mode');
+        expect(mockBuilderConfigInit).not.toHaveBeenCalled();
+    });
     beforeEach(() => {
         jest.clearAllMocks();
     });

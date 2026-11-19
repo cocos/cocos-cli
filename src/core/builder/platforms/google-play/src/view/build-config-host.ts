@@ -236,57 +236,25 @@ async function saveCustomIcon(source: string, outputName: string, projectPath: s
     return saveProjectCustomIcon(sourcePath, projectPath, 'custom', outputName);
 }
 
-export function activate(context: HostContext): void {
-    context.registerMethod('getI18nBundle', () => loadBundle());
-    context.registerMethod('t', (key: string, sub?: Record<string, unknown>) => {
-        const text = lookup(loadBundle(), key);
-        return text === undefined ? key : substitute(text, sub);
-    });
-    context.registerMethod('getAndroidAPILevels', () => getAndroidAPILevels());
-    context.registerMethod('getDisplayCustomIcon', async (type: 'default' | 'custom', outputName = 'default', projectPath?: string) => {
-        const _projectPath = projectPath || await getActiveProject();
-        return resolveDisplayCustomIcon(_projectPath, type, outputName);
-    });
-    context.registerMethod('fileImageSrc', (filePath: string) => {
-        return fileImageSrc(filePath);
-    });
-    context.registerMethod('selectFile', async (filters?: Record<string, string[]>) => {
-        const result = await vscode.window.showOpenDialog({
-            canSelectFiles: true,
-            canSelectFolders: false,
-            canSelectMany: false,
-            filters,
-        });
-        return result?.[0]?.fsPath || '';
-    });
-    context.registerMethod('saveCustomIcon', async (source: string, outputName = 'default', projectPath?: string) => {
-        if (!source) {
-            return '';
-        }
-        const _projectPath = projectPath || await getActiveProject();
-        return saveCustomIcon(source, outputName, _projectPath);
-    });
-    context.registerMethod('openProgramSettings', async () => {
-        try {
-            await vscode.commands.executeCommand('workbench.action.openSettings', 'android sdk');
-            return true;
-        } catch {
-            return false;
-        }
-    });
+export function activate() {
+    return {
+        buildHooks: {
+            [PLATFORM]: {
+                preBuildHook: async (options: Record<string, unknown>) => {
+                    const buildOptions = options as GooglePlayBuildOptions;
+                    const pkg = buildOptions.packages?.[PLATFORM];
+                    const patch = await createProgramPathPatch(pkg);
 
-    context.registerPreBuildHook?.(async (options) => {
-        const buildOptions = options as GooglePlayBuildOptions;
-        const pkg = buildOptions.packages?.[PLATFORM];
-        const patch = await createProgramPathPatch(pkg);
-
-        if (Object.keys(patch).length) {
-            return {
-                packages: {
-                    [PLATFORM]: patch,
+                    if (Object.keys(patch).length) {
+                        return {
+                            packages: {
+                                [PLATFORM]: patch,
+                            },
+                        };
+                    }
+                    return;
                 },
-            };
-        }
-        return;
-    });
+            },
+        },
+    };
 }

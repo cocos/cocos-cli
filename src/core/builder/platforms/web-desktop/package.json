@@ -12,10 +12,16 @@
             "config": "./src/config",
             "hooks": "./src/hooks"
         },
-        "pinkBuilder": {
-            "platform": "web-desktop",
-            "card": "./static/card.png",
-            "icon": "./static/icon.png"
-        }
+        "pinkBuildPlatforms": [
+            {
+                "platform": "web-desktop",
+                "config": "./src/pink-config.js",
+                "hooks": "./src/hooks.js"
+            }
+        ]
+    },
+    "publisher": "pink-cli",
+    "engines": {
+        "vscode": "*"
     }
 }
