@@ -180,6 +180,20 @@ A registration supplies `kind` (`platform` or `plugin`), `platform`, `extensionI
 
 Platform parameters use `packages[platform]`; extension parameters use `packages[extensionId]`, preserving dots in IDs. Inputs are copied, concurrent registrations are serialized, and duplicate owners or slots and missing target platforms are rejected. The host must keep registration separate from running tasks and recreate the execution host after an unsuccessful registration before publishing readiness. Templates, persistence, UI and task scheduling belong to the embedding host.
 
+Example (the host prepares the configuration objects and absolute paths):
+
+```ts
+await builder.init({ discovery: 'external' });
+await builder.register({
+    kind: 'platform', platform: 'partner-web', extensionId: 'vendor.platforms',
+    root: pluginRoot, config: preparedPlatformConfig, hooks: platformHooksPath,
+});
+await builder.register({
+    kind: 'plugin', platform: 'partner-web', extensionId: 'vendor.stamp',
+    root: stampRoot, config: preparedPluginConfig,
+});
+```
+
 ### Separate discovery entries for bundled platforms
 
 Bundled Web and native platforms retain `contributes.builder` for standalone CLI discovery. PinK reads `pinkBuildPlatforms`; an internal packaging adapter supplies schema and translation resources while reusing the execution configuration and lifecycle hook module. Hook names, arguments and `this` bindings remain unchanged.
