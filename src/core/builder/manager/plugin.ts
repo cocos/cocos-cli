@@ -264,6 +264,7 @@ export class PluginManager extends EventEmitter {
 
     // 存储注册进来的，带有 assetHandlers 配置的一些方法 [ICustomAssetHandlerType][pkgName]: Function
     private assetHandlers = {} as IAssetHandlers;
+    private readonly platformAssetHandlers = new Map<string, IAssetHandlers>();
     // 存储插件优先级（TODO 目前优先级记录在 config 内，针对不同平台可能有不同的优先级）
     protected readonly pkgPriorities: Record<string, number> = {};
 
@@ -316,6 +317,17 @@ export class PluginManager extends EventEmitter {
             throw new Error(`Build platform requires platformType and displayName: ${platform}`);
         }
         const config = input.config || {};
+        const processors: Record<string, (...args: unknown[]) => unknown> = {};
+        if (input.assetHandlers) {
+            const module = Utils.File.requireFile(input.assetHandlers);
+            for (const name of CustomAssetHandlerTypes) {
+                if (module[name] !== undefined && typeof module[name] !== 'function') {
+                    throw new Error(`Invalid asset handler ${extensionId}:${name}`);
+                }
+                if (module[name]) { processors[name] = module[name]; }
+            }
+            if (!Object.keys(processors).length) { throw new Error(`No supported asset handlers in ${input.assetHandlers}`); }
+        }
         for (const [language, translations] of Object.entries(input.translations || {})) {
             i18n.registerLanguagePatch(language, pkgName, translations);
         }
@@ -328,6 +340,13 @@ export class PluginManager extends EventEmitter {
             this.platformRegisterInfoPool.set(platform, info);
         }
         await this.internalRegister(info);
+        if (Object.keys(processors).length) {
+            let handlers = this.platformAssetHandlers.get(platform);
+            if (!handlers) { handlers = { compressTextures: {} }; this.platformAssetHandlers.set(platform, handlers); }
+            for (const name of CustomAssetHandlerTypes) {
+                if (processors[name]) { handlers[name][pkgName] = processors[name]; }
+            }
+        }
         this.registrationOwners.set(slot, extensionId);
     }
 
@@ -1437,11 +1456,14 @@ export class PluginManager extends EventEmitter {
         console.log(`${versionKey} ${i18n.t('builder.tips.create_template_success')}({link(${target})})`);
     }
 
-    public getAssetHandlers(type: ICustomAssetHandlerType) {
-        const pkgNames = Object.keys(this.assetHandlers[type]);
+    public getAssetHandlers(type: ICustomAssetHandlerType, platform?: string) {
+        const scoped = platform ? this.platformAssetHandlers.get(platform)?.[type] : undefined;
+        const handles = { ...this.assetHandlers[type], ...scoped };
+        const pkgNames = Object.keys(handles);
         return {
             pkgNameOrder: this.sortPkgNameWidthPriority(pkgNames),
-            handles: this.assetHandlers[type],
+            handles,
+            required: Object.keys(scoped ?? {}),
         };
     }
 }

@@ -1,5 +1,7 @@
 import type { BuildInitializationOptions, BuildRegistration } from '../../core/builder/registration';
 export type { BuildInitializationOptions, BuildRegistration };
+/** Explicit registration, platform-scoped processors and task hook lifecycle. */
+export const registrationVersion = 2;
 
 import type { BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPackOptions, IPreviewSettingsResult, Platform, PreviewPackResult } from '../../core/builder/@types/private';
 import type { BuildConfiguration } from '../../core/builder/@types/config-export';

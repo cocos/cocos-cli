@@ -1,6 +1,9 @@
 import { PluginManager } from '../manager/plugin';
 import builderConfig from '../share/builder-config';
 import type { BuildRegistration } from '../registration';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 jest.mock('../../base/i18n', () => ({
     __esModule: true,
@@ -59,6 +62,25 @@ const platform = (id: string): BuildRegistration => ({
 
 describe('explicit build registration', () => {
     beforeEach(() => jest.clearAllMocks());
+
+    it('scopes resource processors to matching platforms and preserves remaining tasks', async () => {
+        const root = mkdtempSync(join(tmpdir(), 'build-processors-'));
+        try {
+            const assetHandlers = join(root, 'processors.cjs');
+            writeFileSync(assetHandlers, 'exports.compressTextures = async tasks => { tasks.splice(0, 1); };');
+            const manager = new PluginManager();
+            await manager.registerContribution(platform('web-a'));
+            await manager.registerContribution(platform('web-b'));
+            await manager.registerContribution({ kind: 'plugin', platform: 'web-a', extensionId: 'acme.textures', root, assetHandlers });
+            const handlers = manager.getAssetHandlers('compressTextures', 'web-a');
+            const tasks = [{ uuid: 'handled' }, { uuid: 'remaining' }];
+            await handlers.handles['acme.textures'](tasks);
+            expect(tasks).toEqual([{ uuid: 'remaining' }]);
+            expect(handlers.required).toEqual(['acme.textures']);
+            expect(manager.getAssetHandlers('compressTextures', 'web-b').pkgNameOrder).toEqual([]);
+            expect(manager.getAssetHandlers('compressTextures').pkgNameOrder).toEqual([]);
+        } finally { rmSync(root, { recursive: true, force: true }); }
+    });
 
     it('registers multiple platforms without manifest, config entry or language directory', async () => {
         const manager = new PluginManager();
