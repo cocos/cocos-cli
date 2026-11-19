@@ -89,6 +89,7 @@ describe('AssetDB startup scripting domains', () => {
         manager.assetDBMap = {};
         manager.assetDBInfo = {};
         manager.ready = false;
+        manager.globalInternalLibrary = false;
         (manager.constructor as typeof manager.constructor & { useCache: boolean }).useCache = false;
         previousQuery = globalThis.assetQuery;
         globalThis.assetQuery = { queryAssetInfos: () => [] } as unknown as typeof globalThis.assetQuery;
@@ -161,6 +162,7 @@ describe('AssetDB startup scripting domains', () => {
         manager.assetDBMap = {};
         manager.assetDBInfo = {};
         manager.ready = false;
+        manager.globalInternalLibrary = false;
         (manager.constructor as typeof manager.constructor & { useCache: boolean }).useCache = false;
         globalThis.assetQuery = previousQuery;
         jest.restoreAllMocks();
@@ -219,6 +221,18 @@ describe('AssetDB startup scripting domains', () => {
         manager.assetDBInfo.internal.readonly = true;
         await manager.start();
         expectSuccessfulStartup();
+    });
+
+    it('preserves writes to the published compatibility field through failure, restart and stop', async () => {
+        expect(manager.globalInternalLibrary).toBe(false);
+        manager.globalInternalLibrary = true;
+        startFailure = 'assets';
+        await expect(manager.start()).rejects.toThrow('start failure');
+        expect(manager.globalInternalLibrary).toBe(true);
+        startFailure = undefined;
+        await manager.start();
+        await manager.stop();
+        expect(manager.globalInternalLibrary).toBe(true);
     });
 
     it('mounts a matching packaged snapshot without importing its internal sources', async () => {

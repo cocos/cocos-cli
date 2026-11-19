@@ -633,6 +633,7 @@ declare namespace assetdb {
 declare class AssetDBManager extends EventEmitter {
     assetDBMap: Record<string, assetdb.AssetDB>;
     private pendingStartupCleanup;
+    globalInternalLibrary: boolean;
     setFileSystemProvider(provider: IAssetFileSystemProvider_2): void;
     private hasPause;
     private startPause;

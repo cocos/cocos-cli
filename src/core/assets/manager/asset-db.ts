@@ -60,6 +60,8 @@ class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
     // 保留回滚未完成的实例与注册信息，下一次 start/stop 必须先完成清理。
     private pendingStartupCleanup = new Map<assetdb.AssetDB, IStartupDatabaseCleanupInfo>();
+    /** 保留已发布的可写字段以兼容旧调用方；实际快照状态由 internal 数据库提供。 */
+    public globalInternalLibrary = false;
 
     public setFileSystemProvider(provider: IAssetFileSystemProvider) {
         setCLIFileSystemProvider(provider);
