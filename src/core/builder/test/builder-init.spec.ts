@@ -57,6 +57,15 @@ describe('builder init', () => {
         jest.clearAllMocks();
     });
 
+    it('external discovery initializes services without scanning or registering defaults', async () => {
+        await init({ discovery: 'external' });
+        expect(mockBuilderConfigInit).toHaveBeenCalledTimes(1);
+        expect(mockMiddlewareRegister).toHaveBeenCalledWith('Build', mockBuildMiddleware);
+        expect(mockPluginManagerInit).not.toHaveBeenCalled();
+        expect(mockRegisterAllPlatform).not.toHaveBeenCalled();
+        expect(mockRegister).not.toHaveBeenCalled();
+    });
+
     it('registers every requested platform', async () => {
         await init(['web-desktop', 'android']);
 

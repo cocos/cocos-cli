@@ -33,6 +33,7 @@ jest.mock('../share/builder-config', () => ({
     __esModule: true,
     default: {
         commonOptionConfigs: {},
+        getProject: jest.fn(),
         setProject: jest.fn(),
     },
 }));

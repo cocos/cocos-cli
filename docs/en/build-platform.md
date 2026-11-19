@@ -171,3 +171,11 @@ export async function onAfterBuild(this: IBuilder, options: IInterBuildTaskOptio
     console.log('Build success!');
 }
 ```
+
+## Embedding hosts: explicit build registration
+
+Standalone `init(platforms?)` keeps its existing discovery and MCP behavior. Hosts that discover plugins themselves call `init({ discovery: 'external' })` and then `register(input)` for each prepared registration. External discovery never scans or adds default platforms, including when the host registers none.
+
+A registration supplies `kind` (`platform` or `plugin`), `platform`, `extensionId`, `root`, the existing CLI `config` object, and an optional absolute worker `hooks` module path. Parameter-only plugins may omit hooks; hook-only plugins may omit config. Optional `translations` supplies language-to-translation-object data. The primitive does not read a manifest or a conventional language directory. Existing callback names, arguments and dispatch remain unchanged.
+
+Platform parameters use `packages[platform]`; extension parameters use `packages[extensionId]`, preserving dots in IDs. Inputs are copied, concurrent registrations are serialized, and duplicate owners or slots and missing target platforms are rejected. The host must keep registration separate from running tasks and recreate the execution host after an unsuccessful registration before publishing readiness. Templates, persistence, UI and task scheduling belong to the embedding host.

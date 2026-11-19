@@ -1,3 +1,4 @@
+import type { BuildRegistration } from '../registration';
 import EventEmitter from 'events';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting } from '../share/common-options-validator';
@@ -282,6 +283,53 @@ export class PluginManager extends EventEmitter {
         });
     }
 
+    private readonly registrationOwners = new Map<string, string>();
+    private registrationQueue: Promise<void> = Promise.resolve();
+
+    /** Serialize registrations so concurrent callers cannot claim the same slot. */
+    public registerContribution(input: BuildRegistration): Promise<void> {
+        const prepared = lodash.cloneDeep(input);
+        const operation = this.registrationQueue.then(() => this.applyRegistration(prepared));
+        this.registrationQueue = operation.catch(() => undefined);
+        return operation;
+    }
+
+    private async applyRegistration(input: BuildRegistration): Promise<void> {
+        const { platform, extensionId, root } = input;
+        if (!platform || !extensionId || !root || ['__proto__', 'prototype', 'constructor'].includes(platform)
+            || ['__proto__', 'prototype', 'constructor'].includes(extensionId)) {
+            throw new Error('Build registration requires a platform, extensionId and root.');
+        }
+        const pkgName = input.kind === 'platform' ? platform : extensionId;
+        const slot = JSON.stringify([platform, pkgName]);
+        if (this.registrationOwners.has(slot) || this.configMap[platform]?.[pkgName]) {
+            throw new Error(`Build registration conflict: platform=${platform} slot=${pkgName} providers=${this.registrationOwners.get(slot) || platform},${extensionId}`);
+        }
+        if (input.kind === 'plugin' && !this.platformConfig[platform]) {
+            throw new Error(`Build platform is not registered: ${platform}`);
+        }
+        if (input.kind === 'platform' && this.platformConfig[platform]) {
+            throw new Error(`Build platform is already registered: ${platform}`);
+        }
+        if (input.kind === 'platform' && (!input.config?.platformType || !input.config.displayName)) {
+            throw new Error(`Build platform requires platformType and displayName: ${platform}`);
+        }
+        const config = input.config || {};
+        for (const [language, translations] of Object.entries(input.translations || {})) {
+            i18n.registerLanguagePatch(language, pkgName, translations);
+        }
+        this.translateConfigDisplayFields(config);
+        const info: IBuilderRegisterInfo = input.kind === 'platform'
+            ? { type: 'register', platform, path: root, conifgPath: '', config: input.config, hooks: input.hooks }
+            : { type: 'plugin', platform, path: root, pkgName, config, hooks: input.hooks };
+        if (info.type === 'register') {
+            await this.registerPlatform(info);
+            this.platformRegisterInfoPool.set(platform, info);
+        }
+        await this.internalRegister(info);
+        this.registrationOwners.set(slot, extensionId);
+    }
+
     async init() {
         for (const root of pluginRoots) {
             if (!existsSync(root)) {
@@ -319,8 +367,10 @@ export class PluginManager extends EventEmitter {
         if (!info) {
             throw new Error(`Can not find platform register info for ${platform}`);
         }
-        await this.registerPlatform(info);
-        await this.internalRegister(info);
+        await this.registerContribution({
+            kind: 'platform', platform, extensionId: info.pkgName || platform,
+            root: info.path, config: info.config, hooks: info.hooks,
+        });
         this.registerExtensionBuilderHooks(platform);
         console.log(`register platform ${platform} success!`);
     }
@@ -435,11 +485,12 @@ export class PluginManager extends EventEmitter {
         }
 
         if (typeof config.options === 'object') {
-            lodash.set(this.pkgOptionConfigs, `${registerInfo.platform}.${pkgName}`, config.options);
+            lodash.set(this.pkgOptionConfigs, [platform, pkgName], config.options);
             Object.keys(config.options).forEach((key) => {
                 checkConfigDefault(config.options![key]);
             });
-            await builderConfig.setProject(`platforms.${platform}.packages.${platform}`, getOptionsDefault(config.options), 'default');
+            const packages = await builderConfig.getProject<Record<string, unknown>>(`platforms.${platform}.packages`, 'default') || {};
+            await builderConfig.setProject(`platforms.${platform}.packages`, { ...packages, [pkgName]: getOptionsDefault(config.options) }, 'default');
         }
 
         // 整理通用构建选项的校验规则
@@ -462,8 +513,8 @@ export class PluginManager extends EventEmitter {
         }
         if (config.customBuildStages) {
             // 注册构建阶段性任务
-            lodash.set(this.customBuildStages, `${platform}.${pkgName}`, config.customBuildStages);
-            lodash.set(this.customBuildStagesMap, `${pkgName}.${platform}`, config.customBuildStages);
+            lodash.set(this.customBuildStages, [platform, pkgName], config.customBuildStages);
+            lodash.set(this.customBuildStagesMap, [pkgName, platform], config.customBuildStages);
             await builderConfig.setProject(`platforms.${platform}.generateCompileConfig`, this.shouldGenerateOptions(platform), 'default');
         }
 
@@ -488,7 +539,7 @@ export class PluginManager extends EventEmitter {
         // 注册 hooks 路径
         if (registerInfo.hooks) {
             config.hooks = registerInfo.hooks;
-            lodash.set(this.builderPathsMap, `${pkgName}.${platform}`, config.hooks);
+            lodash.set(this.builderPathsMap, [platform, pkgName], config.hooks);
         }
         // 注册构建模板菜单项
         console.debug(`[Build] internalRegister pkg(${pkgName}) in ${platform} platform success!`);
