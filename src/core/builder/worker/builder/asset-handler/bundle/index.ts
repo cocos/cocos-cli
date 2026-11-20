@@ -14,7 +14,7 @@ import { BuilderAssetCache } from '../../manager/asset';
 import { getLibraryDir } from '../../utils';
 import { handleJsonGroup, outputJsonGroup } from './json-group';
 import { defaultsDeep } from '../../../../share/utils';
-import { EffectAsset, Material } from 'cc';
+import { EffectAsset, JavaScript, Material, Script, TypeScript } from 'cc';
 import { BuildTaskBase } from '../../manager/task-base';
 import { compareUUID } from '../../../../share/utils';
 import { handleBinGroup, outputBinGroup } from './bin-group';
@@ -32,6 +32,11 @@ import assetQuery from '../../../../../assets/manager/query';
 import { BuildGlobalInfo } from '../../../../share/global';
 
 const { MAIN, START_SCENE, INTERNAL, RESOURCES } = BuiltinBundleName;
+const scriptAssetConstructors = new Map([
+    ['javascript', JavaScript],
+    ['typescript', TypeScript],
+]);
+
 // 只 Bundle 构建时，可走此类的生成执行函数
 export class BundleManager extends BuildTaskBase implements IBundleManager {
     static BuiltinBundleName = BuiltinBundleName;
@@ -609,6 +614,13 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
             checked.add(uuid);
             bundle.addAsset(asset);
 
+            if (fatherUuid && buildAssetLibrary.getAssetProperty(asset, 'type') === 'cc.Script') {
+                // 场景资源引用按 UUID 加载，脚本模块仍由脚本构建流程输出。
+                const ScriptAsset = scriptAssetConstructors.get(asset.meta.importer) ?? Script;
+                manager.cache.addInstance(EditorExtends.serialize.asAsset(uuid, ScriptAsset));
+                bundle.addAssetWithUuid(uuid);
+            }
+
             if (hasCCONFormatAssetInLibrary(asset)) {
                 // TODO 需要优化流程，后续可能被 removeAsset
                 const cconExtension = getDesiredCCONExtensionMap(manager.options.assetSerializeOptions);
@@ -884,6 +896,9 @@ const preloadAssets: string[] = []; // 预加载资源 uuid 数组（包含脚�
  * @param asset
  */
 function copyAssetFile(asset: IAsset, bundle: IBundle, options: IInternalBundleBuildOptions): Promise<any> {
+    if (buildAssetLibrary.getAssetProperty(asset, 'type') === 'cc.Script') {
+        return Promise.resolve();
+    }
     const cconFormatSource = getCCONFormatAssetInLibrary(asset);
 
     if (cconFormatSource) {

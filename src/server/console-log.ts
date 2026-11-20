@@ -149,17 +149,28 @@ export class ConsoleLogService {
         };
 
         // @ts-ignore
-        res.sendFile = function(path: string, options?: any, callback?: (err?: any) => void) {
+        res.sendFile = function(file: string, options?: any, callback?: (err?: any) => void) {
             if (typeof options === 'function') {
                 callback = options;
                 options = {};
             }
             
-            if (path.endsWith('.html') || path.endsWith('.htm')) {
-                 fs.readFile(path, 'utf8', (err, data) => {
+            if (file.endsWith('.html') || file.endsWith('.htm')) {
+                let htmlPath = file;
+                if (options?.root) {
+                    htmlPath = path.resolve(options.root, file);
+                    const relativePath = path.relative(options.root, htmlPath);
+                    const segments = relativePath.split(path.sep);
+                    if (path.isAbsolute(relativePath) || segments[0] === '..'
+                        || (options.dotfiles !== 'allow' && segments.some(segment => segment.startsWith('.')))) {
+                        return originalSendFile.call(this, file, options, callback);
+                    }
+                }
+
+                fs.readFile(htmlPath, 'utf8', (err, data) => {
                     if (err) {
                         if (callback) callback(err);
-                        else originalSendFile.call(this, path, options);
+                        else originalSendFile.call(this, file, options);
                         return;
                     }
                     
@@ -181,11 +192,11 @@ export class ConsoleLogService {
                         this.set('X-Console-Injected', 'true');
                         this.send(modified);
                     } else {
-                        originalSendFile.call(this, path, options, callback);
+                        originalSendFile.call(this, file, options, callback);
                     }
                 });
             } else {
-                originalSendFile.call(this, path, options, callback);
+                originalSendFile.call(this, file, options, callback);
             }
         };
 
