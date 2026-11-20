@@ -545,6 +545,8 @@ declare class Asset_2 extends Asset {
 export declare const ASSET_HANDLER_TYPES: readonly ["directory", "unknown", "text", "json", "spine-data", "dragonbones", "dragonbones-atlas", "terrain", "javascript", "typescript", "scene", "prefab", "sprite-frame", "tiled-map", "buffer", "image", "sign-image", "alpha-image", "texture", "texture-cube", "erp-texture-cube", "render-texture", "texture-cube-face", "rt-sprite-frame", "gltf", "gltf-mesh", "gltf-animation", "gltf-skeleton", "gltf-material", "gltf-scene", "gltf-embeded-image", "fbx", "material", "physics-material", "effect", "effect-header", "audio-clip", "animation-clip", "animation-graph", "animation-graph-variant", "animation-mask", "ttf-font", "bitmap-font", "particle", "sprite-atlas", "auto-atlas", "label-atlas", "render-pipeline", "render-stage", "render-flow", "instantiation-material", "instantiation-mesh", "instantiation-skeleton", "instantiation-animation", "video-clip", "*", "database"];
 declare class AssetDB extends EventEmitter {
     static readonly version = "1.0.1";
+    private prebuilt;
+    get isPrebuilt(): boolean;
     options: AssetDBOptions_3;
     flag: {
         starting: boolean;
@@ -574,6 +576,8 @@ declare class AssetDB extends EventEmitter {
     private prepareStart;
     start(options?: AssetDBStartOptions): Promise<unknown>;
     startWithCache(): Promise<void>;
+    saveSnapshot(): Promise<void>;
+    startFromSnapshot(): Promise<void>;
     updateInfoManager(): Promise<void>;
     private _generateRecordInfo;
     save(): Promise<void>;
@@ -654,6 +658,7 @@ declare class AssetDBManager extends EventEmitter {
     get free(): boolean;
     init(): Promise<void>;
     start(): Promise<void>;
+    private _startInternalSnapshot;
     stop(): Promise<void>;
     private _start;
     private _prepareStartupDatabases;
@@ -666,6 +671,8 @@ declare class AssetDBManager extends EventEmitter {
     private startDB;
     path2url(path: string, dbName?: string): string;
     private _createDB;
+    buildInternalSnapshot(): Promise<void>;
+    private _registerInternalChunks;
     private _preStartDB;
     private _startupDB;
     _startDB(name: string): Promise<void>;
@@ -1147,6 +1154,7 @@ declare interface CustomOperator {
     public?: boolean;
 }
 declare class DataManager {
+    readonly: boolean;
     file: string | undefined;
     dataMap: {
         [uuid: string]: IData;
@@ -2784,6 +2792,8 @@ export declare enum AssetActionEnum {
 }
 export declare class AssetDB extends EventEmitter {
     static readonly version = "1.0.1";
+    private prebuilt;
+    get isPrebuilt(): boolean;
     options: AssetDBOptions;
     flag: {
         starting: boolean;
@@ -2813,6 +2823,8 @@ export declare class AssetDB extends EventEmitter {
     private prepareStart;
     start(options?: AssetDBStartOptions): Promise<unknown>;
     startWithCache(): Promise<void>;
+    saveSnapshot(): Promise<void>;
+    startFromSnapshot(): Promise<void>;
     updateInfoManager(): Promise<void>;
     private _generateRecordInfo;
     save(): Promise<void>;
@@ -2830,6 +2842,8 @@ export declare class AssetDB extends EventEmitter {
 }
 declare class AssetDB_2 extends EventEmitter {
     static readonly version = "1.0.1";
+    private prebuilt;
+    get isPrebuilt(): boolean;
     options: AssetDBOptions_2;
     flag: {
         starting: boolean;
@@ -2859,6 +2873,8 @@ declare class AssetDB_2 extends EventEmitter {
     private prepareStart;
     start(options?: AssetDBStartOptions_2): Promise<unknown>;
     startWithCache(): Promise<void>;
+    saveSnapshot(): Promise<void>;
+    startFromSnapshot(): Promise<void>;
     updateInfoManager(): Promise<void>;
     private _generateRecordInfo;
     save(): Promise<void>;
@@ -3949,6 +3965,7 @@ export declare interface CustomPluginOptions {
         [plugin: string]: any;
 }
 export declare class DataManager {
+    readonly: boolean;
     file: string | undefined;
     dataMap: {
         [uuid: string]: IData;
@@ -3967,6 +3984,7 @@ export declare class DataManager {
     get(asset: VirtualAsset_2, key?: keyof IData): null | any;
 }
 declare class DataManager_2 {
+    readonly: boolean;
     file: string | undefined;
     dataMap: {
         [uuid: string]: IData_2;
@@ -13632,14 +13650,12 @@ export declare class ProgrammingFacet {
     private _staticImportMap;
     private _engineRoot;
     private _engineDistRoot;
-    private _systemJsHomeDir;
+    private readonly _systemJsHomeDir;
     private _systemJsBundleFileName;
-    private _engineStatsQuery;
     private _quickPackLoader;
     private constructor();
     private _getQuickPackLoader;
     private _initialize;
-    private _buildSystemJs;
     private _resetQuickPackLoader;
 }
 export declare namespace Project {
@@ -14773,6 +14789,8 @@ declare class Asset_2 extends Asset {
 }
 declare class AssetDB extends EventEmitter {
     static readonly version = "1.0.1";
+    private prebuilt;
+    get isPrebuilt(): boolean;
     options: AssetDBOptions;
     flag: {
         starting: boolean;
@@ -14802,6 +14820,8 @@ declare class AssetDB extends EventEmitter {
     private prepareStart;
     start(options?: AssetDBStartOptions): Promise<unknown>;
     startWithCache(): Promise<void>;
+    saveSnapshot(): Promise<void>;
+    startFromSnapshot(): Promise<void>;
     updateInfoManager(): Promise<void>;
     private _generateRecordInfo;
     save(): Promise<void>;
@@ -16014,6 +16034,7 @@ declare interface CustomOperator {
     public?: boolean;
 }
 declare class DataManager {
+    readonly: boolean;
     file: string | undefined;
     dataMap: {
         [uuid: string]: IData;
@@ -19444,14 +19465,12 @@ export declare class ProgrammingFacet {
     private _staticImportMap;
     private _engineRoot;
     private _engineDistRoot;
-    private _systemJsHomeDir;
+    private readonly _systemJsHomeDir;
     private _systemJsBundleFileName;
-    private _engineStatsQuery;
     private _quickPackLoader;
     private constructor();
     private _getQuickPackLoader;
     private _initialize;
-    private _buildSystemJs;
     private _resetQuickPackLoader;
 }
 declare class ScriptManager {

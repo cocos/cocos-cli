@@ -26,7 +26,7 @@ import { AsyncDelegate } from '../utils/delegate';
 import JSON5 from 'json5';
 import { existsSync } from 'fs';
 import { url2path } from '../../assets/utils';
-import { compressUuid } from '../../builder/worker/builder/utils';
+import { compressUUID } from '../../base/utils/uuid';
 import { TypeScriptConfigBuilder } from '../intelligence';
 import { eventEmitter, compilationState } from '../event-emitter';
 import { DBInfo } from '../@types/config-export';
@@ -219,7 +219,7 @@ export class PackerDriver {
                 allowDeclareFields: incrementalRecord.config.allowDeclareFields,
                 cr: crOptions,
                 _compressUUID(uuid: string) {
-                    return compressUuid(uuid, false);
+                    return compressUUID(uuid, false);
                 },
                 logger,
                 checkObsolete: true,

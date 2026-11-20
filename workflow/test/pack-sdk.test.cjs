@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
-const { packSdk, dependencies, REQUIRED } = require('../pack-sdk.js');
+const { packSdk, planSdk, dependencies, REQUIRED } = require('../pack-sdk.js');
 
 function write(root, relative, content) {
     const filename = path.join(root, relative);
@@ -131,6 +131,17 @@ test('missing build input and invalid version fail early', async t => {
     await assert.rejects(packSdk(options), /Missing cli SDK build input/);
     write(options.source, 'package.json', { version: '../unsafe' });
     await assert.rejects(packSdk(options), /Invalid cli version/);
+});
+
+test('CLI packaging rejects build:base inputs and each missing prebuilt artifact', async t => {
+    const artifacts = ['dist/internal-assets/.internal', 'dist/internal-assets/.internal-info.json', 'dist/internal-assets/.internal-data.json', 'dist/internal-assets/.internal-dependency.json', 'dist/internal-assets/engine.json', 'dist/internal-assets/chunks.json', 'dist/internal-assets/effect.bin', 'dist/preview-systemjs/system.js'];
+    for (const missing of [artifacts, ...artifacts.map(file => [file])]) {
+        const options = fixture(t);
+        for (const file of artifacts) write(options.source, file, 'prepared');
+        for (const file of missing) fs.unlinkSync(path.join(options.source, file));
+        await assert.rejects(planSdk(options), error => error.message.includes(missing[0]));
+        assert.equal(fs.existsSync(options.output), false);
+    }
 });
 
 test('existing output is never overwritten', async t => {

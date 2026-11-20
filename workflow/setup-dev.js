@@ -22,8 +22,8 @@ async function setupDev({ compileEngine = true, force = false, minimalTools = fa
         await run(process.execPath, ['--max-old-space-size=8192', path.join(workflow, 'compiler-engine.js'), '--engine-path', engine, ...forceArgs], nodeOptions);
     }
     await run(process.execPath, [path.join(workflow, 'build-cc-module.js'), '--engine-path', engine], nodeOptions);
-    await run('npm', ['run', 'build'], { cwd: root });
     await run(process.execPath, [path.join(workflow, 'download-tools.js'), ...forceArgs, ...(minimalTools ? ['--minimal'] : [])], nodeOptions);
+    await run('npm', ['run', 'build'], { cwd: root });
 }
 
 if (require.main === module) {

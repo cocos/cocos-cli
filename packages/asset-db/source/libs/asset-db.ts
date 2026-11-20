@@ -9,7 +9,7 @@ import { v4 } from 'node-uuid';
 import { ImporterManager, DefaultImporter } from './importer';
 import { Asset, VirtualAsset, AssetActionEnum } from './asset';
 import { absolutePath, isSubPath, compareVersion } from './utils';
-import { MetaManager } from './meta';
+import { MetaManager, Meta } from './meta';
 import { InfoManager, SimpleInfo } from './info';
 import { TASK_MAP } from './task';
 import { DependencyManager } from './dependency';
@@ -65,6 +65,13 @@ interface AssetDBRecordJSON {
         paths: string[];
     }
 }
+
+interface AssetDBSnapshot {
+    version: string;
+    assets: { path: string; meta: Meta; directory: boolean }[];
+}
+
+const SNAPSHOT_VERSION = '1';
 
 export interface AssetDBRefreshOptions {
     // 是否忽略自己，默认 false
@@ -151,6 +158,11 @@ const migrations: Migrate<any>[] = [{
 export class AssetDB extends EventEmitter {
 
     static readonly version = '1.0.1';
+    private prebuilt = false;
+
+    get isPrebuilt(): boolean {
+        return this.prebuilt;
+    }
 
     // 传入的配置信息
     options: AssetDBOptions;
@@ -364,8 +376,6 @@ export class AssetDB extends EventEmitter {
         await this.dataManager.setRecordJSON(join(this.options.library, `.${this.options.name}-data.json`));
         await this.dependencyManager.setRecordJSON(join(this.options.library, `.${this.options.name}-dependency.json`));
 
-        // 要在资源刷新前加入缓存
-        map[this.options.name] = this;
     }
 
     /**
@@ -373,6 +383,8 @@ export class AssetDB extends EventEmitter {
      */
     async start(options: AssetDBStartOptions = {}) {
         await this.prepareStart();
+        // Importers can look up this database while it is being refreshed.
+        map[this.options.name] = this;
 
         // 刷新资源数据库内的资源列表
         const num = await this.refresh(this.options.target, {
@@ -412,6 +424,7 @@ export class AssetDB extends EventEmitter {
      */
     async startWithCache() {
         await this.prepareStart();
+        map[this.options.name] = this;
         try {
             const managerCacheConflict = this.infoManager.cacheConflict || this.dependencyManager.cacheConflict;
             if (managerCacheConflict) {
@@ -434,6 +447,94 @@ export class AssetDB extends EventEmitter {
             }
             await this.refresh(this.options.target, { ignoreSelf: true });
         }
+    }
+
+    /**
+     * Writes the index of an imported read-only database for distribution.
+     * @returns Resolves after the index and manager records have been written.
+     */
+    async saveSnapshot(): Promise<void> {
+        if (!this.options.readonly || !this.flag.started || this.flag.starting || !this.path2asset.size) {
+            throw new Error(`Cannot snapshot asset-db(${this.options.name}) before its import completes.`);
+        }
+        const assets = [...this.path2asset.values()].map(asset => {
+            if (!asset.imported || asset.invalid) {
+                throw new Error(`Cannot snapshot unimported asset: ${asset.url}`);
+            }
+            return {
+                path: relative(this.options.target, asset.source).split(sep).join('/'),
+                meta: asset.meta,
+                directory: asset.isDirectory(),
+            };
+        });
+        this.infoManager.saveImmediate();
+        this.dependencyManager.saveImmediate();
+        this.dataManager.saveImmediate();
+        await writeJSON(this.cachePath, { version: SNAPSHOT_VERSION, assets } satisfies AssetDBSnapshot);
+    }
+
+    /**
+     * Mounts build-time metadata and imported artifacts without scanning the source tree.
+     * @returns Resolves after assets and their subassets are available for queries.
+     */
+    async startFromSnapshot(): Promise<void> {
+        if (!this.options.readonly) throw new Error('A prebuilt Asset DB must be read-only.');
+        this.prebuilt = true;
+        this.dataManager.readonly = true;
+        const snapshot: AssetDBSnapshot = await readJSON(this.cachePath);
+        if (snapshot?.version !== SNAPSHOT_VERSION || !Array.isArray(snapshot.assets) || !snapshot.assets.length) {
+            throw new Error(`Invalid prebuilt Asset DB index: ${this.cachePath}`);
+        }
+        const paths = new Set<string>();
+        const uuids = new Set<string>();
+        const sources = snapshot.assets.map(record => {
+            const { path, meta, directory } = record ?? {};
+            if (typeof path !== 'string' || paths.has(path)
+                || path.split('/').some(part => !part || part === '.' || part === '..' || /[\\:]/.test(part))) {
+                throw new Error(`Invalid prebuilt asset path in ${this.cachePath}: ${path}`);
+            }
+            if (typeof directory !== 'boolean' || typeof meta?.uuid !== 'string' || meta.uuid.length < 36
+                || meta.imported !== true || uuids.has(meta.uuid)) {
+                throw new Error(`Invalid prebuilt asset metadata in ${this.cachePath}: ${meta?.uuid}`);
+            }
+            paths.add(path);
+            uuids.add(meta.uuid);
+            return join(this.options.target, path);
+        });
+        assertNoPathIdentityConflicts(sources);
+        // Ordinary caches can be rebuilt after a read error; immutable snapshots cannot.
+        const [info, data, dependency] = await Promise.all(['info', 'data', 'dependency']
+            .map(name => readJSON(`${this.cachePath}-${name}.json`)));
+        if (info?.version !== InfoManager.version || dependency?.version !== DependencyManager.version
+            || [info?.map, info?.missing, data, dependency?.data?.path, dependency?.data?.uuid]
+                .some(record => !record || typeof record !== 'object' || Array.isArray(record))
+            || Object.values<SimpleInfo>(info.map).some(record => typeof record?.time !== 'number')
+            || [...Object.values(dependency.data.path), ...Object.values(dependency.data.uuid)]
+                .some(dependencies => !Array.isArray(dependencies) || dependencies.some(value => typeof value !== 'string'))) {
+            throw new Error(`Invalid prebuilt Asset DB records: ${this.options.library}`);
+        }
+        const metadata = snapshot.assets.map(record => record.meta);
+        for (const meta of metadata) {
+            const values = data[meta.uuid]?.value;
+            if (!values || typeof values !== 'object' || Array.isArray(values)) {
+                throw new Error(`Invalid prebuilt asset data in ${this.options.library}: ${meta.uuid}`);
+            }
+            metadata.push(...Object.values(meta.subMetas ?? {}).filter(submeta => submeta.name));
+        }
+        await this.prepareStart();
+        const conflict = this.infoManager.cacheConflict || this.dependencyManager.cacheConflict;
+        if (conflict) throw conflict;
+        for (const [index, { meta, directory }] of snapshot.assets.entries()) {
+            const source = sources[index];
+            const asset = new Asset(source, meta, this);
+            this.metaManager.path2meta[source + '.meta'] = { json: meta, backup: '', EOL: '\n' };
+            asset._isDirectory = directory;
+            asset.init = true;
+            this.uuid2asset.set(asset.uuid, asset);
+            this.path2asset.set(source, asset);
+        }
+        this.flag.starting = false;
+        map[this.options.name] = this;
     }
 
     async updateInfoManager() {
@@ -477,6 +578,7 @@ export class AssetDB extends EventEmitter {
     }
 
     async save() {
+        if (this.prebuilt) return;
         try {
             // 保存记录的缓存信息
             await writeJSON(join(this.cachePath), this._generateRecordInfo(), { spaces: 4 });
@@ -523,9 +625,11 @@ export class AssetDB extends EventEmitter {
         this.path2asset.clear();
         this.flag.started = false;
 
-        this.infoManager.saveImmediate();
-        this.dependencyManager.saveImmediate();
-        this.dataManager.saveImmediate();
+        if (!this.prebuilt) {
+            this.infoManager.saveImmediate();
+            this.dependencyManager.saveImmediate();
+            this.dataManager.saveImmediate();
+        }
 
         this.metaManager.destroy();
         this.infoManager.destroy();
@@ -593,6 +697,7 @@ export class AssetDB extends EventEmitter {
      */
     async reimport(fileOrUUID: string) {
         const asset: Asset | VirtualAsset | null = this.path2asset.get(fileOrUUID) || this.getAsset(fileOrUUID);
+        if (this.prebuilt) return asset;
         if (!asset) {
             return null;
         }
@@ -645,6 +750,7 @@ export class AssetDB extends EventEmitter {
      * @returns {number} 刷新的资源个数
      */
     async refresh(path: string, options: AssetDBRefreshOptions = {}): Promise<number> {
+        if (this.prebuilt) return 0;
         // 如果不是绝对路径，不刷新
         if (!absolutePath(path)) {
             throw new Error(`invalid path ${path}, asset-db.refresh only support absolute path`);

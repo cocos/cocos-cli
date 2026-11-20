@@ -34,7 +34,7 @@ jest.mock('../../src/core/project', () => ({
 }));
 
 const mockEngine = {
-    getInfo: () => ({ typescript: { path: 'C:/engine' } }),
+    getInfo: jest.fn(),
 };
 jest.mock('../../src/core/engine', () => ({ Engine: mockEngine }));
 
@@ -46,6 +46,11 @@ describe('public Localization Runtime reconcile', () => {
 
     beforeEach(async () => {
         fixtureRoot = await mkdtemp(join(tmpdir(), 'cocos-cli-runtime-reconcile-'));
+        const engineRoot = join(fixtureRoot, 'engine');
+        await outputJSON(join(engineRoot, 'package.json'), { version: '4.0.0' });
+        await outputJSON(join(engineRoot, 'cc.config.json'), {});
+        await ensureDir(join(engineRoot, 'editor', 'assets'));
+        mockEngine.getInfo.mockReturnValue({ typescript: { path: engineRoot } });
         previousResourcesPath = (process as { resourcesPath?: string }).resourcesPath;
         (process as { resourcesPath?: string }).resourcesPath = join(fixtureRoot, 'resources');
         mockProject.path = join(fixtureRoot, 'project');
