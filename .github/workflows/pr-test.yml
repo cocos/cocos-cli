@@ -108,6 +108,9 @@ jobs:
           node --test workflow/test-runner.test.cjs workflow/postinstall.test.cjs
           npm run test:groups
 
+      - name: Verify release script compression
+        run: npm run test:terser
+
       - name: Restore Jest cache
         id: jest-cache
         uses: actions/cache/restore@v4
