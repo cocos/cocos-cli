@@ -7,6 +7,37 @@ const fs = require('node:fs');
 const os = require('node:os');
 
 const rootRequire = createRequire(path.join(__dirname, '../package.json'));
+
+const compressorRegressions = [
+    {
+        name: 'bitwise and logical operators preserve side effects',
+        source: 'var c = ""; ("f" & "f" && (c += "FAIL")) ^ 1; ("f" & "f" || (c += "PASS")) ^ 1; console.log(c);',
+        compress: { defaults: false, evaluate: true, side_effects: true, booleans: true, comparisons: true },
+        expected: 'PASS',
+    },
+    {
+        name: 'eliminating a switch default retains local var declarations',
+        source: 'var a = 100; (function () { a++; a.toString(); switch (null) { default: { var a; } } })(); console.log(a);',
+        compress: { defaults: false, dead_code: true, switches: true },
+        expected: '100',
+    },
+];
+
+// Upstream regressions fixed in Terser 5.44.1:
+// https://github.com/terser/terser/compare/v5.44.0...v5.44.1
+for (const fixture of compressorRegressions) {
+    test(fixture.name, async () => {
+        const pluginRequire = createRequire(rootRequire.resolve('rollup-plugin-terser'));
+        const { minify } = pluginRequire('terser');
+        for (const compress of [fixture.compress, { passes: 2 }]) {
+            const result = await minify(fixture.source, { compress, mangle: false });
+            const output = [];
+            vm.runInNewContext(result.code, { console: { log: value => output.push(String(value)) } });
+            assert.equal(output.join('\n'), fixture.expected);
+        }
+    });
+}
+
 // https://forum.cocos.org/t/topic/178069: old Terser negates only the RHS of ??.
 // Exercise consumers as well as minification: Terser 5's async API requires
 // upgrading their plugins, and rollup-plugin-terser 7 requires Rollup 2.
