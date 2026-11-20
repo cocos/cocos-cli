@@ -173,6 +173,10 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
      * 执行具体的构建任务
      */
     public async run() {
+        return this.withHookLifecycle(() => this.runTask());
+    }
+
+    private async runTask() {
         const restoreLogSink = newConsole.createLogSinkRestorer();
         let failed = false;
         const { dir } = this.result.paths;
@@ -794,41 +798,6 @@ export class BuildTask extends BuildTaskBase implements IBuilder {
         this.bundleManager && (this.bundleManager.error = error);
         if (throwError) {
             throw error;
-        }
-    }
-
-    async runErrorHook() {
-        try {
-            const funcName = 'onError';
-            for (const pkgName of this.hooksInfo.pkgNameOrder) {
-                const info = this.hooksInfo.infos[pkgName];
-                let hooks: any;
-                const timeLabel = `${pkgName}:(${funcName})`;
-                try {
-                    hooks = Utils.File.requireFile(info.path);
-                    if (hooks[funcName]) {
-                        this.updateProcess(`${timeLabel} start...`);
-                        console.debug(`// ---- ${pkgName}:(${funcName}) ----`);
-                        newConsole.trackMemoryStart(timeLabel);
-                        if (info.internal) {
-                            await hooks[funcName].call(this, this.options, this.result, this.cache);
-                        } else {
-                            // @ts-ignore
-                            await hooks[funcName](this.result.rawOptions, this.buildResult);
-                        }
-                        newConsole.trackMemoryEnd(timeLabel);
-                        console.debug(`// ---- ${pkgName}:(${funcName}) success ----`);
-                        this.updateProcess(`${pkgName}:(${funcName})`);
-                    }
-                } catch (error: any) {
-                    newConsole.trackMemoryEnd(timeLabel);
-                    // @ts-ignore
-                    console.error((new BuildError(`Run build plugin ${pkgName}:(${funcName}) failed!`)).stack);
-                }
-            }
-            await this.postBuild();
-        } catch (error) {
-            console.debug(error);
         }
     }
 }

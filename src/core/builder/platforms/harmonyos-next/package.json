@@ -12,21 +12,28 @@
             "config": "./src/config",
             "hooks": "./src/hooks"
         },
-        "pinkBuilder": {
-            "platform": "harmonyos-next",
-            "customView": "./dist/view/build-config.js",
-            "customExtensionHost": "./dist/view/build-config-host.js",
-            "customFields": [
-                "appABIs",
-                "encrypted",
-                "xxteaKey",
-                "compressZip",
-                "JobSystem"
-            ]
-        }
+        "pinkBuildPlatforms": [
+            {
+                "platform": "harmonyos-next",
+                "config": "./src/pink-config.js",
+                "hooks": "./src/hooks.js"
+            }
+        ],
+        "pinkBuildHooks": [
+            {
+                "platforms": [
+                    "harmonyos-next"
+                ]
+            }
+        ]
     },
     "scripts": {
         "build-view": "node scripts/build-view.js",
         "watch-view": "node scripts/build-view.js --watch"
-    }
+    },
+    "publisher": "pink-cli",
+    "engines": {
+        "vscode": "*"
+    },
+    "main": "./dist/view/build-config-host.js"
 }

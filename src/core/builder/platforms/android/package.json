@@ -12,33 +12,28 @@
             "config": "./src/config",
             "hooks": "./src/hooks"
         },
-        "pinkBuilder": {
-            "platform": "android",
-            "customView": "./dist/view/build-config.js",
-            "customExtensionHost": "./dist/view/build-config-host.js",
-            "customFields": [
-                "isSoFileCompressed",
-                "androidInstant",
-                "appABIs",
-                "apiLevel",
-                "keystorePath",
-                "useDebugKeystore",
-                "keystorePassword",
-                "keystoreAlias",
-                "keystoreAliasPassword",
-                "maxAspectRatio",
-                "encrypted",
-                "xxteaKey",
-                "compressZip",
-                "JobSystem"
-            ],
-            "doc": "./static/platform-intro/README.md",
-            "card": "./static/card.png",
-            "icon": "./static/icon.png"
-        }
+        "pinkBuildPlatforms": [
+            {
+                "platform": "android",
+                "config": "./src/pink-config.js",
+                "hooks": "./src/hooks.js"
+            }
+        ],
+        "pinkBuildHooks": [
+            {
+                "platforms": [
+                    "android"
+                ]
+            }
+        ]
     },
     "scripts": {
         "build-view": "node scripts/build-view.js",
         "watch-view": "node scripts/build-view.js --watch"
-    }
+    },
+    "publisher": "pink-cli",
+    "engines": {
+        "vscode": "*"
+    },
+    "main": "./dist/view/build-config-host.js"
 }

@@ -1,3 +1,4 @@
+import type { BuildRegistration } from '../registration';
 import EventEmitter from 'events';
 import { basename, isAbsolute, join, relative, resolve, sep } from 'path';
 import { checkBuildCommonOptionsByKey, checkBundleCompressionSetting } from '../share/common-options-validator';
@@ -263,6 +264,7 @@ export class PluginManager extends EventEmitter {
 
     // 存储注册进来的，带有 assetHandlers 配置的一些方法 [ICustomAssetHandlerType][pkgName]: Function
     private assetHandlers = {} as IAssetHandlers;
+    private readonly platformAssetHandlers = new Map<string, IAssetHandlers>();
     // 存储插件优先级（TODO 目前优先级记录在 config 内，针对不同平台可能有不同的优先级）
     protected readonly pkgPriorities: Record<string, number> = {};
 
@@ -280,6 +282,80 @@ export class PluginManager extends EventEmitter {
         CustomAssetHandlerTypes.forEach((handlerName) => {
             this.assetHandlers[handlerName] = {};
         });
+    }
+
+    private readonly registrationOwners = new Map<string, string>();
+    private registrationQueue: Promise<void> = Promise.resolve();
+
+    /** Serialize registrations so concurrent callers cannot claim the same slot. */
+    public registerContribution(input: BuildRegistration): Promise<void> {
+        const prepared = lodash.cloneDeep(input);
+        const operation = this.registrationQueue.then(() => this.applyRegistration(prepared));
+        this.registrationQueue = operation.catch(() => undefined);
+        return operation;
+    }
+
+    private async applyRegistration(input: BuildRegistration): Promise<void> {
+        if (input.kind !== 'platform' && input.kind !== 'plugin') { throw new Error('Unsupported build registration kind.'); }
+        const { platform, extensionId, root } = input;
+        if (!platform || !extensionId || !root || ['__proto__', 'prototype', 'constructor'].includes(platform)
+            || ['__proto__', 'prototype', 'constructor'].includes(extensionId)) {
+            throw new Error('Build registration requires a platform, extensionId and root.');
+        }
+        const pkgName = input.kind === 'platform' ? platform : extensionId;
+        const slot = JSON.stringify([platform, pkgName]);
+        if (this.registrationOwners.has(slot) || this.configMap[platform]?.[pkgName]) {
+            throw new Error(`Build registration conflict: platform=${platform} slot=${pkgName} providers=${this.registrationOwners.get(slot) || platform},${extensionId}`);
+        }
+        if (input.kind === 'plugin' && !this.platformConfig[platform]) {
+            throw new Error(`Build platform is not registered: ${platform}`);
+        }
+        if (input.kind === 'platform' && this.platformConfig[platform]) {
+            throw new Error(`Build platform is already registered: ${platform}`);
+        }
+        if (input.kind === 'platform' && (!input.config?.platformType || !input.config.displayName)) {
+            throw new Error(`Build platform requires platformType and displayName: ${platform}`);
+        }
+        const config = input.config || {};
+        if (input.kind === 'platform' && input.config.textureCompressConfig !== undefined) {
+            const texture = input.config.textureCompressConfig;
+            const validFormats = (formats: unknown): boolean => Array.isArray(formats) && formats.every(format => typeof format === 'string' && format.length > 0);
+            if (!texture || !Object.hasOwn(configGroups, texture.platformType)
+                || !validFormats(texture.support?.rgb) || !validFormats(texture.support?.rgba)) {
+                throw new Error(`Invalid build platform config: platform=${platform} provider=${extensionId} root=${root} field=textureCompressConfig; expected a known platformType and support.rgb/support.rgba string arrays.`);
+            }
+        }
+        const processors: Record<string, (...args: unknown[]) => unknown> = {};
+        if (input.assetHandlers) {
+            const module = Utils.File.requireFile(input.assetHandlers);
+            for (const name of CustomAssetHandlerTypes) {
+                if (module[name] !== undefined && typeof module[name] !== 'function') {
+                    throw new Error(`Invalid asset handler ${extensionId}:${name}`);
+                }
+                if (module[name]) { processors[name] = module[name]; }
+            }
+            if (!Object.keys(processors).length) { throw new Error(`No supported asset handlers in ${input.assetHandlers}`); }
+        }
+        for (const [language, translations] of Object.entries(input.translations || {})) {
+            i18n.registerLanguagePatch(language, pkgName, translations);
+        }
+        this.translateConfigDisplayFields(config);
+        const info: IBuilderRegisterInfo = input.kind === 'platform'
+            ? { type: 'register', platform, path: root, conifgPath: '', config: input.config, hooks: input.hooks }
+            : { type: 'plugin', platform, path: root, pkgName, config, hooks: input.hooks };
+        if (info.type === 'register') {
+            await this.registerPlatform(info);
+            this.platformRegisterInfoPool.set(platform, info);
+        }
+        await this.internalRegister(info);
+        if (Object.keys(processors).length) {
+            let handlers = this.platformAssetHandlers.get(platform);
+            if (!handlers) { handlers = { compressTextures: {} }; this.platformAssetHandlers.set(platform, handlers); }
+            for (const name of CustomAssetHandlerTypes) {
+                if (processors[name]) { handlers[name][pkgName] = processors[name]; }
+            }
+        }
+        this.registrationOwners.set(slot, extensionId);
     }
 
     async init() {
@@ -319,8 +395,10 @@ export class PluginManager extends EventEmitter {
         if (!info) {
             throw new Error(`Can not find platform register info for ${platform}`);
         }
-        await this.registerPlatform(info);
-        await this.internalRegister(info);
+        await this.registerContribution({
+            kind: 'platform', platform, extensionId: info.pkgName || platform,
+            root: info.path, config: info.config, hooks: info.hooks,
+        });
         this.registerExtensionBuilderHooks(platform);
         console.log(`register platform ${platform} success!`);
     }
@@ -435,11 +513,14 @@ export class PluginManager extends EventEmitter {
         }
 
         if (typeof config.options === 'object') {
-            lodash.set(this.pkgOptionConfigs, `${registerInfo.platform}.${pkgName}`, config.options);
+            lodash.set(this.pkgOptionConfigs, [platform, pkgName], config.options);
             Object.keys(config.options).forEach((key) => {
                 checkConfigDefault(config.options![key]);
             });
-            await builderConfig.setProject(`platforms.${platform}.packages.${platform}`, getOptionsDefault(config.options), 'default');
+            // A newly registered platform has no defaults yet; a missing scoped path throws.
+            const defaults = await builderConfig.getProject<{ platforms?: Record<string, { packages?: Record<string, unknown> }> }>(undefined, 'default');
+            const packages = defaults?.platforms?.[platform]?.packages || {};
+            await builderConfig.setProject(`platforms.${platform}.packages`, { ...packages, [pkgName]: getOptionsDefault(config.options) }, 'default');
         }
 
         // 整理通用构建选项的校验规则
@@ -462,8 +543,8 @@ export class PluginManager extends EventEmitter {
         }
         if (config.customBuildStages) {
             // 注册构建阶段性任务
-            lodash.set(this.customBuildStages, `${platform}.${pkgName}`, config.customBuildStages);
-            lodash.set(this.customBuildStagesMap, `${pkgName}.${platform}`, config.customBuildStages);
+            lodash.set(this.customBuildStages, [platform, pkgName], config.customBuildStages);
+            lodash.set(this.customBuildStagesMap, [pkgName, platform], config.customBuildStages);
             await builderConfig.setProject(`platforms.${platform}.generateCompileConfig`, this.shouldGenerateOptions(platform), 'default');
         }
 
@@ -488,7 +569,7 @@ export class PluginManager extends EventEmitter {
         // 注册 hooks 路径
         if (registerInfo.hooks) {
             config.hooks = registerInfo.hooks;
-            lodash.set(this.builderPathsMap, `${pkgName}.${platform}`, config.hooks);
+            lodash.set(this.builderPathsMap, [platform, pkgName], config.hooks);
         }
         // 注册构建模板菜单项
         console.debug(`[Build] internalRegister pkg(${pkgName}) in ${platform} platform success!`);
@@ -1385,11 +1466,23 @@ export class PluginManager extends EventEmitter {
         console.log(`${versionKey} ${i18n.t('builder.tips.create_template_success')}({link(${target})})`);
     }
 
-    public getAssetHandlers(type: ICustomAssetHandlerType) {
-        const pkgNames = Object.keys(this.assetHandlers[type]);
+    public getAssetHandlers(type: ICustomAssetHandlerType): {
+        pkgNameOrder: string[];
+        handles: Record<string, (...args: unknown[]) => unknown>;
+    };
+    public getAssetHandlers(type: ICustomAssetHandlerType, platform?: string): {
+        pkgNameOrder: string[];
+        handles: Record<string, (...args: unknown[]) => unknown>;
+        required: string[];
+    };
+    public getAssetHandlers(type: ICustomAssetHandlerType, platform?: string) {
+        const scoped = platform ? this.platformAssetHandlers.get(platform)?.[type] : undefined;
+        const handles = { ...this.assetHandlers[type], ...scoped };
+        const pkgNames = Object.keys(handles);
         return {
             pkgNameOrder: this.sortPkgNameWidthPriority(pkgNames),
-            handles: this.assetHandlers[type],
+            handles,
+            required: Object.keys(scoped ?? {}),
         };
     }
 }

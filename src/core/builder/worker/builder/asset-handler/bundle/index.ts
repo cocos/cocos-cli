@@ -246,6 +246,12 @@ export class BundleManager extends BuildTaskBase implements IBundleManager {
      * @returns 
      */
     public async run() {
+        // A Bundle nested in BuildTask shares its parent's lifecycle and error notification.
+        if (this._task) { return this.runTask(); }
+        return this.withHookLifecycle(() => this.runTask());
+    }
+
+    private async runTask() {
         try {
             // 独立构建 Bundle 时，不能抽取公共脚本到 src
             this.options.bundleCommonChunk = true;

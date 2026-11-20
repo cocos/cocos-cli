@@ -169,3 +169,41 @@ export async function onAfterBuild(this: IBuilder, options: IInterBuildTaskOptio
     console.log('Build success!');
 }
 ```
+
+## 嵌入宿主：显式注册平台与构建插件
+
+独立 CLI 继续通过 `init(platforms?)` 发现自带平台和原有插件入口。已有 MCP 构建及阶段调度行为不变。
+
+编辑器等宿主自行发现插件时，先调用 `init({ discovery: 'external' })` 初始化服务，再逐项调用 `register(input)`。外部发现模式不会扫描或补回默认平台；空清单表示不注册任何平台。宿主先准备配置对象、翻译数据和钩子模块的绝对路径，CLI 不读取该输入对应的 manifest 或约定语言目录。
+
+```ts
+await builder.init({ discovery: 'external' });
+await builder.register({
+    kind: 'platform', platform: 'partner-web', extensionId: 'vendor.platforms',
+    root: pluginRoot, config: preparedPlatformConfig, hooks: platformHooksPath,
+});
+await builder.register({
+    kind: 'plugin', platform: 'partner-web', extensionId: 'vendor.stamp',
+    root: stampRoot, config: preparedPluginConfig,
+});
+```
+
+`config` 使用 CLI 现有配置类型，可保留校验函数。`hooks` 指向 worker 可加载的模块，名称、参数及调用方式沿用原约定；纯参数贡献可省略 hooks，纯钩子贡献可省略 config。平台字段归属 `packages[platform]`，附加字段归属 `packages[extensionId]`，含点号的扩展 ID 不会拆成多层对象。
+
+可选 `translations` 按语言提供翻译对象，由注册器挂到对应参数包命名空间。平台注册冲突、参数槽冲突及未注册的平台引用会拒绝当前注册；并发注册按顺序处理。输入复制后使用，不修改调用方的配置对象。注册期间应由宿主暂停新任务；注册失败后宿主不应发布 ready，应重建执行宿主后重新注册完整清单。
+
+此接口不负责模板展开、平台选择、UI、持久化或构建任务编排，这些由宿主处理。
+
+### 自带平台的双入口
+
+自带 Web 和原生平台保留 `contributes.builder`，继续服务独立 CLI。PinK 另读 `pinkBuildPlatforms`，其 config 入口由内部打包适配器提供 schema 和翻译资源。两条入口复用同一执行配置及 hooks，不改生命周期钩子的名称、参数或 `this`。
+
+适配器保留不显示在表单中的执行字段和默认值，并递归保留显示字段的校验元数据。Android、Google Play、HarmonyOS Next 的编辑器前置钩子通过标准扩展 main 的 `activate()` 返回 `buildHooks`；独立 CLI 不激活这些编辑器脚本。
+
+这些声明需配合新的 PinK 注册实现使用。独立平台仓库迁移和实际项目构建仍在联调中，因此本次提交保持草稿。
+
+### 资源处理器与任务生命周期
+
+`builder.registrationVersion` 为 `2`。注册项可在 `hooks` 之外提供 `assetHandlers` 模块的绝对路径；纯处理器插件可省略 `config` 和 `hooks`。模块导出 `compressTextures(tasks)`，只从数组中移除已处理完成的任务，剩余任务由后续处理器和默认压缩器继续处理。处理器按注册的平台隔离；显式注册的处理器抛错会使构建失败，旧处理器的错误处理方式不变。没有未缓存的压缩任务时不会调用处理器。
+
+每次普通构建、独立 Bundle 构建或已支持的阶段任务开始前，调用模块实际导出的 `load()`；收尾时按相反顺序调用 `unload()`。同一任务中的相同模块路径只加载一次。这两个函数不接收参数，内部钩子的 `this` 仍绑定当前任务。失败时按原有钩子参数通知一次 `onError`，错误通知或清理过程的异常不会覆盖原始失败。预览任务跳过这些调用。公开生命周期钩子仍使用 `throwError = true` 表达抛错必须中断任务。

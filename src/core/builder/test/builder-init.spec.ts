@@ -53,8 +53,21 @@ jest.mock('../../assets/manager/asset', () => ({
 import { init } from '../index';
 
 describe('builder init', () => {
+    it('rejects invalid discovery modes before initializing services', async () => {
+        await expect(init({ discovery: 'invalid' } as unknown as Parameters<typeof init>[0])).rejects.toThrow('Unsupported build discovery mode');
+        expect(mockBuilderConfigInit).not.toHaveBeenCalled();
+    });
     beforeEach(() => {
         jest.clearAllMocks();
+    });
+
+    it('external discovery initializes services without scanning or registering defaults', async () => {
+        await init({ discovery: 'external' });
+        expect(mockBuilderConfigInit).toHaveBeenCalledTimes(1);
+        expect(mockMiddlewareRegister).toHaveBeenCalledWith('Build', mockBuildMiddleware);
+        expect(mockPluginManagerInit).not.toHaveBeenCalled();
+        expect(mockRegisterAllPlatform).not.toHaveBeenCalled();
+        expect(mockRegister).not.toHaveBeenCalled();
     });
 
     it('registers every requested platform', async () => {

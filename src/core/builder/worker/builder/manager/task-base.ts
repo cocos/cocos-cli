@@ -148,6 +148,74 @@ export abstract class BuildTaskBase extends EventEmitter {
     abstract handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
     abstract run(): Promise<boolean>;
 
+    /** One load/unload pair per module and task, including failed and cancelled tasks. */
+    protected async withHookLifecycle(action: () => Promise<boolean>): Promise<boolean> {
+        if (this.options?.preview) { return action(); }
+        const loaded: { path: string; internal: boolean }[] = [];
+        const seen = new Set<string>();
+        let failure: unknown;
+        let success = false;
+        try {
+            for (const name of this.hooksInfo.pkgNameOrder) {
+                const info = this.hooksInfo.infos[name];
+                if (seen.has(info.path)) { continue; }
+                seen.add(info.path);
+                const hooks = Utils.File.requireFile(info.path);
+                loaded.push(info);
+                if (typeof hooks.load === 'function') {
+                    newConsole.pluginTask(name, 'load', 'start');
+                    await hooks.load.call(info.internal ? this : undefined);
+                    newConsole.pluginTask(name, 'load', 'complete');
+                }
+            }
+            success = await action();
+        } catch (error) {
+            failure = error;
+            this.error ??= error instanceof Error ? error : new Error(String(error));
+        } finally {
+            if (failure || this.error || !success) { await this.runErrorHook(); }
+            for (const info of loaded.reverse()) {
+                try {
+                    const hooks = Utils.File.requireFile(info.path);
+                    if (typeof hooks.unload === 'function') {
+                        newConsole.pluginTask(info.path, 'unload', 'start');
+                        await hooks.unload.call(info.internal ? this : undefined);
+                        newConsole.pluginTask(info.path, 'unload', 'complete');
+                    }
+                } catch (error) {
+                    console.error(error);
+                    failure ??= error;
+                    this.error ??= error instanceof Error ? error : new Error(String(error));
+                }
+            }
+            if (failure || this.error) { await this.runErrorHook(); }
+            this.stopProgressHeartbeat();
+        }
+        if (failure) { throw failure; }
+        return success && !this.error;
+    }
+
+    private errorHookNotified = false;
+
+    /** Error observers cannot replace the original failure or turn it into success. */
+    async runErrorHook(): Promise<void> {
+        if (this.errorHookNotified || this.options?.preview) { return; }
+        this.errorHookNotified = true;
+        const original = this.error;
+        for (const name of this.hooksInfo.pkgNameOrder) {
+            const info = this.hooksInfo.infos[name];
+            try {
+                const hooks = Utils.File.requireFile(info.path);
+                if (typeof hooks.onError === 'function') {
+                    newConsole.pluginTask(name, 'onError', 'start');
+                    await this.handleHook(hooks.onError, info.internal);
+                    newConsole.pluginTask(name, 'onError', 'complete');
+                }
+            } catch (error) { console.error(error); }
+            finally { this.error = original; }
+        }
+    }
+
     public async runPluginTask(funcName: string, weight?: number) {
         // 预览 settings 不执行任何构建的钩子函数
         if (!Object.keys(this.hookMap).length || this.error || this.options?.preview) {

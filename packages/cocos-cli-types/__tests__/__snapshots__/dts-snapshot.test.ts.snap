@@ -2408,7 +2408,9 @@ import { BuildConfiguration as BuildConfiguration_2 } from './builder';
 import { BuilderCache as BuilderCache_2 } from './builder';
 import { BuildExitCode as BuildExitCode_2 } from './builder';
 import { BuildHook as BuildHook_2 } from './builder';
+import { BuildInitializationOptions as BuildInitializationOptions_2 } from './builder';
 import { BuildPlugin as BuildPlugin_2 } from './builder';
+import { BuildRegistration as BuildRegistration_2 } from './builder';
 import { BuildResult as BuildResult_2 } from './builder';
 import { BuildStageProgressCallback as BuildStageProgressCallback_2 } from './builder';
 import { BuildStageTask as BuildStageTask_2 } from './builder';
@@ -3110,12 +3112,42 @@ export declare namespace BuildHook {
     export type load = () => Promise<void> | void;
     export type unload = () => Promise<void> | void;
 }
+export declare interface BuildInitializationOptions {
+    discovery: 'external';
+}
 export declare namespace BuildPlugin {
     export type Configs = Record<string, IBuildPluginConfig>;
     export type AssetHandlers = string;
     export type load = () => Promise<void> | void;
     export type Unload = () => Promise<void> | void;
 }
+export declare type BuildRegistration = {
+    extensionId: string;
+    root: string;
+    translations?: Record<string, Record<string, unknown>>;
+    assetHandlers?: string;
+} & ({
+    kind: 'platform';
+    platform: string;
+    config: IPlatformBuildPluginConfig;
+    hooks?: string;
+} | {
+    kind: 'plugin';
+    platform: string;
+    config: IInternalBuildPluginConfig;
+    hooks?: string;
+} | {
+    kind: 'plugin';
+    platform: string;
+    config?: IInternalBuildPluginConfig;
+    hooks: string;
+} | {
+    kind: 'plugin';
+    platform: string;
+    config?: IInternalBuildPluginConfig;
+    hooks?: string;
+    assetHandlers: string;
+});
 export declare class BuildResult implements IBuildResult {
     private readonly __task;
     settings?: ISettings;
@@ -3137,6 +3169,7 @@ export declare class BuildStageTask extends BuildTaskBase implements IBuildStage
     hookMap: Record<string, string>;
     constructor(id: string, config: IBuildStageConfig);
     run(): Promise<boolean>;
+    private runTask;
     private isStageSupported;
     break(reason: string): void;
     handleHook(func: Function, internal: boolean): Promise<void>;
@@ -3170,6 +3203,7 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     } | IBuildPacResult_2 | undefined;
     init(): Promise<void>;
     run(): Promise<boolean>;
+    private runTask;
     buildBundleOnly(): Promise<void>;
     private postBuild;
     private runSubTaskBuilds;
@@ -3189,7 +3223,6 @@ export declare class BuildTask extends BuildTaskBase implements IBuilder {
     private runBuildTask;
     handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
     onError(error: Error, throwError?: boolean): void;
-    runErrorHook(): Promise<void>;
 }
 declare class BuildTask_2 extends BuildTaskBase_2 implements IBuilder_2 {
     cache: BuilderAssetCache_2;
@@ -3219,6 +3252,7 @@ declare class BuildTask_2 extends BuildTaskBase_2 implements IBuilder_2 {
     } | IBuildPacResult_3 | undefined;
     init(): Promise<void>;
     run(): Promise<boolean>;
+    private runTask;
     buildBundleOnly(): Promise<void>;
     private postBuild;
     private runSubTaskBuilds;
@@ -3238,7 +3272,6 @@ declare class BuildTask_2 extends BuildTaskBase_2 implements IBuilder_2 {
     private runBuildTask;
     handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
     onError(error: Error, throwError?: boolean): void;
-    runErrorHook(): Promise<void>;
 }
 export declare abstract class BuildTaskBase extends EventEmitter {
     breakReason?: string;
@@ -3270,6 +3303,9 @@ export declare abstract class BuildTaskBase extends EventEmitter {
     private getNextHeartbeatProgress;
     abstract handleHook(func: Function, internal: boolean, ...args: any[]): Promise<void>;
     abstract run(): Promise<boolean>;
+    protected withHookLifecycle(action: () => Promise<boolean>): Promise<boolean>;
+    private errorHookNotified;
+    runErrorHook(): Promise<void>;
     runPluginTask(funcName: string, weight?: number): Promise<void>;
 }
 export declare class BuildTemplate implements IBuildTemplate {
@@ -3399,6 +3435,7 @@ export declare class BundleManager extends BuildTaskBase implements IBundleManag
     initBundleConfig(): Promise<void>;
     buildAsset(): Promise<void>;
     run(): Promise<boolean>;
+    private runTask;
     outputBundle(): Promise<void>;
     private addBundle;
     private getDefaultBundleConfig;
@@ -3460,6 +3497,7 @@ declare class BundleManager_2 extends BuildTaskBase_2 implements IBundleManager_
     initBundleConfig(): Promise<void>;
     buildAsset(): Promise<void>;
     run(): Promise<boolean>;
+    private runTask;
     outputBundle(): Promise<void>;
     private addBundle;
     private getDefaultBundleConfig;
@@ -3616,6 +3654,7 @@ export declare interface Context {
 export declare namespace CoreBuilderIndex {
     export {
         init_2 as init,
+        register_2 as register,
         createBuildTask_2 as createBuildTask,
         build_2 as build,
         createBundleBuildTask_2 as createBundleBuildTask,
@@ -4465,6 +4504,7 @@ export declare interface IBinGroupConfig {
     threshold: number;
 }
 export declare interface IBuildAssetHandlerInfo {
+    required?: string[];
     pkgNameOrder: string[];
     handles: {
         [pkgName: string]: Function;
@@ -5494,7 +5534,9 @@ export declare class InfoManager {
     forEach(handler: Function): Promise<void>;
 }
 export declare function init(platform?: string[]): Promise<void>;
+export declare function init(platform?: string[] | BuildInitializationOptions): Promise<void>;
 declare function init_2(platform?: string[]): Promise<void>;
+declare function init_2(platform?: string[] | BuildInitializationOptions_2): Promise<void>;
 declare function injectBridgeScripts(html: string, options: IWebBridgeScriptOptions): string;
 export declare type InputOption = string | string[] | { [entryAlias: string]: string };
 export declare interface InputOptions {
@@ -6716,10 +6758,15 @@ export declare class PluginManager extends EventEmitter {
         [pkgName: string]: IBuildStageItem[];
     }>;
     private assetHandlers;
+    private readonly platformAssetHandlers;
     protected readonly pkgPriorities: Record<string, number>;
     packageRegisterInfo: Map<string, InternalPackageInfo>;
     private platformRegisterInfoPool;
     constructor();
+    private readonly registrationOwners;
+    private registrationQueue;
+    registerContribution(input: BuildRegistration): Promise<void>;
+    private applyRegistration;
     init(): Promise<void>;
     registerAllPlatform(): Promise<void>;
     register(platform: string): Promise<void>;
@@ -6772,6 +6819,11 @@ export declare class PluginManager extends EventEmitter {
     getAssetHandlers(type: ICustomAssetHandlerType): {
         pkgNameOrder: string[];
         handles: Record<string, (...args: unknown[]) => unknown>;
+    };
+    getAssetHandlers(type: ICustomAssetHandlerType, platform?: string): {
+        pkgNameOrder: string[];
+        handles: Record<string, (...args: unknown[]) => unknown>;
+        required: string[];
     };
 }
 export declare const pluginManager: PluginManager;
@@ -6839,6 +6891,9 @@ export declare function queryTextureCompressConfig(): Promise<TextureCompressFul
 declare function queryTextureCompressConfig_2(): TextureCompressFullRenderConfig_2;
 export declare function refreshDisplayI18nFields(): Promise<void>;
 declare function refreshDisplayI18nFields_2(): void;
+export declare function register(input: BuildRegistration): Promise<void>;
+declare function register_2(input: BuildRegistration_2): Promise<void>;
+export declare const registrationVersion = 2;
 export declare type RenderChunkHook = (
     this: PluginContext,
     code: string,
@@ -7546,7 +7601,6 @@ export declare class TextureCompress_2 extends EventEmitter_2 {
     _checkTaskCanExecute(taskConfig: ICompressConfig): boolean;
     _compressImage(config: ICompressConfig): Promise<void>;
     _step(): Promise<any>;
-    private customCompressImage;
     compressImageByConfig(optionItem: ICompressConfig): Promise<void>;
 }
 declare class TextureCompress_4 extends EventEmitter_2 {
@@ -7600,7 +7654,6 @@ declare class TextureCompress_4 extends EventEmitter_2 {
     _checkTaskCanExecute(taskConfig: ICompressConfig_2): boolean;
     _compressImage(config: ICompressConfig_2): Promise<void>;
     _step(): Promise<any>;
-    private customCompressImage;
     compressImageByConfig(optionItem: ICompressConfig_2): Promise<void>;
 }
 export declare interface TextureCompressFullRenderConfig {
