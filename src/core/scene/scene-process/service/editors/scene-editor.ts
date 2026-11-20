@@ -13,6 +13,7 @@ import { deletedLightmapAssets } from '../baking/lightfx/deleted-lightmap-assets
  * 继承 BaseEditor，实现场景相关的具体操作
  */
 export class SceneEditor extends BaseEditor {
+    private sourceRevision?: { uuid: string; source: string };
 
     async encode(entity?: IEditorTarget | null, options?: INodeDumpOptions): Promise<IScene> {
         entity = entity ?? this.entity;
@@ -32,6 +33,7 @@ export class SceneEditor extends BaseEditor {
             return await this.encode(undefined, options);
         }
 
+        const source = await Rpc.getInstance().request('assetManager', 'querySceneSource', [identifier.assetUuid]);
         const sceneAsset = await sceneUtils.loadAny<SceneAsset>(identifier.assetUuid);
         const instance = await sceneUtils.runScene(sceneAsset);
 
@@ -39,6 +41,7 @@ export class SceneEditor extends BaseEditor {
             instance,
             identifier,
         });
+        this.sourceRevision = { uuid: identifier.assetUuid, source };
 
         return this.encode(undefined, options);
     }
@@ -52,6 +55,7 @@ export class SceneEditor extends BaseEditor {
         }
         await sceneUtils.runScene(new Scene(''));
         this.setCurrentOpen(null);
+        this.sourceRevision = undefined;
         return true;
     }
 
@@ -83,10 +87,22 @@ export class SceneEditor extends BaseEditor {
         if (!this.entity) {
             throw new Error('[save] 没有打开场景');
         }
-        const serializedData = sceneUtils.serialize(this.entity.instance as Scene);
-        const saved = await Rpc.getInstance().request('assetManager', 'saveAsset', [assetUuid, serializedData]);
+        const serializedData = sceneUtils.serialize(this.entity.instance as Scene) as string;
+        const isCurrentAsset = assetUuid === this.entity.identifier.assetUuid;
+        const revision = this.sourceRevision;
+        if (isCurrentAsset && (!revision || revision.uuid !== assetUuid)) {
+            throw new Error('Scene has no source revision; reopen it before saving.');
+        }
+        const rpc = Rpc.getInstance();
+        const result = isCurrentAsset
+            ? await rpc.request('assetManager', 'saveSceneSource', [assetUuid, revision!.source, serializedData])
+            : { asset: await rpc.request('assetManager', 'saveAsset', [assetUuid, serializedData]) };
+        const saved = result.asset;
         if (!saved || saved.uuid !== assetUuid) {
             throw new Error(`保存目标资源标识不一致: 期望 ${assetUuid}，实际 ${saved?.uuid ?? 'undefined'}`);
+        }
+        if ('source' in result) {
+            this.sourceRevision = { uuid: assetUuid, source: result.source };
         }
         return saved;
     }

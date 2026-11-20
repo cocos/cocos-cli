@@ -186,3 +186,121 @@ describe('Editor close options', () => {
     });
 
 });
+
+describe('SceneEditor source revision lifecycle', () => {
+    const sourceAsset = { uuid: 'scene', name: 'source', type: 'cc.SceneAsset', url: 'db://assets/source.scene' };
+    const copyAsset = { uuid: 'copy', name: 'copy', type: 'cc.SceneAsset', url: 'db://assets/copy.scene' };
+    let disk: Map<string, string>;
+    let current: string;
+
+    beforeEach(() => {
+        disk = new Map([[sourceAsset.uuid, 'original'], [copyAsset.uuid, 'copy original']]);
+        current = 'edited';
+        (sceneUtils.loadAny as jest.Mock).mockReset().mockResolvedValue({});
+        (sceneUtils.runScene as jest.Mock).mockReset().mockResolvedValue({});
+        (sceneUtils.runSceneImmediateByJson as jest.Mock).mockReset().mockResolvedValue({});
+        (sceneUtils.generateNodeDump as jest.Mock).mockReset().mockReturnValue({});
+        (sceneUtils.serialize as jest.Mock).mockReset().mockImplementation(() => current);
+        mockRpcRequest.mockReset().mockImplementation(async (_module: string, method: string, args: string[]) => {
+            const [uuid, source, content] = args;
+            if (method === 'querySceneSource') return disk.get(uuid);
+            if (method === 'saveSceneSource') {
+                if (disk.get(uuid) !== source) throw new Error('Scene source changed on disk');
+                const importedSource = content + ':imported';
+                disk.set(uuid, importedSource);
+                return { asset: { uuid }, source: importedSource };
+            }
+            if (method === 'saveAsset') {
+                disk.set(uuid, source);
+                return { uuid };
+            }
+            throw new Error('Unexpected RPC: ' + method);
+        });
+    });
+
+    it('advances the source revision after each successful save, including importer changes', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        await editor.save();
+        current = 'second edit';
+        await editor.save();
+        expect(mockRpcRequest).toHaveBeenNthCalledWith(2, 'assetManager', 'saveSceneSource', ['scene', 'original', 'edited']);
+        expect(mockRpcRequest).toHaveBeenNthCalledWith(3, 'assetManager', 'saveSceneSource', ['scene', 'edited:imported', 'second edit']);
+        expect(disk.get('scene')).toBe('second edit:imported');
+    });
+
+    it('keeps the prior revision when saving fails', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        mockRpcRequest.mockRejectedValueOnce(new Error('save failed'));
+        await expect(editor.save()).rejects.toThrow('save failed');
+        await editor.save();
+        expect(mockRpcRequest).toHaveBeenLastCalledWith('assetManager', 'saveSceneSource', ['scene', 'original', 'edited']);
+    });
+
+    it('keeps the prior revision when the save returns the wrong asset UUID', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        mockRpcRequest.mockResolvedValueOnce({ asset: { uuid: 'wrong' }, source: 'wrong revision' });
+        await expect(editor.save()).rejects.toThrow('保存目标资源标识不一致');
+        await editor.save();
+        expect(mockRpcRequest).toHaveBeenLastCalledWith('assetManager', 'saveSceneSource', ['scene', 'original', 'edited']);
+    });
+
+    it('does not adopt an external source change on same-scene open or in-memory reload', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        disk.set('scene', 'external edit');
+        await editor.open(sourceAsset as never);
+        await editor.reload();
+        await expect(editor.save()).rejects.toThrow('changed on disk');
+        expect(mockRpcRequest.mock.calls.filter(([, method]) => method === 'querySceneSource')).toHaveLength(1);
+        expect(disk.get('scene')).toBe('external edit');
+    });
+
+    it('preserves the open editor when default close is refused by a source conflict', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        const instance = editor.getRootNode();
+        disk.set('scene', 'external edit');
+        await expect(editor.close()).rejects.toThrow('changed on disk');
+        expect(editor.getRootNode()).toBe(instance);
+        expect(disk.get('scene')).toBe('external edit');
+    });
+
+    it('records a fresh revision after closing without save and reopening', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        await editor.close({ save: false });
+        disk.set('scene', 'external edit');
+        await editor.open(sourceAsset as never);
+        await editor.save();
+        expect(mockRpcRequest).toHaveBeenLastCalledWith('assetManager', 'saveSceneSource', ['scene', 'external edit', 'edited']);
+    });
+
+    it('keeps Save As to a different target independent of the opened source revision', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        disk.set('scene', 'external edit');
+        await editor.saveAs(copyAsset as never);
+        expect(mockRpcRequest).toHaveBeenLastCalledWith('assetManager', 'saveAsset', ['copy', 'edited']);
+        expect(disk.get('copy')).toBe('edited');
+        await expect(editor.save()).rejects.toThrow('changed on disk');
+        expect(mockRpcRequest).toHaveBeenLastCalledWith('assetManager', 'saveSceneSource', ['scene', 'original', 'edited']);
+    });
+
+    it('checks the revision when Save As targets the opened scene itself', async () => {
+        const editor = new SceneEditor();
+        await editor.open(sourceAsset as never);
+        disk.set('scene', 'external edit');
+        await expect(editor.saveAs(sourceAsset as never)).rejects.toThrow('changed on disk');
+        expect(disk.get('scene')).toBe('external edit');
+    });
+
+    it('refuses to save the current scene if no source revision was established', async () => {
+        const editor = new SceneEditor();
+        setOpen(editor);
+        await expect(editor.save()).rejects.toThrow('no source revision');
+        expect(mockRpcRequest).not.toHaveBeenCalled();
+    });
+});
