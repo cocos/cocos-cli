@@ -151,3 +151,13 @@ export async function queryAutoAtlasFileCache(pacUuid: string): Promise<PreviewP
 }
 
 export { pluginManager } from '../../core/builder/manager/plugin';
+
+/** Query engine feature identifiers and their declared dependencies. */
+export async function queryEngineModules() {
+    return (await import('../../core/builder/configuration')).queryEngineModules();
+}
+
+/** Validate partial build options without creating a build task. */
+export async function validateBuildConfig(platform: string, options: Record<string, unknown>) {
+    return (await import('../../core/builder/configuration')).validateBuildConfig(platform, options);
+}
