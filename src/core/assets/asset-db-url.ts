@@ -48,7 +48,14 @@ export function pathToDbUrlIfAssetDBPath(pathOrUrlOrUUID: string, assetDBInfo: R
             .replace(/^\.\/+/, '')
             .replace(/\/+$/, '');
         const [dbName, ...relativeParts] = normalizedRelativePath.split('/').filter(Boolean);
-        const dbInfo = dbName && (assetDBInfo[dbName] ?? Object.values(assetDBInfo).find((info) => info.name === dbName));
+        const dbInfo = dbName && (
+            assetDBInfo[dbName]
+            ?? Object.values(assetDBInfo).find((info) => info.name === dbName)
+            // Windows mounts are case-insensitive, so a differently-cased db name still addresses the same mount.
+            ?? (process.platform === 'win32'
+                ? Object.values(assetDBInfo).find((info) => info.name.toLowerCase() === dbName.toLowerCase())
+                : undefined)
+        );
 
         if (dbInfo) {
             return relativeParts.length ? `db://${dbInfo.name}/${relativeParts.join('/')}` : `db://${dbInfo.name}`;
