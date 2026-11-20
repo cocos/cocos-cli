@@ -305,6 +305,8 @@ export interface IAnimationClipDump {
     wrapMode: number;
     /** 普通属性曲线。 */
     curves: IAnimationCurveDump[];
+    /** 有普通属性轨道的相对节点路径，包含空轨道和已丢失的节点 */
+    nodePaths: string[];
     /** 动画事件，frame 使用采样帧号。 */
     events: IAnimationEventDump[];
     /** Embedded player 列表，begin/end 使用采样帧号。 */
@@ -450,6 +452,7 @@ export interface IAnimationPropertyInfo {
  * ```
  */
 export type IAnimationOperation =
+    | { type: 'changeNodeDataPath'; clipUuid: string; srcPath: string; dstPath: string }
     | { type: 'changeSample'; clipUuid: string; sample: number }
     | { type: 'changeSpeed'; clipUuid: string; speed: number }
     | { type: 'changeWrapMode'; clipUuid: string; wrapMode: number }

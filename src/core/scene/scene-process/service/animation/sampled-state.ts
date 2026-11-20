@@ -22,14 +22,24 @@ interface IAnimationSampledComponentState {
     properties: Record<string, unknown>;
 }
 
-export function captureAnimationSampledState(rootNode: Node): IAnimationSampledNodeState {
+/**
+ * 保存节点及其组件的可采样属性
+ *
+ * 默认包含子节点，节点数据迁移只保存源节点和目标节点自身
+ */
+export function captureAnimationSampledState(
+    rootNode: Node,
+    options: { includeChildren?: boolean } = {},
+): IAnimationSampledNodeState {
     return {
         uuid: rootNode.uuid,
         properties: captureNodeProperties(rootNode),
         components: rootNode.components
             .map(captureComponentState)
             .filter((state): state is IAnimationSampledComponentState => Boolean(state)),
-        children: rootNode.children.map(captureAnimationSampledState),
+        children: options.includeChildren === false
+            ? []
+            : rootNode.children.map(child => captureAnimationSampledState(child)),
     };
 }
 

@@ -1,4 +1,5 @@
 import type { AnimationClip } from 'cc';
+import { changeNodeDataPath, isAnimationNodeDataPath } from './node-data';
 import type {
     IAnimationEventDump,
     IAnimationOperation,
@@ -45,6 +46,7 @@ import {
 } from './utils';
 
 const SUPPORTED_CLIP_OPERATIONS = [
+    'changeNodeDataPath',
     'changeSample',
     'changeSpeed',
     'changeWrapMode',
@@ -105,6 +107,11 @@ export function validateAnimationOperation(operation: IAnimationOperation, curre
         };
     }
 
+    if (operation.type === 'changeNodeDataPath'
+        && (!isAnimationNodeDataPath(operation.srcPath) || !isAnimationNodeDataPath(operation.dstPath))) {
+        return { state: 'failure', result: false, reason: 'Invalid animation node data paths.' };
+    }
+
     return null;
 }
 
@@ -114,6 +121,8 @@ export function isSupportedClipOperation(funcName: string): boolean {
 
 export async function applyClipOperation(clip: AnimationClip, operation: IAnimationOperation, context: IPropertyCurveOperationContext): Promise<boolean> {
     switch (operation.type) {
+        case 'changeNodeDataPath':
+            return changeNodeDataPath(clip, context.rootNode, operation);
         case 'changeSample':
             return changeClipSample(clip, operation.sample);
         case 'changeSpeed':
