@@ -9,6 +9,8 @@ export interface EngineSelection {
     path: string;
     version: string;
     revision?: string;
+    packageRoot?: string;
+    sdkReleaseId?: string;
     source: 'explicit' | 'project' | 'default';
 }
 

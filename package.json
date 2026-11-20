@@ -61,6 +61,7 @@
         "pack:script": "node workflow/pack-scripts.js",
         "pack:cli-sdk": "node workflow/pack-sdk.js --kind cli",
         "pack:engine-sdk": "node workflow/pack-sdk.js --kind engine",
+        "test:engine-npm": "node --test workflow/test/engine-npm.test.cjs",
         "test:pack-sdk": "node --test workflow/test/pack-sdk.test.cjs",
         "release": "npx --yes gulp release --gulpfile workflow/release.js",
         "start:mcp-debug": "node ./dist/cli.js start-mcp-server --project=./tests/fixtures/projects/asset-operation",
@@ -69,7 +70,8 @@
         "chmod": "chmod +x dist/cli.js",
         "rebuild": "node workflow/electron-rebuild.js",
         "rebuild:node-gyp": "node workflow/node-gyp-rebuild.js",
-        "build:scene-runtime": "node workflow/build-scene-runtime.js"
+        "build:scene-runtime": "node workflow/build-scene-runtime.js",
+        "test:engine-npm-browser": "node workflow/test/engine-npm-browser.cjs"
     },
     "author": "COCOS",
     "files": [

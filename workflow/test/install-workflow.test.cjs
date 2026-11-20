@@ -61,7 +61,9 @@ test('compiled CLI global paths honor local config when launched outside the CLI
     const ts = require('typescript');
     const source = fs.readFileSync(path.join(cliRoot, 'src/global.ts'), 'utf8');
     write(root, 'dist/global.js', ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText);
-    write(root, 'workflow/engine-path.js', fs.readFileSync(path.join(cliRoot, 'workflow/engine-path.js'), 'utf8'));
+    for (const file of ['engine-path.js', 'engine-sdk.js', 'engine-sdk-view.js']) {
+        write(root, `workflow/${file}`, fs.readFileSync(path.join(cliRoot, 'workflow', file), 'utf8'));
+    }
     write(root, 'config.local.json', { enginePath: '../external engine' });
     const output = execFileSync(process.execPath, ['-e', 'process.stdout.write(require(process.argv[1]).GlobalPaths.enginePath)', path.join(root, 'dist/global.js')], { cwd: os.tmpdir(), encoding: 'utf8' });
     assert.equal(output, path.resolve(root, '../external engine'));
