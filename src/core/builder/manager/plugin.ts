@@ -317,6 +317,14 @@ export class PluginManager extends EventEmitter {
             throw new Error(`Build platform requires platformType and displayName: ${platform}`);
         }
         const config = input.config || {};
+        if (input.kind === 'platform' && input.config.textureCompressConfig !== undefined) {
+            const texture = input.config.textureCompressConfig;
+            const validFormats = (formats: unknown): boolean => Array.isArray(formats) && formats.every(format => typeof format === 'string' && format.length > 0);
+            if (!texture || !Object.hasOwn(configGroups, texture.platformType)
+                || !validFormats(texture.support?.rgb) || !validFormats(texture.support?.rgba)) {
+                throw new Error(`Invalid build platform config: platform=${platform} provider=${extensionId} root=${root} field=textureCompressConfig; expected a known platformType and support.rgb/support.rgba string arrays.`);
+            }
+        }
         const processors: Record<string, (...args: unknown[]) => unknown> = {};
         if (input.assetHandlers) {
             const module = Utils.File.requireFile(input.assetHandlers);
@@ -509,7 +517,9 @@ export class PluginManager extends EventEmitter {
             Object.keys(config.options).forEach((key) => {
                 checkConfigDefault(config.options![key]);
             });
-            const packages = await builderConfig.getProject<Record<string, unknown>>(`platforms.${platform}.packages`, 'default') || {};
+            // A newly registered platform has no defaults yet; a missing scoped path throws.
+            const defaults = await builderConfig.getProject<{ platforms?: Record<string, { packages?: Record<string, unknown> }> }>(undefined, 'default');
+            const packages = defaults?.platforms?.[platform]?.packages || {};
             await builderConfig.setProject(`platforms.${platform}.packages`, { ...packages, [pkgName]: getOptionsDefault(config.options) }, 'default');
         }
 
@@ -1456,6 +1466,15 @@ export class PluginManager extends EventEmitter {
         console.log(`${versionKey} ${i18n.t('builder.tips.create_template_success')}({link(${target})})`);
     }
 
+    public getAssetHandlers(type: ICustomAssetHandlerType): {
+        pkgNameOrder: string[];
+        handles: Record<string, (...args: unknown[]) => unknown>;
+    };
+    public getAssetHandlers(type: ICustomAssetHandlerType, platform?: string): {
+        pkgNameOrder: string[];
+        handles: Record<string, (...args: unknown[]) => unknown>;
+        required: string[];
+    };
     public getAssetHandlers(type: ICustomAssetHandlerType, platform?: string) {
         const scoped = platform ? this.platformAssetHandlers.get(platform)?.[type] : undefined;
         const handles = { ...this.assetHandlers[type], ...scoped };

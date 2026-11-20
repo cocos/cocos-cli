@@ -1,6 +1,8 @@
 import { PluginManager } from '../manager/plugin';
 import builderConfig from '../share/builder-config';
 import type { BuildRegistration } from '../registration';
+import { BaseConfiguration } from '../../configuration/script/config';
+import { configGroups } from '../share/texture-compress';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -39,13 +41,6 @@ jest.mock('../share/builder-config', () => ({
     },
 }));
 
-jest.mock('../share/texture-compress', () => ({
-    configGroups: {},
-    textureFormatConfigs: {},
-    formatsInfo: {},
-    defaultSupport: {},
-}));
-
 jest.mock('../../configuration', () => ({
     configurationRegistry: { register: jest.fn() },
 }));
@@ -55,13 +50,64 @@ jest.mock('../../../global', () => ({
 }));
 
 
-const platform = (id: string): BuildRegistration => ({
+const platform = (id: string): Extract<BuildRegistration, { kind: 'platform' }> => ({
     kind: 'platform', platform: id, extensionId: 'sud.platforms', root: '/arbitrary-layout',
     config: { displayName: id, platformType: 'HTML5' }, hooks: '/arbitrary-layout/platform-hooks.js',
 });
 
 describe('explicit build registration', () => {
-    beforeEach(() => jest.clearAllMocks());
+    let configuration: BaseConfiguration;
+    const originalGroups = structuredClone(configGroups);
+    beforeEach(() => {
+        jest.resetAllMocks();
+        Object.assign(configGroups, structuredClone(originalGroups));
+        configuration = new BaseConfiguration('builder', { platforms: {} });
+        jest.mocked(builderConfig.getProject).mockImplementation(configuration.get.bind(configuration));
+        jest.mocked(builderConfig.setProject).mockImplementation(configuration.set.bind(configuration));
+    });
+
+    it.each([
+        null,
+        { platformType: 'web' },
+        { platformType: 'web', support: { rgb: [] } },
+        { platformType: 'web', support: { rgb: 'jpg', rgba: [] } },
+        { platformType: 'web', support: { rgb: [42], rgba: [] } },
+        { platformType: 'unknown', support: { rgb: [], rgba: [] } },
+    ])('rejects invalid texture declarations before mutating platform state: %j', async texture => {
+        const manager = new PluginManager();
+        const input = platform('sample-web');
+        Object.assign(input.config!, { textureCompressConfig: texture });
+        await expect(manager.registerContribution(input)).rejects.toThrow(/platform=sample-web provider=sud.platforms.*field=textureCompressConfig/);
+        expect(manager.platformConfig['sample-web']).toBeUndefined();
+        expect(manager.configMap['sample-web']).toBeUndefined();
+        expect(configGroups).toEqual(originalGroups);
+        expect(builderConfig.setProject).not.toHaveBeenCalled();
+        Object.assign(input.config!, { textureCompressConfig: { platformType: 'web', support: { rgb: ['etc2_rgb'], rgba: [] } } });
+        await manager.registerContribution(input);
+        expect(manager.platformConfig['sample-web'].texture?.support.rgb).toContain('etc2_rgb');
+        expect(manager.platformConfig['sample-web'].texture?.support.rgb).toContain('jpg');
+        expect(manager.platformConfig['sample-web'].texture?.support.rgba).toContain('png');
+        expect(input.config!.textureCompressConfig?.support).toEqual({ rgb: ['etc2_rgb'], rgba: [] });
+    });
+
+    it('initializes missing platform defaults and preserves other packages and saved settings', async () => {
+        const manager = new PluginManager();
+        await configuration.set('platforms.android.packages', { android: { appid: 'saved' } }, 'project');
+        await configuration.set('platforms.android.packages', { android: { appid: 'local' } }, 'local');
+        await expect(configuration.get('platforms.android.packages', 'default')).rejects.toThrow();
+        const input = platform('android');
+        input.config!.options = { appid: { type: 'string', default: 'default-app' } };
+        await manager.registerContribution(input);
+        await manager.registerContribution({
+            kind: 'plugin', platform: 'android', extensionId: 'acme.stamp', root: '/plugin',
+            config: { options: { stamp: { type: 'string', default: 'stable' } } },
+        });
+        expect(await configuration.get('platforms.android.packages', 'default')).toEqual({
+            android: { appid: 'default-app' }, 'acme.stamp': { stamp: 'stable' },
+        });
+        expect(await configuration.get('platforms.android.packages', 'project')).toEqual({ android: { appid: 'saved' } });
+        expect(await configuration.get('platforms.android.packages', 'local')).toEqual({ android: { appid: 'local' } });
+    });
 
     it('scopes resource processors to matching platforms and preserves remaining tasks', async () => {
         const root = mkdtempSync(join(tmpdir(), 'build-processors-'));

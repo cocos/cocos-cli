@@ -11,6 +11,8 @@ import type { BuildCacheScope, ClearCacheOptions, ClearCacheResult } from '../..
 export type * from '../../core/builder/@types/private';
 export type * from '../../core/builder/@types/config-export';
 export type { BuildCacheScope, ClearCacheOptions, ClearCacheResult };
+export function init(platform?: string[]): Promise<void>;
+export function init(platform?: string[] | BuildInitializationOptions): Promise<void>;
 export async function init(platform?: string[] | BuildInitializationOptions): Promise<void> {
     const builder = await import('../../core/builder');
     return builder.init(platform);
