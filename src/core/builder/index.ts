@@ -17,6 +17,8 @@ import { BuildGlobalInfo } from './share/global';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheOptions, ClearCacheResult } from './cache';
 
+export function init(platform?: string[]): Promise<void>;
+export function init(platform?: string[] | BuildInitializationOptions): Promise<void>;
 export async function init(platform?: string[] | BuildInitializationOptions) {
     if (platform && !Array.isArray(platform) && platform.discovery !== 'external') {
         throw new Error('Unsupported build discovery mode.');
