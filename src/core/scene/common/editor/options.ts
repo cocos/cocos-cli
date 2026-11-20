@@ -47,3 +47,11 @@ export interface ICloseOptions {
     /** The source editor UUID expected before applying a deleted-source fallback. */
     expectedCurrentUuid?: string;
 }
+
+/** Explicitly discard the current in-memory scene/prefab without saving it. */
+export interface IDiscardOptions {
+    discardChanges: true;
+}
+
+/** Discard, then reimport and reopen the current source. Import/open failures leave the editor closed. */
+export interface IReloadFromDiskOptions extends IDiscardOptions, INodeDumpOptions {}
