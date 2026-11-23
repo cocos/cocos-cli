@@ -27,11 +27,11 @@ function runtimeDependencies(root, ancestry = new Set()) {
 }
 
 /** Assemble package inputs outside node_modules; never overwrite either input. */
-function assembleEditorView(baseRoot, editorSource, projectRoot) {
+function assembleEditorView(baseRoot, editorSource, projectRoot, resolutionRoot = projectRoot) {
     validateSource(editorSource, 'engineSdk.editor');
     if (!editorSource.path && !editorSource.package) throw new Error('engineSdk.editor requires path or package');
     if (!projectRoot) throw new Error('Project root is required for an editor component');
-    const editorRoot = editorSource.package ? resolvePackageRoot(editorSource.package, projectRoot) : fs.realpathSync(path.resolve(projectRoot, editorSource.path));
+    const editorRoot = editorSource.package ? resolvePackageRoot(editorSource.package, resolutionRoot) : fs.realpathSync(path.resolve(resolutionRoot, editorSource.path));
     const base = readManifest(baseRoot), editor = readManifest(editorRoot);
     if (base?.schemaVersion !== 2 || editor?.schemaVersion !== 2 || editor.component !== 'editor') throw new Error('A schemaVersion 2 editor component is required');
     for (const key of ['engineVersion', 'engineRevision', 'sdkReleaseId']) if (base[key] !== editor[key]) throw new Error(`Editor ${key} differs from the selected Web SDK`);

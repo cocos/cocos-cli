@@ -106,3 +106,54 @@ test('host initialization explains the missing matching Editor component', t => 
  const root=fixture(t);pkg(root,'@cocos/engine-web');
  assert.throws(()=>resolveEngineSelection(root,{projectRoot:root,projectConfig:{package:'@cocos/engine-web'},prepareEditor:true}),/ENGINE_SDK_EDITOR_REQUIRED/);
 });
+
+ test('CLI-local package default does not require game dependencies and preserves overrides', t => {
+    const root = fixture(t), project = path.join(root, 'game');
+    fs.mkdirSync(project);
+    const builtin = pkg(root, '@cocos/engine-web');
+    write(root, 'config.local.json', { engineSdk: { package: '@cocos/engine-web' } });
+    const selected = resolveEngineSelection(root, { projectRoot: project });
+    assert.equal(selected.packageRoot, builtin);
+    assert.equal(selected.source, 'default');
+    const custom = pkg(project, '@cocos/custom-engine');
+    assert.equal(resolveEngineSelection(root, { projectRoot: project, projectConfig: { package: '@cocos/custom-engine' } }).packageRoot, custom);
+    assert.throws(() => resolveEngineSelection(root, { projectRoot: project, projectConfig: { package: '@cocos/missing' } }), /ENGINE_SDK_PACKAGE/);
+ });
+
+test('installed CLI npm engine wins over a configured source without requiring local SDK config', t => {
+ const root=fixture(t), project=path.join(root,'game');fs.mkdirSync(project);
+ const builtin=pkg(root,'@cocos/engine-web');
+ write(root,'config.local.json',{enginePath:'missing-custom-engine'});
+ assert.equal(resolveEngineSelection(root,{projectRoot:project}).packageRoot,builtin);
+ assert.throws(()=>resolveEngineSelection(root,{projectRoot:project,prepareEditor:true}),/Cannot resolve/);
+});
+test('without npm packages, custom source precedes packages/engine', t => {
+ const root=fixture(t);const custom=pkg(root,'custom');
+ write(root,'config.local.json',{enginePath:path.relative(root,custom)});
+ assert.equal(resolveEngineSelection(root).path,custom);
+ fs.unlinkSync(path.join(root,'config.local.json'));
+ write(root,'packages/engine/package.json',{version:'4.0.0'});
+ assert.equal(resolveEngineSelection(root).path,fs.realpathSync(path.join(root,'packages/engine')));
+});
+
+test('installation reuses prepared npm profiles even when local source lacks NODEJS', t => {
+ const root=fixture(t);
+ const web=pkg(root,'@cocos/engine-web');
+ const editor=pkg(root,'@cocos/engine-editor',{}, {component:'editor'});
+ write(root,'config.local.json',{enginePath:'legacy-source'});
+ write(root,'legacy-source/package.json',{version:'3.7.2'});
+ write(root,'legacy-source/cc.config.json',{constants:{}});
+ for(const name of ['cc.d.ts','cc.editor.d.ts'])write(web,'bin/.declarations/'+name,{});
+ for(const name of ['editor','web'])write(editor,'bin/.cache/dev-cli/'+name+'/loader.js',{});
+ const {resolvePreparationEngine}=require('../prepare-engine-selection');
+ const selected=resolvePreparationEngine(root);
+ assert.equal(selected.packageRoot,web);
+ assert.ok(fs.existsSync(path.join(selected.path,'bin/.cache/dev-cli/editor/loader.js')));
+ assert.equal(resolvePreparationEngine(root,path.join(root,'legacy-source')).version,'3.7.2');
+});
+test('installation rejects incomplete npm profiles without compiling a source fallback', t => {
+ const root=fixture(t);
+ pkg(root,'@cocos/engine-web');pkg(root,'@cocos/engine-editor',{}, {component:'editor'});
+ const {resolvePreparationEngine}=require('../prepare-engine-selection');
+ assert.throws(()=>resolvePreparationEngine(root),/ENGINE_SDK_PREPARE_INCOMPLETE/);
+});

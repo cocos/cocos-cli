@@ -2,7 +2,7 @@ const fse = require('fs-extra');
 const path = require('path');
 const utils = require('./utils');
 const { parseArgs } = require('node:util');
-const { resolveEnginePath } = require('./engine-path');
+const { resolvePreparationEngine } = require('./prepare-engine-selection');
 
 if (!utils.hasDevelopmentEnvironment()) return;
 
@@ -46,7 +46,7 @@ module.exports = modsMgr.syncImport('${moduleId}');
     console.time('Bundle node_modules/cc');
 
     const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'engine-path': { type: 'string' } } });
-    const enginePath = resolveEnginePath(path.join(__dirname, '..'), values['engine-path']);
+    const enginePath = resolvePreparationEngine(path.join(__dirname, '..'), values['engine-path']).path;
 
     const ccTemplatePath = path.join(__dirname, '../packages/cc-module/statics/cc-template.d.ts');
     const ccPath = path.join(__dirname, '../packages/cc-module/cc.d.ts');

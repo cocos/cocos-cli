@@ -24,6 +24,30 @@ function resolveEnginePath(root, explicitPath) {
 function resolveEngineSelection(root, { explicitPath, projectRoot, projectConfig = {}, prepareEditor = false } = {}) {
     if (!projectConfig || typeof projectConfig !== 'object' || Array.isArray(projectConfig)) throw new Error('engineSdk must be an object');
     validateSource(projectConfig, 'engineSdk');
+    const localFile = path.join(path.resolve(root), 'config.local.json');
+    let resolutionRoot = projectRoot;
+    let projectEditor = projectConfig.editor !== undefined;
+    const hasProjectSource = Object.hasOwn(projectConfig, 'path') || Object.hasOwn(projectConfig, 'package');
+    let machineDefault = false;
+    if (explicitPath === undefined && !hasProjectSource && fs.existsSync(localFile)) {
+        const local = JSON.parse(fs.readFileSync(localFile, 'utf8').replace(/^\uFEFF/, ''));
+        if (local.engineSdk !== undefined) {
+            validateSource(local.engineSdk, 'config.local.engineSdk');
+            projectConfig = { ...local.engineSdk, ...projectConfig };
+            resolutionRoot = path.resolve(root);
+            machineDefault = true;
+        }
+    }
+    // Installed CLI packages are the default distribution, ahead of source checkouts.
+    const builtinRoot = path.join(path.resolve(root), 'node_modules/@cocos/engine-web');
+    const builtin = explicitPath === undefined && !hasProjectSource && fs.existsSync(builtinRoot);
+    if (builtin) {
+        projectConfig = { package: '@cocos/engine-web', editor: { package: '@cocos/engine-editor' },
+            ...Object.fromEntries(['version', 'revision', 'platforms'].filter(key => projectConfig[key] !== undefined).map(key => [key, projectConfig[key]])) };
+        resolutionRoot = path.resolve(root);
+        projectEditor = false;
+        machineDefault = true;
+    }
     let selected;
     let source;
     if (explicitPath !== undefined) {
@@ -32,11 +56,11 @@ function resolveEngineSelection(root, { explicitPath, projectRoot, projectConfig
     } else if (Object.hasOwn(projectConfig, 'path')) {
         if (typeof projectConfig.path !== 'string' || !projectConfig.path.trim()) throw new Error('engineSdk.path must be a non-empty path');
         if (!projectRoot) throw new Error('Project root is required for engineSdk.path');
-        selected = path.resolve(projectRoot, projectConfig.path);
-        source = 'project';
+        selected = path.resolve(resolutionRoot, projectConfig.path);
+        source = machineDefault ? 'default' : 'project';
     } else if (Object.hasOwn(projectConfig, 'package')) {
-        selected = resolvePackageRoot(projectConfig.package, projectRoot);
-        source = 'project';
+        selected = resolvePackageRoot(projectConfig.package, resolutionRoot);
+        source = machineDefault ? 'default' : 'project';
     } else {
         selected = resolveEnginePath(root);
         source = 'default';
@@ -60,7 +84,7 @@ function resolveEngineSelection(root, { explicitPath, projectRoot, projectConfig
             throw new Error('[ENGINE_SDK_EDITOR_REQUIRED] Install the matching Editor package and configure engineSdk.editor; the Web package alone does not provide CLI host profiles.');
         }
         if (prepareEditor && projectConfig.editor !== undefined && explicitPath === undefined) {
-            engineRoot = require('./engine-sdk-view').assembleEditorView(selected, projectConfig.editor, projectRoot);
+            engineRoot = require('./engine-sdk-view').assembleEditorView(selected, projectConfig.editor, projectRoot, projectEditor ? projectRoot : resolutionRoot);
         }
         return { path: engineRoot, version: pkg.version, revision, source,
             ...(metadata?.schemaVersion === 2 ? { packageRoot: selected, sdkReleaseId: metadata.sdkReleaseId } : {}) };

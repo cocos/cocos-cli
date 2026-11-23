@@ -2,7 +2,7 @@ const fse = require('fs-extra');
 const path = require('path');
 const utils = require('./utils');
 const { parseArgs } = require('node:util');
-const { resolveEnginePath } = require('./engine-path');
+const { resolvePreparationEngine } = require('./prepare-engine-selection');
 
 if (!utils.hasDevelopmentEnvironment()) return;
 
@@ -11,7 +11,12 @@ if (!utils.hasDevelopmentEnvironment()) return;
 
     const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'engine-path': { type: 'string' } } });
     const isForce = values.force;
-    const engine = resolveEnginePath(path.join(__dirname, '..'), values['engine-path']);
+    const selection = resolvePreparationEngine(path.join(__dirname, '..'), values['engine-path']);
+    const engine = selection.path;
+    if (selection.packageRoot) {
+        console.log('[Skip] Engine npm SDK already prepared: ' + selection.packageRoot);
+        return;
+    }
     if (!fse.existsSync(path.join(engine, 'package.json'))) throw new Error(`Engine source not found: ${engine}`);
     const hasDev =fse.existsSync(path.join(engine, 'bin', '.cache', 'dev-cli'));
 
