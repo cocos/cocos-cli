@@ -56,6 +56,9 @@ function resolveEngineSelection(root, { explicitPath, projectRoot, projectConfig
         }
         let engineRoot = metadata?.schemaVersion === 2 && metadata.entries.engineRoot
             ? containedFile(selected, metadata.entries.engineRoot, true) : selected;
+        if (prepareEditor && metadata?.component === 'web' && explicitPath === undefined && projectConfig.editor === undefined) {
+            throw new Error('[ENGINE_SDK_EDITOR_REQUIRED] Install the matching Editor package and configure engineSdk.editor; the Web package alone does not provide CLI host profiles.');
+        }
         if (prepareEditor && projectConfig.editor !== undefined && explicitPath === undefined) {
             engineRoot = require('./engine-sdk-view').assembleEditorView(selected, projectConfig.editor, projectRoot);
         }

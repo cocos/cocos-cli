@@ -101,3 +101,8 @@ test('plugin platform resolution accepts new target IDs and checks required capa
  assert.throws(()=>resolveTargetComponent(selection,'openpaas',root,{}, {platform:'ANDROID'}),/ENGINE_SDK_PLATFORM/);
  assert.throws(()=>resolveTargetComponent(selection,'openpaas',root,{}, {platform:'SUDV2',resources:['missing.js']}),/ENOENT/);
 });
+
+test('host initialization explains the missing matching Editor component', t => {
+ const root=fixture(t);pkg(root,'@cocos/engine-web');
+ assert.throws(()=>resolveEngineSelection(root,{projectRoot:root,projectConfig:{package:'@cocos/engine-web'},prepareEditor:true}),/ENGINE_SDK_EDITOR_REQUIRED/);
+});

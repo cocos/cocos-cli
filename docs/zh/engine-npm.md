@@ -7,10 +7,11 @@ npm 包由 engine 仓库的 scripts/npm 生成。生成说明位于 engine 的 d
 ~~~powershell
 npm run test:npm
 npm run pack:npm -- --kind web --output ../engine-web-package
+npm run prepare:npm:editor -- --base ../engine-web-package
 npm run pack:npm -- --kind editor --base ../engine-web-package --output ../engine-editor-package
 ~~~
 
-默认源码是当前 engine。依赖、PAL、声明及 Editor/Web host profile 需事先准备，生成器不依赖 CLI 的 dist。Native npm 包尚未实现。分别在输出目录 npm pack 后，在游戏工程安装匹配的 Web/Editor tarball。
+默认源码是当前 engine。依赖、PAL 和声明需先准备；prepare:npm:editor 会独立编译发布用 host/preview profiles，生成器不依赖 CLI 的 dist。Native npm 包尚未实现。分别在输出目录 npm pack 后，在游戏工程安装匹配的 Web/Editor tarball。
 
 ## 项目配置
 
