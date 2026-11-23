@@ -26,7 +26,7 @@ export class ServerService {
     private app: Express = express();
     private server: HTTPServer | HTTPSServer | undefined;
     private _port = 9527;
-    private _host = 'localhost';// 对外 url 使用的 host/ip
+    private _host = '127.0.0.1';// Match the default IPv4-only listener; do not depend on localhost DNS.
     private useHttps = false;
     private httpsConfig = {
         key: '',// HTTPS 私钥文件路径
@@ -57,9 +57,7 @@ export class ServerService {
     async start(port?: number, host?: string) {
         console.log('🚀 开始启动服务器...');
         this.init();
-        if (host) {
-            this._host = host;
-        }
+        this._host = host || '127.0.0.1';
         const preferredPort = await getAvailablePort(port || this._port);
         const { server, port: actualPort } = await this.createServerWithRetry(preferredPort, host);
         this._port = actualPort;
