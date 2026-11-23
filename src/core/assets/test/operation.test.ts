@@ -707,6 +707,29 @@ describe('测试 db 的操作接口', function () {
             expect(content).toEqual('console.log("Hello, World!");');
         });
 
+        it.each([
+            ['ts', 'cc.TypeScript'],
+            ['js', 'cc.JavaScript'],
+        ])('imports %s scripts with loadable reference data', async (ext, ccType) => {
+            const assetInfo = await assetManager.createAsset({
+                target: join(databasePath, `${name}-script-reference.${ext}`),
+                content: 'console.log("Hello, World!");',
+            });
+            expect(assetInfo!.library['.json']).toBeDefined();
+            const scriptJSON = readJSONSync(assetInfo!.library['.json']);
+            expect(scriptJSON.__type__).toBe(ccType);
+            expect(cc.js.getClassName(cc.deserialize(scriptJSON))).toBe(ccType);
+        });
+
+        it('keeps declaration files out of runtime script assets', async () => {
+            const assetInfo = await assetManager.createAsset({
+                target: join(databasePath, `${name}-script-reference.d.ts`),
+                content: 'export declare class Model {}',
+            });
+            expect(assetInfo!.imported).toBe(true);
+            expect(assetInfo!.library['.json']).toBeUndefined();
+        });
+
         it('创建 texture-cube 时生成 .cubemap 文件而不是目录', async () => {
             const assetInfo = await assetManager.createAssetByType(
                 'texture-cube' as any,

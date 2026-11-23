@@ -5,8 +5,8 @@ import { DumpInterface } from './dump-interface';
 /**
  * 判断 dump 的属性类型是否为脚本资产（`cc.Script` 及其子类）。
  *
- * 脚本资产在 Cocos 4.0 中不再是可加载资源：asset library 里没有脚本条目，
- * 引擎也没有 `cc.Script` 的加载处理器，`loadAny` 必然失败。只能按属性类型判定。
+ * 脚本模块由脚本系统加载；旧项目或导入失败时，library 中可能缺少脚本引用 JSON。
+ * 此时按属性类型识别脚本资产，以便在 `loadAny` 失败后保留引用。
  */
 function isScriptAssetDump(dump: any): boolean {
     if (!dump) {
@@ -72,7 +72,7 @@ class AssetDump implements DumpInterface {
                     if (asset) {
                         result[i] = asset;
                     } else {
-                        // 脚本资产无法 loadAny，用带 uuid 的占位实例保留引用。
+                        // 脚本引用数据缺失时，用带 uuid 的占位实例保留引用。
                         const scriptPlaceHolder = isScriptAssetDump(data) || isScriptAssetDump(dump)
                             ? createScriptAssetPlaceholder(data.value.uuid, data.type ?? dump.type)
                             : null;
@@ -110,7 +110,7 @@ class AssetDump implements DumpInterface {
                 if (asset) {
                     data[info.key] = asset;
                 } else {
-                    // 脚本资产无法 loadAny，用带 uuid 的占位实例保留引用，
+                    // 脚本引用数据缺失时，用带 uuid 的占位实例保留引用，
                     // 避免整份场景因一次资源加载失败而打不开。
                     const scriptPlaceHolder = isScriptAssetDump(dump)
                         ? createScriptAssetPlaceholder(dump.value.uuid, dump.type)
