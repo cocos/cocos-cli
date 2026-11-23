@@ -6,7 +6,7 @@ import { DumpInterface } from './dump-interface';
  * 判断 dump 的属性类型是否为脚本资产（`cc.Script` 及其子类）。
  *
  * 脚本模块由脚本系统加载；旧项目或导入失败时，library 中可能缺少脚本引用 JSON。
- * 此时按属性类型识别脚本资产，以便在 `loadAny` 失败后保留引用。
+ * 此时按属性类型识别脚本资产，以便在数据缺失或类型不兼容时保留引用。
  */
 function isScriptAssetDump(dump: any): boolean {
     if (!dump) {
@@ -20,18 +20,21 @@ function isScriptAssetDump(dump: any): boolean {
 }
 
 /**
- * 为脚本资产构造占位实例：保留 uuid，但不加载脚本本体。
+ * 恢复脚本引用：复用兼容实例，否则按声明类型构造保留 uuid 的占位实例。
  *
  * 引用信息（uuid）必须保留，否则场景重新打开后属性会退化成 null；
  * 脚本对应的类由场景运行时的脚本注册表解析（uuid → cid → `cc.js.getClassById`）。
  */
-function createScriptAssetPlaceholder(uuid: string, declaredType: unknown): any {
+function restoreScriptAssetReference(uuid: string, declaredType: unknown, asset: any): any {
     const ScriptCtor = cc.js.getClassByName('cc.Script');
     if (!ScriptCtor) {
         return null;
     }
     const DeclaredCtor = typeof declaredType === 'string' ? cc.js.getClassByName(declaredType) : undefined;
     const PlaceholderCtor = cc.js.isChildClassOf(DeclaredCtor, ScriptCtor) ? DeclaredCtor : ScriptCtor;
+    if (asset instanceof PlaceholderCtor) {
+        return asset;
+    }
     const placeholder = new PlaceholderCtor();
     placeholder.initDefault(uuid);
     return placeholder;
@@ -69,21 +72,16 @@ class AssetDump implements DumpInterface {
                         });
                     });
 
-                    if (asset) {
-                        result[i] = asset;
+                    const scriptAsset = isScriptAssetDump(data) || isScriptAssetDump(dump)
+                        ? restoreScriptAssetReference(data.value.uuid, data.type ?? dump.type, asset)
+                        : null;
+                    if (scriptAsset || asset) {
+                        result[i] = scriptAsset || asset;
                     } else {
-                        // 脚本引用数据缺失时，用带 uuid 的占位实例保留引用。
-                        const scriptPlaceHolder = isScriptAssetDump(data) || isScriptAssetDump(dump)
-                            ? createScriptAssetPlaceholder(data.value.uuid, data.type ?? dump.type)
-                            : null;
-                        if (scriptPlaceHolder) {
-                            result[i] = scriptPlaceHolder;
-                        } else {
-                            // @ts-ignore
-                            const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
-                            placeHolder.initDefault();
-                            result[i] = placeHolder;
-                        }
+                        // @ts-ignore
+                        const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
+                        placeHolder.initDefault();
+                        result[i] = placeHolder;
                     }
 
                 }
@@ -107,25 +105,19 @@ class AssetDump implements DumpInterface {
                         }
                     });
                 });
-                if (asset) {
-                    data[info.key] = asset;
+                const scriptAsset = isScriptAssetDump(dump)
+                    ? restoreScriptAssetReference(dump.value.uuid, dump.type, asset)
+                    : null;
+                if (scriptAsset || asset) {
+                    data[info.key] = scriptAsset || asset;
+                } else if (opts?.suppressError != undefined && opts?.suppressError == true) {
+                    // @ts-ignore
+                    const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
+                    placeHolder.initDefault();
+                    data[info.key] = placeHolder;
                 } else {
-                    // 脚本引用数据缺失时，用带 uuid 的占位实例保留引用，
-                    // 避免整份场景因一次资源加载失败而打不开。
-                    const scriptPlaceHolder = isScriptAssetDump(dump)
-                        ? createScriptAssetPlaceholder(dump.value.uuid, dump.type)
-                        : null;
-                    if (scriptPlaceHolder) {
-                        data[info.key] = scriptPlaceHolder;
-                    } else if (opts?.suppressError != undefined && opts?.suppressError == true) {
-                        // @ts-ignore
-                        const placeHolder = EditorExtends.serialize.asAsset(dump.value.uuid, cc.js.getClassById(dump.type));
-                        placeHolder.initDefault();
-                        data[info.key] = placeHolder;
-                    } else {
-                        console.error(`Failed to load asset using the UUID:${dump.value.uuid}`);
-                        throw new Error(`Failed to load asset using the UUID:${dump.value.uuid}`);
-                    }
+                    console.error(`Failed to load asset using the UUID:${dump.value.uuid}`);
+                    throw new Error(`Failed to load asset using the UUID:${dump.value.uuid}`);
                 }
             }
         }

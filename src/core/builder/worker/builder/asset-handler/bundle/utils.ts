@@ -56,6 +56,10 @@ export function getImportPathInfo(uuid: string, bundle: IBundle): IImportAssetPa
     if (!assetInfo) {
         return null;
     }
+    // 脚本模块参与构建，不代表其引用 JSON 也作为资源输出。
+    if (!bundle._assets.has(uuid) && assetManager.queryAssetProperty(assetInfo, 'type') === 'cc.Script') {
+        return null;
+    }
     const extName = getImportExtName(assetInfo);
     if (!extName) {
         return null;
