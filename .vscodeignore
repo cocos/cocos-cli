@@ -72,7 +72,7 @@ docs/dev/**
 # ===========================================
 # 工作流和脚本
 # ===========================================
-workflow/!(postinstall|utils|electron-rebuild|node-gyp-rebuild|build-simulator|build-simulator-runtime|simulator-artifact).js
+workflow/!(postinstall|utils|electron-rebuild|node-gyp-rebuild|build-simulator|build-simulator-runtime|simulator-artifact|engine-path|engine-compatibility|engine-diagnostics).js
 
 # ===========================================
 # 发布和构建产物
