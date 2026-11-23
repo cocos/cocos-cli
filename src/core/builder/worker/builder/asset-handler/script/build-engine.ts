@@ -59,6 +59,9 @@ export async function buildEngineCommand(options: buildEngineOptions) {
         }
     }
 
+    const { validatePluginPlatform } = require(join(__dirname, '../../../../../../../workflow/engine-sdk'));
+    validatePluginPlatform(buildOptions.engine, buildOptions.platform);
+
     // TODO features 的校验与默认值
     const { features, out } = buildOptions;
     await remove(out);

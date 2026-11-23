@@ -1,10 +1,71 @@
+import { z } from 'zod';
+import { createCommonResult } from '../base/schema-base';
+import { getPlatformBuildSchema, queryPlatformConfig } from '../../core/builder';
+import { queryEngineModules, validateBuildConfig } from '../../core/builder/configuration';
 import { build, createBuildTemplate as createCoreBuildTemplate, executeBuildStageTask, queryDefaultBuildConfigByPlatform } from '../../core/builder';
 import { HttpStatusCode, COMMON_STATUS, CommonResultType } from '../base/schema-base';
 import { BuildExitCode } from '../../core/builder/@types/protected';
 import { description, param, result, title, tool } from '../decorator/decorator';
 import { SchemaBuildConfigResult, SchemaBuildOption, SchemaBuildResult, SchemaPlatform, SchemaBuildDest, SchemaRunResult, TBuildConfigResult, TBuildOption, TBuildResultData, TPlatform, TBuildDest, TRunResult, SchemaPlatformCanMake, TPlatformCanMake, IMakeResultData, IRunResultData, IUploadResultData, IPublishResultData, SchemaMakeResult, SchemaUploadResult, SchemaPublishResult, SchemaUploadAccessToken, TUploadAccessToken, SchemaBuildTemplateName, TBuildTemplateName, SchemaCreateBuildTemplateResult, TCreateBuildTemplateResult } from './schema';
 
+const SchemaConfigurationResult = createCommonResult(z.object({}).passthrough());
+const SchemaConfigurationOptions = z.object({}).passthrough().describe('Partial build configuration. Fields are described by builder-query-build-config-schema.');
+const SchemaConfigurationIssue = z.object({ code: z.string(), path: z.string(), message: z.string() });
+const SchemaValidationResult = createCommonResult(z.object({
+    valid: z.boolean(),
+    errors: z.array(SchemaConfigurationIssue),
+    warnings: z.array(SchemaConfigurationIssue),
+    checks: z.record(z.object({
+        valid: z.boolean(), level: z.enum(['error', 'warn']).optional(),
+        message: z.string().optional(), fixedValue: z.unknown().optional(),
+    })),
+}));
+const SchemaModulesResult = createCommonResult(z.object({
+    modules: z.array(z.object({ id: z.string(), dependencies: z.array(z.string()) }).passthrough()),
+    selectedModules: z.array(z.string()),
+}));
+
 export class BuilderApi {
+    private async configurationResult(operation: () => unknown | Promise<unknown>) {
+        try {
+            return { code: COMMON_STATUS.SUCCESS, data: await operation() };
+        } catch (error) {
+            return { code: COMMON_STATUS.FAIL, reason: error instanceof Error ? error.message : String(error) };
+        }
+    }
+
+    @tool('builder-query-platforms')
+    @title('Query Build Platforms')
+    @description('List platforms registered with the initialized builder. Use their platform identifiers in build requests.')
+    @result(SchemaConfigurationResult)
+    async queryPlatforms() {
+        return this.configurationResult(() => ({ platforms: queryPlatformConfig() }));
+    }
+
+    @tool('builder-query-build-config-schema')
+    @title('Query Build Configuration Schema')
+    @description('Query common and platform-specific field schemas. Common fields are top-level; platformOptions belong under packages[platform]. This is the builder field schema, not a standalone JSON Schema document.')
+    @result(SchemaConfigurationResult)
+    async queryBuildConfigSchema(@param(SchemaPlatform) platform: TPlatform) {
+        return this.configurationResult(() => getPlatformBuildSchema(platform));
+    }
+
+    @tool('builder-query-engine-modules')
+    @title('Query Engine Modules')
+    @description('List available includeModules identifiers, declared dependencies, environment restrictions and project-selected modules for the current engine.')
+    @result(SchemaModulesResult)
+    async queryEngineModules() {
+        return this.configurationResult(() => queryEngineModules());
+    }
+
+    @tool('builder-validate-build-config')
+    @title('Validate Build Configuration')
+    @description('Check partial build options against platform defaults and builder rules without starting a build. Inspect data.valid, errors, warnings and per-field checks. This does not resolve the final engine dependency graph or validate toolchain availability.')
+    @result(SchemaValidationResult)
+    async validateBuildConfig(@param(SchemaPlatform) platform: TPlatform, @param(SchemaConfigurationOptions) options: Record<string, unknown>) {
+        return this.configurationResult(() => validateBuildConfig(platform, options));
+    }
+
 
     @tool('builder-build')
     @title('Build Project') // 构建项目

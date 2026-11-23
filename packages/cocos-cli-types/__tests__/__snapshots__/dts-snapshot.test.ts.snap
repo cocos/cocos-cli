@@ -6833,6 +6833,14 @@ export declare function queryBundleConfig(): Promise<Record<string, BundleQueryC
 declare function queryBundleConfig_2(): Record<string, BundleQueryConfig_2>;
 export declare function queryDefaultBuildConfigByPlatform(platform: Platform): Promise<IBuildTaskOption<string>>;
 declare function queryDefaultBuildConfigByPlatform_2(platform: Platform_2): Promise<IBuildTaskOption_2<string>>;
+export declare function queryEngineModules(): Promise<{
+    modules: Array<{
+        id: string;
+        dependencies: string[];
+        [key: string]: unknown;
+    }>;
+    selectedModules: string[];
+}>;
 export declare function queryPlatformConfig(): Promise<PlatformConfigItem[]>;
 declare function queryPlatformConfig_2(): PlatformConfigItem_2[];
 export declare function queryTextureCompressConfig(): Promise<TextureCompressFullRenderConfig>;
@@ -7696,6 +7704,20 @@ export declare interface UserCompressConfig {
     genMipmaps: boolean;
 }
 export declare type UUID = string;
+export declare function validateBuildConfig(platform: string, options: Record<string, unknown>): Promise<{
+    valid: boolean;
+    errors: {
+        code: string;
+        path: string;
+        message: string;
+    }[];
+    warnings: {
+        code: string;
+        path: string;
+        message: string;
+    }[];
+    checks: Record<string, BuildCheckResult>;
+}>;
 export declare const VERSION: string;
 export declare class VirtualAsset extends VirtualAsset_2 {
     getData(name: 'output'): IExportData;
@@ -8098,6 +8120,8 @@ declare interface EngineSelection {
     path: string;
     version: string;
     revision?: string;
+    packageRoot?: string;
+    sdkReleaseId?: string;
     source: 'explicit' | 'project' | 'default';
 }
 declare interface ExtensionRoot {

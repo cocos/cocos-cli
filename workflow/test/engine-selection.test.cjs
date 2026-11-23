@@ -179,6 +179,7 @@ test('compiler worker uses the parent-selected engine rather than its local defa
     compile(root, 'src/core/engine/selection.ts', 'dist/core/engine/selection.js');
     compile(root, 'src/core/engine/compile-worker.ts', 'dist/core/engine/compile-worker.js');
     write(root, 'workflow/engine-path.js', fs.readFileSync(path.join(cli, 'workflow/engine-path.js'), 'utf8'));
+    write(root, 'workflow/engine-sdk.js', fs.readFileSync(path.join(cli, 'workflow/engine-sdk.js'), 'utf8'));
     write(root, 'workflow/engine-compatibility.js', fs.readFileSync(path.join(cli, 'workflow/engine-compatibility.js'), 'utf8'));
     write(root, 'engine-compatibility.json', fs.readFileSync(path.join(cli, 'engine-compatibility.json'), 'utf8'));
     const log = path.join(root, 'compiler-calls.jsonl');
@@ -213,4 +214,27 @@ test('compile coordinator passes the explicit path and rejects an exit without c
         assert.rejects(startCompileEngineProcess(true, 'explicit engine path'), /before completion/)
             .catch(error => { console.error(error); process.exitCode = 1; });
     `);
+});
+
+test('installed modular SDK uses prepared profiles without importing the compiler', async t => {
+    const root = fixture(t);
+    const selected = engine(root, 'installed engine');
+    const policy = JSON.parse(fs.readFileSync(path.join(cli, 'engine-compatibility.json'), 'utf8'));
+    for (const files of Object.values(policy.requiredFiles)) for (const file of files) {
+        if (!fs.existsSync(path.join(selected, file))) write(selected, file, 'prepared');
+    }
+    write(selected, 'engine-sdk.json', { schemaVersion: 2, kind: 'engine', engineVersion: '4.0.0', engineRevision: 'r1', sdkReleaseId: 'r1', component: 'web', entries: { inputFormat: 'esm-js' }, targets: {} });
+    for (const source of ['src/global.ts', 'src/core/engine/selection.ts', 'src/core/engine/compile-worker.ts']) compile(root, source, source.replace(/^src\//, 'dist/').replace(/\.ts$/, '.js'));
+    for (const file of ['engine-path.js', 'engine-sdk.js', 'engine-compatibility.js']) write(root, `workflow/${file}`, fs.readFileSync(path.join(cli, 'workflow', file), 'utf8'));
+    write(root, 'engine-compatibility.json', policy);
+    write(root, 'packages/engine-compiler/dist/index.js', "throw new Error('Compiler must not be loaded for prebuilt SDK');");
+    await new Promise((resolve, reject) => {
+        const worker = fork(path.join(root, 'dist/core/engine/compile-worker.js'), [], { execArgv: [], stdio: 'pipe', env: { ...process.env, NODE_PATH: path.join(cli, 'node_modules') } });
+        let done = false;
+        const timer = setTimeout(() => { worker.kill(); reject(new Error('Prebuilt worker timed out')); }, 15000);
+        worker.on('error', reject);
+        worker.on('message', message => { if (message.type === 'done') done = true; if (message.type === 'error') reject(new Error(message.message)); });
+        worker.on('exit', code => { clearTimeout(timer); code === 0 && done ? resolve() : reject(new Error(`Prebuilt worker exited: ${code}`)); });
+        worker.send({ type: 'start', enginePath: selected });
+    });
 });

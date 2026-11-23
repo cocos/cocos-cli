@@ -3,12 +3,15 @@ import { activateEngine, EngineSelection, getEnginePathOverride, GlobalPaths } f
 
 export interface EngineSdkConfiguration {
     path?: string;
+    package?: string;
+    editor?: { path?: string; package?: string };
+    platforms?: Record<string, { path?: string; package?: string }>;
     version?: string;
     revision?: string;
 }
 
 const { resolveEngineSelection } = require('../../../workflow/engine-path') as {
-    resolveEngineSelection: (root: string, options: { explicitPath?: string; projectRoot?: string; projectConfig?: EngineSdkConfiguration }) => EngineSelection;
+    resolveEngineSelection: (root: string, options: { explicitPath?: string; projectRoot?: string; projectConfig?: EngineSdkConfiguration; prepareEditor?: boolean }) => EngineSelection;
 };
 
 const { checkEngineCompatibility, describePolicy, readPolicy } = require('../../../workflow/engine-compatibility');
@@ -41,7 +44,7 @@ export async function selectProjectEngine(projectPath?: string, enginePath?: str
         projectConfig = instance.getAll('project') ?? {};
     }
     const selection = resolveEngineSelection(GlobalPaths.workspace, {
-        explicitPath: enginePath ?? getEnginePathOverride(), projectRoot, projectConfig,
+        explicitPath: enginePath ?? getEnginePathOverride(), projectRoot, projectConfig, prepareEditor: true,
     });
     return checkSelection(selection);
 }
