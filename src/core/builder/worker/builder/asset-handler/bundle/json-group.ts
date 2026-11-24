@@ -131,8 +131,9 @@ export async function outputJsonGroup(bundle: IBundle, manager: BundleManager) {
         group.uuids.sort();
         for (let i = 0; i < group.uuids.length; i++) {
             const assetInfo = buildAssetLibrary.getAsset(group.uuids[i]);
-            if (assetInfo && (!assetInfo.meta.files.includes('.json'))) {
-                // 分组塞 uuid 时并不会判断是否有 json，这里需要过滤
+            if (assetInfo && !assetInfo.meta.files.includes('.json')
+                && buildAssetLibrary.getAssetProperty(assetInfo, 'type') !== 'cc.Script') {
+                // 脚本引用可以从构建缓存生成 JSON。
                 continue;
             }
             const json = await manager.cache.getSerializedJSON(group.uuids[i], assetSerializeOptions);

@@ -1,4 +1,5 @@
 import { Asset, VirtualAsset } from '@cocos/asset-db';
+import { JavaScript, TypeScript } from 'cc';
 import { readFile } from 'fs-extra';
 import { transformPluginScript } from './utils/script-compiler';
 import { resolveSimulatedGlobals } from './utils/plugin-script-globals';
@@ -19,7 +20,7 @@ export const JavascriptHandler: AssetHandlerBase = {
 
     importer: {
         // 版本号如果变更，则会强制重新导入
-        version: '4.0.24',
+        version: '4.0.25',
 
         /**
          * 实际导入流程
@@ -48,6 +49,11 @@ export const JavascriptHandler: AssetHandlerBase = {
                         importer: asset.meta.importer,
                         userData: asset.meta.userData,
                     }]);
+                    // 动态预览按 UUID 从 library 加载脚本引用，脚本模块仍由 QuickPack 提供。
+                    const scriptAsset = asset.meta.importer === 'typescript'
+                        ? new TypeScript(asset.basename)
+                        : new JavaScript(asset.basename);
+                    await asset.saveToLibrary('.json', EditorExtends.serialize(scriptAsset));
                     return true;
                 }
             } catch (error) {
