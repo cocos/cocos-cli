@@ -5,6 +5,7 @@ const fse = require('fs-extra');
 const path = require('path');
 
 const assetdb = require('../dist');
+const { LocalAssetFileSystemProvider } = require('../dist/libs/filesystem/local-provider');
 const {
     fsCopy,
     fsReadFile,
@@ -43,6 +44,22 @@ describe('AssetDB 文件系统 Provider', () => {
         const asset = new assetdb.Asset(PATH.FILE, meta, db);
         return { db, asset };
     }
+
+    it('LocalAssetFileSystemProvider.exists 使用异步 access 检查路径', async () => {
+        const provider = new LocalAssetFileSystemProvider();
+        const existingPath = path.join(PATH.ROOT, 'exists.txt');
+        const missingPath = path.join(PATH.ROOT, 'missing.txt');
+
+        fse.outputFileSync(existingPath, 'exists');
+
+        const existingResult = provider.exists(existingPath);
+        const missingResult = provider.exists(missingPath);
+
+        expect(existingResult).to.be.instanceOf(Promise);
+        expect(missingResult).to.be.instanceOf(Promise);
+        expect(await existingResult).to.equal(true);
+        expect(await missingResult).to.equal(false);
+    });
 
     afterEach(() => {
         if (typeof assetdb.resetFileSystemProvider === 'function') {
