@@ -806,8 +806,8 @@ interface ImportMapWithURL {
     url: URL;
 }
 
-// 考虑到这是潜在的收费点，默认关闭入口脚本的优化功能
-const OPTIMIZE_ENTRY_SOURCE_COMPILATION = false;
+// 仅在入口源码变化时更新内存模块，保留未变化入口的编译缓存。
+const OPTIMIZE_ENTRY_SOURCE_COMPILATION = true;
 
 class PackTarget {
     constructor(options: {
