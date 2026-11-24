@@ -208,7 +208,7 @@ export const textureFormatConfigs: Record<ITextureCompressFormatType, ITextureFo
             displayName: 'ASTC 12x12',
             alpha: true,
         }],
-        parallelism: false,
+        parallelism: true,
         childProcess: true,
     },
     png: {
