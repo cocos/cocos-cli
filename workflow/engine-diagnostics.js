@@ -12,21 +12,6 @@ function cliIdentity(root) {
     return { version: readJson(path.join(root, 'package.json')).version, path: path.resolve(root) };
 }
 
-/** Read only: use the same settings-before-legacy precedence as ConfigurationManager.
- * Do not initialize that manager here: diagnostics must not migrate or save a project.
- */
-function projectSettings(projectRoot) {
-    if (!projectRoot) return {};
-    if (!fs.statSync(projectRoot).isDirectory()) throw new Error(`Not a project directory: ${projectRoot}`);
-    const settings = path.join(projectRoot, 'settings/cocos.config.json');
-    const legacy = path.join(projectRoot, 'cocos.config.json');
-    const file = fs.existsSync(settings) ? settings : fs.existsSync(legacy) ? legacy : undefined;
-    if (!file) return {};
-    const config = readJson(file);
-    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error(`Expected configuration object in ${file}`);
-    return config.engineSdk === undefined ? {} : config.engineSdk;
-}
-
 function diagnose(root, { projectRoot, explicitPath } = {}) {
     const report = {
         schemaVersion: 1, ok: false, cli: cliIdentity(root),
@@ -38,8 +23,10 @@ function diagnose(root, { projectRoot, explicitPath } = {}) {
     try {
         const policy = readPolicy(root);
         report.compatibility = { supported: describePolicy(policy), profile: 'web', passed: false };
-        const projectConfig = projectSettings(report.project);
-        const selection = resolveEngineSelection(root, { projectRoot: report.project, explicitPath, projectConfig });
+        if (report.project && !fs.statSync(report.project, { throwIfNoEntry: false })?.isDirectory()) {
+            throw new Error(`Not a project directory: ${report.project}`);
+        }
+        const selection = resolveEngineSelection(root, { explicitPath });
         report.engine = engineIdentity(selection);
         const match = checkEngineCompatibility(selection, root, 'web');
         report.compatibility.passed = true;
@@ -64,7 +51,7 @@ function diagnose(root, { projectRoot, explicitPath } = {}) {
     return report;
 }
 
-/** Called only after successful runtime initialization; never changes engineSdk pins. */
+/** Record the selected SDK after successful runtime initialization. */
 function recordInitialization(root, projectRoot, selection) {
     const record = {
         schemaVersion: 1, status: 'initialized', initializedAt: new Date().toISOString(),

@@ -8,14 +8,13 @@ const assert = require('node:assert/strict');
 const Module = require('node:module');
 const cli = fs.realpathSync(process.argv[2]);
 const engine = fs.realpathSync(process.argv[3]);
-const mode = process.argv[4] || 'project';
 const pkg = JSON.parse(fs.readFileSync(path.join(engine, 'package.json'), 'utf8'));
 const metadata = JSON.parse(fs.readFileSync(path.join(engine, 'engine-sdk.json'), 'utf8'));
 const project = fs.mkdtempSync(path.join(os.tmpdir(), 'cocos-sdk-load-'));
-const engineConfig = { path: mode === 'explicit' ? './intentionally-missing' : engine, version: pkg.version, revision: metadata.revision };
+const projectConfig = { version: '1.0.0' };
 fs.mkdirSync(path.join(project, 'settings'));
 fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'sdk-load-smoke', version: '1.0.0' }));
-fs.writeFileSync(path.join(project, 'settings/cocos.config.json'), JSON.stringify({ version: '1.0.0', engineSdk: engineConfig }));
+fs.writeFileSync(path.join(project, 'settings/cocos.config.json'), JSON.stringify(projectConfig));
 const builtin = path.join(cli, 'packages/engine');
 const original = Module._resolveFilename;
 Module._resolveFilename = function (...args) {
@@ -26,7 +25,7 @@ Module._resolveFilename = function (...args) {
 (async () => {
     try {
         const api = require(path.join(cli, 'dist/lib/engine/engine.js'));
-        await api.init(project, mode === 'explicit' ? { enginePath: engine } : {});
+        await api.init(project, { enginePath: engine });
         const info = await api.getInfo();
         assert.equal(info.typescript.path, engine);
         assert.equal(info.version, pkg.version);
@@ -38,8 +37,8 @@ Module._resolveFilename = function (...args) {
         assert.equal(record.engine.revision, metadata.revision);
         assert.equal(record.cli.version, JSON.parse(fs.readFileSync(path.join(cli, 'package.json'), 'utf8')).version);
         const savedConfig = JSON.parse(fs.readFileSync(path.join(project, 'settings/cocos.config.json'), 'utf8'));
-        assert.deepEqual(savedConfig.engineSdk, engineConfig);
-        console.log(JSON.stringify({ mode, engine: info.typescript.path, version: info.version, revision: info.revision, initialized: true }));
+        assert.equal(Object.hasOwn(savedConfig, 'engineSdk'), false);
+        console.log(JSON.stringify({ engine: info.typescript.path, version: info.version, revision: info.revision, initialized: true }));
     } finally {
         fs.rmSync(project, { recursive: true, force: true });
     }

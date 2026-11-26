@@ -153,8 +153,14 @@ test('pair timeout terminates an unresponsive SDK process', async t => {
     write(path.join(config.engine, 'engine-sdk.json'), { engineVersion: '4.0.0', revision: `sha256:${hash}` });
     write(path.join(config.cli, 'cli-sdk.json'), { cliVersion: '1.0.0', revision: `sha256:${hash}` });
     write(path.join(config.cli, 'dist/core/base/sentry.js'), 'exports.initSentry = () => {};');
-    write(path.join(config.cli, 'workflow/engine-diagnostics.js'), 'exports.diagnose = () => ({ok:true});');
-    write(path.join(config.cli, 'dist/core/launcher.js'), 'exports.default = class { async import() { await new Promise(() => setInterval(() => {}, 1000)); } };');
+    write(path.join(config.cli, 'workflow/engine-diagnostics.js'), `exports.diagnose = (root, options) => {
+        require('node:assert/strict').equal(options.explicitPath, ${JSON.stringify(config.engine)});
+        return { ok: true, engine: { version: '4.0.0', revision: 'sha256:${hash}' } };
+    };`);
+    write(path.join(config.cli, 'dist/core/launcher.js'), `exports.default = class {
+        constructor(project, options) { require('node:assert/strict').equal(options.enginePath, ${JSON.stringify(config.engine)}); }
+        async import() { await new Promise(() => setInterval(() => {}, 1000)); }
+    };`);
     const file = path.join(dir, 'pair.json'); write(file, config);
     const result = await executePair(file, path.join(dir, 'build.log'), 1500);
     assert.equal(result.status, 'timeout');

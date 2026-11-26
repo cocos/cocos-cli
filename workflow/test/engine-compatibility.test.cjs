@@ -122,11 +122,13 @@ test('the current beta SDK passes full validation without bypassing required fil
     assert.throws(() => checkEngineCompatibility(actual, root, 'web'), /Missing required web file/);
 });
 
-test('legacy distribution is ignored without changing pinned identity', t => {
+test('legacy distribution is ignored without changing SDK identity', t => {
     const selected = fixture(t);
     for (const distribution of [undefined, 'internal', 'cocos', null, 123]) {
         fs.writeFileSync(path.join(selected.path, 'engine-sdk.json'), JSON.stringify({ schemaVersion: 1, engineVersion: selected.version, revision: 'same-payload', distribution }));
-        const actual = resolveEngineSelection(root, { explicitPath: selected.path, projectConfig: { version: selected.version, revision: 'same-payload' } });
+        const actual = resolveEngineSelection(root, { explicitPath: selected.path });
+        assert.equal(actual.version, selected.version);
+        assert.equal(actual.revision, 'same-payload');
         assert.equal(Object.hasOwn(actual, 'distribution'), false);
         assert.doesNotThrow(() => checkEngineCompatibility(actual, root));
     }

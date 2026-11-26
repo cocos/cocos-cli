@@ -18,7 +18,7 @@ program
     .option('--debug', 'Enable debug mode')
     .option('--no-interactive', 'Disable interactive mode (for CI)')
     .option('--config <path>', 'Specify config file path')
-    .option('--engine-path <path>', 'Select an Engine SDK (overrides project and local defaults)');
+    .option('--engine-path <path>', 'Select an Engine SDK (overrides the local default)');
 
 program.hook('preAction', () => {
     setEnginePathOverride(program.opts().enginePath);

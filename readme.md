@@ -66,7 +66,7 @@ For native development, please refer to the [Native Development Setup Guide](htt
 
 See [Quick Start Guide](docs/en/quick-start.md) for detailed usage steps.
 
-Use `--engine-path "D:/engines/custom engine"` to override the runtime engine. Precedence: command line > `engineSdk.path` in the project's `settings/cocos.config.json` > the CLI's local `enginePath` > `packages/engine`. Optional project `engineSdk.version` / `revision` pin the exact SDK identity. See [environment setup](docs/dev/environment-setup.md).
+Use `--engine-path "D:/engines/custom engine"` to select the runtime engine. The CLI uses the command-line path first, then `enginePath` in the CLI root's `config.local.json`, then `packages/engine`. See [environment setup](docs/dev/environment-setup.md).
 
 ## 📚 Commands
 

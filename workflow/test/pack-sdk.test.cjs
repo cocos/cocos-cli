@@ -8,6 +8,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const { packSdk, dependencies, REQUIRED } = require('../pack-sdk.js');
+const { platformArtifacts } = require('../build-simulator');
 
 function write(root, relative, content) {
     const filename = path.join(root, relative);
@@ -49,16 +50,88 @@ test('Engine snapshot uses actual engine version and includes prepared adapters'
     const options = fixture(t, 'engine', '4.0.0-alpha.32');
     write(options.source, 'bin/.cache/dev-cli/editor/transform-cache/unused.js', 'cache');
     write(options.source, 'editor/library/required.bin', 'asset');
+    write(options.source, 'bin/dev/cc-min/base.js', 'minified');
+    write(options.source, 'native/external/ios-xcframework/CMakeLists.txt', 'provided by the engine external');
+    const xcode = 'scripts/native-pack-tool/xcode';
+    write(options.source, `${xcode}/package.json`, { name: 'xcode', version: '1.0.0', dependencies: { plist: '*' } });
+    write(options.source, `${xcode}/index.js`, 'module.exports = require("plist");');
+    write(options.source, `${xcode}/node_modules/plist/package.json`, { name: 'plist', version: '1.0.0' });
+    write(options.source, `${xcode}/node_modules/plist/index.js`, 'module.exports = "bundled";');
+    write(options.source, `${xcode}/node_modules/dev/package.json`, { name: 'dev', version: '1.0.0' });
     const result = await packSdk(options);
     const manifest = JSON.parse(fs.readFileSync(path.join(options.output, 'engine-sdk.json')));
     assert.equal(result.version, '4.0.0-alpha.32');
     assert.equal(manifest.engineVersion, result.version);
     assert.equal(fs.existsSync(path.join(options.output, 'editor/library/required.bin')), true);
     assert.equal(fs.existsSync(path.join(options.output, 'bin/.cache/dev-cli/editor/transform-cache')), false);
+    assert.equal(fs.readFileSync(path.join(options.output, 'bin/dev/cc-min/base.js'), 'utf8'), 'minified');
+    assert.equal(fs.existsSync(path.join(options.output, 'native/external/ios-xcframework/CMakeLists.txt')), true);
+    assert.equal(require(path.join(options.output, xcode)), 'bundled');
+    assert.equal(fs.existsSync(path.join(options.output, `${xcode}/node_modules/dev`)), false);
     for (const entry of manifest.files) {
         const digest = crypto.createHash('sha256').update(fs.readFileSync(path.join(options.output, entry.path))).digest('hex');
         assert.equal(digest, entry.sha256);
     }
+});
+
+test('Engine SDK build prepares a custom source before snapshotting and validates simulator outputs', async t => {
+    const options = fixture(t, 'engine');
+    const version = '4.0.0';
+    const webLoader = 'bin/.cache/dev-cli/web/loader.js';
+    const simulator = platformArtifacts[process.platform];
+    write(options.source, 'package.json', { name: 'custom-engine', version, scripts: { 'build:min': 'stub' } });
+    write(options.source, 'bin/adapter/nodejs/web-adapter.js', 'adapter');
+    write(options.source, 'bin/adapter/nodejs/engine-adapter.js', 'adapter');
+    write(options.source, 'native/external/CMakeLists.txt', 'prepared');
+    write(options.source, 'scripts/native-pack-tool/xcode/package.json', { name: 'xcode', version: '1.0.0' });
+    fs.unlinkSync(path.join(options.source, webLoader));
+    const steps = [];
+    const artifactInfo = { formatVersion: 1, engineVersion: version, platform: process.platform, arch: process.arch };
+    const skipSimulator = process.platform === 'win32' && process.arch !== 'x64';
+    const run = async (command, args, optionsForStep) => {
+        if (command === 'npm') {
+            assert.deepEqual(args, ['run', 'build:min']);
+            assert.equal(optionsForStep.cwd, fs.realpathSync.native(options.source));
+            steps.push('build:min');
+            write(options.source, 'bin/dev/cc-min/base.js', 'minified');
+            return;
+        }
+        assert.equal(command, process.execPath);
+        assert.equal(optionsForStep.shell, false);
+        assert.equal(args.at(-1), fs.realpathSync.native(options.source));
+        const script = path.basename(args.find(arg => arg.endsWith('.js')));
+        steps.push(script);
+        if (script === 'compiler-engine.js') {
+            write(options.source, webLoader, 'compiled');
+        } else if (script === 'build-simulator-runtime.js') {
+            for (const file of ['bin/native-preview/base.js', 'bin/simulator/import-map.json', 'bin/simulator/system.bundle.js', 'bin/simulator/polyfills.bundle.js']) write(options.source, file, 'runtime');
+            write(options.source, 'bin/simulator/simulator-artifact.json', { ...artifactInfo, kind: 'runtime' });
+        } else if (script === 'build-simulator.js') {
+            write(options.source, `native/simulator/Release/${simulator.entry}`, 'executable');
+            write(options.source, 'native/simulator/Release/simulator-artifact.json', { ...artifactInfo, kind: 'native' });
+        }
+    };
+    const expected = ['compiler-engine.js', 'build:min'];
+    if (simulator && !skipSimulator) expected.push('build-simulator-runtime.js', 'build-simulator.js');
+    await packSdk({ ...options, build: true, skipSimulator, run });
+    assert.deepEqual(steps, expected);
+    assert.equal(fs.readFileSync(path.join(options.output, webLoader), 'utf8'), 'compiled');
+    if (simulator && !skipSimulator) {
+        assert.equal(fs.existsSync(path.join(options.output, `native/simulator/Release/${simulator.entry}`)), true);
+        assert.equal(fs.existsSync(path.join(options.output, 'bin/native-preview/base.js')), true);
+    }
+});
+
+test('Engine SDK build failure never creates a partial snapshot, and dry run never runs a build', async t => {
+    const options = fixture(t, 'engine');
+    write(options.source, 'package.json', { name: 'custom-engine', version: '4.0.0', scripts: { 'build:min': 'stub' } });
+    let calls = 0;
+    const buildOptions = { ...options, build: true, skipSimulator: true, run: async () => { calls++; throw new Error('compilation failed'); } };
+    await packSdk({ ...buildOptions, dryRun: true });
+    assert.equal(calls, 0);
+    await assert.rejects(packSdk(buildOptions), /compilation failed/);
+    assert.equal(calls, 1);
+    assert.equal(fs.existsSync(options.output), false);
 });
 
 test('SDK metadata excludes legacy distribution without changing payload revision', async t => {
