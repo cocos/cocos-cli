@@ -10,16 +10,19 @@ async function main() {
     const cli = read(path.join(config.cli, 'cli-sdk.json'));
     assert.equal(fs.existsSync(path.join(config.cli, 'packages/engine')), false, 'CLI SDK must not embed Engine SDK');
     fs.mkdirSync(path.join(config.project, 'settings'), { recursive: true });
-    fs.writeFileSync(path.join(config.project, 'settings/cocos.config.json'), JSON.stringify({ version: '1.0.0' }, null, 2));
+    fs.writeFileSync(path.join(config.project, 'settings/cocos.config.json'), JSON.stringify({
+        version: '1.0.0', engineSdk: { path: config.engine, version: engine.engineVersion },
+    }, null, 2));
     // Test payloads must not send application telemetry.
     require(path.join(config.cli, 'dist/core/base/sentry.js')).initSentry = () => {};
     const { diagnose } = require(path.join(config.cli, 'workflow/engine-diagnostics.js'));
-    const diagnosis = diagnose(config.cli, { projectRoot: config.project, explicitPath: config.engine });
+    const diagnosis = diagnose(config.cli, { projectRoot: config.project });
     assert.equal(diagnosis.ok, true, JSON.stringify(diagnosis.errors));
+    assert.equal(diagnosis.engine.source, 'project');
     assert.equal(diagnosis.engine.version, engine.engineVersion);
     assert.equal(diagnosis.engine.revision, engine.revision);
     const Launcher = require(path.join(config.cli, 'dist/core/launcher.js')).default;
-    const launcher = new Launcher(config.project, { enginePath: config.engine });
+    const launcher = new Launcher(config.project);
     {
         await launcher.import();
         const { Engine } = require(path.join(config.cli, 'dist/core/engine/index.js'));

@@ -66,7 +66,7 @@
 
 查看 [快速开始指南](docs/zh/quick-start.md) 了解详细使用步骤。
 
-运行时可用 `--engine-path "D:/engines/custom engine"` 指定引擎。CLI 依次使用命令行路径、CLI 根目录 `config.local.json` 的 `enginePath`、默认的 `packages/engine`。详见[环境配置说明](docs/dev/environment-setup.md)。
+运行时可用 `--engine-path "D:/engines/custom engine"` 指定引擎。CLI 依次使用命令行路径、项目的 `engineSdk.path`、CLI 根目录 `config.local.json` 的 `enginePath`、默认的 `packages/engine`。项目可用 `engineSdk.version` 校验所选引擎的版本。详见[环境配置说明](docs/dev/environment-setup.md)。
 
 ## 📚 基本命令
 

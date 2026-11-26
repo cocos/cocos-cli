@@ -5,7 +5,7 @@ export class DoctorCommand extends BaseCommand {
     register(): void {
         this.program.command('doctor')
             .description('Inspect CLI and Engine SDK identity and required files without loading the engine')
-            .option('-j, --project <path>', 'Compare with the last engine initialization for this project')
+            .option('-j, --project <path>', 'Read engine settings and the last initialization for this project')
             .option('--json', 'Print one JSON report for automation')
             .action((options: { project?: string; json?: boolean }) => {
                 const { diagnose } = require('../../workflow/engine-diagnostics');

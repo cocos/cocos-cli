@@ -17,13 +17,26 @@ CLI 的全局引擎路径、源码依赖安装、引擎编译、cc-module 生成
 
 ## 运行时选择引擎
 
-CLI 运行时依次使用命令行 `--engine-path`、CLI 根目录 `config.local.json` 的 `enginePath`、默认的 `packages/engine`。命令行相对路径按当前工作目录解析，本机配置的相对路径按 CLI 根目录解析。包含空格的路径使用引号。
+CLI 运行时优先级为 `--engine-path` → 项目的 `engineSdk.path` → CLI 根目录 `config.local.json` 的 `enginePath` → 默认的 `packages/engine`。命令行相对路径按当前工作目录解析，项目路径按项目根目录解析，本机配置的相对路径按 CLI 根目录解析。包含空格的路径使用引号。
 
 ```sh
 cocos build --project D:/projects/game --engine-path "D:/engines/custom engine" --platform web-desktop
 ```
 
-已有游戏项目可以删除旧的 `engineSdk` 节点，并通过上述方式选择引擎。SDK 自带的 `engine-sdk.json` 仍用于识别制品。该清单须包含 `schemaVersion: 1`、与实际引擎版本匹配的 `engineVersion` 和非空的 `revision`。源码引擎可以没有这份清单。
+项目可在 `<项目根目录>/settings/cocos.config.json` 中配置自己的引擎：
+
+```json
+{
+  "engineSdk": {
+    "path": "../engines/custom-engine",
+    "version": "4.0.0-beta.3"
+  }
+}
+```
+
+`path` 和 `version` 都可以省略。填写 `version` 时，CLI 要求选定的引擎版本精确匹配，即使路径由命令行覆盖。版本号只用于校验，不会自动查找或下载 SDK。不同项目可各用自己的引擎，分别启动后端。
+
+旧项目中的 `engineSdk.revision` 会被忽略。SDK 自带的 `engine-sdk.json` 仍用于识别制品。该清单须包含 `schemaVersion: 1`、与实际引擎版本匹配的 `engineVersion` 和非空的 `revision`。源码引擎可以没有这份清单。
 
 ### 引擎兼容性
 
@@ -96,17 +109,17 @@ npm run setup:dev
 ```powershell
 # 检查本机默认引擎
 node dist/cli.js doctor
-# 检查本机默认引擎，并与项目上次初始化记录比较
+# 检查项目所选引擎，并与上次初始化记录比较
 node dist/cli.js doctor --project D:/projects/game --json
-# 显式检查独立 SDK
+# 显式检查独立 SDK，同样校验项目要求的版本
 node dist/cli.js doctor --project D:/projects/game --engine-path D:/engines/custom --json
 ```
 
-安装 CLI 命令后可用 `cocos doctor`。无论是否提供 `--project`，CLI 都按命令行、本机配置和默认目录的顺序选择引擎。退出码 0 表示引擎版本、SDK 清单（如存在）和 Web 所需文件通过检查。检查失败返回 1，原因记录在 `errors`。
+安装 CLI 命令后可用 `cocos doctor`。带 `--project` 时会读取项目的引擎路径和版本要求。不指定项目时，使用命令行引擎路径或本机默认值。退出码 0 表示版本、SDK 清单（如存在）和 Web 所需文件通过检查。检查失败返回 1，原因记录在 `errors`。
 
-JSON 包含 schemaVersion、ok、cli、environment（Node / 平台 / 架构 / ABI）、engine（实际路径 / version / revision / source）、compatibility、runtimeInterfaces、lastInitialization、warnings 和 errors。CLI 的 --version 与报告均从 package.json 读取。source 为 explicit 或 default，default 涵盖本机配置和默认目录。
+JSON 包含 schemaVersion、ok、cli、environment（Node / 平台 / 架构 / ABI）、engine（实际路径 / version / revision / source）、compatibility、runtimeInterfaces、lastInitialization、warnings 和 errors。CLI 的 --version 与报告均从 package.json 读取。source 为 explicit、project 或 default，default 涵盖本机配置和默认目录。
 
-doctor 对项目只读取上次初始化记录，不加载项目设置或执行引擎代码。版本和文件检查通过并不证明模块接口或项目构建通过，runtimeInterfaces 始终为 not-tested。自定义源码没有 revision 时输出 null 和警告。
+doctor 只读项目设置和上次初始化记录，不迁移或保存项目，也不执行引擎代码。版本和文件检查通过并不证明模块接口或项目构建通过，runtimeInterfaces 始终为 not-tested。自定义源码没有 revision 时输出 null 和警告。
 
 成功初始化引擎后，CLI 在项目 temp/engine-sdk.json 原子写入实际引擎身份、CLI 版本、时间和 status: initialized，并输出 [Engine SDK] 日志。初始化失败时保留上一次记录。temp 文件应保持不提交。
 

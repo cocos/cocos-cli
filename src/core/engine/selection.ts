@@ -1,8 +1,13 @@
 import { resolve, relative } from 'path';
 import { activateEngine, EngineSelection, getEnginePathOverride, GlobalPaths } from '../../global';
 
+export interface EngineSdkConfiguration {
+    path?: string;
+    version?: string;
+}
+
 const { resolveEngineSelection } = require('../../../workflow/engine-path') as {
-    resolveEngineSelection: (root: string, options: { explicitPath?: string }) => EngineSelection;
+    resolveEngineSelection: (root: string, options: { explicitPath?: string; projectRoot?: string; projectConfig?: EngineSdkConfiguration }) => EngineSelection;
 };
 
 const { checkEngineCompatibility, describePolicy, readPolicy } = require('../../../workflow/engine-compatibility');
@@ -23,13 +28,18 @@ export function selectEnginePath(enginePath: string) {
 
 /** Prepare the project's settings and select the process engine before loading it. */
 export async function selectProjectEngine(projectPath?: string, enginePath?: string) {
-    if (projectPath !== undefined) {
-        const projectRoot = resolve(projectPath);
-        const { configurationManager } = await import('../configuration');
+    const projectRoot = projectPath === undefined ? undefined : resolve(projectPath);
+    let projectConfig: EngineSdkConfiguration | undefined;
+    if (projectRoot) {
+        const { configurationManager, configurationRegistry } = await import('../configuration');
         await configurationManager.initialize(projectRoot);
         if (relative(resolve(projectRoot, 'settings/cocos.config.json'), await configurationManager.getConfigPath()) !== '') {
             throw new Error('A different project is already initialized in this process; start a new process.');
         }
+        const instance = configurationRegistry.getInstances().engineSdk ?? await configurationRegistry.register('engineSdk', { defaults: {} });
+        projectConfig = instance.getAll('project');
     }
-    return checkSelection(resolveEngineSelection(GlobalPaths.workspace, { explicitPath: enginePath ?? getEnginePathOverride() }));
+    return checkSelection(resolveEngineSelection(GlobalPaths.workspace, {
+        explicitPath: enginePath ?? getEnginePathOverride(), projectRoot, projectConfig,
+    }));
 }

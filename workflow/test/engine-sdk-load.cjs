@@ -11,7 +11,7 @@ const engine = fs.realpathSync(process.argv[3]);
 const pkg = JSON.parse(fs.readFileSync(path.join(engine, 'package.json'), 'utf8'));
 const metadata = JSON.parse(fs.readFileSync(path.join(engine, 'engine-sdk.json'), 'utf8'));
 const project = fs.mkdtempSync(path.join(os.tmpdir(), 'cocos-sdk-load-'));
-const projectConfig = { version: '1.0.0' };
+const projectConfig = { version: '1.0.0', engineSdk: { path: engine, version: pkg.version } };
 fs.mkdirSync(path.join(project, 'settings'));
 fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify({ name: 'sdk-load-smoke', version: '1.0.0' }));
 fs.writeFileSync(path.join(project, 'settings/cocos.config.json'), JSON.stringify(projectConfig));
@@ -25,7 +25,7 @@ Module._resolveFilename = function (...args) {
 (async () => {
     try {
         const api = require(path.join(cli, 'dist/lib/engine/engine.js'));
-        await api.init(project, { enginePath: engine });
+        await api.init(project);
         const info = await api.getInfo();
         assert.equal(info.typescript.path, engine);
         assert.equal(info.version, pkg.version);
@@ -35,9 +35,10 @@ Module._resolveFilename = function (...args) {
         assert.equal(record.engine.path, engine);
         assert.equal(record.engine.version, pkg.version);
         assert.equal(record.engine.revision, metadata.revision);
+        assert.equal(record.engine.source, 'project');
         assert.equal(record.cli.version, JSON.parse(fs.readFileSync(path.join(cli, 'package.json'), 'utf8')).version);
         const savedConfig = JSON.parse(fs.readFileSync(path.join(project, 'settings/cocos.config.json'), 'utf8'));
-        assert.equal(Object.hasOwn(savedConfig, 'engineSdk'), false);
+        assert.deepEqual(savedConfig.engineSdk, projectConfig.engineSdk);
         console.log(JSON.stringify({ engine: info.typescript.path, version: info.version, revision: info.revision, initialized: true }));
     } finally {
         fs.rmSync(project, { recursive: true, force: true });

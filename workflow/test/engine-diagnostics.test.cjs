@@ -41,25 +41,34 @@ test('diagnostics report exact identity and are read-only', t => {
     assert.deepEqual(fs.readFileSync(file), before);
     assert.equal(fs.existsSync(path.join(project, 'temp')), false);
 });
-test('legacy project engine settings do not affect explicit or default diagnostics', t => {
+test('diagnostics use the project path and check the version on explicit overrides', t => {
     const { root, engine, project } = fixture(t);
     assert.equal(diagnose(root).engine.path, engine);
-    write(project, 'settings/cocos.config.json', { engineSdk: { path: './missing', version: '9.9.9', revision: 'wrong' } });
+    write(project, 'settings/cocos.config.json', { engineSdk: { path: '../custom engine', version: '4.0.0', revision: 'stale' } });
     const explicit = diagnose(root, { projectRoot: project, explicitPath: engine });
     assert.equal(explicit.ok, true);
     assert.equal(explicit.engine.source, 'explicit');
-    const local = diagnose(root, { projectRoot: project });
-    assert.equal(local.ok, true);
-    assert.equal(local.engine.source, 'default');
-    assert.equal(local.engine.path, engine);
+    const selected = diagnose(root, { projectRoot: project });
+    assert.equal(selected.ok, true);
+    assert.equal(selected.engine.source, 'project');
+    assert.equal(selected.engine.path, engine);
+    assert.equal(selected.engine.revision, 'custom-42');
+    write(project, 'settings/cocos.config.json', { engineSdk: { path: '../custom engine', version: '4.0.1' } });
+    for (const explicitPath of [undefined, engine]) {
+        const result = diagnose(root, { projectRoot: project, explicitPath });
+        assert.equal(result.ok, false);
+        assert.match(result.errors[0], /engineSdk.version requires 4.0.1; actual 4.0.0/);
+    }
 });
-test('doctor only uses the project directory to look up the initialization record', t => {
+test('doctor reads modern and legacy project engine settings without migrating them', t => {
     const { root, project } = fixture(t);
     const legacy = path.join(project, 'cocos.config.json');
-    fs.writeFileSync(legacy, '{invalid');
-    fs.writeFileSync(path.join(project, 'settings/cocos.config.json'), '{invalid');
+    write(project, 'cocos.config.json', { engineSdk: { path: './missing' } });
+    const before = fs.readFileSync(legacy);
     assert.equal(diagnose(root, { projectRoot: project }).ok, true);
-    assert.equal(fs.readFileSync(legacy, 'utf8'), '{invalid');
+    fs.unlinkSync(path.join(project, 'settings/cocos.config.json'));
+    assert.equal(diagnose(root, { projectRoot: project }).ok, false);
+    assert.deepEqual(fs.readFileSync(legacy), before);
     assert.match(diagnose(root, { projectRoot: legacy }).errors[0], /Not a project directory/);
 });
 test('missing required files and unsupported versions produce failed reports', t => {

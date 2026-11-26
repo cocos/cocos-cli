@@ -12,6 +12,20 @@ function cliIdentity(root) {
     return { version: readJson(path.join(root, 'package.json')).version, path: path.resolve(root) };
 }
 
+function projectEngineSettings(projectRoot) {
+    if (!projectRoot) return undefined;
+    if (!fs.statSync(projectRoot, { throwIfNoEntry: false })?.isDirectory()) {
+        throw new Error(`Not a project directory: ${projectRoot}`);
+    }
+    const settings = path.join(projectRoot, 'settings/cocos.config.json');
+    const legacy = path.join(projectRoot, 'cocos.config.json');
+    const file = fs.existsSync(settings) ? settings : fs.existsSync(legacy) ? legacy : undefined;
+    if (!file) return undefined;
+    const config = readJson(file);
+    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error(`Expected configuration object in ${file}`);
+    return config.engineSdk;
+}
+
 function diagnose(root, { projectRoot, explicitPath } = {}) {
     const report = {
         schemaVersion: 1, ok: false, cli: cliIdentity(root),
@@ -23,10 +37,8 @@ function diagnose(root, { projectRoot, explicitPath } = {}) {
     try {
         const policy = readPolicy(root);
         report.compatibility = { supported: describePolicy(policy), profile: 'web', passed: false };
-        if (report.project && !fs.statSync(report.project, { throwIfNoEntry: false })?.isDirectory()) {
-            throw new Error(`Not a project directory: ${report.project}`);
-        }
-        const selection = resolveEngineSelection(root, { explicitPath });
+        const projectConfig = projectEngineSettings(report.project);
+        const selection = resolveEngineSelection(root, { explicitPath, projectRoot: report.project, projectConfig });
         report.engine = engineIdentity(selection);
         const match = checkEngineCompatibility(selection, root, 'web');
         report.compatibility.passed = true;

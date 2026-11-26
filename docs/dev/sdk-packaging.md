@@ -46,7 +46,7 @@ Engine 源码打包前先安装引擎依赖并准备声明文件和 adapter。�
 - workspace 链接物化为目录，使产物不依赖源码位置。指向 SDK 源码根之外的依赖链接或从外部目录解析到的依赖会被拒绝，应先在 SDK 源目录准备正确依赖。
 - 产物顶层 package.json 移除开发脚本、devDependencies 和 workspaces，标记 private；这是预安装目录快照，不是用于发布到 npm registry 的包，不应在产物中重新运行 npm install。
 
-CLI SDK 不包含 `packages/engine`。可将独立 Engine SDK 放入 `<CLI SDK>/packages/engine`，或在 CLI 根目录的 `config.local.json` 中配置 `enginePath`。该本机配置不会打包，解压后的 CLI SDK 如需外部引擎地址，应在其根目录另建配置。`pack:engine-sdk` 默认使用配置路径，`--source` 可覆盖它。CLI 运行时可用 `--engine-path` 覆盖本机默认引擎，详见[环境配置](environment-setup.md)。CLI SDK 包含 engine-compatibility.json 及其检查脚本，加载引擎时执行支持范围、必需文件和接口检查。自动安装及全版本矩阵仍属于后续工作。
+CLI SDK 不包含 `packages/engine`。可将独立 Engine SDK 放入 `<CLI SDK>/packages/engine`，或在 CLI 根目录的 `config.local.json` 中配置 `enginePath`。该本机配置不会打包，解压后的 CLI SDK 如需外部引擎地址，应在其根目录另建配置。`pack:engine-sdk` 默认使用配置路径，`--source` 可覆盖它。CLI 运行时还可以用项目的 `engineSdk.path` 或命令行 `--engine-path` 选引擎，详见[环境配置](environment-setup.md)。CLI SDK 包含 engine-compatibility.json 及其检查脚本，加载引擎时执行支持范围、必需文件和接口检查。自动安装及全版本矩阵仍属于后续工作。
 
 ## 清单与校验
 
@@ -75,7 +75,7 @@ node workflow/test/sdk-smoke.cjs .publish/sdk/cocos-engine-sdk-<版本>-win32-x6
 
 CLI 检查帮助入口，Engine 检查 ccbuild 能读取引擎功能配置。它们不能替代实际项目的端到端构建。
 
-用真实 Engine SDK 验证当前编译后的 CLI 能通过显式 API 路径初始化引擎：
+用真实 Engine SDK 验证当前编译后的 CLI 能按项目配置的路径和版本初始化引擎：
 
 ```sh
 node workflow/test/engine-sdk-load.cjs <CLI根目录> <EngineSDK目录>

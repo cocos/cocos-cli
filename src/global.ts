@@ -9,7 +9,7 @@ export interface EngineSelection {
     path: string;
     version: string;
     revision?: string;
-    source: 'explicit' | 'default';
+    source: 'explicit' | 'project' | 'default';
 }
 
 let engineOverride: string | undefined;

@@ -153,12 +153,14 @@ test('pair timeout terminates an unresponsive SDK process', async t => {
     write(path.join(config.engine, 'engine-sdk.json'), { engineVersion: '4.0.0', revision: `sha256:${hash}` });
     write(path.join(config.cli, 'cli-sdk.json'), { cliVersion: '1.0.0', revision: `sha256:${hash}` });
     write(path.join(config.cli, 'dist/core/base/sentry.js'), 'exports.initSentry = () => {};');
-    write(path.join(config.cli, 'workflow/engine-diagnostics.js'), `exports.diagnose = (root, options) => {
-        require('node:assert/strict').equal(options.explicitPath, ${JSON.stringify(config.engine)});
-        return { ok: true, engine: { version: '4.0.0', revision: 'sha256:${hash}' } };
+    write(path.join(config.cli, 'workflow/engine-diagnostics.js'), `exports.diagnose = (root, { projectRoot }) => {
+        const fs = require('node:fs');
+        const path = require('node:path');
+        const config = JSON.parse(fs.readFileSync(path.join(projectRoot, 'settings/cocos.config.json'), 'utf8'));
+        require('node:assert/strict').deepEqual(config.engineSdk, { path: ${JSON.stringify(config.engine)}, version: '4.0.0' });
+        return { ok: true, engine: { source: 'project', version: '4.0.0', revision: 'sha256:${hash}' } };
     };`);
     write(path.join(config.cli, 'dist/core/launcher.js'), `exports.default = class {
-        constructor(project, options) { require('node:assert/strict').equal(options.enginePath, ${JSON.stringify(config.engine)}); }
         async import() { await new Promise(() => setInterval(() => {}, 1000)); }
     };`);
     const file = path.join(dir, 'pair.json'); write(file, config);

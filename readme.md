@@ -66,7 +66,7 @@ For native development, please refer to the [Native Development Setup Guide](htt
 
 See [Quick Start Guide](docs/en/quick-start.md) for detailed usage steps.
 
-Use `--engine-path "D:/engines/custom engine"` to select the runtime engine. The CLI uses the command-line path first, then `enginePath` in the CLI root's `config.local.json`, then `packages/engine`. See [environment setup](docs/dev/environment-setup.md).
+Use `--engine-path "D:/engines/custom engine"` to select the runtime engine. The CLI uses the command-line path first, then the project's `engineSdk.path`, `enginePath` in the CLI root's `config.local.json`, and `packages/engine`. Projects can check the selected engine with `engineSdk.version`. See [environment setup](docs/dev/environment-setup.md).
 
 ## 📚 Commands
 

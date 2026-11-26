@@ -39,17 +39,20 @@ function compile(root, source, dest) {
     }).outputText);
 }
 
-test('explicit > local > built-in; relative paths use their intended root', t => {
+test('explicit > project > local > built-in; relative paths use their intended root', t => {
     const root = fixture(t);
     const builtin = engine(root, 'packages/engine');
     const local = engine(root, 'local engine');
+    const project = engine(root, 'project engine');
     const explicit = engine(root, 'explicit engine');
     assert.equal(resolveEngineSelection(root).path, builtin);
     write(root, 'config.local.json', { enginePath: 'local engine' });
     assert.equal(resolveEngineSelection(root).path, local);
-    assert.equal(resolveEngineSelection(root, { explicitPath: path.relative(process.cwd(), explicit) }).path, explicit);
+    const projectSettings = { projectRoot: path.join(root, 'game'), projectConfig: { path: '../project engine' } };
+    assert.equal(resolveEngineSelection(root, projectSettings).path, project);
+    assert.equal(resolveEngineSelection(root, { ...projectSettings, explicitPath: path.relative(process.cwd(), explicit) }).path, explicit);
     write(root, 'config.local.json', '{broken');
-    assert.equal(resolveEngineSelection(root, { explicitPath: explicit }).path, explicit);
+    assert.equal(resolveEngineSelection(root, projectSettings).path, project);
     assert.throws(() => resolveEngineSelection(root), /Cannot read CLI local configuration/);
 });
 
@@ -58,6 +61,10 @@ test('invalid selected paths and identity mismatches fail without falling back',
     const selected = engine(root, 'packages/engine');
     assert.throws(() => resolveEngineSelection(root, { explicitPath: path.join(root, 'missing') }), /no fallback/);
     assert.throws(() => resolveEngineSelection(root, { explicitPath: '' }), /non-empty/);
+    assert.throws(() => resolveEngineSelection(root, { projectRoot: root, projectConfig: { path: '' } }), /engineSdk.path must be a non-empty path/);
+    assert.throws(() => resolveEngineSelection(root, { explicitPath: selected, projectConfig: { version: '4.0.1' } }), /engineSdk.version requires 4.0.1; actual 4.0.0/);
+    assert.throws(() => resolveEngineSelection(root, { projectConfig: { version: '' } }), /engineSdk.version must be a non-empty version string/);
+    assert.equal(resolveEngineSelection(root, { projectConfig: { version: '4.0.0', revision: 'stale' } }).revision, 'custom-1');
     write(selected, 'engine-sdk.json', { schemaVersion: 1, engineVersion: '4.0.1', revision: 'wrong' });
     assert.throws(() => resolveEngineSelection(root), /engineVersion differs from package.json.version/);
     write(selected, 'engine-sdk.json', { engineVersion: '4.0.1' });
@@ -72,27 +79,31 @@ test('source engines expose actual version without inventing a revision', t => {
     assert.equal(result.revision, undefined);
 });
 
-test('project initialization ignores legacy engine settings and uses the CLI override', t => {
+test('independent project processes can select different versions and ignore legacy revision pins', t => {
     const root = fixture(t);
-    const selected = engine(root, 'CLI engine');
-    const project = path.join(root, 'project');
-    const config = { version: '1.0.0', engineSdk: { path: '../missing', version: '9.9.9', revision: 'wrong' } };
-    const filename = write(project, 'settings/cocos.config.json', config);
-    const before = fs.readFileSync(filename, 'utf8');
-    const output = sourceProcess(`
+    const select = `
         const assert = require('node:assert/strict');
         const { selectProjectEngine } = require('./src/core/engine/selection');
-        const { GlobalPaths, setEnginePathOverride } = require('./src/global');
-        setEnginePathOverride(process.argv[2]);
+        const { GlobalPaths } = require('./src/global');
         selectProjectEngine(process.argv[1]).then(result => {
             assert.equal(result.path, process.argv[2]);
             assert.equal(GlobalPaths.enginePath, result.path);
+            assert.equal(result.version, process.argv[3]);
             assert.equal(result.revision, 'custom-1');
-            console.log('selected CLI engine');
+            assert.equal(result.source, 'project');
+            console.log('selected project engine');
         }).catch(error => { console.error(error); process.exitCode = 1; });
-    `, [project, selected]);
-    assert.match(output, /selected CLI engine/);
-    assert.equal(fs.readFileSync(filename, 'utf8'), before);
+    `;
+    for (const version of ['4.0.0-beta.2', '4.0.0-beta.3']) {
+        const name = `engine-${version}`;
+        const selected = engine(root, name, version);
+        const project = path.join(root, `project-${version}`);
+        const config = { version: '1.0.0', engineSdk: { path: `../${name}`, version, revision: 'stale' } };
+        const filename = write(project, 'settings/cocos.config.json', config);
+        const before = fs.readFileSync(filename, 'utf8');
+        assert.match(sourceProcess(select, [project, selected, version]), /selected project engine/);
+        assert.equal(fs.readFileSync(filename, 'utf8'), before);
+    }
 });
 
 test('explicit API override wins over the CLI override, and a process cannot switch engines', t => {
@@ -100,7 +111,7 @@ test('explicit API override wins over the CLI override, and a process cannot swi
     const selected = engine(root, 'explicit');
     const other = engine(root, 'other');
     const project = path.join(root, 'project');
-    write(project, 'settings/cocos.config.json', { version: '1.0.0', engineSdk: ['invalid legacy setting'] });
+    write(project, 'settings/cocos.config.json', { version: '1.0.0', engineSdk: { path: '../missing', version: '4.0.0' } });
     sourceProcess(`
         const assert = require('node:assert/strict');
         const { selectProjectEngine, selectEnginePath } = require('./src/core/engine/selection');

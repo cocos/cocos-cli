@@ -20,9 +20,22 @@ function resolveEnginePath(root, explicitPath) {
 }
 
 /** Resolve one SDK identity without loading engine code or writing project files. */
-function resolveEngineSelection(root, { explicitPath } = {}) {
-    let selected = resolveEnginePath(root, explicitPath);
-    const source = explicitPath === undefined ? 'default' : 'explicit';
+function resolveEngineSelection(root, { explicitPath, projectRoot, projectConfig = {} } = {}) {
+    if (!projectConfig || typeof projectConfig !== 'object' || Array.isArray(projectConfig)) throw new Error('engineSdk must be an object');
+    let selected;
+    let source;
+    if (explicitPath !== undefined) {
+        selected = resolveEnginePath(root, explicitPath);
+        source = 'explicit';
+    } else if (Object.hasOwn(projectConfig, 'path')) {
+        if (typeof projectConfig.path !== 'string' || !projectConfig.path.trim()) throw new Error('engineSdk.path must be a non-empty path');
+        if (!projectRoot) throw new Error('Project root is required for engineSdk.path');
+        selected = path.resolve(projectRoot, projectConfig.path);
+        source = 'project';
+    } else {
+        selected = resolveEnginePath(root);
+        source = 'default';
+    }
     const read = filename => JSON.parse(fs.readFileSync(filename, 'utf8').replace(/^\uFEFF/, ''));
     try {
         selected = fs.realpathSync(selected);
@@ -36,6 +49,11 @@ function resolveEngineSelection(root, { explicitPath } = {}) {
             throw new Error('Invalid engine-sdk.json: expected schemaVersion 1 and revision');
         }
         if (metadata && metadata.engineVersion !== pkg.version) throw new Error('engine-sdk.json.engineVersion differs from package.json.version');
+        if (Object.hasOwn(projectConfig, 'version')) {
+            const expected = projectConfig.version;
+            if (typeof expected !== 'string' || !expected.trim()) throw new Error('engineSdk.version must be a non-empty version string');
+            if (pkg.version !== expected) throw new Error(`engineSdk.version requires ${expected}; actual ${pkg.version}`);
+        }
         return { path: selected, version: pkg.version, revision: metadata?.revision, source };
     } catch (error) {
         throw new Error(`Cannot use Engine SDK at ${selected}: ${error.message}. Configure a valid engine path; no fallback was attempted.`);
