@@ -198,3 +198,15 @@ jobs:
             verification/matrix/pair-*/*.json
             verification/matrix/pair-*/*.log
           if-no-files-found: error
+      - name: Create verified Engine SDK ZIP
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: harness
+        run: node workflow/sdk-source-shards.js zip ../verification
+      - name: Upload verified Engine SDK ZIP
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          path: verification/engine-sdk-*.zip
+          archive: false
+          retention-days: 3
+          if-no-files-found: error

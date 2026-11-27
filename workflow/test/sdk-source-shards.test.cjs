@@ -9,7 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { prepareSources } = require('../sdk-engine-sources');
 const { plan, aggregate, archive } = require('../sdk-ci-shards');
-const { bundle: bundleSources, prepare, verify } = require('../sdk-source-shards');
+const { bundle: bundleSources, prepare, verify, zipVerifiedEngine } = require('../sdk-source-shards');
 const { describeArtifact } = require('../sdk-matrix');
 const { packSdk, REQUIRED } = require('../pack-sdk');
 const crypto = require('node:crypto');
@@ -92,8 +92,16 @@ test('one source shard restores shared inputs, builds only its commit and immedi
     const result = await verify(job, bundle, output, dependencies);
     assert.equal(result.status, 'passed');
     assert.equal(aggregate({ include: [job] }, [result]).count, 1);
+    const zipPath = await zipVerifiedEngine(output);
+    assert.equal(path.basename(zipPath), `engine-sdk-4.0.1-${process.platform}-${process.arch}-node${process.versions.modules}-${job.id}.zip`);
+    const zip = await require('jszip').loadAsync(fs.readFileSync(zipPath));
+    const metadata = JSON.parse(await zip.file('engine-sdk.json').async('string'));
+    assert.equal(metadata.revision, result.engineRevision);
+    assert.deepEqual(Object.values(zip.files).filter(entry => !entry.dir).map(entry => entry.name).sort(),
+        [...metadata.files.map(file => file.path), 'engine-sdk.json'].sort());
     await assert.rejects(verify(job, bundle, output, { runMatrix: async () => ({ status: 'failed', pairs: [] }) }), /unit\/E2E/);
     assert.equal(read(path.join(output, 'shard-result.json')).status, 'failed');
+    await assert.rejects(zipVerifiedEngine(output), /must pass/);
     const report = read(path.join(output, 'sources/source-report.json')); report.refs[0].commit = commits[0];
     write(path.join(output, 'sources/source-report.json'), report);
     await assert.rejects(verify(job, bundle, output, dependencies), /identity/);

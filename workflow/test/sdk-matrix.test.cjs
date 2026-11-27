@@ -364,6 +364,18 @@ test('source shard enables prepared SDK caching without skipping full verificati
     assert(workflow.jobs.verify.steps.some(step => step.run?.includes('sdk-source-shards.js verify')));
 });
 
+test('manually dispatched source shards upload one ZIP after full verification', () => {
+    const workflow = require('js-yaml').load(fs.readFileSync(path.join(root, '.github/workflows/sdk-target-tests.yml'), 'utf8'));
+    const steps = workflow.jobs.verify.steps;
+    const verify = steps.findIndex(step => step.run?.includes('sdk-source-shards.js verify'));
+    const zip = steps.findIndex(step => step.run?.includes('sdk-source-shards.js zip'));
+    const upload = steps.findIndex(step => step.with?.path === 'verification/engine-sdk-*.zip');
+    assert(verify >= 0 && verify < zip && zip < upload);
+    assert.equal(steps[zip].if, "github.event_name == 'workflow_dispatch'");
+    assert.equal(steps[upload].if, steps[zip].if);
+    assert.equal(steps[upload].with.archive, false);
+});
+
 test('engine compatibility matrix supports manual and daily invocation without PR triggers', () => {
     const workflow = require('js-yaml').load(fs.readFileSync(path.join(root, '.github/workflows/sdk-tag-matrix.yml'), 'utf8'));
     assert.deepEqual(Object.keys(workflow.on).sort(), ['workflow_call', 'workflow_dispatch']);
