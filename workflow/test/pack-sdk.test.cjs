@@ -9,6 +9,9 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { packSdk, planSdk, dependencies, REQUIRED } = require('../pack-sdk.js');
 
+const internalLibrary = 'dist/internal-assets';
+const internalIndex = `${internalLibrary}/.internal`;
+
 function write(root, relative, content) {
     const filename = path.join(root, relative);
     fs.mkdirSync(path.dirname(filename), { recursive: true });
@@ -20,6 +23,13 @@ function fixture(t, kind = 'cli', version = '4.0.0') {
     const source = path.join(root, 'source');
     write(source, 'package.json', { name: `test-${kind}`, version, scripts: { postinstall: 'exit 99' }, devDependencies: { unused: '*' } });
     for (const relative of REQUIRED[kind]) write(source, relative, 'prepared');
+    if (kind === 'cli') {
+        write(source, internalIndex, { version: '1', assets: [{
+            path: 'default_prefab',
+            directory: true,
+            meta: { uuid: '9ddad20c-7e38-4a9c-a4d1-ddf34aaf024f', imported: true, files: [], subMetas: {} },
+        }] });
+    }
     return { kind, source, output: path.join(root, 'output') };
 }
 
@@ -137,11 +147,38 @@ test('CLI packaging rejects build:base inputs and each missing prebuilt artifact
     const artifacts = ['dist/internal-assets/.internal', 'dist/internal-assets/.internal-info.json', 'dist/internal-assets/.internal-data.json', 'dist/internal-assets/.internal-dependency.json', 'dist/internal-assets/engine.json', 'dist/internal-assets/chunks.json', 'dist/internal-assets/effect.bin', 'dist/preview-systemjs/system.js'];
     for (const missing of [artifacts, ...artifacts.map(file => [file])]) {
         const options = fixture(t);
-        for (const file of artifacts) write(options.source, file, 'prepared');
         for (const file of missing) fs.unlinkSync(path.join(options.source, file));
         await assert.rejects(planSdk(options), error => error.message.includes(missing[0]));
         assert.equal(fs.existsSync(options.output), false);
     }
+});
+
+test('CLI packaging requires each internal asset and subasset import in the SDK payload', async t => {
+    const options = fixture(t);
+    const uuid = 'bb0a6472-cd67-4afb-a031-94fca8f4cc92';
+    const child = { uuid: `${uuid}@first`, id: 'first', name: 'first', files: [''], subMetas: {} };
+    child.subMetas.second = { uuid: `${child.uuid}@second`, id: 'second', name: 'second', files: ['exports/data.bin'], subMetas: {} };
+    const meta = { uuid, imported: true, files: ['.json'], subMetas: { first: child } };
+    const snapshot = { version: '1', assets: [{ path: 'default_prefab/Camera.prefab', meta, directory: false }] };
+    write(options.source, internalIndex, snapshot);
+
+    const files = [`${internalLibrary}/bb/${uuid}.json`, `${internalLibrary}/bb/${uuid}@first`, `${internalLibrary}/bb/${uuid}@first@second/exports/data.bin`];
+    for (const file of files) write(options.source, file, '{}');
+    const plannedFiles = new Set((await planSdk(options)).files.map(file => file.path));
+    for (const file of files) {
+        assert.ok(plannedFiles.has(file), file);
+        fs.unlinkSync(path.join(options.source, file));
+        await assert.rejects(packSdk(options), error => error.message.includes(file));
+        assert.equal(fs.existsSync(options.output), false);
+        write(options.source, file, '{}');
+    }
+
+    meta.files.push('tests/excluded.bin');
+    write(options.source, internalIndex, snapshot);
+    const excluded = `${internalLibrary}/bb/${uuid}/tests/excluded.bin`;
+    write(options.source, excluded, 'excluded');
+    await assert.rejects(packSdk(options), error => error.message.includes(excluded));
+    assert.equal(fs.existsSync(options.output), false);
 });
 
 test('existing output is never overwritten', async t => {
