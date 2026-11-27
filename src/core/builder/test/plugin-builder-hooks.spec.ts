@@ -39,7 +39,7 @@ jest.mock('../share/builder-config', () => ({
 }));
 
 jest.mock('../share/texture-compress', () => ({
-    configGroups: {},
+    configGroups: { web: { support: { rgb: [], rgba: [] } } },
     textureFormatConfigs: {},
     formatsInfo: {},
     defaultSupport: {},
