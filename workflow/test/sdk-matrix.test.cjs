@@ -153,8 +153,16 @@ test('pair timeout terminates an unresponsive SDK process', async t => {
     write(path.join(config.engine, 'engine-sdk.json'), { engineVersion: '4.0.0', revision: `sha256:${hash}` });
     write(path.join(config.cli, 'cli-sdk.json'), { cliVersion: '1.0.0', revision: `sha256:${hash}` });
     write(path.join(config.cli, 'dist/core/base/sentry.js'), 'exports.initSentry = () => {};');
-    write(path.join(config.cli, 'workflow/engine-diagnostics.js'), 'exports.diagnose = () => ({ok:true});');
-    write(path.join(config.cli, 'dist/core/launcher.js'), 'exports.default = class { async import() { await new Promise(() => setInterval(() => {}, 1000)); } };');
+    write(path.join(config.cli, 'workflow/engine-diagnostics.js'), `exports.diagnose = (root, { projectRoot }) => {
+        const fs = require('node:fs');
+        const path = require('node:path');
+        const config = JSON.parse(fs.readFileSync(path.join(projectRoot, 'settings/cocos.config.json'), 'utf8'));
+        require('node:assert/strict').deepEqual(config.engineSdk, { path: ${JSON.stringify(config.engine)}, version: '4.0.0' });
+        return { ok: true, engine: { source: 'project', version: '4.0.0', revision: 'sha256:${hash}' } };
+    };`);
+    write(path.join(config.cli, 'dist/core/launcher.js'), `exports.default = class {
+        async import() { await new Promise(() => setInterval(() => {}, 1000)); }
+    };`);
     const file = path.join(dir, 'pair.json'); write(file, config);
     const result = await executePair(file, path.join(dir, 'build.log'), 1500);
     assert.equal(result.status, 'timeout');
@@ -354,6 +362,19 @@ test('source shard enables prepared SDK caching without skipping full verificati
     const workflow = require('js-yaml').load(fs.readFileSync(path.join(root, '.github/workflows/sdk-target-tests.yml'), 'utf8'));
     assert.equal(workflow.jobs.verify.env.SDK_PREPARED_CACHE, 'true');
     assert(workflow.jobs.verify.steps.some(step => step.run?.includes('sdk-source-shards.js verify')));
+});
+
+test('manually dispatched source shards upload one ZIP after full verification', () => {
+    const workflow = require('js-yaml').load(fs.readFileSync(path.join(root, '.github/workflows/sdk-target-tests.yml'), 'utf8'));
+    const steps = workflow.jobs.verify.steps;
+    const verify = steps.findIndex(step => step.run?.includes('sdk-source-shards.js verify'));
+    const zip = steps.findIndex(step => step.run?.includes('sdk-source-shards.js zip'));
+    const upload = steps.findIndex(step => step.with?.path === 'verification/*engine-sdk-*.zip');
+    assert(verify >= 0 && verify < zip && zip < upload);
+    assert.equal(steps[zip].if, "github.event_name == 'workflow_dispatch'");
+    assert.equal(steps[upload].if, steps[zip].if);
+    assert.equal(steps[upload].with.archive, false);
+    assert.match(steps[zip].env.ENGINE_SDK_RELEASE_TIMESTAMP, /fromJson\(inputs.target\).ref == github.sha/);
 });
 
 test('engine compatibility matrix supports manual and daily invocation without PR triggers', () => {

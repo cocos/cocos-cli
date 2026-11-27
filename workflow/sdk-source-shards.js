@@ -4,6 +4,8 @@ const { archive, extract, plan } = require('./sdk-ci-shards');
 const { prepareSources, selectRefs } = require('./sdk-engine-sources');
 const { describeArtifact, runMatrix } = require('./sdk-matrix');
 const { readPolicy } = require('./engine-compatibility');
+const { zipArchive } = require('./utils');
+const { releaseArtifactName } = require('./release-engine-sdk');
 const crypto = require('node:crypto');
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const write = (file, value) => fs.writeFileSync(file, JSON.stringify(value, null, 2) + '\n');
@@ -75,12 +77,27 @@ async function verify(job, directory, output, dependencies = { runMatrix }) {
     if (result.status !== 'passed') throw Error(result.error);
     return result;
 }
+
+async function zipVerifiedEngine(output, releaseTimestamp) {
+    const result = read(path.join(output, 'shard-result.json'));
+    if (result.status !== 'passed') throw Error('Engine SDK shard must pass before creating its ZIP');
+    const { refs: [{ sdk }] } = read(path.join(output, 'sources', 'source-report.json'));
+    const engine = await describeArtifact(sdk.location, 'engine');
+    if (engine.manifestSha256 !== sdk.manifestSha256 || engine.revision !== result.engineRevision) {
+        throw Error('Verified Engine SDK identity changed before archiving');
+    }
+    const name = releaseTimestamp ? releaseArtifactName(engine, releaseTimestamp, result.id)
+        : `engine-sdk-${engine.version}-${engine.platform}-${engine.arch}-node${engine.nodeAbi}-${result.id}.zip`;
+    return zipArchive(engine.location, path.join(output, name), { exclude: [], includeRoot: false });
+}
+
 async function main() {
     const [command, ...args] = process.argv.slice(2);
     if (command === 'bundle') await bundle(JSON.parse(process.env.TARGET), ...args.map(value => path.resolve(value)));
     else if (command === 'prepare') await prepare(JSON.parse(process.env.SHARD), ...args.map(value => path.resolve(value)));
     else if (command === 'verify') await verify(JSON.parse(process.env.SHARD), ...args.map(value => path.resolve(value)));
-    else throw Error('Expected bundle, prepare or verify');
+    else if (command === 'zip') await zipVerifiedEngine(path.resolve(args[0]), process.env.ENGINE_SDK_RELEASE_TIMESTAMP);
+    else throw Error('Expected bundle, prepare, verify or zip');
 }
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });
-module.exports = { bundle, validate, prepare, verify };
+module.exports = { bundle, validate, prepare, verify, zipVerifiedEngine };

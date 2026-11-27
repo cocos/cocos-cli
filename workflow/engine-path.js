@@ -49,10 +49,10 @@ function resolveEngineSelection(root, { explicitPath, projectRoot, projectConfig
             throw new Error('Invalid engine-sdk.json: expected schemaVersion 1 and revision');
         }
         if (metadata && metadata.engineVersion !== pkg.version) throw new Error('engine-sdk.json.engineVersion differs from package.json.version');
-        for (const [key, actual] of [['version', pkg.version], ['revision', metadata?.revision]]) {
-            if (Object.hasOwn(projectConfig, key) && (typeof projectConfig[key] !== 'string' || !projectConfig[key].trim() || projectConfig[key] !== actual)) {
-                throw new Error(`engineSdk.${key} requires ${projectConfig[key]}; actual ${actual ?? 'unrecorded'}`);
-            }
+        if (Object.hasOwn(projectConfig, 'version')) {
+            const expected = projectConfig.version;
+            if (typeof expected !== 'string' || !expected.trim()) throw new Error('engineSdk.version must be a non-empty version string');
+            if (pkg.version !== expected) throw new Error(`engineSdk.version requires ${expected}; actual ${pkg.version}`);
         }
         return { path: selected, version: pkg.version, revision: metadata?.revision, source };
     } catch (error) {

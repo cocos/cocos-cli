@@ -25,7 +25,7 @@ function fixture(t) {
     for (const file of Object.values(policy.requiredFiles).flat()) write(engine, file, {});
     write(root, 'config.local.json', { enginePath: './custom engine' });
     const project = path.join(root, 'game');
-    write(project, 'settings/cocos.config.json', { version: '1.0.0', engineSdk: { path: '../custom engine', version: '4.0.0', revision: 'custom-42' }, untouched: 123 });
+    write(project, 'settings/cocos.config.json', { version: '1.0.0', untouched: 123 });
     return { root, engine: fs.realpathSync(engine), project };
 }
 test('diagnostics report exact identity and are read-only', t => {
@@ -41,28 +41,35 @@ test('diagnostics report exact identity and are read-only', t => {
     assert.deepEqual(fs.readFileSync(file), before);
     assert.equal(fs.existsSync(path.join(project, 'temp')), false);
 });
-test('project pins still apply to explicit paths and default diagnostics need no project', t => {
+test('diagnostics use the project path and check the version on explicit overrides', t => {
     const { root, engine, project } = fixture(t);
     assert.equal(diagnose(root).engine.path, engine);
-    write(project, 'settings/cocos.config.json', { engineSdk: { path: './missing', revision: 'wrong' } });
-    const report = diagnose(root, { projectRoot: project, explicitPath: engine });
-    assert.equal(report.ok, false);
-    assert.match(report.errors[0], /revision requires wrong/);
-});
-test('invalid project configuration does not fall back to local defaults', t => {
-    const { root, project } = fixture(t);
-    for (const engineSdk of [null, [], 'invalid']) {
-        write(project, 'settings/cocos.config.json', { engineSdk });
-        assert.equal(diagnose(root, { projectRoot: project }).ok, false);
+    write(project, 'settings/cocos.config.json', { engineSdk: { path: '../custom engine', version: '4.0.0', revision: 'stale' } });
+    const explicit = diagnose(root, { projectRoot: project, explicitPath: engine });
+    assert.equal(explicit.ok, true);
+    assert.equal(explicit.engine.source, 'explicit');
+    const selected = diagnose(root, { projectRoot: project });
+    assert.equal(selected.ok, true);
+    assert.equal(selected.engine.source, 'project');
+    assert.equal(selected.engine.path, engine);
+    assert.equal(selected.engine.revision, 'custom-42');
+    write(project, 'settings/cocos.config.json', { engineSdk: { path: '../custom engine', version: '4.0.1' } });
+    for (const explicitPath of [undefined, engine]) {
+        const result = diagnose(root, { projectRoot: project, explicitPath });
+        assert.equal(result.ok, false);
+        assert.match(result.errors[0], /engineSdk.version requires 4.0.1; actual 4.0.0/);
     }
 });
-test('legacy configuration is inspected without migration and modern settings take precedence', t => {
+test('doctor reads modern and legacy project engine settings without migrating them', t => {
     const { root, project } = fixture(t);
+    const legacy = path.join(project, 'cocos.config.json');
     write(project, 'cocos.config.json', { engineSdk: { path: './missing' } });
+    const before = fs.readFileSync(legacy);
     assert.equal(diagnose(root, { projectRoot: project }).ok, true);
     fs.unlinkSync(path.join(project, 'settings/cocos.config.json'));
     assert.equal(diagnose(root, { projectRoot: project }).ok, false);
-    assert.equal(fs.existsSync(path.join(project, 'cocos.config.json')), true);
+    assert.deepEqual(fs.readFileSync(legacy), before);
+    assert.match(diagnose(root, { projectRoot: legacy }).errors[0], /Not a project directory/);
 });
 test('missing required files and unsupported versions produce failed reports', t => {
     const { root, engine } = fixture(t);
@@ -83,7 +90,7 @@ test('experimental and unrecorded source revisions are explicit warnings', t => 
     assert.equal(report.engine.revision, null);
     assert.equal(report.warnings.length, 2);
 });
-test('initialization records retain exact identity without rewriting project pins', t => {
+test('initialization records retain exact identity without rewriting project settings', t => {
     const { root, project } = fixture(t);
     const file = path.join(project, 'settings/cocos.config.json');
     const before = fs.readFileSync(file);

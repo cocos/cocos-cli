@@ -15,7 +15,7 @@ export interface COCOS_CONFIG {
     builder: BuildConfiguration;
     import: ImportConfiguration;
     engine: IEngineConfig;
-    /** Engine SDK path is relative to the project root; version and revision pin its exact identity. */
+    /** Optional Engine SDK path and exact version for this project. */
     engineSdk?: EngineSdkConfiguration;
     scene?: SceneConfiguration;
     script: ScriptProjectConfig;

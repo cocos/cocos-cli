@@ -6,6 +6,7 @@ const PACKAGE_NAME = '@cocos/cocos-cli-types';
 const root = path.resolve(__dirname, '..');
 const entries = require('./scene-api-entries.json');
 const { browserFacadePath, generateBrowserFacades } = require('./scene-browser-api');
+const { resolveEnginePath } = require('./engine-path');
 const normalize = file => path.resolve(file).replace(/\\/g, '/');
 const printer = ts.createPrinter({ removeComments: true });
 
@@ -177,8 +178,13 @@ async function extendPublicDts() {
     const sources = new Map();
     const destinations = new Map();
     const nodeBuiltin = new Set(require('node:module').builtinModules.flatMap(id => [id, 'node:' + id]));
+    const engineDeclarations = path.join(resolveEnginePath(root, process.env.COCOS_BUILD_ENGINE_PATH), 'bin/.declarations');
     function destination(file) {
         if (publicTargets.has(normalize(file))) return publicTargets.get(normalize(file));
+        const engineRelative = path.relative(engineDeclarations, file).replace(/\\/g, '/');
+        if (engineRelative && engineRelative !== '..' && !engineRelative.startsWith('../') && !path.isAbsolute(engineRelative)) {
+            return 'internal/packages/engine/bin/.declarations/' + engineRelative;
+        }
         const relative = path.relative(root, file).replace(/\\/g, '/');
         if (relative.startsWith('../') || path.isAbsolute(relative)) throw new Error('Declaration outside CLI dependency graph: ' + file);
         return 'internal/' + relative.replace(/^dist\//, 'cli/').replace(/node_modules\//g, 'dependencies/').replace(/^src\//, 'declarations/');

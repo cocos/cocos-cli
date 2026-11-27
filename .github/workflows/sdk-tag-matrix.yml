@@ -30,12 +30,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       targets: ${{ steps.targets.outputs.value }}
+      timestamp: ${{ steps.targets.outputs.timestamp }}
     steps:
       - uses: actions/checkout@v4
       - id: targets
         env:
           CANDIDATE_REF: ${{ inputs.cli_ref || github.sha }}
-        run: node -e 'const fs=require("fs");let targets=require("./workflow/sdk-maintained-clis.json");if(!Array.isArray(targets)||!targets.length)throw Error("Empty maintained CLI list");targets=targets.map((target,index)=>({...target,id:"target-"+index,ref:process.env.CANDIDATE_REF||target.ref}));fs.appendFileSync(process.env.GITHUB_OUTPUT,"value="+JSON.stringify(targets)+"\n");'
+        run: |
+          node -e 'const fs=require("fs");let targets=require("./workflow/sdk-maintained-clis.json");if(!Array.isArray(targets)||!targets.length)throw Error("Empty maintained CLI list");targets=targets.map((target,index)=>({...target,id:"target-"+index,ref:process.env.CANDIDATE_REF||target.ref}));fs.appendFileSync(process.env.GITHUB_OUTPUT,"value="+JSON.stringify(targets)+"\n");'
+          node -e 'const stamp=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",hourCycle:"h23"}).format(new Date()).replace(/\D/g,"").slice(2);require("fs").appendFileSync(process.env.GITHUB_OUTPUT,"timestamp="+stamp+"\n");'
 
   test:
     name: SDK tests (${{ matrix.target.runner }}, ${{ matrix.target.id }})
@@ -48,6 +51,7 @@ jobs:
     uses: ./.github/workflows/sdk-target-tests.yml
     with:
       target: ${{ toJson(matrix.target) }}
+      release_timestamp: ${{ needs.targets.outputs.timestamp }}
 
   gate:
     name: Engine SDK compatibility gate
@@ -74,6 +78,9 @@ jobs:
         run: node workflow/sdk-ci-shards.js plan plans matrix.json
       - name: Require exact coverage and candidate identities
         run: node workflow/sdk-ci-shards.js aggregate matrix.json results
+      - name: Approve Engine SDK artifacts for CLI publishing
+        if: github.event_name == 'workflow_dispatch' && github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch && (inputs.cli_ref == '' || inputs.cli_ref == github.sha)
+        run: echo "Verified Engine SDKs can be reused by the CLI Publish workflow"
 
   verified:
     needs: [targets, gate]

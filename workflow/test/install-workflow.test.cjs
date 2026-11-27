@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* global require, process, __dirname */
+require('./release-engine-sdk.test.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,6 +11,8 @@ const { resolveEnginePath } = require('../engine-path');
 const { setupDev } = require('../setup-dev');
 const { installEngine } = require('../install-engine');
 const UpdateRepo = require('../update-repo');
+const { getToolsForPlatform } = require('../download-tools');
+const { collectReleaseFiles, toolManifestPath } = require('../release-files');
 
 function fixture(t) {
     const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'cocos install workflow ')));
@@ -97,6 +100,7 @@ test('CLI setup uses a prepared custom engine without compiling or installing it
     assert.deepEqual(calls[0][1].slice(1), ['--engine-path', engine]);
     assert.equal(calls[0][2].shell, false);
     assert.deepEqual(calls[1].slice(0, 2), ['npm', ['run', 'build']]);
+    assert.equal(calls[1][2].env.COCOS_BUILD_ENGINE_PATH, engine);
     assert.ok(calls[2][1].includes('--minimal'));
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'config.local.json'))).project, 'preserve-me');
 });
@@ -135,6 +139,38 @@ test('explicit engine install uses local path and refuses prepared SDKs', async 
     write(engine, 'engine-sdk.json', '{}');
     await assert.rejects(installEngine({ root, run }), /prepared Engine SDK/);
     assert.equal(calls.length, 1);
+});
+
+test('release copies only matching host tools and keeps shared tools and target plugins', async t => {
+    const root = fixture(t);
+    const windowsFiles = ['static/tools/PVRTexTool_win32/PVRTexToolCLI.exe', 'static/tools/unzip.exe/unzip.exe'];
+    const macFiles = ['static/tools/PVRTexTool_darwin/PVRTexToolCLI', 'static/tools/process-info/mac_arm.node'];
+    const sharedFiles = ['static/tools/cmake/bin/tool', 'static/tools/keystore/debug.keystore',
+        'static/build-templates/android/marker', 'packages/platforms/wechatgame/dist/index.js'];
+    const excludedFiles = ['static/tools/.sdk-tool-integrity.json', 'static/tools/unknown/old-tool', '.publish/old-release/file'];
+    for (const file of [...windowsFiles, ...macFiles, ...sharedFiles, ...excludedFiles]) write(root, file);
+
+    for (const [platform, keep, remove] of [['win32', windowsFiles, macFiles], ['darwin', macFiles, windowsFiles]]) {
+        const other = platform === 'win32' ? 'darwin' : 'win32';
+        const manifest = Object.fromEntries([...getToolsForPlatform(other), ...getToolsForPlatform(platform)]
+            .map(({ dist, url }) => [dist, { url }]));
+        write(root, toolManifestPath, manifest);
+        const result = await collectReleaseFiles(root, ['.publish/**'], platform);
+        assert.deepEqual(result.files.sort(), [toolManifestPath, ...keep, ...sharedFiles].sort());
+        const names = [...keep, ...sharedFiles.filter(file => file.startsWith('static/tools/'))].map(file => file.split('/')[2]);
+        assert.deepEqual(result.toolManifest, Object.fromEntries(names.map(name => [name, manifest[name]])));
+        assert(remove.every(file => fs.existsSync(path.join(root, file))));
+        assert.deepEqual(JSON.parse(fs.readFileSync(path.join(root, toolManifestPath))), manifest);
+    }
+});
+
+test('release rejects an installed tool whose shared directory belongs to the other host', async t => {
+    const root = fixture(t);
+    const { url } = getToolsForPlatform('win32').find(tool => tool.dist === 'cmake');
+    write(root, 'static/tools/cmake/bin/cmake.exe');
+    await assert.rejects(collectReleaseFiles(root, [], 'darwin'), /cmake.*darwin/);
+    write(root, toolManifestPath, { cmake: { url } });
+    await assert.rejects(collectReleaseFiles(root, [], 'darwin'), /cmake.*darwin/);
 });
 
 test('fetch preserves existing SDK and never populates its nested source directories', async t => {

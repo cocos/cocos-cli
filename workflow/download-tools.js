@@ -2,7 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const { execSync } = require('child_process');
+const { execFileSync, execSync } = require('child_process');
+const windowsTar = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'tar.exe') : 'tar.exe';
 
 // 工具配置
 const tools = {
@@ -14,6 +15,7 @@ const tools = {
         {
             url: 'http://download.cocos.com/CocosSDK/tools/PVRTexToolCLI_win32_20251028.zip',
             dist: 'PVRTexTool_win32',
+            requiredFile: 'PVRTexToolCLI.exe',
             essential: true,
         },
         {
@@ -135,9 +137,32 @@ const tools = {
     ]
 };
 
+const platformVariantToolDirs = new Set(tools.win32
+    .map(tool => tool.dist)
+    .filter(dist => tools.darwin.some(tool => tool.dist === dist)));
+
+function getToolsForPlatform(platform = process.platform) {
+    return [...(tools[platform] || []), ...tools.common];
+}
+
+function containsToolFiles(directory, requiredFile) {
+    if (!fs.statSync(directory, { throwIfNoEntry: false })?.isDirectory()) return false;
+    if (requiredFile) {
+        const file = fs.lstatSync(path.join(directory, requiredFile), { throwIfNoEntry: false });
+        return Boolean(file?.isFile() && file.size > 0);
+    }
+    return fs.readdirSync(directory, { withFileTypes: true }).some(entry => {
+        if (entry.name === '__MACOSX' || entry.name === '.DS_Store') return false;
+        const file = path.join(directory, entry.name);
+        if (entry.isDirectory()) return containsToolFiles(file);
+        return entry.isFile() && fs.statSync(file).size > 0;
+    });
+}
+
 // 工具类
 class ToolDownloader {
-    constructor() {
+    constructor({ execFile = execFileSync } = {}) {
+        this.execFile = execFile;
         this.scriptDir = __dirname;
         this.projectRoot = path.dirname(this.scriptDir);
         this.toolsDir = path.join(this.projectRoot, 'static', 'tools');
@@ -283,32 +308,59 @@ class ToolDownloader {
     }
 
     // 解压文件
-    async extractFile(zipPath, extractDir, cleanup = false) {
+    async extractFile(zipPath, extractDir, requiredFile) {
         console.log(`📦 解压: ${path.basename(zipPath)}`);
 
-        try {
-            if (cleanup && fs.existsSync(extractDir)) {
-                fs.rmSync(extractDir, { recursive: true, force: true });
-                console.log(`🧹 清理旧目录: ${path.relative(this.projectRoot, extractDir)}`);
-            }
-            let command , options = {};
-            if (this.platform === 'win32') {
-                // Windows 使用 PowerShell 的 Expand-Archive
-                command = `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${extractDir}' -Force"`;
-            } else {
-                // macOS/Linux 使用 unzip
-                command = `unzip -o '${zipPath}' -d '${extractDir}'`;
-                // 增加缓冲区大小
-                options = {
-                    maxBuffer: 1024 * 1024 * 50 // 增加到 50MB，防止解压失败
-                };
-            }
-
-            execSync(command, { stdio: 'pipe', ...options });
-            console.log(`✅ 解压完成: ${path.basename(zipPath)}`);
-        } catch (error) {
-            throw new Error(`解压失败: ${error.message}`);
+        const root = fs.realpathSync.native(this.toolsDir);
+        const target = path.resolve(extractDir);
+        if (path.relative(root, fs.realpathSync.native(path.dirname(target))) !== '' || target === path.dirname(target)) {
+            throw new Error(`Invalid tool destination: ${target}`);
         }
+        const options = { stdio: 'pipe', maxBuffer: 50 * 1024 * 1024 };
+        const archive = path.resolve(zipPath);
+        const extractors = this.platform === 'win32' ? [
+            ['tar.exe', dir => this.execFile(windowsTar, ['-xf', archive, '-C', dir], options)],
+            ['Expand-Archive', dir => this.execFile('powershell.exe', [
+                '-NoProfile', '-NonInteractive', '-Command',
+                'Expand-Archive -LiteralPath $env:COCOS_TOOL_ARCHIVE -DestinationPath $env:COCOS_TOOL_OUTPUT -Force -ErrorAction Stop',
+            ], { ...options, env: { ...process.env, COCOS_TOOL_ARCHIVE: archive, COCOS_TOOL_OUTPUT: dir } })],
+        ] : [
+            ['unzip', dir => this.execFile('unzip', ['-o', archive, '-d', dir], options)],
+        ];
+
+        const failures = [];
+        for (const [name, extract] of extractors) {
+            const staging = fs.mkdtempSync(path.join(root, '.extract-'));
+            try {
+                try {
+                    extract(staging);
+                    if (!containsToolFiles(staging, requiredFile)) {
+                        throw new Error(requiredFile ? `Missing or empty ${requiredFile}` : 'Tool directory contains no nonempty files');
+                    }
+                } catch (error) {
+                    const failure = `${name}: ${error.message}`;
+                    failures.push(failure);
+                    console.warn(`⚠️ 解压校验失败: ${failure}`);
+                    continue;
+                }
+
+                const old = fs.lstatSync(target, { throwIfNoEntry: false });
+                if (old) {
+                    if (!old.isDirectory() || old.isSymbolicLink() || path.dirname(fs.realpathSync.native(target)) !== root) {
+                        throw new Error(`Invalid existing tool directory: ${target}`);
+                    }
+                    fs.rmSync(target, { recursive: true, force: true });
+                }
+                fs.renameSync(staging, target);
+                console.log(`✅ 解压完成 (${name}): ${path.basename(zipPath)}`);
+                return;
+            } finally {
+                if (fs.existsSync(staging) && path.dirname(fs.realpathSync.native(staging)) === root) {
+                    fs.rmSync(staging, { recursive: true, force: true });
+                }
+            }
+        }
+        throw new Error(`解压失败: ${failures.join(' | ')}`);
     }
 
     // 格式化字节数
@@ -322,11 +374,17 @@ class ToolDownloader {
 
     // 检查解压工具是否可用
     checkExtractTools() {
+        if (this.platform === 'win32') {
+            try {
+                this.execFile(windowsTar, ['--version'], { stdio: 'pipe' });
+                return true;
+            } catch { /* PowerShell is available on older Windows installations. */ }
+        }
         try {
             if (this.platform === 'win32') {
-                execSync('powershell -Command "Get-Command Expand-Archive"', { stdio: 'pipe' });
+                this.execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', 'Get-Command Expand-Archive -ErrorAction Stop'], { stdio: 'pipe' });
             } else {
-                execSync('which unzip', { stdio: 'pipe' });
+                this.execFile('which', ['unzip'], { stdio: 'pipe' });
             }
             return true;
         } catch {
@@ -370,10 +428,11 @@ class ToolDownloader {
             const tempFilePath = path.join(this.tempDir, fileName);
             const targetDir = path.join(this.toolsDir, tool.dist);
 
-            // 目录已存在时：无记录（老用户首次）或 url 未变化，则跳过；url 变化则重新下载
-            if (fs.existsSync(targetDir)) {
+            // 发布时以下载记录区分共用目录名的不同宿主版本。
+            if (containsToolFiles(targetDir, tool.requiredFile)) {
                 const existing = this.manifest[tool.dist];
-                if (!existing || existing.url === tool.url) {
+                const requiresRecord = process.env.COCOS_RELEASE_TOOLS === 'true' && platformVariantToolDirs.has(tool.dist);
+                if (existing?.url === tool.url || (!existing && !requiresRecord)) {
                     if (!existing) {
                         // 老用户首次升级：以当前 url 建立基线，不重新下载
                         this.recordTool(tool);
@@ -386,13 +445,10 @@ class ToolDownloader {
             // 下载
             await this.downloadFile(tool.url, tempFilePath);
 
-            // 创建目标目录
-            this.ensureDir(targetDir);
-
             // 判断是否需要解压
             if (this.isArchiveFile(tempFilePath)) {
                 // 解压文件
-                await this.extractFile(tempFilePath, targetDir, true);
+                await this.extractFile(tempFilePath, targetDir, tool.requiredFile);
             } else {
                 // 直接复制文件
                 await this.copyFile(tempFilePath, targetDir);
@@ -454,7 +510,7 @@ class ToolDownloader {
 
         // 检查解压工具
         if (!this.checkExtractTools()) {
-            console.error('❌ 缺少解压工具，请安装 unzip (macOS/Linux) 或确保 PowerShell 可用 (Windows)');
+            console.error('❌ 缺少解压工具，请安装 unzip (macOS/Linux)，或确保 tar.exe 或 PowerShell 可用 (Windows)');
             process.exit(1);
         }
 
@@ -463,9 +519,7 @@ class ToolDownloader {
         this.ensureDir(this.toolsDir);
 
         // 获取工具列表
-        const platformTools = tools[this.platform] || [];
-        const commonTools = tools.common || [];
-        let allTools = [...platformTools, ...commonTools];
+        let allTools = getToolsForPlatform(this.platform);
 
         if (this.minimal) {
             allTools = allTools.filter(tool => tool.essential);
@@ -531,4 +585,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { ToolDownloader };
+module.exports = { ToolDownloader, getToolsForPlatform, platformVariantToolDirs };

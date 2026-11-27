@@ -92,7 +92,10 @@ async function main() {
         // 执行发布
         const result = await releaseModule.release({
             publishDir: publishDir,
-            configs: configs
+            configs: configs,
+            engineSdk: process.env.RELEASE_ENGINE_SDK || undefined,
+            engineSdkReceipt: process.env.RELEASE_ENGINE_SDK_RECEIPT || undefined,
+            dependenciesInstalled: process.env.RELEASE_DEPENDENCIES_INSTALLED === 'true',
         });
         
         // 处理结果，为每个类型生成 URL

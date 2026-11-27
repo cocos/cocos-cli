@@ -79,6 +79,8 @@ workflow/!(postinstall|utils|electron-rebuild|node-gyp-rebuild|build-simulator|b
 # ===========================================
 .publish/**
 .cocos/**
+.build/**
+.sdk-dependency-backup/**
 
 # Extracted editor sources and development artifacts are not CLI release content.
 packages/scene-editor/**

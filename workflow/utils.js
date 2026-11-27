@@ -189,6 +189,7 @@ async function create7ZipArchive(sourceDir, outputPath, options = {}) {
  * @param {number} [options.compressionLevel=5] Compression level (0-9)
  * @param {string[]} [options.exclude] Glob patterns to exclude
  * @param {boolean} [options.preserveSymlinks=true] Preserve symbolic links
+ * @param {boolean} [options.includeRoot=true] Include the source directory in the archive
  * @returns {Promise<string>} The generated archive path
  */
 async function createMacZipArchive(sourceDir, outputPath, options = {}) {
@@ -199,7 +200,8 @@ async function createMacZipArchive(sourceDir, outputPath, options = {}) {
     const {
         compressionLevel = 5,
         exclude = ['*.DS_Store'],
-        preserveSymlinks = true
+        preserveSymlinks = true,
+        includeRoot = true
     } = options;
 
     const resolvedSourceDir = path.resolve(sourceDir);
@@ -223,7 +225,7 @@ async function createMacZipArchive(sourceDir, outputPath, options = {}) {
     }
 
     zipArgs.push(resolvedOutputPath);
-    zipArgs.push(sourceDirName);
+    zipArgs.push(includeRoot ? sourceDirName : '.');
 
     exclude.forEach(pattern => {
         zipArgs.push('-x', pattern);
@@ -234,7 +236,7 @@ async function createMacZipArchive(sourceDir, outputPath, options = {}) {
     console.log(`Output file: ${resolvedOutputPath}`);
 
     await runCommand('zip', zipArgs, {
-        cwd: parentDir,
+        cwd: includeRoot ? parentDir : resolvedSourceDir,
         shell: false,
         stdio: ['ignore', 'ignore', 'inherit'],
         debug: false

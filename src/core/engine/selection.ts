@@ -4,7 +4,6 @@ import { activateEngine, EngineSelection, getEnginePathOverride, GlobalPaths } f
 export interface EngineSdkConfiguration {
     path?: string;
     version?: string;
-    revision?: string;
 }
 
 const { resolveEngineSelection } = require('../../../workflow/engine-path') as {
@@ -27,10 +26,10 @@ export function selectEnginePath(enginePath: string) {
     return checkSelection(resolveEngineSelection(GlobalPaths.workspace, { explicitPath: enginePath }));
 }
 
-/** Called before project initialization or engine imports; project paths use the configuration manager. */
+/** Prepare the project's settings and select the process engine before loading it. */
 export async function selectProjectEngine(projectPath?: string, enginePath?: string) {
-    let projectConfig: EngineSdkConfiguration = {};
     const projectRoot = projectPath === undefined ? undefined : resolve(projectPath);
+    let projectConfig: EngineSdkConfiguration | undefined;
     if (projectRoot) {
         const { configurationManager, configurationRegistry } = await import('../configuration');
         await configurationManager.initialize(projectRoot);
@@ -38,10 +37,9 @@ export async function selectProjectEngine(projectPath?: string, enginePath?: str
             throw new Error('A different project is already initialized in this process; start a new process.');
         }
         const instance = configurationRegistry.getInstances().engineSdk ?? await configurationRegistry.register('engineSdk', { defaults: {} });
-        projectConfig = instance.getAll('project') ?? {};
+        projectConfig = instance.getAll('project');
     }
-    const selection = resolveEngineSelection(GlobalPaths.workspace, {
+    return checkSelection(resolveEngineSelection(GlobalPaths.workspace, {
         explicitPath: enginePath ?? getEnginePathOverride(), projectRoot, projectConfig,
-    });
-    return checkSelection(selection);
+    }));
 }

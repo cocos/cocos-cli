@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { prepare } = require('../sdk-platform-tools');
-const { ToolDownloader } = require('../download-tools');
+const { ToolDownloader, getToolsForPlatform } = require('../download-tools');
 const prepareFull = (downloader, output) => prepare(downloader, output, false);
 function fixture(t) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cocos-tools-cache-'));
@@ -21,7 +21,10 @@ function downloader(root, fail = false) {
     value.manifest = value.loadManifestLocalFile();
     value.checkExtractTools = () => true;
     value.downloadFile = async (url, file) => { if (fail) throw Error('Test download failure'); fs.writeFileSync(file, url); };
-    value.extractFile = async (file, target) => fs.copyFileSync(file, path.join(target, 'tool.bin'));
+    value.extractFile = async (file, target, requiredFile) => {
+        fs.mkdirSync(target, { recursive: true });
+        fs.copyFileSync(file, path.join(target, requiredFile ?? 'tool.bin'));
+    };
     return value;
 }
 test('cold tools cache downloads the full set; warm cache validates and reuses every tool', async t => {
@@ -53,6 +56,75 @@ test('partial download failure cannot create a successful cache manifest or save
     await assert.rejects(prepareFull(downloader(root, true), output));
     assert.equal(fs.existsSync(path.join(root, 'tools/.sdk-tool-integrity.json')), false);
     assert.equal(fs.existsSync(output), false);
+});
+
+test('release preparation refreshes a shared tool directory without a download record', async t => {
+    const previous = process.env.COCOS_RELEASE_TOOLS;
+    process.env.COCOS_RELEASE_TOOLS = 'true';
+    t.after(() => {
+        if (previous === undefined) delete process.env.COCOS_RELEASE_TOOLS;
+        else process.env.COCOS_RELEASE_TOOLS = previous;
+    });
+    const value = downloader(fixture(t));
+    const tool = getToolsForPlatform('darwin').find(({ dist }) => dist === 'cmake');
+    const target = path.join(value.toolsDir, tool.dist);
+    fs.mkdirSync(target, { recursive: true });
+    fs.mkdirSync(value.tempDir);
+    fs.writeFileSync(path.join(target, 'cmake.exe'), 'unrecorded Windows tool');
+    assert.deepEqual(await value.processTool(tool, 0, 1), { success: true, skipped: false });
+    assert.equal(value.manifest[tool.dist].url, tool.url);
+});
+
+test('Windows retries an empty extraction without reusing a stale tool directory', async t => {
+    const root = fixture(t);
+    const value = downloader(root);
+    const tool = { dist: 'PVRTexTool_win32', requiredFile: 'PVRTexToolCLI.exe', url: 'https://example.com/pvr.zip' };
+    const target = path.join(value.toolsDir, tool.dist);
+    fs.mkdirSync(target, { recursive: true });
+    fs.mkdirSync(value.tempDir);
+    value.manifest[tool.dist] = { url: tool.url };
+    value.platform = 'win32';
+    delete value.extractFile;
+    const commands = [];
+    value.execFile = (command, args, options) => {
+        commands.push(path.basename(command));
+        if (commands.length === 1) {
+            // The extractor exited successfully but only produced archive metadata.
+            const metadata = path.join(args.at(-1), '__MACOSX');
+            fs.mkdirSync(metadata);
+            fs.writeFileSync(path.join(metadata, '._PVRTexToolCLI.exe'), 'metadata');
+            return;
+        }
+        const staging = options.env.COCOS_TOOL_OUTPUT;
+        assert.deepEqual(fs.readdirSync(staging), []);
+        assert.match(args.at(-1), /-ErrorAction Stop/);
+        fs.writeFileSync(path.join(staging, tool.requiredFile), 'executable');
+    };
+    assert.deepEqual(await value.processTool(tool, 0, 1), { success: true, skipped: false });
+    assert.deepEqual(commands, ['tar.exe', 'powershell.exe']);
+    assert.deepEqual(fs.readdirSync(value.toolsDir), [tool.dist]);
+    assert.deepEqual(fs.readdirSync(target), [tool.requiredFile]);
+});
+
+test('invalid replacement archives preserve the installed tool and its download record', async t => {
+    const root = fixture(t);
+    const value = downloader(root);
+    const tool = { dist: 'PVRTexTool_win32', requiredFile: 'PVRTexToolCLI.exe', url: 'https://example.com/next.zip' };
+    const target = path.join(value.toolsDir, tool.dist);
+    fs.mkdirSync(target, { recursive: true });
+    fs.mkdirSync(value.tempDir);
+    fs.writeFileSync(path.join(target, tool.requiredFile), 'installed executable');
+    const previous = { url: 'https://example.com/previous.zip' };
+    value.manifest[tool.dist] = previous;
+    value.platform = 'win32';
+    delete value.extractFile;
+    value.execFile = () => {}; // Both extractors exit with success and create nothing.
+    const result = await value.processTool(tool, 0, 1);
+    assert.equal(result.success, false);
+    assert.match(result.error, /tar\.exe: Missing or empty PVRTexToolCLI\.exe.*Expand-Archive: Missing or empty PVRTexToolCLI\.exe/);
+    assert.equal(fs.readFileSync(path.join(target, tool.requiredFile), 'utf8'), 'installed executable');
+    assert.equal(value.manifest[tool.dist], previous);
+    assert.deepEqual(fs.readdirSync(value.toolsDir), [tool.dist]);
 });
 test('tools cache is restored and validated before compilation and only saved after repair', () => {
     const yaml = require('js-yaml');

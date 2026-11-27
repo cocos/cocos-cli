@@ -1,6 +1,11 @@
 name: 'Setup Environment'
 description: '初始化环境：安装依赖和构建项目'
 
+inputs:
+  prepare-engine-source:
+    description: Prepare the development Engine source and compile it
+    default: 'true'
+
 runs:
   using: 'composite'
   steps:
@@ -52,21 +57,24 @@ runs:
         npm run test:engine-compatibility
 
     - name: Fetch engine source explicitly
+      if: inputs.prepare-engine-source == 'true'
       shell: bash
       run: npm run update:repos
 
     - name: Install engine source dependencies explicitly
+      if: inputs.prepare-engine-source == 'true'
       shell: bash
       run: npm run install:engine
 
     - name: Prepare engine and CLI explicitly
+      if: inputs.prepare-engine-source == 'true'
       shell: bash
       env:
         COCOS_STRICT_TOOL_DOWNLOADS: 'true'
       run: npm run setup:dev -- --force
 
     - name: Save platform tools
-      if: steps.tools-cache.outputs.cache-hit != 'true'
+      if: inputs.prepare-engine-source == 'true' && steps.tools-cache.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
         path: static/tools

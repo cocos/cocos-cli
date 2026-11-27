@@ -1,12 +1,15 @@
 const fs = require('fs-extra');
+const os = require('node:os');
 const path = require('path');
 const { execSync } = require('child_process');
-const { globby } = require('globby');
+const { globby, convertPathToPattern } = require('globby');
 const { Client } = require('basic-ftp');
 const { Command } = require('commander');
 const gulp = require('gulp');
 const { runCommand, create7ZipArchive, zipArchive } = require('./utils');
 const { materializeAssetDbWorkspace } = require('./materialize-asset-db-workspace');
+const { collectReleaseFiles, toolManifestPath } = require('./release-files');
+const { validateReleaseEngine } = require('./release-engine-sdk');
 
 // Global context to share state between tasks
 const context = {
@@ -15,9 +18,15 @@ const context = {
     version: '',
     ignorePatterns: [],
     allFiles: [],
+    toolManifest: undefined,
     configs: [],
     args: {}
 };
+
+function isInside(parent, child) {
+    const relative = path.relative(parent, child);
+    return relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative);
+}
 
 /**
  * Parse command-line arguments
@@ -35,6 +44,7 @@ function parseArgs(cb) {
         .option('--upload', 'Upload to FTP server')
         .option('--publish-dir <dir>', 'Specify release directory (defaults to .publish)')
         .option('--publish-name <name>', 'Custom name for the release artifact')
+        .option('--engine-sdk <path>', 'Use an extracted Engine SDK for building and testing the CLI')
         .option('--skip-notarization', 'Skip notarization process')
         .allowUnknownOption(); // Allow Gulp flags
 
@@ -49,7 +59,7 @@ function parseArgs(cb) {
     context.publishDir = options.publishDir || '.publish';
 
     // Check whether any arguments were provided
-    const hasAnyArgs = options.nodejs || options.electron || options.zip || options.upload || options.skipNotarization;
+    const hasAnyArgs = options.nodejs || options.electron || options.zip || options.upload || options.skipNotarization || options.engineSdk;
 
     // Enable all features when no arguments are passed
     if (!hasAnyArgs) {
@@ -93,6 +103,8 @@ async function getProjectVersion() {
     const packageJsonPath = path.join(context.rootDir, 'package.json');
     const packageJson = await fs.readJson(packageJsonPath);
     context.version = packageJson.version;
+    storeReleaseDirName.nodejs = '';
+    storeReleaseDirName.electron = '';
     console.log(`Project Version: ${context.version}`);
 }
 
@@ -161,24 +173,27 @@ async function readIgnorePatterns() {
  * Scan project files to copy
  */
 async function scanProjectFiles() {
-    console.log('Scanning project files...');
-    const allFiles = await globby(['**/*'], {
-        cwd: context.rootDir,
-        dot: true,
-        ignore: context.ignorePatterns,
-        onlyFiles: true
-    });
-
-    console.log(`Found ${allFiles.length} files to copy`);
-    context.allFiles = allFiles;
+    console.log(`Scanning project files and ${process.platform} tools...`);
+    const ignore = [...context.ignorePatterns];
+    if (context.engine) {
+        ignore.push('packages/engine/**', 'packages/engine-compiler/**', 'temp/engine-sdk/**', 'config.local.json');
+        if (isInside(context.rootDir, context.engine.path)) {
+            const enginePattern = convertPathToPattern(path.relative(context.rootDir, context.engine.path));
+            ignore.push(`${enginePattern}/**`);
+        }
+    }
+    const { files, toolManifest } = await collectReleaseFiles(context.rootDir, ignore);
+    console.log(`Found ${files.length} files to copy`);
+    context.allFiles = files;
+    context.toolManifest = toolManifest;
 }
 
 /**
  * Build simulator artifacts under packages/engine before file scanning.
  */
 async function buildSimulatorArtifacts() {
-    if (process.env.SKIP_SIMULATOR_BUILD === '1') {
-        console.log('Skipping simulator build in release because SKIP_SIMULATOR_BUILD=1');
+    if (context.engine || process.env.SKIP_SIMULATOR_BUILD === '1') {
+        console.log('Skipping simulator build in release');
         return;
     }
 
@@ -189,16 +204,35 @@ async function buildSimulatorArtifacts() {
  * Update Repos
  */
 async function updateRepos() {
-    await runCommand('npm', ['run', 'update:repos'], { cwd: context.rootDir });
+    if (!context.engine) await runCommand('npm', ['run', 'update:repos'], { cwd: context.rootDir });
 }
 
 /**
  * Install Dependencies
  */
 async function installDeps() {
-    await runCommand('npm', ['install'], { cwd: context.rootDir, env: { ...process.env, COCOS_SKIP_POSTINSTALL_PREPARE: 'true' } });
-    await runCommand('npm', ['run', 'install:engine'], { cwd: context.rootDir });
-    await runCommand('npm', ['run', 'setup:dev', '--', '--force'], { cwd: context.rootDir });
+    if (!context.args.dependenciesInstalled) {
+        await runCommand('npm', ['install'], { cwd: context.rootDir, env: { ...process.env, COCOS_SKIP_POSTINSTALL_PREPARE: 'true' } });
+    }
+    const setup = context.engine ? ['setup:cli', '--', '--engine-path', context.engine.path] : ['setup:dev', '--', '--force'];
+    if (!context.engine) await runCommand('npm', ['run', 'install:engine'], { cwd: context.rootDir });
+    await runCommand('npm', ['run', ...setup], {
+        cwd: context.rootDir, env: { ...process.env, COCOS_RELEASE_TOOLS: 'true' },
+    });
+}
+
+async function selectPreparedEngine() {
+    context.engine = undefined;
+    if (!context.args.engineSdk) return;
+    const sdk = await fs.realpath(context.args.engineSdk);
+    if (path.relative(context.rootDir, sdk) === '') throw new Error('The Engine SDK must be a separate directory from the CLI workspace');
+    const identity = await validateReleaseEngine(context.rootDir, sdk);
+    const selection = context.args.engineSdkReceipt ? await fs.readJson(context.args.engineSdkReceipt) : undefined;
+    if (selection && Object.entries(identity).some(([key, value]) => selection[key] !== value)) {
+        throw new Error('Release Engine SDK no longer matches the downloaded artifact');
+    }
+    context.engine = { path: sdk, receipt: selection ?? identity };
+    console.log(`Using prepared Engine SDK ${identity.version}, ${identity.revision}`);
 }
 
 /**
@@ -457,9 +491,14 @@ function createReleasePipeline(config) {
     let zipFilePath = null;
 
     const prepareDir = async () => {
+        const name = releaseDirName();
+        if (name === '.' || name === '..' || path.basename(name) !== name) throw new Error('Publish name must be a directory name');
         const dir = extensionDir();
         console.log(`Starting release ${config.type} version ${context.version}...`);
         if (await fs.pathExists(dir)) {
+            if (context.engine && isInside(await fs.realpath(dir), context.engine.path)) {
+                throw new Error('Publish directory contains the selected Engine SDK');
+            }
             await fs.remove(dir);
         }
         await fs.ensureDir(dir);
@@ -473,8 +512,19 @@ function createReleasePipeline(config) {
             const srcPath = path.join(context.rootDir, file);
             const destPath = path.join(dir, file);
             await fs.ensureDir(path.dirname(destPath));
-            await fs.copy(srcPath, destPath);
+            if (file === toolManifestPath) {
+                await fs.writeJson(destPath, context.toolManifest, { spaces: 2 });
+            } else {
+                await fs.copy(srcPath, destPath);
+            }
             copiedCount++;
+        }
+        if (context.engine) {
+            // Both packages/cc-module and the archived node_modules/cc are two levels deep.
+            // The public editor declarations already include the cc-module globals.
+            const declarations = ['cc.d.ts', 'cc.editor.d.ts']
+                .map(name => `/// <reference path="../../packages/cocos-cli-types/${name}" />\n`).join('');
+            await fs.writeFile(path.join(dir, 'packages/cc-module/cc.d.ts'), declarations);
         }
         console.log(`Successfully copied ${copiedCount} files`);
     };
@@ -482,7 +532,7 @@ function createReleasePipeline(config) {
     const installProd = async () => {
         const dir = extensionDir();
         await runCommand('npm', ['install', '--production'], { cwd: dir });
-        await runCommand('npm', ['install', '--production', '--ignore-scripts'], { cwd: path.join(dir, 'packages/engine') });
+        if (!context.engine) await runCommand('npm', ['install', '--production', '--ignore-scripts'], { cwd: path.join(dir, 'packages/engine') });
     };
 
     const materializeWorkspaces = async () => {
@@ -498,8 +548,24 @@ function createReleasePipeline(config) {
     };
 
     const test = async () => {
-        if (config.type === 'nodejs') {
-            await runCommand('npm', ['run', `test:e2e -- --cli ${extensionDir()}/dist/cli.js`], { cwd: context.rootDir });
+        if (config.type !== 'nodejs') return;
+        const dir = extensionDir();
+        const runTests = () => runCommand('npm', ['run', 'test:e2e'], {
+            cwd: context.rootDir, env: { ...process.env, E2E_CLI_PATH: path.join(dir, 'dist', 'cli.js') },
+        });
+        if (!context.engine) return runTests();
+
+        // The project tests write runtime caches. Give them a private SDK copy.
+        const workspace = await fs.mkdtemp(path.join(os.tmpdir(), 'cocos-release-e2e-'));
+        const enginePath = path.join(workspace, 'engine');
+        const localConfig = path.join(dir, 'config.local.json');
+        try {
+            await fs.promises.cp(context.engine.path, enginePath, { recursive: true, dereference: true, mode: fs.constants.COPYFILE_FICLONE });
+            await fs.writeJson(localConfig, { enginePath }, { flag: 'wx' });
+            try { await runTests(); }
+            finally { await fs.unlink(localConfig); }
+        } finally {
+            await fs.remove(workspace);
         }
     };
 
@@ -509,6 +575,21 @@ function createReleasePipeline(config) {
 
     const setPerms = async () => {
         await setCliExecutablePermissions(extensionDir());
+    };
+
+    const removeEngine = async () => {
+        if (context.engine) {
+            await fs.writeJson(path.join(extensionDir(), 'engine-sdk-selection.json'), context.engine.receipt, { spaces: 2 });
+            return;
+        }
+        const releaseDir = await fs.realpath(extensionDir());
+        const packagesDir = path.join(releaseDir, 'packages');
+        if (!(await fs.lstat(packagesDir)).isDirectory()) {
+            throw new Error(`Expected a packages directory inside the release: ${packagesDir}`);
+        }
+        for (const name of ['engine', 'engine-compiler']) {
+            await fs.remove(path.join(packagesDir, name));
+        }
     };
 
     const pack = async () => {
@@ -548,6 +629,10 @@ function createReleasePipeline(config) {
         }
     };
 
+    const recordResult = async () => {
+        context.results[config.type] = { releaseDir: extensionDir(), zipFile: zipFilePath };
+    };
+
     // Define task name for logging
     const taskName = `release:${config.type}`;
     const pipeline = gulp.series(
@@ -557,10 +642,12 @@ function createReleasePipeline(config) {
         materializeWorkspaces,
         rebuild,
         test,
+        removeEngine,
         sign,
         setPerms,
         pack,
-        upload
+        upload,
+        recordResult
     );
     pipeline.displayName = taskName;
     return pipeline;
@@ -573,6 +660,7 @@ const initTask = gulp.series(
 );
 
 const prepareTask = gulp.series(
+    selectPreparedEngine,
     clean,
     updateRepos,
     installDeps,
@@ -583,26 +671,23 @@ const collectFilesTask = gulp.series(
     async () => await scanProjectFiles()
 );
 
-// Main release task
-gulp.task('release', gulp.series(
-    (cb) => parseArgs(cb),
-    prepareTask,
-    initTask,
-    collectFilesTask,
-    async (cb) => {
-        // Dynamically create and execute pipelines based on configs
-        const pipelines = context.configs.map(config => createReleasePipeline(config));
-        if (pipelines.length > 0) {
-            // Run pipelines in parallel
-            const parallelRelease = gulp.parallel(...pipelines);
-            return new Promise((resolve, reject) => {
-                parallelRelease(cb);
-                resolve();
-            });
-        } else {
-            cb();
-        }
-    }
-));
+function runReleasePipelines(cb) {
+    context.results = {};
+    gulp.parallel(...context.configs.map(createReleasePipeline))(cb);
+}
+
+const releaseTask = gulp.series(prepareTask, initTask, collectFilesTask, runReleasePipelines);
+gulp.task('release', gulp.series(parseArgs, releaseTask));
+
+async function release({ publishDir, configs, engineSdk, engineSdkReceipt, dependenciesInstalled }) {
+    context.publishDir = path.resolve(context.rootDir, publishDir);
+    context.configs = configs.map(config => ({ notarize: true, ...config }));
+    context.args = { engineSdk, engineSdkReceipt, dependenciesInstalled };
+    await new Promise((resolve, reject) => {
+        releaseTask(error => error ? reject(error) : resolve());
+    });
+    return context.results;
+}
 
 module.exports = gulp;
+Object.defineProperty(module.exports, 'release', { value: release });
