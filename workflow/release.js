@@ -174,10 +174,13 @@ async function readIgnorePatterns() {
  */
 async function scanProjectFiles() {
     console.log(`Scanning project files and ${process.platform} tools...`);
-    const ignore = context.engine ? [...context.ignorePatterns, 'packages/engine/**', 'packages/engine-compiler/**', 'config.local.json'] : context.ignorePatterns;
-    if (context.engine && isInside(context.rootDir, context.engine.path)) {
-        const enginePattern = convertPathToPattern(path.relative(context.rootDir, context.engine.path));
-        ignore.push(`${enginePattern}/**`);
+    const ignore = [...context.ignorePatterns];
+    if (context.engine) {
+        ignore.push('packages/engine/**', 'packages/engine-compiler/**', 'temp/engine-sdk/**', 'config.local.json');
+        if (isInside(context.rootDir, context.engine.path)) {
+            const enginePattern = convertPathToPattern(path.relative(context.rootDir, context.engine.path));
+            ignore.push(`${enginePattern}/**`);
+        }
     }
     const { files, toolManifest } = await collectReleaseFiles(context.rootDir, ignore);
     console.log(`Found ${files.length} files to copy`);
