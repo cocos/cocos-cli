@@ -1,12 +1,10 @@
 'use strict';
 
 import ps from 'path';
-import fs from 'fs-extra';
 import type { QuickPackLoader } from '@cocos/creator-programming-quick-pack/lib/loader';
 
 import { ImportMap } from '../../builder/@types/protected';
-import { StatsQuery } from '@cocos/ccbuild';
-import * as moduleSystem from '@cocos/module-system';
+import { GlobalPaths } from '../../../global';
 
 /**
  * 异步迭代。有以下特点：
@@ -78,10 +76,9 @@ export class ProgrammingFacet {
     ) {
         const previewFacet = new ProgrammingFacet(
             engine.root,
-            engine.distRoot, // engineDistRoot
-            projectPath
+            engine.distRoot,
         );
-        await previewFacet._initialize({ engine });
+        await previewFacet._initialize();
         return previewFacet;
     }
 
@@ -165,20 +162,16 @@ export class ProgrammingFacet {
 
     private _engineDistRoot: string;
 
-    private _systemJsHomeDir: string;
+    private readonly _systemJsHomeDir = ps.join(GlobalPaths.workspace, 'dist', 'preview-systemjs');
 
     private _systemJsBundleFileName = 'system.js';
-
-    private declare _engineStatsQuery: StatsQuery;
 
     private _quickPackLoader: QuickPackLoader | undefined;
 
     private constructor(
         engineRoot: string,
         engineDistRoot: string,
-        projectRoot: string,
     ) {
-        this._systemJsHomeDir = ps.join(projectRoot, 'temp', 'programming', 'preview', 'systemjs');
         this._engineRoot = engineRoot;
         this._engineDistRoot = engineDistRoot;
         this._asyncIteration = new AsyncIterationConcurrency(async () => {
@@ -194,12 +187,7 @@ export class ProgrammingFacet {
         }
     }
 
-    private async _initialize({
-        engine,
-    }: {
-        engine: IEngineOptions;
-    }) {
-        this._engineStatsQuery = await StatsQuery.create(engine.root);
+    private async _initialize() {
         const imports = this._staticImportMap.imports;
 
         imports['cc'] = 'q-bundled:///virtual/cc.js';
@@ -210,33 +198,7 @@ export class ProgrammingFacet {
 
         console.debug(`Preview import map: ${JSON.stringify(this._staticImportMap, undefined, 2)}`);
 
-        await this._buildSystemJs();
-
         await this._resetQuickPackLoader();
-    }
-
-    private async _buildSystemJs() {
-        const systemJsBundleOutFile = ps.join(this._systemJsHomeDir, this._systemJsBundleFileName);
-        await fs.ensureDir(ps.dirname(systemJsBundleOutFile));
-
-        // NOTE: The @cocos/rollup-plugin-typescript requires document.baseURI to resolve tslib in Node.js environment.
-        // In cocos-cli, web-adapter.js (loaded by initEngine) polyfills `document` but not `baseURI`.
-        // If `document` is defined, the rollup plugin enters a browser-only branch and fails if `baseURI` is missing.
-        // Use the cocos-cli package root (not process.cwd()) so tslib resolves correctly when
-        // the CLI is invoked from an arbitrary working directory.
-        if (typeof document !== 'undefined' && !document.baseURI) {
-            const { pathToFileURL } = require('url');
-            const cliRoot = ps.resolve(__dirname, '..', '..', '..', '..');
-            (document as any).baseURI = pathToFileURL(ps.join(cliRoot, 'index.js')).href;
-        }
-
-        await moduleSystem.build({
-            out: systemJsBundleOutFile,
-            minify: false,
-            sourceMap: true,
-            platform: 'web-mobile',
-            editor: true,
-        });
     }
 
     private async _resetQuickPackLoader() {

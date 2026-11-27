@@ -57,6 +57,9 @@ async function mockNpmModules() {
     await utils.runCommand('node', ['./workflow/build-cc-module.js', forceFlag].filter(Boolean));
     // generate i18n types
     await utils.runCommand('node', ['./workflow/generate-i18n-types.js', forceFlag].filter(Boolean));
+    // The internal asset import uses the same native tools as project imports.
+    const minimalFlag = process.env.MINIMAL_DOWNLOAD_TOOLS ? '--minimal' : '';
+    await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag, minimalFlag].filter(Boolean));
     // CI setup runs an explicit build after installation and tool downloads.
     // Keep local installation behavior unless that caller explicitly defers it.
     if (process.env.COCOS_SKIP_POSTINSTALL_BUILD === 'true') {
@@ -64,9 +67,6 @@ async function mockNpmModules() {
     } else {
         await utils.runCommand('node', ['./workflow/build-ts.js', forceFlag].filter(Boolean));
     }
-    //download tools
-    const minimalFlag = process.env.MINIMAL_DOWNLOAD_TOOLS ? '--minimal' : '';
-    await utils.runCommand('node', ['./workflow/download-tools.js', forceFlag, minimalFlag].filter(Boolean));
 }
 
 mockNpmModules().then(() => {

@@ -46,9 +46,9 @@ const preparation = [
     './workflow/generate-i18n-types.js',
 ];
 
-test('normal local installation still builds the CLI and downloads tools', async () => {
+test('local installation downloads native import tools before building the CLI', async () => {
     assert.deepEqual(scripts(await runPostinstall()), [
-        ...preparation, './workflow/build-ts.js', './workflow/download-tools.js',
+        ...preparation, './workflow/download-tools.js', './workflow/build-ts.js',
     ]);
 });
 
@@ -168,6 +168,6 @@ test('SDK candidate installation explicitly opts out without suppressing depende
 
 test('only an explicit true skips all automatic preparation', async () => {
     for (const value of ['false', '0', '']) {
-        assert.deepEqual(scripts(await runPostinstall({ COCOS_SKIP_POSTINSTALL_PREPARE: value })), [...preparation, './workflow/build-ts.js', './workflow/download-tools.js']);
+        assert.deepEqual(scripts(await runPostinstall({ COCOS_SKIP_POSTINSTALL_PREPARE: value })), [...preparation, './workflow/download-tools.js', './workflow/build-ts.js']);
     }
 });

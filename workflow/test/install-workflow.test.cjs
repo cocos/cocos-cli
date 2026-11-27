@@ -87,17 +87,23 @@ test('SDK opt-out runs the actual npm install lifecycle without engine or build 
     for (const name of ['dist', 'packages/engine/bin', 'packages/cc-module']) assert.equal(fs.existsSync(path.join(root, name)), false);
 });
 
-test('CLI setup uses a prepared custom engine without compiling or installing it', async t => {
+test('CLI setup prepares native tools before importing assets with a custom engine', async t => {
     const root = fixture(t);
     const engine = prepared(root);
     const calls = [];
-    await setupDev({ root, compileEngine: false, minimalTools: true, run: async (...args) => calls.push(args) });
+    const tool = `static/tools/cmft/cmftRelease64${process.platform === 'win32' ? '.exe' : ''}`;
+    assert.equal(fs.existsSync(path.join(root, tool)), false);
+    await setupDev({ root, compileEngine: false, minimalTools: true, run: async (...args) => {
+        calls.push(args);
+        if (args[1][0].endsWith('download-tools.js')) write(root, tool);
+        if (args[0] === 'npm') assert.equal(fs.existsSync(path.join(root, tool)), true, 'asset prebuild requires native tools');
+    } });
     assert.equal(calls.length, 3);
     assert.equal(path.basename(calls[0][1][0]), 'build-cc-module.js');
     assert.deepEqual(calls[0][1].slice(1), ['--engine-path', engine]);
     assert.equal(calls[0][2].shell, false);
-    assert.deepEqual(calls[1].slice(0, 2), ['npm', ['run', 'build']]);
-    assert.ok(calls[2][1].includes('--minimal'));
+    assert.ok(calls[1][1].includes('--minimal'));
+    assert.deepEqual(calls[2].slice(0, 2), ['npm', ['run', 'build']]);
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'config.local.json'))).project, 'preserve-me');
 });
 

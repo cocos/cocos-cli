@@ -324,6 +324,9 @@ class AssetOperation extends EventEmitter {
             throw new Error(`Save meta failed(${uuid}): The meta must be an Object string`);
         }
         asset = asset || assetQuery.queryAsset(uuid)!;
+        if (asset._assetDB.isPrebuilt) {
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
+        }
         mergeMeta(asset.meta, meta);
         await asset.save(); // 这里才是将数据保存到 .meta 文件
         await asset._assetDB.reimport(asset.uuid);
@@ -340,6 +343,9 @@ class AssetOperation extends EventEmitter {
             return;
         }
 
+        if (asset._assetDB.isPrebuilt) {
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
+        }
         if (!isRecord(asset.meta.userData)) {
             asset.meta.userData = {} as AssetUserDataMap[T];
         }
@@ -363,6 +369,9 @@ class AssetOperation extends EventEmitter {
         if (!asset) {
             console.error(`can not find asset ${uuidOrURLOrPath}`);
             return;
+        }
+        if (asset._assetDB.isPrebuilt) {
+            throw new Error(`${i18n.t('assets.operation.readonly')} \n  url: ${asset.url}`);
         }
         if (!isRecord(asset.meta.userData)) {
             asset.meta.userData = {} as AssetUserDataMap[T];

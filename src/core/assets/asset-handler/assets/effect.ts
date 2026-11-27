@@ -12,7 +12,7 @@ import {
     buildLayoutGraphData,
     getLayoutGraphDataVersion,
 } from 'cc/editor/custom-pipeline';
-import { existsSync, readFileSync, readdirSync, writeFileSync, ensureDir, readJSON, writeFile } from 'fs-extra';
+import { copyFile, existsSync, readFileSync, ensureDir, readJSON, writeFile } from 'fs-extra';
 import { basename, dirname, extname, join, relative, resolve } from 'path';
 import { buildEffect, options, addChunk } from '../../effect-compiler';
 
@@ -230,6 +230,7 @@ function _rebuildDescriptorHierarchy(effectArray: Asset[]) {
 }
 
 async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphData) {
+    const effects: EffectAsset[] = [];
     // 收集所有 Descriptor 的 Visibility 信息
     const visg = new VisibilityGraph();
     for (const effectAsset of currEffectArray) {
@@ -237,20 +238,13 @@ async function buildCustomLayout(currEffectArray: Asset[], lgData: LayoutGraphDa
         const json = await readJSON(libraryFile);
         // @ts-ignore TS2339
         const effect = cc.deserialize(json) as EffectAsset;
+        effects.push(effect);
         // 合并所有 effect 的 visibility 信息
         visg.mergeEffect(effect);
     }
 
     const lgInfo = new LayoutGraphInfo(visg);
-    for (const effectAsset of currEffectArray) {
-        // 导入后的 effectAsset json，引擎类型序列化后的数据
-        const libraryFile = effectAsset.library + '.json';
-
-        const json = await readJSON(libraryFile);
-
-        // @ts-ignore TS2339
-        const effect = cc.deserialize(json) as EffectAsset;
-
+    for (const effect of effects) {
         // 添加 effect
         lgInfo.addEffect(effect);
     }
@@ -280,39 +274,7 @@ export async function afterImport(force?: boolean) {
         await recompileAllEffects(effectList, force);
         return;
     }
-    // Fallback: scan pre-built .effect.meta files from each DB's target directory.
-    // The internal DB ships with a pre-built library so effect.bin can be generated
-    // even when the full import pipeline hasn't processed .effect files.
-    const fallbackEffects = collectPrebuiltEffects();
-    if (fallbackEffects.length) {
-        console.debug(`[effect] Using ${fallbackEffects.length} pre-built effect library files`);
-        await recompileAllEffects(fallbackEffects as any, force);
-        return;
-    }
     console.debug('no effect to compile');
-}
-
-function collectPrebuiltEffects(): Array<{ imported: boolean; library: string }> {
-    const effects: Array<{ imported: boolean; library: string }> = [];
-    for (const dbInfo of assetConfig.data.assetDBList) {
-        if (!dbInfo.library) continue;
-        const effectsDir = join(dbInfo.target, 'effects');
-        if (!existsSync(effectsDir)) continue;
-        try {
-            const allFiles = readdirSync(effectsDir, { recursive: true, encoding: 'utf-8' });
-            for (const relFile of allFiles) {
-                if (!relFile.endsWith('.effect.meta')) continue;
-                try {
-                    const meta = JSON.parse(readFileSync(join(effectsDir, relFile), 'utf-8'));
-                    if (meta.importer !== 'effect' || !meta.imported || !meta.uuid) continue;
-                    const libraryPath = join(dbInfo.library!, meta.uuid.substring(0, 2), meta.uuid);
-                    if (!existsSync(libraryPath + '.json')) continue;
-                    effects.push({ imported: true, library: libraryPath });
-                } catch { /* skip invalid meta */ }
-            }
-        } catch { /* skip inaccessible dirs */ }
-    }
-    return effects;
 }
 
 function forceRecompileEffects(file: string): boolean {
@@ -380,36 +342,36 @@ export async function recompileAllEffects(effectArray: Asset[], force?: boolean)
         effectArray = effectArray.filter((asset) => asset.imported);
         autoGenEffectBinInfo.waitingGenEffectBin = false;
         autoGenEffectBinInfo.waitingGenEffectBinTimmer && clearTimeout(autoGenEffectBinInfo.waitingGenEffectBinTimmer);
-        const lgData = new LayoutGraphData();
-        await buildCustomLayout(effectArray, lgData);
-        // 写入一个二进制文件
-        // 记得做好缓存管理，如果没有变化尽量减少 io
         await ensureDir(dirname(file));
-
-        // Serialize data
-        const binaryData = new BinaryOutputArchive();
-        saveLayoutGraphData(binaryData, lgData);
-
-        const isEngineSupportCompressedEffect = !!getLayoutGraphDataVersion;
-        if (isEngineSupportCompressedEffect) {
-            // Compress data
-            const compressed = zlib.deflateSync(binaryData.buffer, {
-                level: zlib.constants.Z_BEST_COMPRESSION,
-            });
-
-            // Pack data
-            const packedData = Buffer.alloc(compressed.length + 8);
-            const version = getLayoutGraphDataVersion();
-            packedData.writeUint32LE(0xffffffff, 0); // graph null vertex descriptor
-            packedData.writeUint32LE(version, 4); // version
-            packedData.set(compressed, 8); // data
-
-            // Write to file
-            await writeFile(file, packedData);
+        if (effectArray.length && effectArray.every(asset => asset._assetDB.isPrebuilt)) {
+            await copyFile(join(effectArray[0]._assetDB.options.library, 'effect.bin'), file);
+            console.debug('copied prebuilt effect.bin');
         } else {
-            await writeFile(file, binaryData.buffer);
+            await writeEffectBin(effectArray, file);
+            console.debug('recompile effect.bin success');
         }
-
-        console.debug('recompile effect.bin success');
     }
+}
+
+/** Builds the effect binary for projects that only use built-in effects. */
+export async function buildInternalEffectBin(database: AssetDB): Promise<void> {
+    const effects = [...database.path2asset.values()].filter(asset => asset.meta.importer === 'effect' && asset.imported);
+    await writeEffectBin(effects, join(database.options.library, 'effect.bin'));
+}
+
+async function writeEffectBin(effects: Asset[], file: string): Promise<void> {
+    const lgData = new LayoutGraphData();
+    await buildCustomLayout(effects, lgData);
+    const binaryData = new BinaryOutputArchive();
+    saveLayoutGraphData(binaryData, lgData);
+    if (!getLayoutGraphDataVersion) {
+        await writeFile(file, binaryData.buffer);
+        return;
+    }
+    const compressed = zlib.deflateSync(binaryData.buffer, { level: zlib.constants.Z_BEST_COMPRESSION });
+    const packedData = Buffer.alloc(compressed.length + 8);
+    packedData.writeUInt32LE(0xffffffff, 0); // graph null vertex descriptor
+    packedData.writeUInt32LE(getLayoutGraphDataVersion(), 4);
+    packedData.set(compressed, 8);
+    await writeFile(file, packedData);
 }

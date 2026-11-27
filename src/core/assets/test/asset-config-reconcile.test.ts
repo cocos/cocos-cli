@@ -1,6 +1,7 @@
-import { ensureDir, mkdtemp, outputJSON, remove } from 'fs-extra';
+import { copy, ensureDir, lstat, mkdtemp, move, outputJSON, readFile, remove, symlink } from 'fs-extra';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { internalAssetFingerprint, resolveInternalAssetPaths } from '../internal-assets';
 
 describe('asset-config builtin Localization mount reconcile', () => {
     let fixtureRoot: string;
@@ -9,6 +10,9 @@ describe('asset-config builtin Localization mount reconcile', () => {
     beforeEach(async () => {
         fixtureRoot = await mkdtemp(join(tmpdir(), 'cocos-cli-localization-mount-'));
         previousResourcesPath = (process as { resourcesPath?: string }).resourcesPath;
+        await outputJSON(join(fixtureRoot, 'engine', 'package.json'), { version: '4.0.0' });
+        await outputJSON(join(fixtureRoot, 'engine', 'cc.config.json'), {});
+        await outputJSON(join(fixtureRoot, 'engine', 'editor', 'assets', 'material.mtl'), { uuid: 'original' });
         (process as { resourcesPath?: string }).resourcesPath = join(fixtureRoot, 'resources');
         await createMount('@pink-localization-editor', {
             name: 'localization-editor',
@@ -38,6 +42,89 @@ describe('asset-config builtin Localization mount reconcile', () => {
         const hotInfo = assetConfig.resolveBuiltinLocalizationMount();
         expect(hotInfo).toEqual(coldInfo);
         expect(assetConfig.data.assetDBList.some((info: { name: string }) => info.name === 'other-assets')).toBe(true);
+    });
+
+    it('reuses a matching snapshot after relocating the same SDK', async () => {
+        const engine = join(fixtureRoot, 'engine');
+        const relocated = join(fixtureRoot, 'relocated-engine');
+        const snapshot = join(fixtureRoot, 'snapshot');
+        await outputJSON(join(snapshot, 'engine.json'), { version: 1, fingerprint: await internalAssetFingerprint(engine) });
+        await copy(engine, relocated);
+        expect(await resolveInternalAssetPaths(relocated, join(fixtureRoot, 'library'), snapshot)).toEqual({
+            target: join(relocated, 'editor', 'assets'), library: snapshot,
+        });
+    });
+
+    it('imports the selected same-version SDK and isolates its source and library', async () => {
+        const engine = join(fixtureRoot, 'engine');
+        const other = join(fixtureRoot, 'other-engine');
+        const snapshot = join(fixtureRoot, 'snapshot');
+        await copy(engine, other);
+        await outputJSON(join(snapshot, 'engine.json'), { version: 1, fingerprint: await internalAssetFingerprint(engine) });
+        await outputJSON(join(other, 'editor', 'assets', 'extra.mtl'), { uuid: 'extra' });
+        const paths = await resolveInternalAssetPaths(other, join(fixtureRoot, 'library'), snapshot);
+        expect(paths.library).not.toBe(snapshot);
+        expect(paths.target).not.toBe(join(other, 'editor', 'assets'));
+        expect(JSON.parse(await readFile(join(paths.target, 'extra.mtl'), 'utf8'))).toEqual({ uuid: 'extra' });
+        const missing = await resolveInternalAssetPaths(engine, join(fixtureRoot, 'library'), join(fixtureRoot, 'missing'));
+        expect(paths.library).not.toBe(missing.library);
+    });
+
+    it('reuses the source snapshot when an unchanged SDK is packaged', async () => {
+        const engine = join(fixtureRoot, 'engine');
+        const snapshot = join(fixtureRoot, 'snapshot');
+        const fingerprint = await internalAssetFingerprint(engine);
+        await outputJSON(join(snapshot, 'engine.json'), { version: 1, fingerprint });
+        for (const revision of ['first-package', 'repacked-sdk']) {
+            await outputJSON(join(engine, 'engine-sdk.json'), { revision });
+            expect(await internalAssetFingerprint(engine)).toBe(fingerprint);
+            expect(await resolveInternalAssetPaths(engine, join(fixtureRoot, 'library'), snapshot)).toEqual({
+                target: join(engine, 'editor', 'assets'), library: snapshot,
+            });
+        }
+    });
+
+    it('invalidates snapshots for changed SDK versions, configuration, sources and metadata', async () => {
+        const engine = join(fixtureRoot, 'engine');
+        const original = await internalAssetFingerprint(engine);
+        await outputJSON(join(engine, 'package.json'), { version: '4.0.1' });
+        const version = await internalAssetFingerprint(engine);
+        await outputJSON(join(engine, 'cc.config.json'), { features: [] });
+        const config = await internalAssetFingerprint(engine);
+        await outputJSON(join(engine, 'editor', 'assets', 'material.mtl.meta'), { uuid: 'changed' });
+        const metadata = await internalAssetFingerprint(engine);
+        await remove(join(engine, 'editor', 'assets', 'material.mtl'));
+        expect(new Set([original, version, config, metadata, await internalAssetFingerprint(engine)]).size).toBe(5);
+    });
+
+    it('reports unreadable SDK inputs instead of using another SDK snapshot', async () => {
+        await expect(resolveInternalAssetPaths(join(fixtureRoot, 'missing-engine'), join(fixtureRoot, 'library'), join(fixtureRoot, 'snapshot')))
+            .rejects.toThrow('ENOENT');
+    });
+
+    it.each(['root', 'nested'])('fingerprints and materializes %s asset directory links without writing through them', async mode => {
+        const engine = join(fixtureRoot, 'engine');
+        const assets = join(engine, 'editor', 'assets');
+        const linked = join(fixtureRoot, 'linked-assets');
+        const mount = mode === 'root' ? assets : join(assets, 'linked');
+        if (mode === 'root') await move(assets, linked);
+        else await outputJSON(join(linked, 'material.mtl'), { uuid: 'original' });
+        await symlink(linked, mount, process.platform === 'win32' ? 'junction' : 'dir');
+        const before = await internalAssetFingerprint(engine);
+        await outputJSON(join(linked, 'material.mtl'), { uuid: 'changed' });
+        expect(await internalAssetFingerprint(engine)).not.toBe(before);
+        const paths = await resolveInternalAssetPaths(engine, join(fixtureRoot, 'library'), join(fixtureRoot, 'snapshot'));
+        const copied = mode === 'root' ? paths.target : join(paths.target, 'linked');
+        expect((await lstat(copied)).isSymbolicLink()).toBe(false);
+        await outputJSON(join(copied, 'material.mtl'), { uuid: 'imported' });
+        expect(JSON.parse(await readFile(join(linked, 'material.mtl'), 'utf8'))).toEqual({ uuid: 'changed' });
+    });
+
+    it('rejects circular SDK asset links before starting an import', async () => {
+        const engine = join(fixtureRoot, 'engine');
+        const assets = join(engine, 'editor', 'assets');
+        await symlink(assets, join(assets, 'loop'), process.platform === 'win32' ? 'junction' : 'dir');
+        await expect(internalAssetFingerprint(engine)).rejects.toThrow('Circular internal asset directory');
     });
 
     it('rejects a disabled persisted mount without changing unrelated builtin mounts', async () => {

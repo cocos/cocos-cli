@@ -15,6 +15,7 @@ export interface IData {
  * 部分数据需要固化到硬盘上
  */
 export class DataManager {
+    readonly = false;
 
     // 固化数据的保存路径
     file: string | undefined;
@@ -50,6 +51,7 @@ export class DataManager {
      * 延迟保存依赖文件
      */
     save() {
+        if (this.readonly) return;
         clearTimeout(this._saveTimer);
         this._saveTimer = setTimeout(() => {
             this.saveImmediate();
@@ -61,6 +63,7 @@ export class DataManager {
      */
     saveImmediate() {
         clearTimeout(this._saveTimer);
+        if (this.readonly) return;
         this.file && outputJSONSync(this.file, this.dataMap, { spaces: 2 });
     }
 

@@ -4,8 +4,9 @@ import { AssetDBRegisterInfo, IAsset, IAssetDBInfo, IAssetInfo, QueryAssetsOptio
 import * as assetdb from '@cocos/asset-db';
 import type { IAssetFileSystemProvider } from '@cocos/asset-db';
 import EventEmitter from 'events';
-import { ensureDirSync, existsSync } from 'fs-extra';
-import { extname, join, relative } from 'path';
+import { ensureDirSync, existsSync, writeJSON } from 'fs-extra';
+import { readdirSync, readFileSync } from 'fs';
+import { basename, extname, join, relative } from 'path';
 import { newConsole } from '../../base/console';
 import { decidePromiseState, PROMISE_STATE } from '../utils';
 import pluginManager from './plugin';
@@ -17,6 +18,7 @@ import assetConfig from '../asset-config';
 import scripting from '../../scripting';
 import { AssetChangeInfo, DBChangeType } from '../../scripting/packer-driver/asset-db-interop';
 import { AssetActionEnum } from '@cocos/asset-db';
+import { GlobalPaths } from '../../../global';
 
 const AssetDBPriority: Record<string, number> = {
     internal: 99,
@@ -58,6 +60,7 @@ class AssetDBManager extends EventEmitter {
     public assetDBMap: Record<string, assetdb.AssetDB> = {};
     // 保留回滚未完成的实例与注册信息，下一次 start/stop 必须先完成清理。
     private pendingStartupCleanup = new Map<assetdb.AssetDB, IStartupDatabaseCleanupInfo>();
+    /** 保留已发布的可写字段以兼容旧调用方；实际快照状态由 internal 数据库提供。 */
     public globalInternalLibrary = false;
 
     public setFileSystemProvider(provider: IAssetFileSystemProvider) {
@@ -131,15 +134,24 @@ class AssetDBManager extends EventEmitter {
      * 启动数据库入口；先完成遗留回滚，失败时保留配置与待清理实例供重试。
      */
     async start() {
-        newConsole.trackTimeStart('assets:start-database');
+        newConsole.trackTimeStart('asset-db:start-database');
         this.ready = false;
         await this._retryStartupCleanup();
-        const assetDBNames = await this._prepareStartupDatabases();
+        const internal = this.assetDBInfo.internal;
+        const prebuiltInternal = internal?.readonly && internal.library === join(GlobalPaths.workspace, 'dist', 'internal-assets')
+            ? internal : undefined;
+        const assetDBNames = await this._prepareStartupDatabases(prebuiltInternal);
         try {
+            if (prebuiltInternal && assetDBNames.includes(prebuiltInternal.name)) {
+                await this._startInternalSnapshot(prebuiltInternal);
+            } else if (internal && assetDBNames.includes(internal.name)) {
+                await this._registerInternalChunks(internal.target);
+            }
+            const importDBNames = assetDBNames.filter(name => name !== prebuiltInternal?.name);
             if (AssetDBManager.useCache) {
-                await this._startFromCache(assetDBNames);
+                await this._startFromCache(importDBNames);
             } else {
-                await this._startDirectly(assetDBNames);
+                await this._startDirectly(importDBNames);
             }
             await afterStartDB(this.assetDBInfo);
         } catch (error) {
@@ -148,14 +160,31 @@ class AssetDBManager extends EventEmitter {
         }
         this.ready = true;
         newConsole.trackTimeEnd('asset-db:start-database', { output: true });
-        // 性能测试: 资源冷导入
-        newConsole.trackTimeEnd('asset-db:ready', { output: true });
         this.emit('assets:ready');
         // TODO 不是常驻模式，则无需开启，启动成功后，开始加载尚未注册的资源处理器
         // this.assetHandlerManager.activateRegisterAll();
 
         this.step();
         // TODO 启动成功后开始再去做一些日志缓存清理
+    }
+
+    private async _startInternalSnapshot(internal: IAssetDBInfo) {
+        const db = this.assetDBMap[internal.name];
+        const started = performance.now();
+        try {
+            for (const file of ['chunks.json', 'effect.bin']) {
+                if (!existsSync(join(internal.library, file))) throw new Error(`Missing ${file}`);
+            }
+            await db.startFromSnapshot();
+            const { usePrebuiltChunkRegistry } = await import('../effect-compiler');
+            usePrebuiltChunkRegistry(join(internal.library, 'chunks.json'));
+        } catch (error) {
+            throw new Error(`Cannot mount built-in assets from ${internal.library}. Rebuild or reinstall cocos-cli: ${String(error)}`, { cause: error });
+        }
+        internal.state = 'startup';
+        this.emit('db-started', db);
+        this.emit('assets:db-ready', internal);
+        console.info(`[AssetDB] Mounted prebuilt internal assets (${db.path2asset.size}, ${Math.round(performance.now() - started)}ms)`);
     }
 
     /**
@@ -206,7 +235,7 @@ class AssetDBManager extends EventEmitter {
      * 创建并注册全部初始数据库，确保首个 importer 能解析跨库脚本依赖。
      * 仅准备本次新增的库；准备失败时撤销它们，保留配置供重试。
      */
-    private async _prepareStartupDatabases() {
+    private async _prepareStartupDatabases(prebuiltInternal?: IAssetDBInfo) {
         const assetDBNames = Object.keys(this.assetDBInfo)
             .sort((a, b) => (AssetDBPriority[b] || 0) - (AssetDBPriority[a] || 0))
             .filter((name) => !this.hasDB(name));
@@ -214,7 +243,8 @@ class AssetDBManager extends EventEmitter {
         try {
             for (const name of assetDBNames) {
                 attempted.push(name);
-                await this._createDB(this.assetDBInfo[name]);
+                const info = this.assetDBInfo[name];
+                await this._createDB(info, undefined, info === prebuiltInternal);
             }
             return assetDBNames;
         } catch (error) {
@@ -367,11 +397,12 @@ class AssetDBManager extends EventEmitter {
         return `db://${database.options.name}/${_path}`;
     }
 
-    private async _createDB(info: IAssetDBInfo, onScriptingRegistered?: () => void) {
-        ensureDirSync(info.library);
-        ensureDirSync(info.temp);
-        // TODO 目标数据库地址为空的时候，其实无需走后续完整的启动流程，可以考虑优化
-        ensureDirSync(info.target);
+    private async _createDB(info: IAssetDBInfo, onScriptingRegistered?: () => void, prebuilt = false) {
+        if (!prebuilt) {
+            ensureDirSync(info.library);
+            ensureDirSync(info.temp);
+            ensureDirSync(info.target);
+        }
         info.flags = {
             reimportCheck: this.reimportCheck,
         };
@@ -392,6 +423,48 @@ class AssetDBManager extends EventEmitter {
          await scripting.updateDatabases({dbID: info.name, target: info.target}, DBChangeType.add);
         onScriptingRegistered?.();
         return db;
+    }
+
+    /**
+     * Imports the staged engine assets and writes the snapshot during CLI build.
+     * @returns Resolves once the internal database can be mounted from the build output.
+     */
+    async buildInternalSnapshot(): Promise<void> {
+        const db = await this._createDB(this.assetDBInfo.internal);
+        try {
+            const { getChunkRegistry } = await import('../effect-compiler');
+            await this._registerInternalChunks(db.options.target);
+            await this._startDB(db.options.name);
+            // Queries need these fields before any lazy importer is activated.
+            const storeHandlerInfo = (asset: IAsset) => {
+                const handler = this.assetHandlerManager.name2handler[asset.meta.importer];
+                if (handler) {
+                    asset.setData('snapshotHandler', {
+                        assetType: handler.assetType,
+                        instantiation: handler.instantiation,
+                    });
+                }
+                Object.values(asset.subAssets).forEach(storeHandlerInfo);
+            };
+            db.path2asset.forEach(storeHandlerInfo);
+            const { buildInternalEffectBin } = await import('../asset-handler/assets/effect');
+            await buildInternalEffectBin(db);
+            await writeJSON(join(db.options.library, 'chunks.json'), getChunkRegistry());
+            await db.saveSnapshot();
+        } finally {
+            await db.stop();
+        }
+    }
+
+    private async _registerInternalChunks(target: string): Promise<void> {
+        // Keep basename aliases for existing shaders that include a built-in chunk by name.
+        const chunkDir = join(target, 'chunks');
+        if (!existsSync(chunkDir)) return;
+        const { addChunk } = await import('../effect-compiler');
+        const chunks = readdirSync(chunkDir, { recursive: true, encoding: 'utf8' }).filter(file => file.endsWith('.chunk'));
+        for (const chunk of chunks) {
+            addChunk(basename(chunk, '.chunk'), readFileSync(join(chunkDir, chunk), 'utf8'));
+        }
     }
 
     /**

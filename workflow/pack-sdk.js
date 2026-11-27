@@ -9,10 +9,12 @@ const { parseArgs } = require('node:util');
 const semver = require('semver');
 const { resolveEnginePath } = require('./engine-path');
 
+const INTERNAL_ASSET_LIBRARY = 'dist/internal-assets';
+const INTERNAL_ASSET_INDEX = `${INTERNAL_ASSET_LIBRARY}/.internal`;
 const CLI_ROOTS = ['dist', 'static', 'docs/en', 'docs/zh', 'docs/dev/environment-setup.md', 'readme.md', 'README-zh.md', 'config.local.example.json', 'engine-compatibility.json', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'packages/cc-module', 'packages/engine-compiler/dist', 'packages/platforms', 'LICENSE'];
 const ENGINE_ROOTS = ['cocos', 'editor', 'exports', 'extensions', 'external', 'native', 'pal', 'templates', 'vendor', 'licenses', '@types', 'bin/.cache/dev-cli', 'bin/.declarations', 'bin/.editor', 'bin/adapter', 'bin/simulator', 'bin/native-preview', 'cc.config.json', 'cc.config.schema.json', 'DebugInfos.json', 'DebugInfos.d.ts', 'predefine.ts', 'tsconfig.json', 'LICENSE', 'AUTHORS.txt'];
 const REQUIRED = {
-    cli: ['dist/cli.js', 'dist/index.js', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'engine-compatibility.json', 'packages/cc-module/loader.js', 'packages/cc-module/preload.js', 'packages/engine-compiler/dist/index.js'],
+    cli: ['dist/cli.js', 'dist/index.js', INTERNAL_ASSET_INDEX, 'dist/internal-assets/.internal-info.json', 'dist/internal-assets/.internal-data.json', 'dist/internal-assets/.internal-dependency.json', 'dist/internal-assets/engine.json', 'dist/internal-assets/chunks.json', 'dist/internal-assets/effect.bin', 'dist/preview-systemjs/system.js', 'workflow/engine-path.js', 'workflow/engine-compatibility.js', 'workflow/engine-diagnostics.js', 'engine-compatibility.json', 'packages/cc-module/loader.js', 'packages/cc-module/preload.js', 'packages/engine-compiler/dist/index.js'],
     engine: ['cc.config.json', 'cocos/core/platform/macro.ts', 'editor/engine-features/render-config.json', 'bin/.cache/dev-cli/editor/loader.js', 'bin/.cache/dev-cli/web/loader.js', 'bin/.editor/web-adapter.js', 'bin/.editor/engine-adapter.js', 'bin/.declarations/cc.d.ts'],
 };
 const slash = value => value.split(path.sep).join('/');
@@ -112,6 +114,37 @@ async function mapLimit(items, action, concurrency = 8) {
     return results;
 }
 
+function validateInternalAssetFiles(files) {
+    const index = files.get(INTERNAL_ASSET_INDEX);
+    if (!index) throw new Error(`Missing cli SDK build input: ${INTERNAL_ASSET_INDEX}. Build this SDK before packing.`);
+
+    let snapshot;
+    try {
+        snapshot = readJson(index.source);
+    } catch (cause) {
+        throw new Error(`Cannot read prebuilt Asset DB index ${INTERNAL_ASSET_INDEX}: ${cause.message}`, { cause });
+    }
+    if (snapshot?.version !== '1' || !Array.isArray(snapshot.assets) || !snapshot.assets.length) {
+        throw new Error(`Invalid prebuilt Asset DB index: ${INTERNAL_ASSET_INDEX}`);
+    }
+
+    function validateMeta(meta, id) {
+        if (typeof meta?.uuid !== 'string' || !Array.isArray(meta.files) || meta.files.some(file => typeof file !== 'string')) {
+            throw new Error(`Invalid prebuilt asset metadata in ${INTERNAL_ASSET_INDEX}: ${id}`);
+        }
+        // Match VirtualAsset.library and getFilePath() without loading the runtime database.
+        const library = `${INTERNAL_ASSET_LIBRARY}/${meta.uuid.slice(0, 2)}/${id}`;
+        for (const file of meta.files) {
+            const assetFile = file === '' || file.startsWith('.') ? `${library}${file}` : `${library}/${file}`;
+            if (!files.has(assetFile)) throw new Error(`Missing cli SDK build input: ${assetFile}. Build this SDK before packing.`);
+        }
+        for (const submeta of Object.values(meta.subMetas ?? {})) {
+            if (submeta?.name) validateMeta(submeta, `${id}@${submeta.id}`);
+        }
+    }
+    for (const record of snapshot.assets) validateMeta(record?.meta, record?.meta?.uuid);
+}
+
 async function planSdk({ kind, source }) {
     if (!Object.hasOwn(REQUIRED, kind)) throw new Error('kind must be cli or engine');
     const root = fs.realpathSync.native(source);
@@ -131,6 +164,7 @@ async function planSdk({ kind, source }) {
         if (files.has(entry.path)) throw new Error(`Duplicate SDK file: ${entry.path}`);
         files.set(entry.path, entry);
     }
+    if (kind === 'cli') validateInternalAssetFiles(files);
     // Source-only build commands must never run when a prepared SDK is installed.
     const artifactPackage = { ...pkg, private: true };
     delete artifactPackage.scripts;

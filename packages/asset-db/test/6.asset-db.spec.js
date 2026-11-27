@@ -3,6 +3,7 @@
 const { expect } = require('chai');
 
 const fse = require('fs-extra');
+const { tmpdir } = require('os');
 const path = require('path');
 
 const { AssetDB } = require('../dist/libs/asset-db');
@@ -12,6 +13,162 @@ const { VirtualAsset } = require('../dist/libs/asset');
 const { nameToId } = require('../dist/libs/utils');
 
 describe('AssetDB', () => {
+
+    describe('prebuilt read-only snapshot', () => {
+        let root;
+        let runtimeDB;
+        let options;
+        let snapshot;
+        let uuid;
+        let subassetUuid;
+
+        before(async () => {
+            root = await fse.mkdtemp(path.join(tmpdir(), 'asset-db-snapshot-'));
+            options = {
+                name: 'snapshot',
+                target: path.join(root, 'source'),
+                library: path.join(root, 'library'),
+                temp: path.join(root, 'temp'),
+                readonly: true,
+                level: 0,
+            };
+            const buildDB = new AssetDB(options);
+            try {
+                await fse.outputFile(path.join(options.target, 'dir/file.txt'), 'prebuilt');
+                await buildDB.start();
+                uuid = buildDB.pathToUuid(path.join(options.target, 'dir/file.txt'));
+                const asset = buildDB.getAsset(uuid);
+                asset.setData('test', 42);
+                const subasset = await asset.createSubAsset('child', '*');
+                subasset.imported = true;
+                subasset.init = true;
+                subasset.setData('test', 84);
+                subassetUuid = subasset.uuid;
+                await buildDB.saveSnapshot();
+                snapshot = await fse.readFile(buildDB.cachePath, 'utf8');
+            } finally {
+                await buildDB.stop();
+            }
+            // Keep the artifact and deliberately point the runtime at a different, missing root.
+            options.target = path.join(root, 'relocated');
+        });
+
+        afterEach(async () => {
+            await runtimeDB?.stop();
+            runtimeDB = undefined;
+        });
+
+        after(async () => {
+            if (root) await fse.remove(root);
+        });
+
+        it('restores usable assets without scanning or rewriting the source or snapshot', async () => {
+            runtimeDB = new AssetDB(options);
+            await runtimeDB.startFromSnapshot();
+            const asset = runtimeDB.getAsset(uuid);
+            await asset.waitInit();
+            expect(asset.source).to.equal(path.join(options.target, 'dir/file.txt'));
+            expect(asset.url).to.equal('db://snapshot/dir/file.txt');
+            expect(asset.imported).to.equal(true);
+            expect(asset.getData('test')).to.equal(42);
+            expect(runtimeDB.getAsset(subassetUuid).getData('test')).to.equal(84);
+            expect(await fse.readFile(asset.library + '.txt', 'utf8')).to.equal('prebuilt');
+            expect(await runtimeDB.refresh(options.target)).to.equal(0);
+            expect(await runtimeDB.reimport(uuid)).to.equal(asset);
+            const dataPath = path.join(options.library, '.snapshot-data.json');
+            const data = await fse.readFile(dataPath, 'utf8');
+            asset.setData('runtimeMemo', true);
+            expect(asset.getData('runtimeMemo')).to.equal(true);
+            runtimeDB.dataManager.saveImmediate();
+            expect(await fse.readFile(dataPath, 'utf8')).to.equal(data);
+            await runtimeDB.save();
+            await runtimeDB.stop();
+            runtimeDB = undefined;
+            expect(await fse.pathExists(options.target)).to.equal(false);
+            expect(await fse.readFile(path.join(options.library, '.snapshot'), 'utf8')).to.equal(snapshot);
+        });
+
+        it('rejects a missing or invalid artifact without scanning source', async () => {
+            runtimeDB = new AssetDB({ ...options, library: path.join(root, 'missing') });
+            await runtimeDB.startFromSnapshot().then(
+                () => { throw new Error('Missing snapshot was accepted'); },
+                error => expect(error.code).to.equal('ENOENT'),
+            );
+            await runtimeDB.stop();
+
+            runtimeDB = new AssetDB(options);
+            await fse.writeJSON(runtimeDB.cachePath, { ...JSON.parse(snapshot), version: 'invalid' });
+            try {
+                await runtimeDB.startFromSnapshot().then(
+                    () => { throw new Error('Invalid snapshot was accepted'); },
+                    error => expect(error.message).to.include('Invalid prebuilt Asset DB index'),
+                );
+            } finally {
+                await fse.writeFile(runtimeDB.cachePath, snapshot);
+            }
+        });
+
+        for (const suffix of ['info', 'data', 'dependency']) {
+            for (const [description, contents] of [
+                ['missing', undefined],
+                ['invalid JSON', '{'],
+                ['null', 'null'],
+                ['an array', '[]'],
+                ['a primitive', '42'],
+                ['an invalid record', JSON.stringify({
+                    info: { version: '1.0.1', map: { file: null }, missing: {} },
+                    data: {},
+                    dependency: { version: '1.0.0', data: { path: { file: 'invalid' }, uuid: {} } },
+                }[suffix])],
+            ]) {
+                it(`rejects ${description} ${suffix} records before mounting`, async () => {
+                    const file = path.join(options.library, `.snapshot-${suffix}.json`);
+                    const original = await fse.readFile(file, 'utf8');
+                    try {
+                        if (contents === undefined) await fse.remove(file);
+                        else await fse.writeFile(file, contents);
+                        runtimeDB = new AssetDB(options);
+                        await runtimeDB.startFromSnapshot().then(
+                            () => { throw new Error(`Invalid ${suffix} records were accepted`); },
+                            error => expect(error).to.be.an('error'),
+                        );
+                        expect(runtimeDB.flag.started).to.equal(false);
+                        expect(runtimeDB.path2asset.size).to.equal(0);
+                        expect(await fse.pathExists(options.target)).to.equal(false);
+                    } finally {
+                        await fse.writeFile(file, original);
+                    }
+                });
+            }
+        }
+
+        for (const [description, invalidate] of [
+            ['missing asset data', data => delete data[uuid]],
+            ['null asset data', data => { data[uuid] = null; }],
+            ['missing asset values', data => delete data[uuid].value],
+            ['array asset values', data => { data[uuid].value = []; }],
+            ['missing subasset data', data => delete data[subassetUuid]],
+        ]) {
+            it(`rejects ${description} before mounting`, async () => {
+                const file = path.join(options.library, '.snapshot-data.json');
+                const original = await fse.readFile(file, 'utf8');
+                try {
+                    const data = JSON.parse(original);
+                    invalidate(data);
+                    await fse.writeJSON(file, data);
+                    runtimeDB = new AssetDB(options);
+                    await runtimeDB.startFromSnapshot().then(
+                        () => { throw new Error('Incomplete asset data was accepted'); },
+                        error => expect(error.message).to.include('Invalid prebuilt asset data'),
+                    );
+                    expect(runtimeDB.flag.started).to.equal(false);
+                    expect(runtimeDB.path2asset.size).to.equal(0);
+                } finally {
+                    await fse.writeFile(file, original);
+                }
+            });
+        }
+    });
 
     const PATH = {
         ROOT: path.join(__dirname, './asset-db'),
