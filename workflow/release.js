@@ -511,6 +511,17 @@ function createReleasePipeline(config) {
         await setCliExecutablePermissions(extensionDir());
     };
 
+    const removeEngine = async () => {
+        const releaseDir = await fs.realpath(extensionDir());
+        const packagesDir = path.join(releaseDir, 'packages');
+        if (!(await fs.lstat(packagesDir)).isDirectory()) {
+            throw new Error(`Expected a packages directory inside the release: ${packagesDir}`);
+        }
+        for (const name of ['engine', 'engine-compiler']) {
+            await fs.remove(path.join(packagesDir, name));
+        }
+    };
+
     const pack = async () => {
         if (config.zip) {
             console.log('Creating ZIP archive...');
@@ -557,6 +568,7 @@ function createReleasePipeline(config) {
         materializeWorkspaces,
         rebuild,
         test,
+        removeEngine,
         sign,
         setPerms,
         pack,
