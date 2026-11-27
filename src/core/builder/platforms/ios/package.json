@@ -20,10 +20,6 @@
             }
         ]
     },
-    "scripts": {
-        "build-view": "node scripts/build-view.js",
-        "watch-view": "node scripts/build-view.js --watch"
-    },
     "publisher": "pink-cli",
     "engines": {
         "vscode": "*"
