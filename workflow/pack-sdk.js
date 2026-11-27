@@ -88,7 +88,11 @@ function excluded(relative, kind, dependency) {
     if (dependency) return false;
     if (kind === 'cli' && (parts.includes('test') || parts.includes('tests') || parts.includes('__tests__'))) return true;
     if (kind === 'cli' && relative.startsWith('packages/') && parts.includes('src')) return true;
-    if (kind === 'engine' && (/^bin\/\.cache\/dev-cli\/(editor|web)\/transform-cache\//.test(relative) || /\/(?:\.incremental\.json|partial-import-map\.json)$/.test(relative))) return true;
+    if (kind === 'engine' && (
+        ['.gitignore', '.gitmodules'].includes(parts.at(-1))
+        || /^bin\/\.cache\/dev-cli\/(editor|web)\/transform-cache\//.test(relative)
+        || /\/(?:\.incremental\.json|partial-import-map\.json)$/.test(relative)
+    )) return true;
     return false;
 }
 

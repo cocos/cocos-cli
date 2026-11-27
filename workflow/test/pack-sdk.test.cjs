@@ -52,6 +52,9 @@ test('Engine snapshot uses actual engine version and includes prepared adapters'
     write(options.source, 'editor/library/required.bin', 'asset');
     write(options.source, 'bin/dev/cc-min/base.js', 'minified');
     write(options.source, 'native/external/ios-xcframework/CMakeLists.txt', 'provided by the engine external');
+    const gitMetadata = ['native/.gitmodules', 'native/external/.gitignore', 'templates/android/template/.gitignore'];
+    for (const file of gitMetadata) write(options.source, file, '');
+    write(options.source, 'templates/android/template/settings.gradle', 'build template');
     const xcode = 'scripts/native-pack-tool/xcode';
     write(options.source, `${xcode}/package.json`, { name: 'xcode', version: '1.0.0', dependencies: { plist: '*' } });
     write(options.source, `${xcode}/index.js`, 'module.exports = require("plist");');
@@ -66,6 +69,12 @@ test('Engine snapshot uses actual engine version and includes prepared adapters'
     assert.equal(fs.existsSync(path.join(options.output, 'bin/.cache/dev-cli/editor/transform-cache')), false);
     assert.equal(fs.readFileSync(path.join(options.output, 'bin/dev/cc-min/base.js'), 'utf8'), 'minified');
     assert.equal(fs.existsSync(path.join(options.output, 'native/external/ios-xcframework/CMakeLists.txt')), true);
+    assert.equal(fs.readFileSync(path.join(options.output, 'templates/android/template/settings.gradle'), 'utf8'), 'build template');
+    for (const file of gitMetadata) {
+        assert.equal(fs.existsSync(path.join(options.source, file)), true, file);
+        assert.equal(fs.existsSync(path.join(options.output, file)), false, file);
+        assert.equal(manifest.files.some(entry => entry.path === file), false, file);
+    }
     assert.equal(require(path.join(options.output, xcode)), 'bundled');
     assert.equal(fs.existsSync(path.join(options.output, `${xcode}/node_modules/dev`)), false);
     for (const entry of manifest.files) {
