@@ -5,8 +5,8 @@ const utils = require('./utils');
 const { resolveEnginePath } = require('./engine-path');
 
 /** Explicit environment preparation; never called by an npm install lifecycle. */
-async function setupDev({ compileEngine = true, force = false, minimalTools = false, root = path.resolve(__dirname, '..'), run = utils.runCommand } = {}) {
-    const engine = resolveEnginePath(root);
+async function setupDev({ compileEngine = true, force = false, minimalTools = false, enginePath, root = path.resolve(__dirname, '..'), run = utils.runCommand } = {}) {
+    const engine = resolveEnginePath(root, enginePath);
     if (!fs.existsSync(path.join(engine, 'package.json'))) {
         throw new Error(`Engine is missing at ${engine}. Configure enginePath in config.local.json, install a prepared SDK in packages/engine, or explicitly run npm run fetch:engine and npm run install:engine for source development.`);
     }
@@ -22,13 +22,13 @@ async function setupDev({ compileEngine = true, force = false, minimalTools = fa
         await run(process.execPath, ['--max-old-space-size=8192', path.join(workflow, 'compiler-engine.js'), '--engine-path', engine, ...forceArgs], nodeOptions);
     }
     await run(process.execPath, [path.join(workflow, 'build-cc-module.js'), '--engine-path', engine], nodeOptions);
-    await run('npm', ['run', 'build'], { cwd: root });
+    await run('npm', ['run', 'build'], { cwd: root, env: { ...process.env, COCOS_BUILD_ENGINE_PATH: engine } });
     await run(process.execPath, [path.join(workflow, 'download-tools.js'), ...forceArgs, ...(minimalTools ? ['--minimal'] : [])], nodeOptions);
 }
 
 if (require.main === module) {
-    const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'skip-engine': { type: 'boolean' }, 'minimal-tools': { type: 'boolean' } } });
-    setupDev({ compileEngine: !values['skip-engine'], force: values.force, minimalTools: values['minimal-tools'] || process.env.MINIMAL_DOWNLOAD_TOOLS === 'true' })
+    const { values } = parseArgs({ options: { force: { type: 'boolean' }, 'skip-engine': { type: 'boolean' }, 'minimal-tools': { type: 'boolean' }, 'engine-path': { type: 'string' } } });
+    setupDev({ compileEngine: !values['skip-engine'], force: values.force, enginePath: values['engine-path'], minimalTools: values['minimal-tools'] || process.env.MINIMAL_DOWNLOAD_TOOLS === 'true' })
         .then(() => console.log('Development environment prepared.'))
         .catch(error => { console.error(error); process.exitCode = 1; });
 }

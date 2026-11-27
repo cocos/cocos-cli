@@ -7,6 +7,10 @@ on:
         description: CLI ref, platform and Node version to prepare and test
         required: true
         type: string
+      release_timestamp:
+        description: Run timestamp used for default-branch Engine SDK releases
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -201,12 +205,14 @@ jobs:
       - name: Create verified Engine SDK ZIP
         if: github.event_name == 'workflow_dispatch'
         working-directory: harness
+        env:
+          ENGINE_SDK_RELEASE_TIMESTAMP: ${{ github.ref_type == 'branch' && github.ref_name == github.event.repository.default_branch && fromJson(inputs.target).ref == github.sha && inputs.release_timestamp || '' }}
         run: node workflow/sdk-source-shards.js zip ../verification
       - name: Upload verified Engine SDK ZIP
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v7
         with:
-          path: verification/engine-sdk-*.zip
+          path: verification/*engine-sdk-*.zip
           archive: false
           retention-days: 3
           if-no-files-found: error

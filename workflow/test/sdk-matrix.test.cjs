@@ -369,11 +369,12 @@ test('manually dispatched source shards upload one ZIP after full verification',
     const steps = workflow.jobs.verify.steps;
     const verify = steps.findIndex(step => step.run?.includes('sdk-source-shards.js verify'));
     const zip = steps.findIndex(step => step.run?.includes('sdk-source-shards.js zip'));
-    const upload = steps.findIndex(step => step.with?.path === 'verification/engine-sdk-*.zip');
+    const upload = steps.findIndex(step => step.with?.path === 'verification/*engine-sdk-*.zip');
     assert(verify >= 0 && verify < zip && zip < upload);
     assert.equal(steps[zip].if, "github.event_name == 'workflow_dispatch'");
     assert.equal(steps[upload].if, steps[zip].if);
     assert.equal(steps[upload].with.archive, false);
+    assert.match(steps[zip].env.ENGINE_SDK_RELEASE_TIMESTAMP, /fromJson\(inputs.target\).ref == github.sha/);
 });
 
 test('engine compatibility matrix supports manual and daily invocation without PR triggers', () => {

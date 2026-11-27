@@ -26,6 +26,15 @@ inputs:
     description: '报告服务器地址（用于生成下载链接）'
     required: false
     default: 'http://192.168.52.77:8080'
+  engine-sdk:
+    description: Extracted Engine SDK to use for the release
+    required: false
+  engine-sdk-receipt:
+    description: Selection record for the downloaded Engine SDK
+    required: false
+  dependencies-installed:
+    description: CLI dependencies have already been installed by setup-env
+    default: 'false'
 
 outputs:
   release_results:
@@ -62,6 +71,9 @@ runs:
         CREATE_ZIP: ${{ inputs.create-zip }}
         UPLOAD: ${{ inputs.upload }}
         REPORT_SERVER_URL: ${{ inputs.report-server-url }}
+        RELEASE_ENGINE_SDK: ${{ inputs.engine-sdk }}
+        RELEASE_ENGINE_SDK_RECEIPT: ${{ inputs.engine-sdk-receipt }}
+        RELEASE_DEPENDENCIES_INSTALLED: ${{ inputs.dependencies-installed }}
     
     - name: Check release result
       shell: bash

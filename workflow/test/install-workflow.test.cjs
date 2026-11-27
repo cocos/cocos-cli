@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* global require, process, __dirname */
+require('./release-engine-sdk.test.cjs');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -99,6 +100,7 @@ test('CLI setup uses a prepared custom engine without compiling or installing it
     assert.deepEqual(calls[0][1].slice(1), ['--engine-path', engine]);
     assert.equal(calls[0][2].shell, false);
     assert.deepEqual(calls[1].slice(0, 2), ['npm', ['run', 'build']]);
+    assert.equal(calls[1][2].env.COCOS_BUILD_ENGINE_PATH, engine);
     assert.ok(calls[2][1].includes('--minimal'));
     assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'config.local.json'))).project, 'preserve-me');
 });

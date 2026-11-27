@@ -39,6 +39,10 @@ on:
         required: true
         default: false
         type: boolean
+      engine-sdk-artifact-id:
+        description: '指定 Engine SDK 制品 ID，留空时自动选择最新的兼容版本'
+        required: false
+        type: string
 
 permissions:
   contents: read          # 读取代码
@@ -61,14 +65,31 @@ jobs:
         uses: ./.github/actions/setup-config
         with:
           feishu-webhook-url: ${{ secrets.FEISHU_WEBHOOK_URL }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
       
       - name: Setup environment
         uses: ./.github/actions/setup-env
+        with:
+          prepare-engine-source: 'false'
+
+      - name: Download compatible Engine SDK
+        id: engine-sdk
+        if: inputs.nodejs || inputs.electron
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENGINE_SDK_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          ENGINE_SDK_ARTIFACT_ID: ${{ inputs.engine-sdk-artifact-id }}
+        run: node workflow/release-engine-sdk.js --artifact-id "$ENGINE_SDK_ARTIFACT_ID"
       
       - name: Release build
         id: release
         if: inputs.nodejs == true || inputs.electron == true
         uses: ./.github/actions/release
+        env:
+          COCOS_STRICT_TOOL_DOWNLOADS: 'true'
         with:
           publish-dir: .publish
           nodejs: ${{ inputs.nodejs == true && 'true' || 'false' }}
@@ -76,6 +97,9 @@ jobs:
           create-zip: ${{ inputs.create-zip == true && 'true' || 'false' }}
           upload: ${{ inputs.upload-ftp == true && 'true' || 'false' }}
           report-server-url: ${{ steps.setup-config.outputs.REPORT_SERVER_URL }}
+          engine-sdk: ${{ steps.engine-sdk.outputs.path }}
+          engine-sdk-receipt: ${{ steps.engine-sdk.outputs.receipt }}
+          dependencies-installed: 'true'
       
       - name: Summary
         if: always()
@@ -139,4 +163,8 @@ jobs:
           TRIGGER_TYPE: ${{ github.event_name }}
           BRANCH: ${{ github.ref_name }}
           COMMIT: ${{ github.sha }}
+
+      - name: Require successful release
+        if: always() && (inputs.nodejs || inputs.electron) && steps.release.outputs.release_success != 'true'
+        run: exit 1
 

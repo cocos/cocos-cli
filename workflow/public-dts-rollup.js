@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const entries = require('./scene-api-entries.json');
+const { resolveEnginePath } = require('./engine-path');
 
 const PACKAGE_NAME = '@cocos/cocos-cli-types';
 const root = path.resolve(__dirname, '..');
@@ -164,7 +165,8 @@ async function rollupDomains({ workspace, packageRoot, generated, reachable, pub
         }
         staged.set(path.join(packageRoot, domain + '.d.ts'), code);
     }
-    for (const name of ['cc.d.ts', 'cc.editor.d.ts']) staged.set(path.join(packageRoot, name), fs.readFileSync(path.join(root, 'packages/engine/bin/.declarations', name), 'utf8'));
+    const declarations = path.join(resolveEnginePath(root, process.env.COCOS_BUILD_ENGINE_PATH), 'bin/.declarations');
+    for (const name of ['cc.d.ts', 'cc.editor.d.ts']) staged.set(path.join(packageRoot, name), fs.readFileSync(path.join(declarations, name), 'utf8'));
     const editorDeclarations = path.join(packageRoot, 'cc.editor.d.ts');
     // The engine rollup leaks one source-relative import. Its public InputKey
     // alias already names the same NodeInputPath type in this namespace.

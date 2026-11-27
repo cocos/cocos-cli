@@ -1,6 +1,18 @@
 # 独立 CLI / Engine SDK 本地打包
 
-本入口将 CLI 和 Engine 分别打成可离线使用的目录快照。`pack:cli-sdk` 复制已构建的 CLI；`pack:engine-sdk` 先在所选引擎源码目录准备编译产物，再生成快照。两个命令都要求事先安装好依赖，不更新 Git 仓库或上传产物。现有 `npm run release` 仍是独立的整包发布流程。
+本入口将 CLI 和 Engine 分别打成可离线使用的目录快照。`pack:cli-sdk` 复制已构建的 CLI；`pack:engine-sdk` 先在所选引擎源码目录准备编译产物，再生成快照。两个命令都要求事先安装好依赖，不更新 Git 仓库或上传产物。CLI 发布也可以复用预编译的 Engine SDK。
+
+## 使用预编译 Engine SDK 发布 CLI
+
+本地可以指定已解压的 Engine SDK：
+
+```powershell
+npm run release -- --nodejs --zip --engine-sdk D:/sdk/cocos-engine-sdk
+```
+
+GitHub Actions 的 `Publish` 默认从同仓库的 `Engine tag SDK matrix` 选包。先在默认分支手动运行矩阵，保持 `cli_ref` 为空。验证通过后，`cocos-engine-sdk-*` ZIP 可用于发布，保留 3 天。自动选包根据平台、架构、Node ABI 和当前 CLI 的兼容规则，选择最高的非实验版本；同版本取最新制品。再次发布时可以填 `engine-sdk-artifact-id` 复用原制品。
+
+发布会用所选 SDK 构建 CLI，并用隔离副本跑 Node.js 发布 E2E。CLI 输出中的 `engine-sdk-selection.json` 记录使用的引擎版本和 revision；Actions 下载方式还记录 run ID、artifact ID 和 ZIP 的 SHA-256。
 
 ## 使用方式
 
