@@ -137,6 +137,14 @@ const tools = {
     ]
 };
 
+const platformVariantToolDirs = new Set(tools.win32
+    .map(tool => tool.dist)
+    .filter(dist => tools.darwin.some(tool => tool.dist === dist)));
+
+function getToolsForPlatform(platform = process.platform) {
+    return [...(tools[platform] || []), ...tools.common];
+}
+
 function containsToolFiles(directory, requiredFile) {
     if (!fs.statSync(directory, { throwIfNoEntry: false })?.isDirectory()) return false;
     if (requiredFile) {
@@ -420,10 +428,11 @@ class ToolDownloader {
             const tempFilePath = path.join(this.tempDir, fileName);
             const targetDir = path.join(this.toolsDir, tool.dist);
 
-            // 目录已存在时：无记录（老用户首次）或 url 未变化，则跳过；url 变化则重新下载
+            // 发布时以下载记录区分共用目录名的不同宿主版本。
             if (containsToolFiles(targetDir, tool.requiredFile)) {
                 const existing = this.manifest[tool.dist];
-                if (!existing || existing.url === tool.url) {
+                const requiresRecord = process.env.COCOS_RELEASE_TOOLS === 'true' && platformVariantToolDirs.has(tool.dist);
+                if (existing?.url === tool.url || (!existing && !requiresRecord)) {
                     if (!existing) {
                         // 老用户首次升级：以当前 url 建立基线，不重新下载
                         this.recordTool(tool);
@@ -510,9 +519,7 @@ class ToolDownloader {
         this.ensureDir(this.toolsDir);
 
         // 获取工具列表
-        const platformTools = tools[this.platform] || [];
-        const commonTools = tools.common || [];
-        let allTools = [...platformTools, ...commonTools];
+        let allTools = getToolsForPlatform(this.platform);
 
         if (this.minimal) {
             allTools = allTools.filter(tool => tool.essential);
@@ -578,4 +585,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { ToolDownloader };
+module.exports = { ToolDownloader, getToolsForPlatform, platformVariantToolDirs };

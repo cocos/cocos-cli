@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { prepare } = require('../sdk-platform-tools');
-const { ToolDownloader } = require('../download-tools');
+const { ToolDownloader, getToolsForPlatform } = require('../download-tools');
 const prepareFull = (downloader, output) => prepare(downloader, output, false);
 function fixture(t) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cocos-tools-cache-'));
@@ -56,6 +56,23 @@ test('partial download failure cannot create a successful cache manifest or save
     await assert.rejects(prepareFull(downloader(root, true), output));
     assert.equal(fs.existsSync(path.join(root, 'tools/.sdk-tool-integrity.json')), false);
     assert.equal(fs.existsSync(output), false);
+});
+
+test('release preparation refreshes a shared tool directory without a download record', async t => {
+    const previous = process.env.COCOS_RELEASE_TOOLS;
+    process.env.COCOS_RELEASE_TOOLS = 'true';
+    t.after(() => {
+        if (previous === undefined) delete process.env.COCOS_RELEASE_TOOLS;
+        else process.env.COCOS_RELEASE_TOOLS = previous;
+    });
+    const value = downloader(fixture(t));
+    const tool = getToolsForPlatform('darwin').find(({ dist }) => dist === 'cmake');
+    const target = path.join(value.toolsDir, tool.dist);
+    fs.mkdirSync(target, { recursive: true });
+    fs.mkdirSync(value.tempDir);
+    fs.writeFileSync(path.join(target, 'cmake.exe'), 'unrecorded Windows tool');
+    assert.deepEqual(await value.processTool(tool, 0, 1), { success: true, skipped: false });
+    assert.equal(value.manifest[tool.dist].url, tool.url);
 });
 
 test('Windows retries an empty extraction without reusing a stale tool directory', async t => {

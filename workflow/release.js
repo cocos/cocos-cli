@@ -7,6 +7,7 @@ const { Command } = require('commander');
 const gulp = require('gulp');
 const { runCommand, create7ZipArchive, zipArchive } = require('./utils');
 const { materializeAssetDbWorkspace } = require('./materialize-asset-db-workspace');
+const { collectReleaseFiles, toolManifestPath } = require('./release-files');
 
 // Global context to share state between tasks
 const context = {
@@ -15,6 +16,7 @@ const context = {
     version: '',
     ignorePatterns: [],
     allFiles: [],
+    toolManifest: undefined,
     configs: [],
     args: {}
 };
@@ -161,16 +163,11 @@ async function readIgnorePatterns() {
  * Scan project files to copy
  */
 async function scanProjectFiles() {
-    console.log('Scanning project files...');
-    const allFiles = await globby(['**/*'], {
-        cwd: context.rootDir,
-        dot: true,
-        ignore: context.ignorePatterns,
-        onlyFiles: true
-    });
-
-    console.log(`Found ${allFiles.length} files to copy`);
-    context.allFiles = allFiles;
+    console.log(`Scanning project files and ${process.platform} tools...`);
+    const { files, toolManifest } = await collectReleaseFiles(context.rootDir, context.ignorePatterns);
+    console.log(`Found ${files.length} files to copy`);
+    context.allFiles = files;
+    context.toolManifest = toolManifest;
 }
 
 /**
@@ -198,7 +195,9 @@ async function updateRepos() {
 async function installDeps() {
     await runCommand('npm', ['install'], { cwd: context.rootDir, env: { ...process.env, COCOS_SKIP_POSTINSTALL_PREPARE: 'true' } });
     await runCommand('npm', ['run', 'install:engine'], { cwd: context.rootDir });
-    await runCommand('npm', ['run', 'setup:dev', '--', '--force'], { cwd: context.rootDir });
+    await runCommand('npm', ['run', 'setup:dev', '--', '--force'], {
+        cwd: context.rootDir, env: { ...process.env, COCOS_RELEASE_TOOLS: 'true' },
+    });
 }
 
 /**
@@ -473,7 +472,11 @@ function createReleasePipeline(config) {
             const srcPath = path.join(context.rootDir, file);
             const destPath = path.join(dir, file);
             await fs.ensureDir(path.dirname(destPath));
-            await fs.copy(srcPath, destPath);
+            if (file === toolManifestPath) {
+                await fs.writeJson(destPath, context.toolManifest, { spaces: 2 });
+            } else {
+                await fs.copy(srcPath, destPath);
+            }
             copiedCount++;
         }
         console.log(`Successfully copied ${copiedCount} files`);
