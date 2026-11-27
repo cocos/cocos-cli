@@ -2,6 +2,7 @@ import { copySync, ensureDirSync, outputFile, readFileSync, readJsonSync, remove
 import { basename, dirname, extname, join } from 'path';
 import { checkHasMipMaps, compressMipmapFiles, genMipmapFiles } from './minimaps';
 import { compressCustomFormat, getCompressFunc } from './compress-tool';
+import { runCustomTextureHandlers } from './custom-handlers';
 import { ImageAsset } from 'cc';
 import { buildAssetLibrary } from '../../manager/asset-library';
 import { changeInfoToLabel, getSuffix } from './utils';
@@ -274,11 +275,11 @@ export class TextureCompress extends EventEmitter {
         }
         const compressQueueCopy = JSON.parse(JSON.stringify(compressQueue));
         // 2. 优先执行构建自定义纹理压缩钩子函数，此流程会修改 compressQueueCopy 内的任务数量，需要深拷贝
-        const customHandlerInfos: IBuildAssetHandlerInfo = pluginManager.getAssetHandlers('compressTextures');
+        const customHandlerInfos: IBuildAssetHandlerInfo = pluginManager.getAssetHandlers('compressTextures', this.platform);
         if (customHandlerInfos.pkgNameOrder.length) {
             this.emit('update-progress', 'start compress custom compress hooks...');
             newConsole.trackTimeStart('builder:custom-compress-texture');
-            await this.customCompressImage(compressQueueCopy, customHandlerInfos);
+            await runCustomTextureHandlers(compressQueueCopy, customHandlerInfos);
             await newConsole.trackTimeEnd('builder:custom-compress-texture', { output: true });
             console.debug(`custom compress ${compressQueue.length - compressQueueCopy.length} / ${compressQueue.length}`);
         }
@@ -499,24 +500,6 @@ export class TextureCompress extends EventEmitter {
         const { busyAsset, resolve } = this._compressExecuteInfo!;
         if (!busyAsset.size) {
             return resolve();
-        }
-    }
-
-    private async customCompressImage(compressQueue: ICompressConfig[], infos: IBuildAssetHandlerInfo) {
-        for (let i = 0; i < infos.pkgNameOrder.length; i++) {
-            const pkgName = infos.pkgNameOrder[i];
-            const handler = infos.handles[pkgName];
-            if (!handler) {
-                continue;
-            }
-            try {
-                console.debug(`Start custom compress(${pkgName})`);
-                // 实际需要压缩的纹理任务
-                await handler(compressQueue);
-            } catch (error) {
-                console.error(error);
-                console.error(`Custom Compress (${pkgName}) failed!`);
-            }
         }
     }
 

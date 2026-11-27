@@ -84,10 +84,11 @@ jobs:
           # Detect truly removed API lines by comparing deleted vs added lines.
           # Lines that appear in both deleted and added sets are modifications or
           # snapshot reorganizations (due to index.d.ts duplication), not removals.
-          # Only lines present in deleted but NOT in added are real breaking changes.
+          # Private implementation members are not callable API and may move between helpers.
+          # Only public/protected lines present in deleted but NOT in added are API changes.
           extract_truly_deleted() {
             local diff_output="$1"
-            local noise_filter='grep -v "^exports\[" | grep -v "^$" | grep -v "^[[:space:]]*$" | grep -v "^\`;" | grep -v "^[[:space:]]*}[;,]\?$" | grep -v "^export { }$" | grep -v "^[[:space:]]*static readonly version" | grep -v "^export { .*_[0-9]\+ as "'
+            local noise_filter='grep -v "^exports\[" | grep -v "^$" | grep -v "^[[:space:]]*$" | grep -v "^\`;" | grep -v "^[[:space:]]*}[;,]\?$" | grep -v "^export { }$" | grep -v "^[[:space:]]*private " | grep -v "^[[:space:]]*static readonly version" | grep -v "^export { .*_[0-9]\+ as "'
 
             # Extract deleted lines (strip leading -, normalize non-semantic syntax differences)
             local deleted

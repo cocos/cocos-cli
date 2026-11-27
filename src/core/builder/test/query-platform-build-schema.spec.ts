@@ -68,6 +68,7 @@ jest.mock('../share/builder-config', () => ({
                 default: 'merge_dep',
             },
         },
+        getProject: jest.fn(),
         setProject: jest.fn(),
         buildTemplateDir: '',
     },

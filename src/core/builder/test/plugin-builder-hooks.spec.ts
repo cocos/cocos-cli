@@ -33,12 +33,13 @@ jest.mock('../share/builder-config', () => ({
     __esModule: true,
     default: {
         commonOptionConfigs: {},
+        getProject: jest.fn(),
         setProject: jest.fn(),
     },
 }));
 
 jest.mock('../share/texture-compress', () => ({
-    configGroups: {},
+    configGroups: { web: { support: { rgb: [], rgba: [] } } },
     textureFormatConfigs: {},
     formatsInfo: {},
     defaultSupport: {},
@@ -76,6 +77,8 @@ class TestBuildTask extends BuildTaskBase {
     async run() {
         return true;
     }
+
+    execute(action: () => Promise<boolean>) { return this.withHookLifecycle(action); }
 }
 
 function createExtension(extensionDirectory: string, manifest: Record<string, unknown>, entry = 'builder.js', contents = 'module.exports = {};') {
@@ -125,6 +128,39 @@ describe('PluginManager builtin extension Builder hooks', () => {
         rmSync(tempRoot, { recursive: true, force: true });
         builtinRoot = '';
         delete (globalThis as { __cocosCliBuilderBuiltinRoot?: string }).__cocosCliBuilderBuiltinRoot;
+    });
+
+    it('loads once, notifies once and unloads after a failed task without replacing its error', async () => {
+        const marker = join(tempRoot, 'lifecycle.txt');
+        const entry = join(tempRoot, 'lifecycle.cjs');
+        writeFileSync(entry, `const fs = require('fs'); const record = name => fs.appendFileSync(${JSON.stringify(marker)}, name + '\\n');
+exports.load = () => record('load');
+exports.onError = () => { record('error'); throw new Error('observer failed'); };
+exports.unload = () => { record('unload'); throw new Error('cleanup failed'); };`);
+        const task = new TestBuildTask('lifecycle', 'lifecycle');
+        task.hooksInfo = { pkgNameOrder: ['plugin'], infos: { plugin: { path: entry, internal: false } } };
+        const failure = new Error('original failure');
+        await expect(task.execute(async () => { throw failure; })).rejects.toBe(failure);
+        await task.runErrorHook();
+        expect(task.error).toBe(failure);
+        expect(readFileSync(marker, 'utf8').trim().split('\n')).toEqual(['load', 'error', 'unload']);
+    });
+
+    it('releases successfully loaded modules when a later load fails and skips lifecycle in preview', async () => {
+        const marker = join(tempRoot, 'loads.txt');
+        const first = join(tempRoot, 'first.cjs');
+        const second = join(tempRoot, 'second.cjs');
+        writeFileSync(first, `exports.load = () => {}; exports.unload = () => require('fs').appendFileSync(${JSON.stringify(marker)}, 'released');`);
+        writeFileSync(second, `exports.load = () => { throw new Error('load failed'); };`);
+        const task = new TestBuildTask('loads', 'loads');
+        task.hooksInfo = { pkgNameOrder: ['first', 'second'], infos: { first: { path: first, internal: true }, second: { path: second, internal: true } } };
+        await expect(task.execute(async () => true)).rejects.toThrow('load failed');
+        expect(readFileSync(marker, 'utf8')).toBe('released');
+        const preview = new TestBuildTask('preview', 'preview');
+        preview.options.preview = true;
+        preview.hooksInfo = task.hooksInfo;
+        await expect(preview.execute(async () => true)).resolves.toBe(true);
+        expect(readFileSync(marker, 'utf8')).toBe('released');
     });
 
     it('uses the builtin resolver in init and mounts only after register(platform)', async () => {

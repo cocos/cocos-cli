@@ -1,3 +1,4 @@
+import type { BuildInitializationOptions, BuildRegistration } from './registration';
 import { readJSONSync } from 'fs-extra';
 import i18n from '../base/i18n';
 import { BuildExitCode, BuildStageProgressCallback, IBuildCommandOption, IBuildResultData, IBuildStageOptions, IBuildTaskOption, IBundleBuildOptions, IPreviewSettingsResult, Platform } from './@types/private';
@@ -16,8 +17,17 @@ import { BuildGlobalInfo } from './share/global';
 export { clearCache } from './cache';
 export type { BuildCacheScope, ClearCacheOptions, ClearCacheResult } from './cache';
 
-export async function init(platform?: string[]) {
+export function init(platform?: string[]): Promise<void>;
+export function init(platform?: string[] | BuildInitializationOptions): Promise<void>;
+export async function init(platform?: string[] | BuildInitializationOptions) {
+    if (platform && !Array.isArray(platform) && platform.discovery !== 'external') {
+        throw new Error('Unsupported build discovery mode.');
+    }
     await builderConfig.init();
+    if (platform && !Array.isArray(platform)) {
+        middlewareService.register('Build', BuildMiddleware);
+        return;
+    }
     await pluginManager.init();
     middlewareService.register('Build', BuildMiddleware);
     if (platform?.length) {
@@ -27,6 +37,11 @@ export async function init(platform?: string[]) {
     } else {
         await pluginManager.registerAllPlatform();
     }
+}
+
+/** Register one prepared platform or extension; no filesystem discovery is performed. */
+export async function register(input: BuildRegistration): Promise<void> {
+    await pluginManager.registerContribution(input);
 }
 
 function getBuilderLogRoot() {
